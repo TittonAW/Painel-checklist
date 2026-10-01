@@ -2651,6 +2651,18 @@ function abrirModalDuplicata(comConflito){
 }
 
 async function processarNovosArquivos(resultado){
+  // se um arquivo já tinha dado erro antes e agora foi reenviado (reconhecido ou não),
+  // tira a entrada antiga da lista de erros — senão fica um erro "fantasma" de uma
+  // tentativa anterior, mesmo depois do arquivo ter sido processado com sucesso
+  const nomesNesteEnvio = new Set();
+  resultado.erros.forEach((e) => { const m = /^"([^"]+)":/.exec(e); if (m) nomesNesteEnvio.add(m[1]); });
+  resultado.resultados.forEach((r) => { if (r.arquivo) nomesNesteEnvio.add(r.arquivo); });
+  if (nomesNesteEnvio.size>0){
+    errosAcumulados = errosAcumulados.filter((e) => {
+      const m = /^"([^"]+)":/.exec(e);
+      return !(m && nomesNesteEnvio.has(m[1]));
+    });
+  }
   errosAcumulados = errosAcumulados.concat(resultado.erros);
   if (resultado.resultados.length === 0){ renderPreviewEnvio(); return; }
   const { semConflito, comConflito } = await separarDuplicatas(resultado.resultados);
