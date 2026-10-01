@@ -732,7 +732,7 @@ function lerPlanilha(ws, nomeArquivo, imagensInfo){
         if (m) revisao = m[1];
       }
       const vu = v.toUpperCase();
-      if (tituloRow === -1 && (vu.indexOf('VERSÃO OBRA') === 0 || vu.indexOf('VERSAO OBRA') === 0)){
+      if (tituloRow === -1 && vu.indexOf('VERS') === 0){
         tituloRow = r; tituloTexto = v;
       }
       if (headerRow === -1 && vu === 'ITEM'){
@@ -996,7 +996,11 @@ function extrairLinhasDaPagina(itensPagina, larguraPagina){
   let tituloTexto = '', tituloY = null, revisaoY = null, revisao = null;
   itensPagina.forEach((it) => {
     const t = it.texto.trim().toUpperCase();
-    if (tituloY === null && (t === 'VERSÃO' || t === 'VERSAO')) tituloY = it.y;
+    // "VERS" (sem acento) em vez de "VERSÃO"/"VERSAO" por inteiro — evita dois problemas de
+    // uma vez: (1) em alguns PDFs a frase inteira vem como um bloco de texto só, não palavra
+    // por palavra; (2) o "Ã" pode estar codificado de um jeito diferente dentro do PDF mesmo
+    // parecendo idêntico na tela, e comparar só as letras sem acento não tem esse risco
+    if (tituloY === null && t.indexOf('VERS') === 0) tituloY = it.y;
     if (revisaoY === null && t.indexOf('REVIS') === 0) revisaoY = it.y;
   });
   if (tituloY !== null){
@@ -2800,8 +2804,15 @@ function renderPreviewEnvio(){
   const grupos = agruparPorAndar(resultadosAcumulados);
   let html = '';
   if (errosAcumulados.length>0){
-    html += '<div class="aviso"><strong>'+errosAcumulados.length+' arquivo(s) não reconhecido(s):</strong><br>' +
-      errosAcumulados.map((e)=>esc(e)).join('<br>') + '</div>';
+    const LIMITE_RESUMO = 5; // acima disso, esconde a lista atrás de um "ver tudo" — uma parede de erros assusta mais do que ajuda
+    if (errosAcumulados.length <= LIMITE_RESUMO){
+      html += '<div class="aviso"><strong>'+errosAcumulados.length+' arquivo(s) não reconhecido(s):</strong><br>' +
+        errosAcumulados.map((e)=>esc(e)).join('<br>') + '</div>';
+    } else {
+      html += '<div class="aviso"><strong>'+errosAcumulados.length+' arquivo(s) não reconhecido(s)</strong> — nenhum desses foi salvo.' +
+        '<details style="margin-top:8px;"><summary style="cursor:pointer;">Ver lista completa</summary>' +
+        '<div style="margin-top:8px;">'+errosAcumulados.map((e)=>esc(e)).join('<br>')+'</div></details></div>';
+    }
   }
   const totalFotos = resultadosAcumulados.reduce((acc,r) => acc + r.itens.reduce((a2,it) => a2 + (it.fotosBlob?it.fotosBlob.length:0), 0), 0);
   if (totalFotos>0 && !assetsCap){
