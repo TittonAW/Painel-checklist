@@ -728,7 +728,7 @@ function lerPlanilha(ws, nomeArquivo, imagensInfo){
       const v = cell.v.trim();
       if (!v) continue;
       if (revisao === null){
-        const m = v.match(/REVIS[ÃA]O\s*(\d+)/i);
+        const m = v.match(/REVIS[^\d]*(\d+)/i);
         if (m) revisao = m[1];
       }
       const vu = v.toUpperCase();
@@ -1013,7 +1013,7 @@ function extrairLinhasDaPagina(itensPagina, larguraPagina){
   if (revisaoY !== null){
     const linha = itensPagina.filter((it) => Math.abs(it.y - revisaoY) <= 4).sort((a,b) => a.x-b.x);
     const texto = linha.map((it) => it.texto).join(' ');
-    const m = texto.match(/REVIS[ÃA]O\s*(\d+)/i);
+    const m = texto.match(/REVIS[^\d]*(\d+)/i);
     if (m) revisao = m[1];
   }
   if (headerY == null && tituloY == null) return { itens: [], tituloTexto: '', revisao: null };
@@ -1118,7 +1118,10 @@ function paraCompacto(it){
 }
 
 function ajustarTamanho(compactos, limiteBytes){
-  limiteBytes = limiteBytes || 230000;
+  // 230 000 era o teto por documento do armazenamento do Claude (já migrado pro Supabase,
+  // que aguenta muito mais) — subindo bem esse limite (15 MB) pra nunca mais cortar
+  // descrição de pendência de obra à toa; é só uma trava de segurança de último caso
+  limiteBytes = limiteBytes || 15000000;
   let atual = compactos;
   if (tamanhoBytes(atual) <= limiteBytes) return atual;
   // so recorta descricoes se realmente precisar, tentando cortes cada vez menores
@@ -1184,9 +1187,9 @@ async function comprimirImagem(blob, maxDimensao, qualidade){
   }
 }
 
-/* sobe uma foto com até 3 tentativas — "store_unavailable" e "quota_or_state" costumam ser
-   falhas PASSAGEIRAS do serviço quando sobem muitas fotos rápido (não falta de espaço de
-   verdade), e numa segunda tentativa, um pouco depois, normalmente já funciona. */
+/* sobe uma foto com até 3 tentativas — falhas de rede ou do serviço de armazenamento
+   costumam ser PASSAGEIRAS quando sobem muitas fotos rápido, e numa segunda tentativa,
+   um pouco depois, normalmente já funciona. */
 async function subirUmaFotoComRetry(blob, tentativas){
   tentativas = tentativas || 3;
   let ultimoErro;
@@ -1792,7 +1795,7 @@ function renderResumoGeral(){
 
     '<div class="grupo-label" style="margin-top:22px;">Andares</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro (sem nenhuma pendência crítica ou amarela em aberto)</div></div>' +
+      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro — <span style="color:var(--vd); font-weight:600;">liberado</span> (sem pendência) ou <span style="color:var(--azul); font-weight:600;">liberado com pendência</span></div></div>' +
     '</div>';
 
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
@@ -2904,32 +2907,21 @@ async function coletarIdsDeFotoReferenciados(){
 /* apaga do espaço de anexos as fotos que não pertencem (ou não pertencem mais) a nenhum
    item salvo — é o que sobra depois de testes, ou de um "apagar tudo" anterior a esta
    função existir. Funciona com prazo + poucas de cada vez, igual ao envio de fotos. */
-/* tenta achar o id de um asset em formatos diferentes, já que não temos confirmado
-   qual é o formato exato que assetsCap.list() devolve na prática */
-function idDoAsset(a){
-  if (typeof a === 'string') return a;
-  if (!a || typeof a !== 'object') return null;
-  return a.id || a.assetId || a.asset_id || a._id || a.key || null;
-}
-
 
 async function limparFotosOrfas(mostrarResultadoEm){
   if (!assetsCap) return { ok:false, motivo:'sem-recurso' };
   mostrarBannerProgresso('Procurando fotos não usadas…');
   try{
   const referenciados = await coletarIdsDeFotoReferenciados();
-  let r, lista;
+  let lista;
   try{
-    r = await assetsCap.list();
-    lista = Array.isArray(r) ? r : ((r && r.assets) || []);
+    const r = await assetsCap.list();
+    lista = (r && r.assets) || [];
   }catch(e){
     return { ok:false, motivo:'erro-listar', erro: (e && e.message) || String(e) };
   }
-  // diagnóstico: mostra o formato bruto do 1º item, pra confirmar se estamos lendo certo
-  const amostra = lista.length ? JSON.stringify(lista[0]).slice(0,200) : '(lista vazia)';
-  console.log('[limparFotosOrfas] total bruto:', lista.length, '| amostra do 1º item:', amostra, '| chaves de r:', r && typeof r==='object' ? Object.keys(r) : typeof r);
 
-  const comId = lista.map((a) => ({ raw:a, id: idDoAsset(a) }));
+  const comId = lista.map((a) => ({ raw:a, id: a.id || null }));
   const semIdReconhecido = comId.filter((x) => !x.id).length;
   const orfas = comId.filter((x) => x.id && !referenciados.has(x.id));
 
