@@ -1001,7 +1001,10 @@ function extrairLinhasDaPagina(itensPagina, larguraPagina){
     // por palavra; (2) o "Ã" pode estar codificado de um jeito diferente dentro do PDF mesmo
     // parecendo idêntico na tela, e comparar só as letras sem acento não tem esse risco
     if (tituloY === null && t.indexOf('VERS') === 0) tituloY = it.y;
-    if (revisaoY === null && t.indexOf('REVIS') === 0) revisaoY = it.y;
+    // "contém" em vez de "começa com" — a linha do cabeçalho ("HOTEL SOFITEL IPANEMA -
+    // RELATÓRIO SETEMBRO 2026 REVISÃO 20") também pode vir como um bloco de texto só, e
+    // nesse caso "REVIS" não fica bem no começo, fica no meio da frase
+    if (revisaoY === null && t.indexOf('REVIS') !== -1) revisaoY = it.y;
   });
   if (tituloY !== null){
     const linha = itensPagina.filter((it) => Math.abs(it.y - tituloY) <= 4).sort((a,b) => a.x-b.x);
