@@ -86,7 +86,7 @@ select, .btn, input[type=text]{
 .btn.primario{ background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 2px rgba(16,24,40,.05); }
 @media (hover:hover) and (pointer:fine){ .btn.primario:hover{ background:var(--accent-2); border-color:var(--accent-2); color:#fff; } }
 .btn.fantasma{ background:transparent; }
-.pill{ font-size:11.5px; padding:3px 10px; border-radius:99px; font-weight:650; letter-spacing:.2px; }
+.pill{ display:inline-flex; align-items:center; justify-content:center; line-height:1; font-size:11.5px; padding:3px 10px; border-radius:99px; font-weight:650; letter-spacing:.2px; }
 .pill.cloud{ background:var(--vd-soft); color:var(--vd); }
 .pill.local{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
 
@@ -99,7 +99,7 @@ nav.abas button{
   border-radius:10px; transition:background .15s, color .15s;
 }
 nav.abas button.ativa{ color:var(--accent-2); background:var(--accent-soft); }
-nav.abas button:hover:not(.ativa){ color:var(--text); background:var(--paper-2); }
+@media (hover:hover) and (pointer:fine){ nav.abas button:hover:not(.ativa){ color:var(--text); background:var(--paper-2); } }
 
 main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .secao{ display:none; }
@@ -120,6 +120,16 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   .topo-controles-status{ display:flex; gap:8px; }
   .topo-controles-status select{ flex:1; min-width:0; }
   #btn-ir-enviar{ width:100%; justify-content:center; }
+  main{ padding:14px 10px 56px; }
+  .card-pad{ padding:14px 12px; }
+  .andar-barra{ gap:7px; padding:7px 8px; }
+  .andar-barra .num{ width:22px; font-size:11.5px; }
+  .andar-barra .barra{ min-width:26px; }
+  .andar-barra .contagem{ width:36px; font-size:10.5px; }
+  .selo-liberado{ width:15px; height:15px; font-size:9.5px; }
+  .mini-stat{ width:23px; }
+  .mini-rotulo{ font-size:8.5px; }
+  .mini-valor{ font-size:10.5px; }
 
   select, .btn, input[type=text]{ font-size:16px; }
 
@@ -149,8 +159,12 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 }
 @media (hover:hover) and (pointer:fine){ .andar-barra:hover{ border-color:var(--accent); background:var(--accent-soft); } }
 .andar-barra .num{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; width:28px; color:var(--muted); }
-.andar-barra .barra{ flex:1; height:18px; border-radius:5px; background:var(--semdados-soft); position:relative; overflow:hidden; }
+.andar-barra .barra{ flex:1 1 auto; min-width:60px; height:18px; border-radius:5px; background:var(--semdados-soft); position:relative; overflow:hidden; }
 .andar-barra .barra > span{ position:absolute; inset:0; border-radius:5px; }
+.mini-stats{ display:flex; gap:7px; flex:none; }
+.mini-stat{ display:flex; flex-direction:column; align-items:center; width:28px; line-height:1.15; }
+.mini-rotulo{ font-size:9.5px; color:var(--muted); font-weight:650; letter-spacing:.2px; }
+.mini-valor{ font-size:12px; color:var(--text); font-weight:600; }
 .andar-barra .contagem{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); width:64px; text-align:right; }
 .andar-barra.liberado-total{ border-color:var(--azul); background:var(--azul-soft); }
 .selo-liberado{
@@ -370,11 +384,18 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <select id="filtro-disciplina"><option value="">Todas as disciplinas</option></select>
       <select id="filtro-fornecedor"><option value="">Todos os fornecedores</option></select>
       <select id="filtro-status">
-        <option value="">Todos os status</option>
+        <option value="">Todas as prioridades</option>
         <option value="BLOQUEADO">VM (vermelho)</option>
         <option value="PENDENTE">AM (amarelo)</option>
         <option value="LIBERADO_PEND">Liberado com pendência</option>
         <option value="CONCLUIDO">VD (verde)</option>
+      </select>
+      <select id="filtro-progresso">
+        <option value="">Todos os progressos</option>
+        <option value="awExec">Executado AW</option>
+        <option value="iacOk">Vistoriado IAC</option>
+        <option value="liberadoPend">Liberado com pendência</option>
+        <option value="liberado">Liberado (sem pendência)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-quartos">Gerar PDF</button>
@@ -384,7 +405,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th>Andar</th><th>Quarto / área</th><th>Status</th>
-          <th class="num-col">VM</th><th class="num-col">AM</th><th class="num-col">Total pend.</th><th>Ação</th>
+          <th class="num-col">VM</th><th class="num-col">AM</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th>Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -402,11 +423,18 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <select id="filtro-item-disciplina"><option value="">Todas as disciplinas</option></select>
       <select id="filtro-item-fornecedor"><option value="">Todos os fornecedores</option></select>
       <select id="filtro-item-status">
-        <option value="">Todos os status</option>
+        <option value="">Todas as prioridades</option>
         <option value="BLOQUEADO">VM (vermelho)</option>
         <option value="PENDENTE">AM (amarelo)</option>
         <option value="LIBERADO_PEND">Liberado com pendência</option>
         <option value="CONCLUIDO">VD (verde)</option>
+      </select>
+      <select id="filtro-item-progresso">
+        <option value="">Todos os progressos</option>
+        <option value="awExec">Executado AW</option>
+        <option value="iacOk">Vistoriado IAC</option>
+        <option value="liberadoPend">Liberado com pendência</option>
+        <option value="liberado">Liberado (sem pendência)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
@@ -427,6 +455,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <tbody id="tbody-itens"></tbody>
       </table>
       <div class="vazio oculto" id="vazio-itens">Nenhum item encontrado com esses filtros.</div>
+      <div style="text-align:center; padding:16px;">
+        <button class="btn fantasma oculto" id="btn-carregar-mais-itens">Carregar mais</button>
+      </div>
     </div>
   </section>
 
@@ -1719,6 +1750,7 @@ function renderTorreAndares(){
     row.className = 'andar-barra';
     row.dataset.andar = andar;
     let statusClasse = 'status-sem', contagemTxt = 'sem dados', liberadoTotal = false;
+    let miniStatsHtml = '';
     if (temDados){
       const itensDoAndar = registro ? registro.itens : [];
       const locaisDoAndar = todosLocais.filter((l) => l.andar === andar);
@@ -1729,11 +1761,18 @@ function renderTorreAndares(){
       // andar "liberado por inteiro": nenhuma área ainda crítica ou pendente sem liberar —
       // ou já ficou tudo azul (liberado c/ pendência), ou já foi tudo embora (verde)
       liberadoTotal = (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO');
+      const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+      const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
+      miniStatsHtml = '<span class="mini-stats">' +
+        '<span class="mini-stat"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+awExecDoAndar+'</span></span>' +
+        '<span class="mini-stat"><span class="mini-rotulo">IAC</span><span class="mini-valor mono">'+iacOkDoAndar+'</span></span>' +
+        '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono">'+itensDoAndar.length+'</span></span>' +
+        '</span>';
     }
     row.classList.toggle('liberado-total', liberadoTotal);
     row.innerHTML = '<span class="num mono">' + andar + 'º</span>' +
       '<span class="barra"><span class="' + statusClasse + '"></span></span>' +
-      '<span class="contagem mono">' + contagemTxt + '</span>' +
+      (miniStatsHtml || '<span class="contagem mono">' + contagemTxt + '</span>') +
       (liberadoTotal ? '<span class="selo-liberado" title="Andar liberado por inteiro">✓</span>' : '');
     row.addEventListener('click', () => {
       abrirQuartosComFiltro({ andar: andar });
@@ -2019,6 +2058,7 @@ function obterLocaisFiltrados(){
   const filtroDisciplina = document.getElementById('filtro-disciplina').value;
   const filtroFornecedor = document.getElementById('filtro-fornecedor').value;
   const filtroStatus = document.getElementById('filtro-status').value;
+  const filtroProgressoSelect = document.getElementById('filtro-progresso').value;
   // disciplina/fornecedor filtram quais ITENS entram na conta de cada local — assim o status
   // e as contagens de VM/AM refletem só a disciplina/fornecedor escolhidos, não o quarto inteiro
   const baseItens = itensRevisaoAtual.filter((it) =>
@@ -2032,6 +2072,19 @@ function obterLocaisFiltrados(){
     if (busca && l.label.toLowerCase().indexOf(busca) === -1) return false;
     const status = classificarComLiberacao(l.itens, l.liberado);
     if (filtroStatus && status !== filtroStatus) return false;
+    if (filtroProgressoSelect){
+      if (filtroProgressoSelect === 'liberadoPend' && status !== 'LIBERADO_PEND') return false;
+      if (filtroProgressoSelect === 'liberado' && status !== 'CONCLUIDO') return false;
+      if ((filtroProgressoSelect === 'awExec' || filtroProgressoSelect === 'iacOk')){
+        // pro quarto "valer" como Executado AW / Vistoriado IAC, TODOS os itens dele
+        // precisam estar nesse estágio — senão ainda tem trabalho pendente ali dentro
+        const todosPassam = l.itens.length>0 && l.itens.every((it) => {
+          const a = acompanhamento[it.id];
+          return filtroProgressoSelect==='awExec' ? !!(a && a.awExecEm) : !!(a && a.iacOkEm);
+        });
+        if (!todosPassam) return false;
+      }
+    }
     return true;
   });
 }
@@ -2044,6 +2097,8 @@ function renderQuartos(){
   locais.forEach((l) => {
     const status = classificarComLiberacao(l.itens, l.liberado);
     const c = contarVMAM(l.itens);
+    const awExecDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+    const iacOkDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
     const b = BADGE_MAP_STATUS[status];
     const tr = document.createElement('tr');
     tr.className = 'linha-clicavel';
@@ -2058,7 +2113,9 @@ function renderQuartos(){
     }
     tr.innerHTML = '<td class="mono">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
       '<td><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
-      '<td class="num-col">'+c.vm+'</td><td class="num-col">'+c.am+'</td><td class="num-col">'+c.total+'</td>' +
+      '<td class="num-col">'+c.vm+'</td><td class="num-col">'+c.am+'</td>' +
+      '<td class="num-col">'+awExecDoLocal+'</td><td class="num-col">'+iacOkDoLocal+'</td>' +
+      '<td class="num-col">'+c.total+'</td>' +
       '<td>'+acaoHtml+'</td>';
     tbody.appendChild(tr);
     linhas++;
@@ -2104,10 +2161,12 @@ function abrirItens(filtros){
   popularFiltroFornecedor('filtro-item-fornecedor');
   document.getElementById('filtro-item-fornecedor').value = filtros.fornecedor || '';
   document.getElementById('filtro-item-status').value = filtros.status || '';
+  document.getElementById('filtro-item-progresso').value = '';
   document.getElementById('busca-item').value = filtros.busca || '';
   filtroItemLocal = filtros.local || null;
   filtroProgresso = filtros.progresso || null;
   filtroStatusBrutoAdHoc = filtros.statusBruto || null;
+  itensPaginaAtual = 1;
   irParaAba('itens');
   renderItens();
 }
@@ -2117,6 +2176,7 @@ function abrirQuartosComFiltro(filtros){
   document.getElementById('filtro-andar').value = filtros.andar != null ? String(filtros.andar) : '';
   popularFiltroAmbiente('filtro-ambiente', 'filtro-andar');
   document.getElementById('filtro-status').value = filtros.status || '';
+  document.getElementById('filtro-progresso').value = '';
   document.getElementById('busca-quarto').value = filtros.busca || '';
   irParaAba('quartos');
   renderQuartos();
@@ -2153,6 +2213,7 @@ function obterItensFiltrados(){
   const filtroDisciplina = document.getElementById('filtro-item-disciplina').value;
   const filtroFornecedor = document.getElementById('filtro-item-fornecedor').value;
   const filtroStatus = document.getElementById('filtro-item-status').value;
+  const filtroProgressoSelect = document.getElementById('filtro-item-progresso').value;
   let itens = itensRevisaoAtual.slice();
   if (filtroItemLocal){
     itens = itens.filter((it) => it.tipo === filtroItemLocal.tipo && (it.quarto ?? null) === (filtroItemLocal.quarto ?? null));
@@ -2163,6 +2224,16 @@ function obterItensFiltrados(){
   if (filtroFornecedor) itens = itens.filter((it) => passaFiltroFornecedor(it, filtroFornecedor));
   if (filtroStatus) itens = itens.filter((it) => classificarItemComContexto(it) === filtroStatus);
   if (filtroStatusBrutoAdHoc) itens = itens.filter((it) => it.status === filtroStatusBrutoAdHoc);
+  if (filtroProgressoSelect){
+    itens = itens.filter((it) => {
+      const a = acompanhamento[it.id];
+      if (filtroProgressoSelect === 'awExec') return a && a.awExecEm;
+      if (filtroProgressoSelect === 'iacOk') return a && a.iacOkEm;
+      if (filtroProgressoSelect === 'liberadoPend') return classificarItemComContexto(it) === 'LIBERADO_PEND';
+      if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
+      return true;
+    });
+  }
   if (filtroProgresso){
     itens = itens.filter((it) => {
       const a = acompanhamento[it.id];
@@ -2183,10 +2254,15 @@ function obterItensFiltrados(){
   return itens;
 }
 
+let itensPaginaAtual = 1;
+const ITENS_POR_PAGINA = 60; // carrega aos poucos — com 15-20 mil itens na revisão toda,
+                             // desenhar tudo de uma vez trava celular fraco/internet ruim
+
 function renderItens(){
   const tbody = document.getElementById('tbody-itens');
   tbody.innerHTML = '';
-  const itens = obterItensFiltrados();
+  const todosFiltrados = obterItensFiltrados();
+  const itens = todosFiltrados.slice(0, itensPaginaAtual * ITENS_POR_PAGINA);
 
   // disciplinas que EXISTEM na planilha (não inclui nada inventado) — é a lista fechada
   // que o editor vai oferecer, já que disciplina é dado do cliente, não posso criar uma nova
@@ -2202,7 +2278,7 @@ function renderItens(){
     else { badgeClasse = it.status === 'VM' ? 'bloqueado' : (it.status === 'AM' ? 'pendente' : 'concluido'); badgeTexto = it.status||'—'; }
     const fotoHtml = (it.fotos && it.fotos.length)
       ? '<div class="chips-arquivos">'+it.fotos.map((id) =>
-          '<img src="'+esc(urlDaFoto(id))+'" alt="foto do item" class="miniatura-foto" data-foto="'+esc(id)+'" role="button" tabindex="0">'
+          '<img src="'+esc(urlDaFoto(id))+'" loading="lazy" alt="foto do item" class="miniatura-foto" data-foto="'+esc(id)+'" role="button" tabindex="0">'
         ).join('')+'</div>'
       : '<span class="sem-foto">—</span>';
     const iacDesabilitado = !ac.awExecEm;
@@ -2229,7 +2305,12 @@ function renderItens(){
       '<td>'+esc(it.desc)+'</td><td>'+fotoHtml+'</td><td>'+fluxoHtml+'</td>';
     tbody.appendChild(tr);
   });
-  document.getElementById('vazio-itens').classList.toggle('oculto', itens.length>0);
+  document.getElementById('vazio-itens').classList.toggle('oculto', todosFiltrados.length>0);
+
+  const restantes = todosFiltrados.length - itens.length;
+  const btnMais = document.getElementById('btn-carregar-mais-itens');
+  btnMais.classList.toggle('oculto', restantes<=0);
+  if (restantes>0) btnMais.textContent = 'Carregar mais ('+restantes+' restante'+(restantes>1?'s':'')+')';
 
   tbody.querySelectorAll('[data-acomp]').forEach((btn) => {
     btn.addEventListener('click', () => alternarAcompanhamento(btn.dataset.id, btn.dataset.acomp));
@@ -2244,9 +2325,11 @@ function renderItens(){
     });
   });
   const checkTodos = document.getElementById('check-todos-itens');
-  checkTodos.checked = itens.length>0 && itens.every((it)=>itensSelecionados.has(it.id));
+  // "marcar todos" age sobre TODOS os itens que batem com o filtro, não só os já carregados
+  // na tela — senão a pessoa pensaria que marcou tudo e teria só marcado o primeiro lote
+  checkTodos.checked = todosFiltrados.length>0 && todosFiltrados.every((it)=>itensSelecionados.has(it.id));
   checkTodos.onchange = () => {
-    itens.forEach((it) => { if (checkTodos.checked) itensSelecionados.add(it.id); else itensSelecionados.delete(it.id); });
+    todosFiltrados.forEach((it) => { if (checkTodos.checked) itensSelecionados.add(it.id); else itensSelecionados.delete(it.id); });
     renderItens();
   };
   atualizarBarraSelecao();
@@ -3107,7 +3190,19 @@ function formatoDaDataUrl(dataUrl){
 /* idxColunaFoto + imagensPorLinha são opcionais — só usados por quem precisa de foto na
    linha (Itens). Quando tem foto(s), a linha fica mais alta pra caber uma miniatura
    quadrada legível; 2 fotos no mesmo item ficam lado a lado, nunca uma em cima da outra. */
-function construirPdfTabela(titulo, subtitulo, colunas, larguras, linhas, idxColunaFoto, imagensPorLinha){
+/* decide a cor de fundo da coluna Status no PDF, pela mesma paleta usada no painel —
+   "Verde"/"VD" tem prioridade sobre "VM" porque um item "Verde (IAC) — era VM" já foi
+   resolvido, não é mais crítico, mesmo citando o status antigo no texto */
+function corDoStatusPdf(texto){
+  const t = String(texto||'').toUpperCase();
+  if (t.indexOf('VERDE') !== -1 || t.indexOf('VD') !== -1) return [57,151,106];
+  if (t.indexOf('LIBERADO') !== -1) return [76,115,217];
+  if (t.indexOf('VM') !== -1) return [209,68,63];
+  if (t.indexOf('AM') !== -1) return [198,137,52];
+  return null;
+}
+
+function construirPdfTabela(titulo, subtitulo, colunas, larguras, linhas, idxColunaFoto, imagensPorLinha, idxColunaStatus){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const margemX = 28;
@@ -3147,6 +3242,21 @@ function construirPdfTabela(titulo, subtitulo, colunas, larguras, linhas, idxCol
           try{ doc.addImage(imgs[0], formatoDaDataUrl(imgs[0]), x+1, y-9, tam2, tam2); }catch(e){}
           try{ doc.addImage(imgs[1], formatoDaDataUrl(imgs[1]), x+3+tam2, y-9, tam2, tam2); }catch(e){}
         }
+      } else if (i === idxColunaStatus){
+        const texto = String(celula==null?'':celula);
+        const cortado = texto.length > 40 ? texto.slice(0,37)+'…' : texto;
+        const cor = corDoStatusPdf(cortado);
+        if (cor){
+          const largTexto = doc.getTextWidth(cortado);
+          const padX = 5, altoSelo = 12;
+          doc.setFillColor(cor[0], cor[1], cor[2]);
+          doc.roundedRect(x, y-9, Math.min(largTexto+padX*2, larguras[i]-4), altoSelo, 3, 3, 'F');
+          doc.setTextColor(255,255,255);
+          doc.text(cortado, x+padX, y);
+          doc.setTextColor(0);
+        } else {
+          doc.text(cortado, x, y);
+        }
       } else {
         const texto = String(celula==null?'':celula);
         const cortado = texto.length > 90 ? texto.slice(0,87)+'…' : texto;
@@ -3184,14 +3294,16 @@ async function exportarQuartosPdf(){
   if (!jsPdfDisponivel()){ statusEl.textContent = 'PDF indisponível no momento (biblioteca não carregou) — tente recarregar a página.'; return; }
   statusEl.textContent = 'Gerando PDF…';
   const locais = obterLocaisFiltrados();
-  const colunas = ['Andar','Quarto/área','Status','VM','AM','Total'];
-  const larguras = [40, 160, 140, 30, 30, 40];
+  const colunas = ['Andar','Quarto/área','Status','VM','AM','AW','IAC','Total'];
+  const larguras = [38, 150, 135, 26, 26, 26, 26, 36];
   const linhas = locais.map((l) => {
     const status = classificarComLiberacao(l.itens, l.liberado);
     const c = contarVMAM(l.itens);
-    return [l.andar+'º', l.label, BADGE_MAP_STATUS[status][1], c.vm, c.am, c.total];
+    const awExecDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+    const iacOkDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
+    return [l.andar+'º', l.label, BADGE_MAP_STATUS[status][1], c.vm, c.am, awExecDoLocal, iacOkDoLocal, c.total];
   });
-  const blob = construirPdfTabela('Sofitel Ipanema — Quartos & Áreas', 'Gerado em '+new Date().toLocaleString('pt-BR')+' · '+linhas.length+' local(is)', colunas, larguras, linhas);
+  const blob = construirPdfTabela('Sofitel Ipanema — Quartos & Áreas', 'Gerado em '+new Date().toLocaleString('pt-BR')+' · '+linhas.length+' local(is)', colunas, larguras, linhas, undefined, undefined, 2);
   await compartilharOuBaixarPdf(blob, 'quartos-areas.pdf', statusEl);
 }
 
@@ -3224,7 +3336,7 @@ async function exportarItensPdf(){
     const statusTxt = ac.iacOkEm ? 'Verde (IAC) — era '+it.status : it.status;
     return [it.id, it.andar+'º', label, disciplinaEfetiva(it), fornecedorEfetivo(it)||'—', statusTxt, '', it.desc||''];
   });
-  const blob = construirPdfTabela('Sofitel Ipanema — Itens', 'Gerado em '+new Date().toLocaleString('pt-BR')+' · '+linhas.length+' item(ns)', colunas, larguras, linhas, idxColunaFoto, imagensPorLinha);
+  const blob = construirPdfTabela('Sofitel Ipanema — Itens', 'Gerado em '+new Date().toLocaleString('pt-BR')+' · '+linhas.length+' item(ns)', colunas, larguras, linhas, idxColunaFoto, imagensPorLinha, 5);
   await compartilharOuBaixarPdf(blob, 'itens.pdf', statusEl);
 }
 
@@ -3282,8 +3394,17 @@ async function iniciar(){
   document.getElementById('filtro-disciplina').addEventListener('change', renderQuartos);
   document.getElementById('filtro-fornecedor').addEventListener('change', renderQuartos);
   document.getElementById('filtro-status').addEventListener('change', renderQuartos);
+  document.getElementById('filtro-progresso').addEventListener('change', renderQuartos);
 
-  function limparFiltroLocalEAtualizar(){ filtroItemLocal = null; filtroProgresso = null; filtroStatusBrutoAdHoc = null; renderItens(); }
+  // espera a pessoa realmente PARAR de mexer nos filtros antes de montar a tabela e baixar
+  // fotos — assim filtrar andar → quarto → fornecedor em sequência não baixa foto de cada
+  // combinação intermediária, só da combinação final que ela quis mesmo
+  let atrasoFiltroItens = null;
+  function limparFiltroLocalEAtualizar(){
+    filtroItemLocal = null; filtroProgresso = null; filtroStatusBrutoAdHoc = null; itensPaginaAtual = 1;
+    clearTimeout(atrasoFiltroItens);
+    atrasoFiltroItens = setTimeout(renderItens, 700);
+  }
   document.getElementById('busca-item').addEventListener('input', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-andar').addEventListener('change', () => {
     popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar');
@@ -3293,12 +3414,14 @@ async function iniciar(){
   document.getElementById('filtro-item-disciplina').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-fornecedor').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-status').addEventListener('change', limparFiltroLocalEAtualizar);
+  document.getElementById('filtro-item-progresso').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-limpar-filtro-quartos').addEventListener('click', () => {
     document.getElementById('busca-quarto').value = '';
     document.getElementById('filtro-andar').value = '';
     document.getElementById('filtro-disciplina').value = '';
     document.getElementById('filtro-fornecedor').value = '';
     document.getElementById('filtro-status').value = '';
+    document.getElementById('filtro-progresso').value = '';
     popularFiltroAmbiente('filtro-ambiente', 'filtro-andar');
     renderQuartos();
   });
@@ -3308,10 +3431,16 @@ async function iniciar(){
     document.getElementById('filtro-item-disciplina').value = '';
     document.getElementById('filtro-item-fornecedor').value = '';
     document.getElementById('filtro-item-status').value = '';
+    document.getElementById('filtro-item-progresso').value = '';
     popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar'); // volta pro modo categoria (sem andar)
     filtroItemLocal = null;
     filtroProgresso = null;
     filtroStatusBrutoAdHoc = null;
+    itensPaginaAtual = 1;
+    renderItens();
+  });
+  document.getElementById('btn-carregar-mais-itens').addEventListener('click', () => {
+    itensPaginaAtual++;
     renderItens();
   });
   document.getElementById('btn-limpar-selecao-itens').addEventListener('click', () => {
