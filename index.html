@@ -350,12 +350,12 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <h2 id="titulo-torre-andares">Andares</h2>
         <div class="torre" id="torre-andares"></div>
         <div class="vazio oculto" id="vazio-torre-andares">Nenhum andar enviado ainda — suba a primeira planilha na aba "Enviar planilhas" pra começar.</div>
-        <div class="rodape-nota" style="margin-top:14px; text-align:left;">
-          <span class="badge bloqueado">●</span> <span class="col-vm">VM (vermelho)</span> &nbsp;
-          <span class="badge pendente">●</span> <span class="col-am">AM (amarelo)</span> &nbsp;
-          <span class="badge liberado-pend">●</span> <span style="color:var(--azul); font-weight:700;">Liberado com pendência</span> &nbsp;
-          <span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span> &nbsp;
-          <span class="badge semdados">●</span> sem dados na revisão
+        <div class="rodape-nota" style="margin-top:14px; text-align:left; display:flex; flex-wrap:wrap; gap:4px 14px;">
+          <span style="white-space:nowrap;"><span class="badge bloqueado">●</span> <span class="col-vm">VM (vermelho)</span></span>
+          <span style="white-space:nowrap;"><span class="badge pendente">●</span> <span class="col-am">AM (amarelo)</span></span>
+          <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--azul); font-weight:700;">Liberado com pendência</span></span>
+          <span style="white-space:nowrap;"><span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span></span>
+          <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
         </div>
       </div>
       <div class="card card-pad">
@@ -1563,7 +1563,10 @@ async function carregarItensDaRevisao(numeroStr){
 /* ===================== AGREGAÇÕES ===================== */
 function localLabel(it){
   if (it.tipo === 'APTO') return String(it.quarto);
-  return it.tipo.charAt(0) + it.tipo.slice(1).toLowerCase() + ' ' + it.andar + 'º';
+  // espaço não-quebrável antes do "Xº" — garante que o número do andar nunca fica
+  // sozinho numa linha separada do resto do nome (ex: "Corredor 7º" não quebra ali;
+  // se precisar quebrar, quebra antes, num nome composto tipo "Itens gerais")
+  return it.tipo.charAt(0) + it.tipo.slice(1).toLowerCase() + '\u00A0' + it.andar + 'º';
 }
 function localKey(it){
   return it.tipo === 'APTO' ? ('APTO-'+it.quarto) : (it.tipo+'-'+it.andar);
@@ -1870,10 +1873,10 @@ async function renderResumoGeral(){
     '<div class="grupo-label">Progresso dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
-      '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (sem nenhuma ação)</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div></div>' +
       '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div></div>' +
+      '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Itens por status</div>' +
@@ -2168,7 +2171,7 @@ function obterLocaisFiltrados(){
   return locais.filter((l) => {
     if (filtroAndar && String(l.andar) !== filtroAndar) return false;
     if (!passaFiltroAmbiente(l.tipo, l.key, filtroAmbiente)) return false;
-    if (busca && l.label.toLowerCase().indexOf(busca) === -1) return false;
+    if (busca && l.label.toLowerCase().replace(/\u00A0/g,' ').indexOf(busca) === -1) return false;
     const status = classificarComLiberacao(l.itens, l.liberado);
     if (filtroStatus && status !== filtroStatus) return false;
     if (filtroProgressoSelect){
