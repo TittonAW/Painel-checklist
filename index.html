@@ -137,52 +137,48 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   .linha-toolbar > select, .linha-toolbar > input[type=text]{ width:100%; min-width:0; flex:1 1 100%; }
   .badge{ font-size:10px; padding:2px 8px; }
 
-  /* mesmo padrão usado nos filtros de Quartos/Itens: rótulo em cima, campo/valor ocupando
-     a largura toda embaixo — simples e igual em todos os campos, sem desenho especial, e
-     sem precisar de scroll lateral pra ver nada */
-  /* grid em vez de block: tracks de grid não "crescem" pra caber conteúdo largo igual
-     block/table podem fazer — é a forma mais à prova de erro de garantir que nada
-     ultrapasse a largura da tela, não importa o tamanho do texto ou do campo dentro */
-  table.tabela-cartao-mobile{ display:block; width:100%; max-width:100%; }
+  /* Disciplinas & fornecedores no celular — cartão compacto:
+     linha 1: disciplina + total | linha 2: etiquetas VM / AM, exceções e "Ver itens"
+     linha 3: fornecedor ocupando a largura toda (igual aos filtros das outras abas).
+     O min-width:0 anula a regra global "table{ min-width:620px }", que era o que
+     empurrava o campo de fornecedor pra fora da tela. */
+  table.tabela-cartao-mobile{ display:block; width:100%; max-width:100%; min-width:0; }
   table.tabela-cartao-mobile thead{ display:none; }
   table.tabela-cartao-mobile tbody{ display:block; width:100%; }
   table.tabela-cartao-mobile tr{
-    display:grid; grid-template-columns:minmax(0,1fr); row-gap:10px;
+    display:grid;
+    grid-template-columns:auto auto minmax(0,1fr) auto;
+    grid-template-areas:
+      "disc disc disc total"
+      "vm   am   exc  btn"
+      "forn forn forn forn";
+    gap:10px 6px; align-items:center;
     width:100%; max-width:100%; box-sizing:border-box;
-    padding:14px 4px; border-bottom:1px solid var(--line);
+    padding:14px 12px; border-bottom:1px solid var(--line);
   }
   table.tabela-cartao-mobile tr:last-child{ border-bottom:none; }
-  table.tabela-cartao-mobile td{
-    display:block; min-width:0; max-width:100%; box-sizing:border-box;
-    word-break:break-word; overflow-wrap:anywhere; border:none; padding:0;
-  }
+  table.tabela-cartao-mobile td{ display:block; min-width:0; padding:0; border:none; text-align:left; }
 
-  /* Disciplina: título do cartão */
-  table.tabela-cartao-mobile td:nth-child(1){ font-size:16px; font-weight:700; }
+  table.tabela-cartao-mobile td:nth-child(1){ grid-area:disc; font-size:15px; font-weight:650; line-height:1.3; overflow-wrap:anywhere; }
+  table.tabela-cartao-mobile td:nth-child(5){ grid-area:total; font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:650; text-align:right; line-height:1.1; white-space:nowrap; }
+  table.tabela-cartao-mobile td:nth-child(5)::after{ content:" pend."; font-family:'IBM Plex Sans',sans-serif; font-size:11px; font-weight:500; color:var(--muted); }
 
-  /* Fornecedor: rótulo em cima, campo ocupando a largura toda embaixo (igual aos filtros
-     de andar/ambiente que já funcionam certinho) */
-  table.tabela-cartao-mobile td:nth-child(2)::before{
-    content:"Fornecedor padrão"; display:block; font-size:11px; font-weight:600;
-    color:var(--muted); margin-bottom:4px;
-  }
+  table.tabela-cartao-mobile td:nth-child(3),
+  table.tabela-cartao-mobile td:nth-child(4){ font-size:12.5px; font-weight:650; padding:4px 10px; border-radius:99px; white-space:nowrap; }
+  table.tabela-cartao-mobile td:nth-child(3){ grid-area:vm; background:var(--vm-soft); }
+  table.tabela-cartao-mobile td:nth-child(4){ grid-area:am; background:var(--aviso-cor-soft); }
+  table.tabela-cartao-mobile td:nth-child(3)::before{ content:"VM "; }
+  table.tabela-cartao-mobile td:nth-child(4)::before{ content:"AM "; }
+
+  table.tabela-cartao-mobile td:nth-child(6){ grid-area:exc; font-size:12px; color:var(--muted); white-space:nowrap; }
+  table.tabela-cartao-mobile td:nth-child(6)::before{ content:"Exceções: "; }
+
+  table.tabela-cartao-mobile td:nth-child(7){ grid-area:btn; }
+
+  /* fornecedor: mesma largura, altura e borda dos filtros (Todos os andares etc.) */
+  table.tabela-cartao-mobile td:nth-child(2){ grid-area:forn; }
   table.tabela-cartao-mobile td:nth-child(2) input[type=text]{
     display:block; width:100%; max-width:100%; min-width:0; box-sizing:border-box;
-  }
-
-  /* VM / AM / Total / Exceções: rótulo e valor na MESMA linha, lado a lado */
-  table.tabela-cartao-mobile td:nth-child(3), table.tabela-cartao-mobile td:nth-child(4),
-  table.tabela-cartao-mobile td:nth-child(5), table.tabela-cartao-mobile td:nth-child(6){
-    display:flex; justify-content:space-between; align-items:center;
-    font-size:15px; font-weight:700; padding:4px 0; border-bottom:1px dashed var(--line);
-  }
-  table.tabela-cartao-mobile td:nth-child(3)::before{ content:"VM"; }
-  table.tabela-cartao-mobile td:nth-child(4)::before{ content:"AM"; }
-  table.tabela-cartao-mobile td:nth-child(5)::before{ content:"Total pend."; }
-  table.tabela-cartao-mobile td:nth-child(6)::before{ content:"Exceções"; }
-  table.tabela-cartao-mobile td:nth-child(3)::before, table.tabela-cartao-mobile td:nth-child(4)::before,
-  table.tabela-cartao-mobile td:nth-child(5)::before, table.tabela-cartao-mobile td:nth-child(6)::before{
-    font-size:12px; font-weight:600; color:var(--muted);
   }
 }
 
@@ -1510,7 +1506,15 @@ let acompanhamento = {}; // { itemId: { awExecEm, iacOkEm } }
 async function carregarAcompanhamento(){
   const docs = await store.listCollection('acompanhamento');
   acompanhamento = {};
-  docs.forEach((d) => { acompanhamento[d._id] = { awExecEm: d.awExecEm||null, iacOkEm: d.iacOkEm||null }; });
+  // carrega TODOS os campos salvos (não só AW/IAC) — antes, disciplinaOverride,
+  // fornecedorOverride e dataPrevista eram descartados ao recarregar a página
+  docs.forEach((d) => {
+    acompanhamento[d._id] = {
+      awExecEm: d.awExecEm||null, iacOkEm: d.iacOkEm||null,
+      disciplinaOverride: d.disciplinaOverride||null, fornecedorOverride: d.fornecedorOverride||null,
+      dataPrevista: d.dataPrevista||null
+    };
+  });
 }
 
 async function alternarAcompanhamento(itemId, campo){
@@ -2624,7 +2628,7 @@ function renderDisciplinas(){
     const tr = document.createElement('tr');
     const nomeFornecedor = fornecedores[disc] || '';
     tr.innerHTML = '<td data-label="Disciplina">'+esc(disc)+'</td>' +
-      '<td data-label="Fornecedor padrão"><input type="text" class="fornecedor-input" data-disc="'+esc(disc)+'" value="'+esc(nomeFornecedor)+'" placeholder="Nome do fornecedor" autocomplete="off"></td>' +
+      '<td data-label="Fornecedor padrão"><input type="text" class="fornecedor-input" data-disc="'+esc(disc)+'" value="'+esc(nomeFornecedor)+'" placeholder="Fornecedor padrão desta disciplina" autocomplete="off"></td>' +
       '<td class="num-col col-vm" data-label="VM">'+c.vm+'</td><td class="num-col col-am" data-label="AM">'+c.am+'</td><td class="num-col" data-label="Total pend.">'+c.total+'</td>' +
       '<td class="num-col" data-label="Exceções">'+(excecoes>0?excecoes:'—')+'</td>' +
       '<td data-label=""><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
@@ -3138,7 +3142,6 @@ function renderPreviewEnvio(){
 }
 
 /* ===================== APAGAR TUDO ===================== */
-/* ===================== APAGAR TUDO ===================== */
 /* ids de foto que ainda estão referenciados por algum item salvo, em qualquer revisão */
 async function coletarIdsDeFotoReferenciados(){
   const todosSnapshots = await store.listCollection('snapshots');
@@ -3172,6 +3175,10 @@ async function limparFotosOrfas(mostrarResultadoEm){
   const comId = lista.map((a) => ({ raw:a, id: a.id || null }));
   const semIdReconhecido = comId.filter((x) => !x.id).length;
   const orfas = comId.filter((x) => x.id && !referenciados.has(x.id));
+  // amostra pro diagnóstico — antes essa variável era usada sem ter sido criada, e isso
+  // travava a limpeza (erro de JavaScript) sempre que não havia nenhuma foto órfã
+  const primeiroSemId = comId.find((x) => !x.id);
+  const amostra = primeiroSemId ? JSON.stringify(primeiroSemId.raw).slice(0, 200) : '';
 
   if (mostrarResultadoEm && semIdReconhecido > 0){
     mostrarResultadoEm.innerHTML = '<div class="aviso">Atenção: '+semIdReconhecido+' de '+lista.length+
