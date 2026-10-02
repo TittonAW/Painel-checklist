@@ -2143,21 +2143,20 @@ function chaveDiaLocal(d){
 
 /* Evolução dia a dia calculada direto das marcações: cada "Executado AW" e "Vistoriado IAC"
    guarda a data e hora em que foi marcado, então dá pra reconstruir como estava o andamento
-   no fim de cada dia — sem precisar de "foto do dia" e sem esperar o dia acabar. O dia de
-   hoje aparece desde o primeiro uso e vai mudando a cada marcação. Base: os itens da revisão
-   selecionada (com o filtro de nenhum andar — é a obra toda). */
+   no fim de cada dia — sem "foto do dia" e sem esperar o dia acabar. Hoje aparece desde o
+   primeiro uso e muda a cada marcação. Base: os itens da revisão selecionada (obra toda).
+   Por dia: em aberto, executado AW acumulado (+ feitos no dia), vistoriado IAC acumulado
+   (+ validados no dia) e total. */
 function calcularEvolucaoPendencias(limiteDias){
   limiteDias = limiteDias || 30;
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const marcas = itensRevisaoAtual.map((it) => {
     const a = acompanhamento[it.id] || {};
-    return {
-      status: it.status,
-      aw: a.awExecEm ? chaveDiaLocal(new Date(a.awExecEm)) : null,
-      iac: a.iacOkEm ? chaveDiaLocal(new Date(a.iacOkEm)) : null
-    };
+    const iac = a.iacOkEm ? chaveDiaLocal(new Date(a.iacOkEm)) : null;
+    let aw = a.awExecEm ? chaveDiaLocal(new Date(a.awExecEm)) : null;
+    if (iac && !aw) aw = iac; // vistoriado sem data de AW conta como executado
+    return { aw, iac };
   });
-  // começa no primeiro dia em que houve alguma marcação (no máximo 30 dias pra trás)
   let inicio = new Date(hoje); inicio.setDate(inicio.getDate() - (limiteDias-1));
   const datas = marcas.flatMap((m) => [m.aw, m.iac]).filter(Boolean).sort();
   if (datas.length){
@@ -2170,17 +2169,56 @@ function calcularEvolucaoPendencias(limiteDias){
   const pontos = [];
   for (let d = new Date(inicio); d <= hoje; d.setDate(d.getDate()+1)){
     const dia = chaveDiaLocal(d);
-    let iac=0, aw=0, abertoVM=0, abertoAM=0;
+    let aw=0, iac=0, awDia=0, iacDia=0;
     marcas.forEach((m) => {
+      if (m.aw && m.aw <= dia) aw++;
       if (m.iac && m.iac <= dia) iac++;
-      else if (m.aw && m.aw <= dia) aw++;
-      else if (m.status === 'VM') abertoVM++;
-      else abertoAM++;
+      if (m.aw === dia) awDia++;
+      if (m.iac === dia) iacDia++;
     });
-    pontos.push({ data: dia, iac, aw, abertoVM, abertoAM, aberto: abertoVM+abertoAM, total: marcas.length });
+    pontos.push({ data: dia, total: marcas.length, aw, iac, awDia, iacDia, aberto: marcas.length - aw });
   }
   return pontos;
 }
+
+/* curva suave que nunca "passa do ponto" (interpolação monotônica) — com dados de obra,
+   uma curva que inventa subida/descida entre dois dias seria enganosa */
+function caminhoSuave(pts){
+  const n = pts.length;
+  if (n === 0) return '';
+  if (n === 1) return 'M'+pts[0][0]+' '+pts[0][1];
+  const dx = [], dy = [], m = [];
+  for (let i=0;i<n-1;i++){ dx.push(pts[i+1][0]-pts[i][0]); dy.push((pts[i+1][1]-pts[i][1])/dx[i]); }
+  m.push(dy[0]);
+  for (let i=1;i<n-1;i++) m.push(dy[i-1]*dy[i] <= 0 ? 0 : (dy[i-1]+dy[i])/2);
+  m.push(dy[n-2]);
+  for (let i=0;i<n-1;i++){
+    if (dy[i] === 0){ m[i]=0; m[i+1]=0; continue; }
+    const a = m[i]/dy[i], b = m[i+1]/dy[i], s = a*a+b*b;
+    if (s > 9){ const t = 3/Math.sqrt(s); m[i]=t*a*dy[i]; m[i+1]=t*b*dy[i]; }
+  }
+  let d = 'M'+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+  for (let i=0;i<n-1;i++){
+    const h = dx[i];
+    d += ' C'+(pts[i][0]+h/3).toFixed(1)+' '+(pts[i][1]+m[i]*h/3).toFixed(1)+' '+
+      (pts[i+1][0]-h/3).toFixed(1)+' '+(pts[i+1][1]-m[i+1]*h/3).toFixed(1)+' '+
+      pts[i+1][0].toFixed(1)+' '+pts[i+1][1].toFixed(1);
+  }
+  return d;
+}
+
+function numCurto(v){
+  if (v >= 1000) return (Math.round(v/100)/10).toLocaleString('pt-BR') + 'k';
+  return String(Math.round(v));
+}
+
+const SERIES_EVOLUCAO = [
+  { chave:'aberto', rotulo:'Em aberto', cor:'#7C5CC9', largura:2.6 },
+  { chave:'aw', rotulo:'Executado AW', cor:'#39976A', largura:2 },
+  { chave:'iac', rotulo:'Vistoriado IAC', cor:'#4C73D9', largura:2 },
+  { chave:'total', rotulo:'Total', cor:'#99A1AC', largura:1.4 }
+];
+let seriesOcultas = {}; // clique na legenda esconde/mostra a linha
 
 function renderEvolucaoPendencias(){
   const cont = document.getElementById('grafico-evolucao');
@@ -2191,60 +2229,197 @@ function renderEvolucaoPendencias(){
     return;
   }
   document.getElementById('vazio-evolucao').classList.add('oculto');
-  const W=960, H=280, padL=36, padR=16, padT=24, padB=36;
-  const maxVal = Math.max(1, ...pontos.map((p)=>p.total));
-  const grupoW = (W-padL-padR)/Math.max(pontos.length, 4); // com poucos dias, as barras não ficam gigantes
-  const barraW = Math.min(46, grupoW*0.62);
+  const n = pontos.length, ult = pontos[n-1];
   const hojeChave = chaveDiaLocal(new Date());
-  function yAt(v){ return H-padB-(v/maxVal)*(H-padB-padT); }
-  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%; height:auto; font-family:\'IBM Plex Sans\',sans-serif;">';
-  svg += '<line x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-padR)+'" y2="'+(H-padB)+'" style="stroke:var(--line); stroke-width:1"/>';
-  const pontosLinha = [];
-  const passoRotulo = Math.max(1, Math.ceil(pontos.length/10));
+  const rotuloDia = (chave) => chave === hojeChave ? 'hoje' : chave.split('-').reverse().slice(0,2).join('/');
+
+  // tendência do "em aberto": reta de mínimos quadrados sobre os dias, projetada à frente
+  let tend = null;
+  if (n >= 2){
+    let sx=0, sy=0, sxy=0, sxx=0;
+    pontos.forEach((p,i) => { sx+=i; sy+=p.aberto; sxy+=i*p.aberto; sxx+=i*i; });
+    const incl = (n*sxy - sx*sy) / (n*sxx - sx*sx);
+    const base = (sy - incl*sx) / n;
+    const projecao = Math.max(3, Math.round(n*0.35));
+    tend = { incl, base, projecao };
+    if (incl < 0){
+      const diasAteZero = Math.ceil((base + incl*(n-1)) / -incl);
+      if (diasAteZero > 0 && diasAteZero <= 365){
+        const dz = new Date(); dz.setHours(0,0,0,0); dz.setDate(dz.getDate() + diasAteZero);
+        tend.zeraEm = dz.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+        tend.diasAteZero = diasAteZero;
+      }
+    }
+  }
+
+  // desenha na largura real do cartão: no celular o texto fica legível em vez de encolher
+  const W = Math.max(320, Math.round(cont.clientWidth || 960)), H = W < 600 ? 230 : 300;
+  const padL=44, padR=W < 600 ? 14 : 24, padT=18, padB=30;
+  const diasEixo = n + (tend ? tend.projecao : 0);
+  const passoX = diasEixo > 1 ? (W-padL-padR)/(diasEixo-1) : 0;
+  const xAt = (i) => diasEixo > 1 ? padL + i*passoX : (W)/2;
+  const visiveis = SERIES_EVOLUCAO.filter((s) => !seriesOcultas[s.chave]);
+  let maxBruto = Math.max(1, ...pontos.map((p) => Math.max(...visiveis.map((s) => p[s.chave]), 0)));
+  const passoBruto = maxBruto*1.05/4, mag = Math.pow(10, Math.floor(Math.log10(passoBruto)));
+  const passoY = [1,2,2.5,5,10].map((k) => k*mag).find((s) => s >= passoBruto);
+  const maxY = Math.ceil(maxBruto*1.05/passoY)*passoY;
+  const yAt = (v) => H-padB - (Math.max(0,v)/maxY)*(H-padB-padT);
+
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%; height:auto; display:block; font-family:\'IBM Plex Sans\',sans-serif; overflow:visible;">';
+  svg += '<defs>';
+  SERIES_EVOLUCAO.forEach((s) => {
+    svg += '<linearGradient id="grad-'+s.chave+'" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="'+s.cor+'" stop-opacity="'+(s.chave==='total'?0.10:0.28)+'"/>' +
+      '<stop offset="100%" stop-color="'+s.cor+'" stop-opacity="0"/></linearGradient>';
+  });
+  svg += '<filter id="brilho-linha" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>';
+  svg += '</defs>';
+  // grade
+  for (let v=0; v<=maxY+0.0001; v+=passoY){
+    const g = v, y = yAt(v);
+    svg += '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" style="stroke:var(--line); stroke-width:1;'+(g?' stroke-dasharray:2 4;':'')+'"/>';
+    svg += '<text x="'+(padL-8)+'" y="'+(y+4).toFixed(1)+'" font-size="10.5" text-anchor="end" style="fill:var(--muted)">'+numCurto(v)+'</text>';
+  }
+  // rótulos de data
+  const passoRot = Math.max(1, Math.ceil(n/(W < 600 ? 5 : 10)));
   pontos.forEach((p,i) => {
-    const cx = padL + i*grupoW + grupoW/2;
-    const x = cx - barraW/2;
-    // de baixo pra cima: o que já foi vistoriado, o executado pela AW, e por cima o que
-    // ainda está em aberto (AM, e VM no topo) — o "em aberto" é o que o cliente quer ver
-    let yCursor = H-padB;
-    [
-      { valor: p.iac, fundo:'var(--vd-soft)', borda:'var(--vd)' },
-      { valor: p.aw, fundo:'var(--azul-soft)', borda:'var(--azul)' },
-      { valor: p.abertoAM, fundo:'var(--aviso-cor-soft)', borda:'var(--aviso-cor)' },
-      { valor: p.abertoVM, fundo:'var(--vm-soft)', borda:'var(--vm)' }
-    ].forEach((seg) => {
-      if (seg.valor <= 0) return;
-      const altura = (seg.valor/maxVal)*(H-padB-padT);
-      const y = yCursor - altura;
-      svg += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barraW.toFixed(1)+'" height="'+altura.toFixed(1)+'" style="fill:'+seg.fundo+'; stroke:'+seg.borda+'; stroke-width:.6;"/>';
-      yCursor = y;
-    });
-    // número em aberto em cima de cada barra
-    svg += '<text x="'+cx.toFixed(1)+'" y="'+Math.max(12, yAt(p.total)-6).toFixed(1)+'" font-size="11" text-anchor="middle" style="fill:var(--text)">'+p.aberto+'</text>';
-    pontosLinha.push([cx, yAt(p.iac + p.aw)]);
-    if (pontos.length<=10 || i%passoRotulo===0 || i===pontos.length-1){
-      const partes = p.data.split('-');
-      const rotulo = p.data === hojeChave ? 'hoje' : (partes[2]+'/'+partes[1]);
-      svg += '<text x="'+cx.toFixed(1)+'" y="'+(H-padB+16)+'" font-size="10" text-anchor="middle" style="fill:var(--muted)">'+esc(rotulo)+'</text>';
+    if (i%passoRot===0 || i===n-1){
+      svg += '<text x="'+xAt(i).toFixed(1)+'" y="'+(H-padB+19)+'" font-size="10.5" text-anchor="middle" style="fill:'+(p.data===hojeChave?'var(--text)':'var(--muted)')+'">'+rotuloDia(p.data)+'</text>';
     }
   });
-  // linha do EXECUTADO (AW + IAC) — sobe conforme a obra avança
-  if (pontosLinha.length > 1){
-    const path = pontosLinha.map((pt,i) => (i===0?'M':'L')+pt[0].toFixed(1)+' '+pt[1].toFixed(1)).join(' ');
-    svg += '<path d="'+path+'" style="fill:none; stroke:var(--text); stroke-width:2; stroke-linejoin:round;"/>';
+  // áreas com degradê ("neon" da linha pra baixo), das maiores pras menores
+  const ordemDesenho = ['total','aberto','aw','iac'];
+  ordemDesenho.forEach((ch) => {
+    const s = SERIES_EVOLUCAO.find((x) => x.chave === ch);
+    if (seriesOcultas[ch]) return;
+    const pts = pontos.map((p,i) => [xAt(i), yAt(p[ch])]);
+    if (n >= 2){
+      const linha = caminhoSuave(pts);
+      svg += '<path d="'+linha+' L'+pts[n-1][0].toFixed(1)+' '+yAt(0).toFixed(1)+' L'+pts[0][0].toFixed(1)+' '+yAt(0).toFixed(1)+' Z" style="fill:url(#grad-'+ch+');"/>';
+    }
+  });
+  // tendência (tracejada), por trás das linhas
+  if (tend && !seriesOcultas.aberto){
+    const i0 = 0, i1 = n-1+tend.projecao;
+    svg += '<line x1="'+xAt(i0).toFixed(1)+'" y1="'+yAt(tend.base).toFixed(1)+'" x2="'+xAt(i1).toFixed(1)+'" y2="'+yAt(tend.base+tend.incl*i1).toFixed(1)+'" style="stroke:#7C5CC9; stroke-width:1.4; stroke-dasharray:6 5; opacity:.75;"/>';
+    svg += '<text x="'+(xAt(i1)-4).toFixed(1)+'" y="'+(yAt(tend.base+tend.incl*i1)-8).toFixed(1)+'" font-size="10.5" text-anchor="end" style="fill:#7C5CC9">tendência</text>';
   }
-  pontosLinha.forEach((pt) => { svg += '<circle cx="'+pt[0].toFixed(1)+'" cy="'+pt[1].toFixed(1)+'" r="3" style="fill:var(--text);"/>'; });
+  // linhas com brilho suave por baixo
+  ordemDesenho.forEach((ch) => {
+    const s = SERIES_EVOLUCAO.find((x) => x.chave === ch);
+    if (seriesOcultas[ch]) return;
+    const pts = pontos.map((p,i) => [xAt(i), yAt(p[ch])]);
+    if (n >= 2){
+      const linha = caminhoSuave(pts);
+      if (ch !== 'total') svg += '<path d="'+linha+'" style="fill:none; stroke:'+s.cor+'; stroke-width:'+(s.largura+3)+'; opacity:.35;" filter="url(#brilho-linha)"/>';
+      svg += '<path d="'+linha+'" style="fill:none; stroke:'+s.cor+'; stroke-width:'+s.largura+'; stroke-linecap:round; stroke-linejoin:round;"/>';
+    }
+    // ponto do último dia
+    svg += '<circle cx="'+pts[n-1][0].toFixed(1)+'" cy="'+pts[n-1][1].toFixed(1)+'" r="3.6" style="fill:'+s.cor+'; stroke:#fff; stroke-width:1.5;"/>';
+  });
+  // marcador do dia sob o dedo/mouse (preenchido pelo script)
+  svg += '<g id="evo-cursor" style="display:none;"><line id="evo-cursor-linha" y1="'+padT+'" y2="'+(H-padB)+'" style="stroke:var(--text); stroke-width:1.2;"/>';
+  SERIES_EVOLUCAO.forEach((s) => { svg += '<circle id="evo-cursor-'+s.chave+'" r="4.5" style="fill:'+s.cor+'; stroke:#fff; stroke-width:2;"/>'; });
+  svg += '</g>';
+  svg += '<rect id="evo-area-toque" x="'+padL+'" y="'+padT+'" width="'+(W-padL-padR)+'" height="'+(H-padT-padB)+'" style="fill:transparent; cursor:crosshair;"/>';
   svg += '</svg>';
-  svg += '<div style="margin-top:10px; font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:5px 16px;">' +
-    '<span><span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:var(--vm-soft); border:1px solid var(--vm); margin-right:5px; vertical-align:middle;"></span>Em aberto VM</span>' +
-    '<span><span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:var(--aviso-cor-soft); border:1px solid var(--aviso-cor); margin-right:5px; vertical-align:middle;"></span>Em aberto AM</span>' +
-    '<span><span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:var(--azul-soft); border:1px solid var(--azul); margin-right:5px; vertical-align:middle;"></span>Executado AW</span>' +
-    '<span><span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:var(--vd-soft); border:1px solid var(--vd); margin-right:5px; vertical-align:middle;"></span>Vistoriado IAC</span>' +
-    '<span><span style="display:inline-block; width:14px; height:2px; background:var(--text); margin-right:5px; vertical-align:middle;"></span>Total executado</span>' +
-    '<span>· número acima da barra = itens em aberto no fim do dia</span>' +
-    '</div>';
-  cont.innerHTML = svg;
+
+  // cabeçalho: valor atual de cada linha (clicável pra esconder/mostrar)
+  let topo = '<div style="font-size:12px; color:var(--muted); margin:2px 0 6px;">Valores de <span id="evo-dia-sel" style="color:var(--text);">hoje</span> — toque ou passe o mouse no gráfico pra ver outro dia</div>';
+  topo += '<div style="display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; margin:0 0 14px;">';
+  SERIES_EVOLUCAO.forEach((s) => {
+    const off = !!seriesOcultas[s.chave];
+    const extra = (s.chave==='aw' || s.chave==='iac') ? '<span data-dia-de="'+s.chave+'" style="font-size:12px; color:var(--muted); margin-left:6px;"></span>' : '';
+    topo += '<button type="button" data-serie="'+s.chave+'" style="all:unset; cursor:pointer; opacity:'+(off?0.35:1)+';" title="Mostrar/ocultar linha">' +
+      '<div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:'+s.cor+'; display:inline-block;"></span>'+s.rotulo+'</div>' +
+      '<div style="font-size:24px; color:var(--text); line-height:1.25; font-family:\'IBM Plex Sans\',sans-serif;"><span data-valor-de="'+s.chave+'"></span>'+extra+'</div></button>';
+  });
+  if (tend){
+    const txt = tend.zeraEm ? 'No ritmo atual, o em aberto zera por volta de <span style="color:var(--text);">'+tend.zeraEm+'</span> ('+tend.diasAteZero+' dias)'
+      : (tend.incl < 0 ? 'Em aberto caindo '+pdfNum(Math.round(-tend.incl))+' itens/dia' : 'Em aberto sem queda no período');
+    topo += '<div style="margin-left:auto; font-size:12px; color:var(--muted); max-width:260px; text-align:right;">'+txt+'</div>';
+  }
+  topo += '</div>';
+
+  // tabela por dia: cada indicador na sua linha
+  const diasTab = pontos.slice().reverse(); // mais recente primeiro
+  const linhaTab = (rot, cor, fn, sub) => '<tr><td style="padding:7px 12px 7px 0; white-space:nowrap; color:'+(sub?'var(--muted)':'var(--text)')+'; '+(sub?'padding-left:14px; font-size:12px;':'')+' position:sticky; left:0; background:var(--surface);">' +
+    (cor?'<span style="width:8px; height:8px; border-radius:50%; background:'+cor+'; display:inline-block; margin-right:7px;"></span>':'')+rot+'</td>' +
+    diasTab.map((p) => '<td class="mono" style="padding:7px 10px; text-align:right; white-space:nowrap; color:'+(sub?'var(--muted)':'var(--text)')+'; '+(sub?'font-size:12px;':'')+'">'+fn(p)+'</td>').join('') + '</tr>';
+  let tabela = '<div style="overflow-x:auto; margin-top:16px; border-top:1px solid var(--line);"><table style="min-width:0; width:auto; font-size:13px;"><thead><tr><th style="position:sticky; left:0; background:var(--surface);"></th>' +
+    diasTab.map((p) => '<th style="text-align:right; padding:8px 10px; font-weight:400; color:'+(p.data===hojeChave?'var(--text)':'var(--muted)')+';">'+rotuloDia(p.data)+'</th>').join('') + '</tr></thead><tbody>' +
+    linhaTab('Em aberto', '#7C5CC9', (p) => pdfNum(p.aberto)) +
+    linhaTab('Executado AW', '#39976A', (p) => pdfNum(p.aw)) +
+    linhaTab('feitos no dia', null, (p) => p.awDia ? '+'+pdfNum(p.awDia) : '—', true) +
+    linhaTab('Vistoriado IAC', '#4C73D9', (p) => pdfNum(p.iac)) +
+    linhaTab('validados no dia', null, (p) => p.iacDia ? '+'+pdfNum(p.iacDia) : '—', true) +
+    linhaTab('Total', '#99A1AC', (p) => pdfNum(p.total)) +
+    '</tbody></table></div>';
+
+  cont.innerHTML = topo + '<div id="evo-wrap" style="position:relative;">' + svg +
+    '<div id="evo-tooltip" style="display:none; position:absolute; pointer-events:none; background:var(--text); color:#fff; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:var(--shadow-lg); z-index:5;"></div></div>' + tabela;
+
+  // legenda clicável
+  cont.querySelectorAll('[data-serie]').forEach((b) => b.addEventListener('click', () => {
+    const ch = b.dataset.serie;
+    seriesOcultas[ch] = !seriesOcultas[ch];
+    if (SERIES_EVOLUCAO.every((s) => seriesOcultas[s.chave])) seriesOcultas[ch] = false; // nunca esconde todas
+    renderEvolucaoPendencias();
+  }));
+
+  // tooltip: passa o mouse ou toca/arrasta o dedo
+  const area = cont.querySelector('#evo-area-toque'), svgEl = cont.querySelector('svg');
+  const tip = cont.querySelector('#evo-tooltip'), wrap = cont.querySelector('#evo-wrap');
+  const cursor = cont.querySelector('#evo-cursor');
+  const telaPequena = W < 600;
+  function preencherTopo(p){
+    cont.querySelector('#evo-dia-sel').textContent = p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().join('/');
+    SERIES_EVOLUCAO.forEach((s) => { const el = cont.querySelector('[data-valor-de="'+s.chave+'"]'); if (el) el.textContent = pdfNum(p[s.chave]); });
+    const a = cont.querySelector('[data-dia-de="aw"]'), b = cont.querySelector('[data-dia-de="iac"]');
+    if (a) a.textContent = '+'+pdfNum(p.awDia)+' no dia';
+    if (b) b.textContent = '+'+pdfNum(p.iacDia)+' no dia';
+  }
+  preencherTopo(ult);
+  function mostrar(ev){
+    const r = svgEl.getBoundingClientRect();
+    const xv = (ev.clientX - r.left) / r.width * W;
+    let i = diasEixo > 1 ? Math.round((xv - padL)/passoX) : 0;
+    i = Math.max(0, Math.min(n-1, i));
+    const p = pontos[i], x = xAt(i);
+    cursor.style.display = '';
+    cont.querySelector('#evo-cursor-linha').setAttribute('x1', x); cont.querySelector('#evo-cursor-linha').setAttribute('x2', x);
+    SERIES_EVOLUCAO.forEach((s) => {
+      const c = cont.querySelector('#evo-cursor-'+s.chave);
+      c.style.display = seriesOcultas[s.chave] ? 'none' : '';
+      c.setAttribute('cx', x); c.setAttribute('cy', yAt(p[s.chave]));
+    });
+    preencherTopo(p);
+    if (telaPequena) return; // no celular os números do topo já mostram o dia tocado
+    const dataFmt = p.data === hojeChave ? 'Hoje' : p.data.split('-').reverse().join('/');
+    tip.innerHTML = '<div style="color:#C9CDD3; margin-bottom:2px;">'+dataFmt+'</div>' +
+      '<div><span style="color:#B9A6EC;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
+      '<div><span style="color:#7FD1A6;">●</span> Executado AW: '+pdfNum(p.aw)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.awDia)+' no dia)</span></div>' +
+      '<div><span style="color:#9CB4F2;">●</span> Vistoriado IAC: '+pdfNum(p.iac)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.iacDia)+' no dia)</span></div>' +
+      '<div><span style="color:#C9CDD3;">●</span> Total: '+pdfNum(p.total)+'</div>';
+    tip.style.display = 'block';
+    const px = x / W * r.width, wr = wrap.getBoundingClientRect().width;
+    const tw = tip.offsetWidth;
+    let left = px + 14; if (left + tw > wr) left = px - tw - 14; if (left < 0) left = 0;
+    tip.style.left = left + 'px';
+    tip.style.top = '8px';
+  }
+  function esconder(){ cursor.style.display = 'none'; tip.style.display = 'none'; preencherTopo(ult); }
+  area.addEventListener('pointermove', mostrar);
+  area.addEventListener('pointerdown', mostrar);
+  area.addEventListener('pointerleave', esconder);
 }
+
+/* redesenha o gráfico ao girar o celular / redimensionar a janela */
+let idTimeoutResizeEvo = null;
+window.addEventListener('resize', () => {
+  clearTimeout(idTimeoutResizeEvo);
+  idTimeoutResizeEvo = setTimeout(() => { if (itensRevisaoAtual.length) renderEvolucaoPendencias(); }, 250);
+});
 
 /* ===================== RANKINGS (fornecedor / disciplina) ===================== */
 /* quebra um texto em até 2 linhas (sem cortar palavra ao meio) pra caber numa coluna
@@ -3432,6 +3607,7 @@ async function apagarTudo(){
 function irParaAba(nome){
   document.querySelectorAll('nav.abas button').forEach((b) => b.classList.toggle('ativa', b.dataset.aba===nome));
   document.querySelectorAll('main .secao').forEach((s) => s.classList.toggle('ativa', s.id==='secao-'+nome));
+  if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
   window.scrollTo({top:0, behavior:'instant'});
 }
 
