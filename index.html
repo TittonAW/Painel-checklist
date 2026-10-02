@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Obra">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.5.141/pdf.min.js"></script>
@@ -23,7 +23,7 @@
   box-sizing:border-box;
   padding-bottom:env(safe-area-inset-bottom,0px);
 
-  --paper:#F4F5F7; --paper-2:#ECEEF1; --line:#E3E6EB; --text:#13151A; --muted:#6B7280;
+  --paper:#F4F5F7; --paper-2:#ECEEF1; --line:#E3E6EB; --text:#13151A; --text-2:#3F444D; --muted:#7A808A; --faint:#A9AFB8;
   --accent:#0F766E; --accent-2:#0B5C56; --accent-soft:#E2F3F1;
   --vm:#D1443F; --vm-soft:#FBE7E6; --vm-fill:rgba(209,68,63,.80);
   --azul:#4C73D9; --azul-soft:#E7ECFC; --azul-fill:rgba(76,115,217,.80);
@@ -56,7 +56,8 @@ body{
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
 }
-.mono{ font-family:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mono{ font-family:inherit; font-variant-numeric:tabular-nums; }
+strong, b{ font-weight:500; }
 a{ color:inherit; }
 button{ font-family:inherit; font-size:inherit; cursor:pointer; }
 ::selection{ background:var(--accent-soft); }
@@ -73,19 +74,19 @@ header.topo{
 .logo-chip.sofitel img{ height:100%; width:auto; display:block; }
 .logo-chip.aw{ width:38px; height:38px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.22); }
 .logo-chip.aw img{ width:100%; height:100%; object-fit:cover; display:block; }
-.marca-texto h1{ font-size:17px; font-weight:650; margin:0; letter-spacing:-.1px; }
+.marca-texto h1{ font-size:17px; font-weight:500; margin:0; letter-spacing:-.1px; }
 .marca-texto .sub{ color:var(--muted); font-size:12.5px; margin-top:1px; }
 .topo-controles{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 select, .btn, input[type=text]{
   font-family:inherit; font-size:14px; border-radius:var(--r-sm); border:1px solid var(--line);
   background:var(--surface); color:var(--text); padding:9px 13px;
 }
-.btn{ display:inline-flex; align-items:center; gap:6px; font-weight:550; border-color:var(--line); transition:border-color .15s, color .15s, background .15s, box-shadow .15s; }
+.btn{ display:inline-flex; align-items:center; gap:6px; font-weight:400; border-color:var(--line); transition:border-color .15s, color .15s, background .15s, box-shadow .15s; }
 @media (hover:hover) and (pointer:fine){ .btn:hover{ border-color:var(--accent); color:var(--accent-2); } }
-.btn.primario{ background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 2px rgba(16,24,40,.05); }
+.btn.primario{ font-weight:500; background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 2px rgba(16,24,40,.05); }
 @media (hover:hover) and (pointer:fine){ .btn.primario:hover{ background:var(--accent-2); border-color:var(--accent-2); color:#fff; } }
 .btn.fantasma{ background:transparent; }
-.pill{ display:inline-flex; align-items:center; justify-content:center; line-height:1; font-size:11.5px; padding:3px 10px; border-radius:99px; font-weight:650; letter-spacing:.2px; }
+.pill{ display:inline-flex; align-items:center; justify-content:center; line-height:1; font-size:11.5px; padding:3px 10px; border-radius:99px; font-weight:500; letter-spacing:.2px; }
 .pill.cloud{ background:var(--vd-soft); color:var(--vd); }
 .pill.local{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
 
@@ -94,7 +95,7 @@ nav.abas{
   overflow-x:auto;
 }
 nav.abas button{
-  background:none; border:none; padding:9px 16px; color:var(--muted); font-weight:550; white-space:nowrap;
+  background:none; border:none; padding:9px 16px; color:var(--muted); font-weight:400; white-space:nowrap;
   border-radius:10px; transition:background .15s, color .15s;
 }
 nav.abas button.ativa{ color:var(--accent-2); background:var(--accent-soft); }
@@ -149,12 +150,12 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   table.tabela-cartao-mobile tbody{ display:block; width:100%; }
   table.tabela-cartao-mobile tr{
     display:grid;
-    grid-template-columns:auto auto minmax(0,1fr) auto;
+    grid-template-columns:auto auto auto minmax(0,1fr) auto;
     grid-template-areas:
-      "disc disc disc aberto"
-      "disc disc disc total"
-      "vm   am   exc  btn"
-      "forn forn forn forn";
+      "disc disc disc  disc aberto"
+      "disc disc disc  disc total"
+      "vm   am   reinc exc  btn"
+      "forn forn forn  forn forn";
     gap:10px 6px; align-items:center;
     width:100%; max-width:100%; box-sizing:border-box;
     padding:14px 12px; border-bottom:1px solid var(--line);
@@ -162,16 +163,16 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   table.tabela-cartao-mobile tr:last-child{ border-bottom:none; }
   table.tabela-cartao-mobile td{ display:block; min-width:0; padding:0; border:none; text-align:left; }
 
-  table.tabela-cartao-mobile td:nth-child(1){ grid-area:disc; font-size:15px; font-weight:650; line-height:1.3; overflow-wrap:anywhere; }
+  table.tabela-cartao-mobile td:nth-child(1){ grid-area:disc; font-size:15px; font-weight:500; line-height:1.3; overflow-wrap:anywhere; }
   /* em aberto é o número principal do cartão; o total fica logo abaixo, mais discreto */
-  table.tabela-cartao-mobile td:nth-child(5){ grid-area:aberto; font-family:'IBM Plex Mono',monospace; font-size:20px; font-weight:700; color:var(--text); text-align:right; line-height:1.1; white-space:nowrap; }
+  table.tabela-cartao-mobile td:nth-child(5){ grid-area:aberto; font-family:inherit; font-variant-numeric:tabular-nums; font-size:20px; font-weight:400; color:var(--text); text-align:right; line-height:1.1; white-space:nowrap; }
   table.tabela-cartao-mobile td:nth-child(5)::after{ content:" em aberto"; font-family:'IBM Plex Sans',sans-serif; font-size:11px; font-weight:500; color:var(--muted); }
   table.tabela-cartao-mobile td:nth-child(6){ grid-area:total; font-size:12px; font-weight:500; color:var(--muted); text-align:right; white-space:nowrap; align-self:start; }
   table.tabela-cartao-mobile td:nth-child(6)::before{ content:"de "; }
   table.tabela-cartao-mobile td:nth-child(6)::after{ content:" no total"; }
 
   table.tabela-cartao-mobile td:nth-child(3),
-  table.tabela-cartao-mobile td:nth-child(4){ font-size:12.5px; font-weight:650; padding:4px 10px; border-radius:99px; white-space:nowrap; }
+  table.tabela-cartao-mobile td:nth-child(4){ font-size:12.5px; font-weight:500; padding:4px 10px; border-radius:99px; white-space:nowrap; }
   table.tabela-cartao-mobile td:nth-child(3){ grid-area:vm; background:var(--vm-soft); }
   table.tabela-cartao-mobile td:nth-child(4){ grid-area:am; background:var(--aviso-cor-soft); }
   table.tabela-cartao-mobile td:nth-child(3)::before{ content:"VM "; }
@@ -180,7 +181,9 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   table.tabela-cartao-mobile td:nth-child(7){ grid-area:exc; font-size:12px; color:var(--muted); white-space:nowrap; }
   table.tabela-cartao-mobile td:nth-child(7)::before{ content:"Exceções: "; }
 
-  table.tabela-cartao-mobile td:nth-child(8){ grid-area:btn; }
+  table.tabela-cartao-mobile td:nth-child(8){ grid-area:reinc; font-size:12px; color:var(--muted); white-space:nowrap; }
+  table.tabela-cartao-mobile td:nth-child(8)::before{ content:"↺ "; }
+  table.tabela-cartao-mobile td:nth-child(9){ grid-area:btn; }
 
   /* fornecedor: mesma largura, altura e borda dos filtros (Todos os andares etc.) */
   table.tabela-cartao-mobile td:nth-child(2){ grid-area:forn; }
@@ -191,7 +194,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 
 .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow-x:auto; max-width:100%; }
 .card-pad{ padding:22px 24px; }
-.card h2{ font-size:14.5px; text-transform:none; margin:0 0 14px; color:var(--text); font-weight:650; }
+.card h2{ font-size:14.5px; text-transform:none; margin:0 0 14px; color:var(--text); font-weight:500; }
 
 .torre{ display:flex; flex-direction:column-reverse; gap:5px; }
 .andar-barra{
@@ -199,51 +202,51 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   cursor:pointer; background:var(--paper-2); transition:border-color .15s, background .15s;
 }
 @media (hover:hover) and (pointer:fine){ .andar-barra:hover{ border-color:var(--accent); background:var(--accent-soft); } }
-.andar-barra .num{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; width:28px; color:var(--muted); }
+.andar-barra .num{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:12.5px; width:28px; color:var(--muted); }
 .andar-barra .barra{ flex:1 1 auto; min-width:60px; height:18px; border-radius:5px; background:var(--semdados-soft); position:relative; overflow:hidden; }
 .andar-barra .barra > span{ position:absolute; inset:0; border-radius:5px; }
 .mini-stats{ display:flex; gap:7px; flex:none; }
 .mini-stat{ display:flex; flex-direction:column; align-items:center; width:28px; line-height:1.15; }
-.mini-rotulo{ font-size:9.5px; color:var(--muted); font-weight:650; letter-spacing:.2px; }
+.mini-rotulo{ font-size:9.5px; color:var(--muted); font-weight:400; letter-spacing:.2px; }
 .mini-valor{ font-size:12px; color:var(--muted); font-weight:500; }
 /* em aberto (falta a AW executar) é o número que o cliente quer ver: preto e negrito;
    AW / IAC / Total ficam em cinza, como apoio. Sem cor própria de propósito — no painel
    as cores já significam status (VM, AM, liberado, VD) */
 .mini-stat.destaque{ width:auto; min-width:36px; }
 .mini-stat.destaque .mini-rotulo{ color:var(--text); }
-.mini-stat.destaque .mini-valor{ color:var(--text); font-weight:700; font-size:13px; }
-.andar-barra .contagem{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); width:64px; text-align:right; }
+.mini-stat.destaque .mini-valor{ color:var(--text); font-weight:500; font-size:13px; }
+.andar-barra .contagem{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:11.5px; color:var(--muted); width:64px; text-align:right; }
 .andar-barra.liberado-total{ border-color:var(--azul); background:var(--azul-soft); }
 .selo-liberado{
   display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
-  border-radius:50%; background:var(--azul); color:#fff; font-size:11px; font-weight:700; flex:none;
+  border-radius:50%; background:var(--azul); color:#fff; font-size:11px; font-weight:500; flex:none;
 }
 .status-vm{ background:var(--vm-fill); } .status-pendente{ background:var(--aviso-fill); } .status-liberado-pend{ background:var(--azul-fill); } .status-vd{ background:var(--vd-fill); } .status-sem{ background:var(--semdados); }
 
 .resumo-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:14px; }
-.grupo-label{ font-size:12.5px; font-weight:650; color:var(--muted); margin:0 0 10px; }
+.grupo-label{ font-size:12.5px; font-weight:400; color:var(--muted); margin:0 0 10px; }
 .stat{ padding:16px 18px; border-radius:var(--r-md); background:var(--paper-2); border:1px solid var(--line); transition:border-color .15s, box-shadow .15s, transform .1s; }
 .stat.clicavel{ cursor:pointer; }
 @media (hover:hover) and (pointer:fine){ .stat.clicavel:hover{ border-color:var(--accent); box-shadow:var(--shadow); transform:translateY(-1px); } }
 tbody tr.linha-clicavel{ cursor:pointer; }
-.stat .valor{ font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:650; line-height:1.1; }
+.stat .valor{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:28px; font-weight:400; line-height:1.1; }
 .stat .rotulo{ font-size:12px; color:var(--muted); margin-top:6px; }
 .stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--azul); }
 
 table{ width:100%; min-width:620px; border-collapse:collapse; font-size:14px; }
-th{ text-align:left; font-weight:650; color:var(--muted); font-size:11.5px; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
-td{ padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:middle; }
+th{ text-align:left; font-weight:400; color:var(--muted); font-size:11.5px; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
+td{ padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--text-2); }
 tr:last-child td{ border-bottom:none; }
 @media (hover:hover) and (pointer:fine){ tbody tr:hover{ background:var(--paper-2); } }
-.num-col{ font-family:'IBM Plex Mono',monospace; text-align:right; }
+.num-col{ font-family:inherit; font-variant-numeric:tabular-nums; text-align:right; }
 /* identifica VM/AM/VD pela cor em qualquer lugar que apareçam como coluna/número, não só
    nos badges — pra dar pra reconhecer de relance, sem precisar ler a sigla */
-.col-vm{ color:var(--vm); font-weight:700; }
-.col-am{ color:var(--aviso-cor); font-weight:700; }
-.col-vd{ color:var(--vd); font-weight:700; }
-.col-aberto{ color:var(--text); font-weight:700; }
+.col-vm{ color:var(--vm); font-weight:400; }
+.col-am{ color:var(--aviso-cor); font-weight:400; }
+.col-vd{ color:var(--vd); font-weight:400; }
+.col-aberto{ color:var(--text); font-weight:500; }
 .col-fluxo{ color:var(--muted); }
-.badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; font-size:11.5px; font-weight:650; white-space:nowrap; }
+.badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; font-size:11.5px; font-weight:500; white-space:nowrap; }
 .badge.bloqueado{ background:var(--vm-soft); color:var(--vm); }
 .badge.pendente{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
 .badge.liberado-pend{ background:var(--azul-soft); color:var(--azul); }
@@ -255,7 +258,7 @@ tr:last-child td{ border-bottom:none; }
 .chip-acao.marcado.iac{ background:var(--azul-soft); color:var(--azul); border-color:var(--azul); }
 .chip-acao:disabled{ opacity:.4; cursor:not-allowed; }
 @media (hover:hover) and (pointer:fine){ .chip-acao:disabled:hover{ border-color:var(--line); color:var(--muted); } }
-.tag-origem{ font-size:10px; padding:1px 7px; border-radius:99px; font-weight:600; vertical-align:middle; }
+.tag-origem{ font-size:10px; padding:1px 7px; border-radius:99px; font-weight:400; vertical-align:middle; }
 .tag-origem.padrao{ background:var(--semdados-soft); color:var(--muted); }
 .tag-origem.manual{ background:var(--azul-soft); color:var(--azul); }
 
@@ -266,7 +269,7 @@ tr:last-child td{ border-bottom:none; }
 
 .contagem-chips{ font-size:11.5px; color:var(--muted); margin-bottom:4px; }
 .chips-arquivos{ display:flex; flex-wrap:wrap; gap:6px; max-width:300px; }
-.chip-arquivo{ background:var(--paper-2); border:1px solid var(--line); border-radius:5px; padding:1px 7px; font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--muted); white-space:nowrap; }
+.chip-arquivo{ background:var(--paper-2); border:1px solid var(--line); border-radius:5px; padding:1px 7px; font-size:11px; font-family:inherit; font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
 .miniatura-foto{ width:140px; height:105px; object-fit:cover; border-radius:9px; border:1px solid var(--line); display:block; cursor:zoom-in; }
 .sem-foto{ color:var(--muted); }
 
@@ -293,9 +296,9 @@ tr:last-child td{ border-bottom:none; }
 
 .insight-item{ padding:12px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; align-items:flex-start;}
 .insight-item:last-child{ border-bottom:none; }
-.insight-item .local{ font-weight:650; font-size:14px; }
+.insight-item .local{ font-weight:500; font-size:14px; color:var(--text); }
 .insight-item .detalhe{ color:var(--muted); font-size:12.5px; margin-top:3px; }
-.saldo{ font-family:'IBM Plex Mono',monospace; font-weight:650; white-space:nowrap; }
+.saldo{ font-family:inherit; font-variant-numeric:tabular-nums; font-weight:500; white-space:nowrap; }
 .saldo.pos{ color:var(--vm); } .saldo.neg{ color:var(--vd); } .saldo.zero{ color:var(--muted); }
 
 .oculto{ display:none !important; }
@@ -312,20 +315,20 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   max-width:440px; width:100%; padding:24px 26px 22px; max-height:88vh; overflow-y:auto;
   display:flex; flex-direction:column;
 }
-.modal-caixa h3, .modal-card h3{ margin:0 0 4px; font-size:17px; font-weight:650; flex:none; }
+.modal-caixa h3, .modal-card h3{ margin:0 0 4px; font-size:17px; font-weight:500; flex:none; }
 .modal-caixa > p{ margin:6px 0; flex:none; }
 .modal-caixa ul{ margin:8px 0; padding-left:20px; padding-right:6px; overflow-y:auto; max-height:38vh; }
-.modal-caixa li{ font-family:'IBM Plex Mono',monospace; font-size:13px; }
+.modal-caixa li{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:13px; }
 .modal-sub{ color:var(--muted); font-size:12.5px; margin:3px 0 18px; line-height:1.4; }
 .modal-info-grid{
   display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; background:var(--paper-2);
   border-radius:var(--r-md); padding:14px 16px; margin-bottom:18px; font-size:12.5px;
 }
 .modal-info-grid .rotulo{ color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px; }
-.modal-info-grid .valor{ font-weight:550; }
+.modal-info-grid .valor{ font-weight:400; color:var(--text); }
 .modal-info-grid .item-full{ grid-column:1 / -1; }
 .modal-campo{ margin-bottom:16px; }
-.modal-campo label{ display:block; font-size:12.5px; font-weight:650; color:var(--text); margin-bottom:6px; }
+.modal-campo label{ display:block; font-size:12.5px; font-weight:500; color:var(--text); margin-bottom:6px; }
 .modal-campo input, .modal-campo select{
   width:100%; padding:11px 14px; border-radius:11px; border:1px solid var(--line);
   background:var(--paper); color:var(--text); font-size:14px; font-family:inherit;
@@ -350,6 +353,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   background:var(--text); color:#fff;
 }
 .aviso-flutuante.erro{ background:var(--vm); border-radius:var(--r-md); }
+.aviso-flutuante.info{ background:#7A2E2B; }
+.tag-reinc{ display:inline-flex; align-items:center; margin-left:6px; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--vm-soft); color:var(--vm); white-space:nowrap; vertical-align:middle; }
 .aviso-flutuante[hidden]{ display:none; }
 
 @media print{
@@ -405,7 +410,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <div class="rodape-nota" style="margin-top:14px; text-align:left; display:flex; flex-wrap:wrap; gap:4px 14px;">
           <span style="white-space:nowrap;"><span class="badge bloqueado">●</span> <span class="col-vm">VM (vermelho)</span></span>
           <span style="white-space:nowrap;"><span class="badge pendente">●</span> <span class="col-am">AM (amarelo)</span></span>
-          <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--azul); font-weight:700;">Liberado com pendência</span></span>
+          <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--azul);">Liberado com pendência</span></span>
           <span style="white-space:nowrap;"><span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span></span>
           <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
         </div>
@@ -502,6 +507,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
         <option value="emAberto">Em aberto (sem nenhuma ação ainda)</option>
+        <option value="comReinc">Com reincidência</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
@@ -535,7 +541,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table class="tabela-cartao-mobile">
         <thead><tr>
           <th>Disciplina</th><th>Fornecedor padrão</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">Total pend.</th><th class="num-col">Exceções</th><th></th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">Total pend.</th><th class="num-col">Exceções</th><th class="num-col">Reinc.</th><th></th>
         </tr></thead>
         <tbody id="tbody-disciplinas"></tbody>
       </table>
@@ -1553,7 +1559,9 @@ async function carregarAcompanhamento(){
     acompanhamento[d._id] = {
       awExecEm: d.awExecEm||null, iacOkEm: d.iacOkEm||null,
       disciplinaOverride: d.disciplinaOverride||null, fornecedorOverride: d.fornecedorOverride||null,
-      dataPrevista: d.dataPrevista||null
+      dataPrevista: d.dataPrevista||null,
+      reincidencias: d.reincidencias||0,
+      historico: Array.isArray(d.historico) ? d.historico : null
     };
   });
 }
@@ -1577,7 +1585,7 @@ function avisoFlutuante(texto, tipo){
   el.className = 'aviso-flutuante ' + (tipo || 'ok');
   el.hidden = false;
   clearTimeout(idTimeoutAviso);
-  idTimeoutAviso = setTimeout(() => { el.hidden = true; }, tipo === 'erro' ? 6000 : 1800);
+  idTimeoutAviso = setTimeout(() => { el.hidden = true; }, tipo === 'erro' ? 6000 : (tipo === 'info' ? 3500 : 1800));
 }
 
 /* depois de qualquer marcação, redesenha tudo que mostra contagem de AW/IAC/Aberto —
@@ -1593,19 +1601,60 @@ function atualizarTelasAposAcompanhamento(){
   renderResumoGeral();
 }
 
+/* histórico de cada item: [{t:'aw'|'iac'|'reinc', em}] — é dele que o gráfico de evolução
+   reconstrói os dias, então desmarcar um item NÃO apaga o passado. Itens marcados antes do
+   histórico existir ganham um histórico montado a partir das datas que já tinham. */
+function historicoDoItem(a){
+  if (a && Array.isArray(a.historico)) return a.historico;
+  const h = [];
+  if (a && a.awExecEm) h.push({ t:'aw', em:a.awExecEm });
+  if (a && a.iacOkEm) h.push({ t:'iac', em:a.iacOkEm });
+  return h;
+}
+const MINUTOS_CORRECAO_ENGANO = 15;
+
+/* Executado AW / Vistoriado IAC.
+   Desmarcar o Executado AW devolve o item pra "em aberto" (ele vai ter que ser feito de novo)
+   e conta uma REINCIDÊNCIA — exceto se for desmarcado em até 15 minutos depois de marcar,
+   que aí é tratado como correção de engano (marcou o item errado) e some do histórico. */
 async function alternarAcompanhamento(itemId, campo){
   const anterior = acompanhamento[itemId];
   const atual = anterior || { awExecEm:null, iacOkEm:null };
-  const novoValor = atual[campo] ? null : new Date().toISOString();
-  const novo = Object.assign({}, atual, { [campo]: novoValor });
-  // cascata: se desmarcar "Executado AW", não faz sentido manter "Vistoriado IAC" marcado
-  if (campo === 'awExecEm' && !novoValor) novo.iacOkEm = null;
+  const agora = new Date().toISOString();
+  const hist = historicoDoItem(atual).slice();
+  const novo = Object.assign({}, atual);
+  let msg = 'Salvo', tipoMsg = 'ok';
+  if (campo === 'awExecEm'){
+    if (!atual.awExecEm){
+      novo.awExecEm = agora; hist.push({ t:'aw', em:agora });
+    } else {
+      const minutos = (Date.now() - new Date(atual.awExecEm).getTime()) / 60000;
+      novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
+      if (minutos <= MINUTOS_CORRECAO_ENGANO){
+        for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i); break; } }
+        msg = 'Marcação desfeita';
+      } else {
+        hist.push({ t:'reinc', em:agora });
+        novo.reincidencias = (atual.reincidencias || 0) + 1;
+        msg = 'Item voltou para aberto · reincidência ' + novo.reincidencias + '×'; tipoMsg = 'info';
+      }
+    }
+  } else {
+    if (!atual.iacOkEm){
+      novo.iacOkEm = agora; hist.push({ t:'iac', em:agora });
+    } else {
+      novo.iacOkEm = null;
+      for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
+      msg = 'Vistoria desfeita';
+    }
+  }
+  novo.historico = hist;
   // mostra na hora (não espera a internet), e salva em seguida
   acompanhamento[itemId] = novo;
   atualizarTelasAposAcompanhamento();
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
   if (r.ok){
-    avisoFlutuante('Salvo', 'ok');
+    avisoFlutuante(msg, tipoMsg);
   } else {
     // não salvou: desfaz na tela também, pra nunca mostrar verde algo que não está no banco
     if (anterior) acompanhamento[itemId] = anterior; else delete acompanhamento[itemId];
@@ -2017,6 +2066,7 @@ async function renderResumoGeral(recarregarHistorico){
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (sem nenhuma ação)</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div></div>' +
       '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div></div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
       '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
 
@@ -2037,7 +2087,7 @@ async function renderResumoGeral(recarregarHistorico){
 
     '<div class="grupo-label" style="margin-top:22px;">Andares</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro — <span style="color:var(--vd); font-weight:600;">liberado</span> (sem pendência) ou <span style="color:var(--azul); font-weight:600;">liberado com pendência</span></div></div>' +
+      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro — <span style="color:var(--vd);">liberado</span> (sem pendência) ou <span style="color:var(--azul);">liberado com pendência</span></div></div>' +
     '</div>';
 
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
@@ -2150,15 +2200,12 @@ function chaveDiaLocal(d){
 function calcularEvolucaoPendencias(limiteDias){
   limiteDias = limiteDias || 30;
   const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const marcas = itensRevisaoAtual.map((it) => {
-    const a = acompanhamento[it.id] || {};
-    const iac = a.iacOkEm ? chaveDiaLocal(new Date(a.iacOkEm)) : null;
-    let aw = a.awExecEm ? chaveDiaLocal(new Date(a.awExecEm)) : null;
-    if (iac && !aw) aw = iac; // vistoriado sem data de AW conta como executado
-    return { aw, iac };
-  });
+  // eventos de cada item, já com o dia local, em ordem de acontecimento
+  const marcas = itensRevisaoAtual.map((it) => historicoDoItem(acompanhamento[it.id])
+    .map((e) => ({ t:e.t, dia: chaveDiaLocal(new Date(e.em)), em:e.em }))
+    .sort((a,b) => (a.em < b.em ? -1 : (a.em > b.em ? 1 : 0))));
   let inicio = new Date(hoje); inicio.setDate(inicio.getDate() - (limiteDias-1));
-  const datas = marcas.flatMap((m) => [m.aw, m.iac]).filter(Boolean).sort();
+  const datas = marcas.flatMap((ev) => ev.map((e) => e.dia)).sort();
   if (datas.length){
     const p = datas[0].split('-').map(Number);
     const primeiro = new Date(p[0], p[1]-1, p[2]);
@@ -2169,14 +2216,20 @@ function calcularEvolucaoPendencias(limiteDias){
   const pontos = [];
   for (let d = new Date(inicio); d <= hoje; d.setDate(d.getDate()+1)){
     const dia = chaveDiaLocal(d);
-    let aw=0, iac=0, awDia=0, iacDia=0;
-    marcas.forEach((m) => {
-      if (m.aw && m.aw <= dia) aw++;
-      if (m.iac && m.iac <= dia) iac++;
-      if (m.aw === dia) awDia++;
-      if (m.iac === dia) iacDia++;
+    let aw=0, iac=0, awDia=0, iacDia=0, reincDia=0;
+    marcas.forEach((ev) => {
+      // situação do item no fim desse dia, repassando os eventos até ele
+      let ex = false, vi = false;
+      for (const e of ev){
+        if (e.dia > dia) break;
+        if (e.t === 'aw'){ ex = true; if (e.dia === dia) awDia++; }
+        else if (e.t === 'iac'){ ex = true; vi = true; if (e.dia === dia) iacDia++; }
+        else if (e.t === 'reinc'){ ex = false; vi = false; if (e.dia === dia) reincDia++; }
+      }
+      if (ex) aw++;
+      if (vi) iac++;
     });
-    pontos.push({ data: dia, total: marcas.length, aw, iac, awDia, iacDia, aberto: marcas.length - aw });
+    pontos.push({ data: dia, total: marcas.length, aw, iac, awDia, iacDia, reincDia, aberto: marcas.length - aw });
   }
   return pontos;
 }
@@ -2276,8 +2329,8 @@ function renderEvolucaoPendencias(){
   // desenha na largura real do cartão: no celular o texto fica legível em vez de encolher
   const W = Math.max(320, Math.round(cont.clientWidth || 960));
   const pequeno = W < 600;
-  const H = pequeno ? 270 : 330;
-  const padL = pequeno ? 34 : 40, padR = pequeno ? 22 : 26, padT = 16, padB = 64;
+  const H = pequeno ? 286 : 346;
+  const padL = pequeno ? 38 : 44, padR = pequeno ? 22 : 26, padT = 16, padB = 80;
   const yBase = H - padB;
   const diasEixo = n + diasProj;
   const ox = pequeno ? 20 : 26; // folga entre o eixo e o 1º dia, pra caber "AW"/"IAC" sem encostar no número
@@ -2323,6 +2376,7 @@ function renderEvolucaoPendencias(){
   const passoRot = Math.max(1, Math.ceil(espacoMin / Math.max(1, passoX)));
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#39976A">AW</text>';
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#4C73D9">IAC</text>';
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+66)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#D1443F">Reinc.</text>';
   todos.forEach((p,i) => {
     const passado = i < n;
     if ((i - (n-1)) % passoRot !== 0) return; // conta a partir de hoje, pra hoje nunca sumir
@@ -2333,6 +2387,7 @@ function renderEvolucaoPendencias(){
     const pre = passado ? '+' : '≈';
     svg += '<text x="'+x+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.awDia?corAw:'#C4C8CF')+'">'+(p.awDia?pre+pdfNum(p.awDia):'—')+'</text>';
     svg += '<text x="'+x+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.iacDia?corIac:'#C4C8CF')+'">'+(p.iacDia?pre+pdfNum(p.iacDia):'—')+'</text>';
+    if (passado) svg += '<text x="'+x+'" y="'+(yBase+66)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.reincDia?'#D1443F':'#C4C8CF')+'">'+(p.reincDia?pdfNum(p.reincDia):'—')+'</text>';
   });
 
   const ordemDesenho = ['total','aberto','aw','iac'];
@@ -2400,7 +2455,8 @@ function renderEvolucaoPendencias(){
   const cursor = cont.querySelector('#evo-cursor');
   function preencherTopo(p){
     cont.querySelector('#evo-dia-sel').textContent = p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().join('/');
-    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#39976A;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#4C73D9;">IAC +'+pdfNum(p.iacDia)+'</span>';
+    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#39976A;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#4C73D9;">IAC +'+pdfNum(p.iacDia)+'</span>' +
+      (p.reincDia ? ' · <span style="color:#D1443F;">'+pdfNum(p.reincDia)+' reincidência'+(p.reincDia>1?'s':'')+'</span>' : '');
     SERIES_EVOLUCAO.forEach((s) => { const el = cont.querySelector('[data-valor-de="'+s.chave+'"]'); if (el) el.textContent = pdfNum(p[s.chave]); });
   }
   preencherTopo(ult);
@@ -2424,7 +2480,8 @@ function renderEvolucaoPendencias(){
       '<div><span style="color:#B9A6EC;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
       '<div><span style="color:#7FD1A6;">●</span> Executado AW: '+pdfNum(p.aw)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.awDia)+' no dia)</span></div>' +
       '<div><span style="color:#9CB4F2;">●</span> Vistoriado IAC: '+pdfNum(p.iac)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.iacDia)+' no dia)</span></div>' +
-      '<div><span style="color:#C9CDD3;">●</span> Total: '+pdfNum(p.total)+'</div>';
+      '<div><span style="color:#C9CDD3;">●</span> Total: '+pdfNum(p.total)+'</div>' +
+      (p.reincDia ? '<div><span style="color:#F09595;">●</span> Reincidências no dia: '+pdfNum(p.reincDia)+'</div>' : '');
     tip.style.display = 'block';
     const px = x / W * r.width, wr = wrap.getBoundingClientRect().width, tw = tip.offsetWidth;
     let left = px + 14; if (left + tw > wr) left = px - tw - 14; if (left < 0) left = 0;
@@ -2492,7 +2549,7 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens){
       svg += '<text x="'+(padL-12)+'" y="'+(centroY+16)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[1])+'</text>';
     }
     svg += '<rect x="'+padL+'" y="'+yBarra.toFixed(1)+'" width="'+larguraBarra.toFixed(1)+'" height="'+ALTURA_BARRA+'" rx="6" style="fill:'+corBarra+'"/>';
-    svg += '<text x="'+(padL+larguraBarra+10)+'" y="'+(centroY+5)+'" font-size="13.5" font-weight="650" style="fill:var(--muted)">'+it.valor+'</text>';
+    svg += '<text x="'+(padL+larguraBarra+10)+'" y="'+(centroY+5)+'" font-size="13.5" style="fill:var(--muted)">'+it.valor+'</text>';
   });
   svg += '</svg>';
   return svg;
@@ -2727,12 +2784,14 @@ function obterItensFiltrados(){
         const semNenhumaAcao = !(a && (a.awExecEm || a.iacOkEm));
         return (statusAtual === 'BLOQUEADO' || statusAtual === 'PENDENTE') && semNenhumaAcao;
       }
+      if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       return true;
     });
   }
   if (filtroProgresso){
     itens = itens.filter((it) => {
       const a = acompanhamento[it.id];
+      if (filtroProgresso === 'reinc') return !!(a && a.reincidencias);
       if (filtroProgresso === 'aberto') return !a || (!a.awExecEm && !a.iacOkEm);
       if (filtroProgresso === 'awExec') return a && a.awExecEm;
       if (filtroProgresso === 'iacOk') return a && a.iacOkEm;
@@ -2797,7 +2856,7 @@ function renderItens(){
       : '';
     const fluxoHtml =
       '<div style="display:flex; flex-direction:column; gap:8px;">' +
-      '<button class="chip-acao'+(ac.awExecEm?' marcado':'')+'" data-acomp="awExecEm" data-id="'+esc(it.id)+'">'+(ac.awExecEm?'✓ Executado AW':'Executado AW')+'</button>' +
+      '<button class="chip-acao'+(ac.awExecEm?' marcado':'')+'" data-acomp="awExecEm" data-id="'+esc(it.id)+'"'+(ac.awExecEm?' title="Desmarcar devolve o item para aberto e conta uma reincidência (em até 15 min depois de marcar, conta só como correção de engano)"':'')+'>'+(ac.awExecEm?'✓ Executado AW':'Executado AW')+'</button>' +
       '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Vistoriado IAC':'Vistoriado IAC')+'</button>' +
       '<button class="chip-acao" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
@@ -2808,7 +2867,9 @@ function renderItens(){
       '<td class="mono">'+esc(it.id)+'</td><td class="mono">'+it.andar+'º</td><td>'+esc(label)+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
-      '<td><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span></td>' +
+      '<td><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
+        (ac.reincidencias ? '<span class="tag-reinc" title="Voltou para aberto depois de executado ('+ac.reincidencias+' vez'+(ac.reincidencias>1?'es':'')+')">↺ Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':'')+'</span>' : '') +
+      '</td>' +
       '<td>'+esc(it.desc)+'</td><td>'+fotoHtml+'</td><td>'+fluxoHtml+'</td>';
     tbody.appendChild(tr);
   });
@@ -2974,6 +3035,7 @@ function renderDisciplinas(){
     const itens = map.get(disc);
     const c = contarVMAM(itens);
     const excecoes = itens.filter((it) => { const ac = acompanhamento[it.id]; return ac && (ac.disciplinaOverride || ac.fornecedorOverride); }).length;
+    const reinc = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
     const tr = document.createElement('tr');
     const nomeFornecedor = fornecedores[disc] || '';
     tr.innerHTML = '<td data-label="Disciplina">'+esc(disc)+'</td>' +
@@ -2982,6 +3044,7 @@ function renderDisciplinas(){
       '<td class="num-col col-aberto" data-label="Aberto">'+contarEmAberto(itens)+'</td>' +
       '<td class="num-col col-fluxo" data-label="Total pend.">'+c.total+'</td>' +
       '<td class="num-col" data-label="Exceções">'+(excecoes>0?excecoes:'—')+'</td>' +
+      '<td class="num-col'+(reinc?' col-vm':'')+'" data-label="Reinc.">'+(reinc>0?reinc:'—')+'</td>' +
       '<td data-label=""><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
     tbody.appendChild(tr);
   });
@@ -3143,7 +3206,7 @@ async function renderTendencia(){
     pathTotal += (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(p.total).toFixed(1) + ' ';
     pathVm += (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(p.vm).toFixed(1) + ' ';
   });
-  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%; height:auto; font-family:\'IBM Plex Mono\',monospace;">';
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%; height:auto; font-family:\'IBM Plex Sans\',sans-serif; font-variant-numeric:tabular-nums;">';
   svg += '<line x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-padR)+'" y2="'+(H-padB)+'" style="stroke:var(--line); stroke-width:1"/>';
   svg += '<path d="'+pathTotal+'" style="fill:none; stroke:var(--accent); stroke-width:2.2"/>';
   svg += '<path d="'+pathVm+'" style="fill:none; stroke:var(--vm); stroke-width:2" stroke-dasharray="4 3"/>';
@@ -3155,8 +3218,8 @@ async function renderTendencia(){
   });
   svg += '</svg>';
   svg += '<div style="margin-top:6px; font-size:12px; color:var(--muted);">' +
-    '<span style="color:var(--accent); font-weight:600;">— total de pendências</span> &nbsp; ' +
-    '<span style="color:var(--vm); font-weight:600;">╌ críticas (VM)</span></div>';
+    '<span style="color:var(--accent);">— total de pendências</span> &nbsp; ' +
+    '<span style="color:var(--vm);">╌ críticas (VM)</span></div>';
   cont.innerHTML = svg;
 }
 
@@ -4123,12 +4186,19 @@ async function exportarItensPdf(){
         else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
         else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
         const temPrev = !!(ac.dataPrevista && !ac.iacOkEm);
-        const sy = temPrev ? mid - 15 : mid - 9;
+        const temReinc = !!ac.reincidencias;
+        const extras = (temPrev?1:0) + (temReinc?1:0);
+        const sy = mid - 9 - extras*6;
         pdfFill(doc, bg); pdfDraw(doc, bd); doc.setLineWidth(0.6);
         doc.roundedRect(cx+X.flux, sy, FLUX_W, 18, 5, 5, 'FD');
         pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+12, txt, 7.5, fg, 'center');
+        let yExtra = sy + 30;
         if (temPrev){
-          pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+30, 'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), 7, PDF_COR.muted, 'center');
+          pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, 'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), 7, PDF_COR.muted, 'center');
+          yExtra += 10;
+        }
+        if (temReinc){
+          pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, 'Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':''), 7, PDF_COR.vm, 'center');
         }
       }
     };
