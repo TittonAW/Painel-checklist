@@ -131,6 +131,10 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   .mini-valor{ font-size:10.5px; }
 
   select, .btn, input[type=text]{ font-size:16px; }
+  /* no celular cada filtro cai numa linha sozinho — sem largura igual, cada um fica do
+     tamanho do próprio texto, bagunçado. Aqui todos os campos de filtro (não os botões de
+     ação, tipo "Limpar filtros", que continuam lado a lado) ocupam a largura toda */
+  .linha-toolbar > select, .linha-toolbar > input[type=text]{ width:100%; min-width:0; flex:1 1 100%; }
   .badge{ font-size:10px; padding:2px 8px; }
 
   table.tabela-cartao-mobile thead{ display:none; }
