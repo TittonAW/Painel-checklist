@@ -137,40 +137,21 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   .linha-toolbar > select, .linha-toolbar > input[type=text]{ width:100%; min-width:0; flex:1 1 100%; }
   .badge{ font-size:10px; padding:2px 8px; }
 
-  /* cartão desenhado especificamente pra essa tabela (não é mais o transform genérico de
-     "linha vira lista") — disciplina como título, fornecedor com campo full-width embaixo
-     do rótulo (não do lado, que era o que fazia o campo vazar pra fora da tela), e os três
-     números compactos lado a lado */
+  /* mesmo padrão usado nos filtros de Quartos/Itens: rótulo em cima, campo/valor ocupando
+     a largura toda embaixo — simples e igual em todos os campos, sem desenho especial, e
+     sem precisar de scroll lateral pra ver nada */
   table.tabela-cartao-mobile thead{ display:none; }
-  table.tabela-cartao-mobile, table.tabela-cartao-mobile tbody{ display:block; width:100%; }
-  table.tabela-cartao-mobile tr{
-    display:grid; grid-template-columns:1fr 1fr 1fr;
-    grid-template-areas:"disc disc disc" "forn forn forn" "vm am total" "exc exc verbtn";
-    gap:8px 10px; padding:16px 4px; border-bottom:1px solid var(--line);
-  }
+  table.tabela-cartao-mobile, table.tabela-cartao-mobile tbody,
+  table.tabela-cartao-mobile tr, table.tabela-cartao-mobile td{ display:block; width:100%; }
+  table.tabela-cartao-mobile tr{ border-bottom:1px solid var(--line); padding:14px 4px; }
   table.tabela-cartao-mobile tr:last-child{ border-bottom:none; }
-  table.tabela-cartao-mobile td{ display:block; padding:0; border:none; text-align:left; }
-
-  table.tabela-cartao-mobile td:nth-child(1){ grid-area:disc; font-weight:700; font-size:14px; }
-
-  table.tabela-cartao-mobile td:nth-child(2){ grid-area:forn; display:flex; flex-direction:column; gap:4px; }
-  table.tabela-cartao-mobile td:nth-child(2)::before{ content:"Fornecedor padrão"; font-size:11px; font-weight:600; color:var(--muted); }
-  table.tabela-cartao-mobile td:nth-child(2) input[type=text]{ width:100%; }
-
-  table.tabela-cartao-mobile td:nth-child(3){ grid-area:vm; }
-  table.tabela-cartao-mobile td:nth-child(4){ grid-area:am; }
-  table.tabela-cartao-mobile td:nth-child(5){ grid-area:total; }
-  table.tabela-cartao-mobile td:nth-child(3), table.tabela-cartao-mobile td:nth-child(4), table.tabela-cartao-mobile td:nth-child(5){
-    display:flex; flex-direction:column; gap:2px; background:var(--paper-2); border-radius:8px;
-    padding:6px 4px; text-align:center !important;
+  table.tabela-cartao-mobile td{ padding:6px 0; border:none; text-align:left; }
+  table.tabela-cartao-mobile td[data-label]:not([data-label=""])::before{
+    content: attr(data-label); display:block; font-size:11px; font-weight:600;
+    color:var(--muted); margin-bottom:4px;
   }
-  table.tabela-cartao-mobile td:nth-child(3)::before{ content:"VM"; font-size:9.5px; font-weight:600; color:var(--muted); }
-  table.tabela-cartao-mobile td:nth-child(4)::before{ content:"AM"; font-size:9.5px; font-weight:600; color:var(--muted); }
-  table.tabela-cartao-mobile td:nth-child(5)::before{ content:"Total pend."; font-size:9.5px; font-weight:600; color:var(--muted); }
-
-  table.tabela-cartao-mobile td:nth-child(6){ grid-area:exc; display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--muted); }
-  table.tabela-cartao-mobile td:nth-child(6)::before{ content:"Exceções:"; font-weight:600; }
-  table.tabela-cartao-mobile td:nth-child(7){ grid-area:verbtn; display:flex; align-items:center; justify-content:flex-end; }
+  table.tabela-cartao-mobile td input[type=text]{ width:100%; }
+  table.tabela-cartao-mobile td:nth-child(7){ padding-top:2px; }
 }
 
 .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow-x:auto; max-width:100%; }
@@ -214,6 +195,11 @@ td{ padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:middl
 tr:last-child td{ border-bottom:none; }
 @media (hover:hover) and (pointer:fine){ tbody tr:hover{ background:var(--paper-2); } }
 .num-col{ font-family:'IBM Plex Mono',monospace; text-align:right; }
+/* identifica VM/AM/VD pela cor em qualquer lugar que apareçam como coluna/número, não só
+   nos badges — pra dar pra reconhecer de relance, sem precisar ler a sigla */
+.col-vm{ color:var(--vm); font-weight:700; }
+.col-am{ color:var(--aviso-cor); font-weight:700; }
+.col-vd{ color:var(--vd); font-weight:700; }
 .badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; font-size:11.5px; font-weight:650; white-space:nowrap; }
 .badge.bloqueado{ background:var(--vm-soft); color:var(--vm); }
 .badge.pendente{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
@@ -365,10 +351,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <div class="torre" id="torre-andares"></div>
         <div class="vazio oculto" id="vazio-torre-andares">Nenhum andar enviado ainda — suba a primeira planilha na aba "Enviar planilhas" pra começar.</div>
         <div class="rodape-nota" style="margin-top:14px; text-align:left;">
-          <span class="badge bloqueado">●</span> VM (vermelho) &nbsp;
-          <span class="badge pendente">●</span> AM (amarelo) &nbsp;
-          <span class="badge liberado-pend">●</span> Liberado com pendência &nbsp;
-          <span class="badge concluido">●</span> VD (verde) &nbsp;
+          <span class="badge bloqueado">●</span> <span class="col-vm">VM (vermelho)</span> &nbsp;
+          <span class="badge pendente">●</span> <span class="col-am">AM (amarelo)</span> &nbsp;
+          <span class="badge liberado-pend">●</span> <span style="color:var(--azul); font-weight:700;">Liberado com pendência</span> &nbsp;
+          <span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span> &nbsp;
           <span class="badge semdados">●</span> sem dados na revisão
         </div>
       </div>
@@ -433,7 +419,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th>Andar</th><th>Quarto / área</th><th>Status</th>
-          <th class="num-col">VM</th><th class="num-col">AM</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th>Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th>Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -497,7 +483,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table class="tabela-cartao-mobile">
         <thead><tr>
           <th>Disciplina</th><th>Fornecedor padrão</th>
-          <th class="num-col">VM</th><th class="num-col">AM</th><th class="num-col">Total pend.</th><th class="num-col">Exceções</th><th></th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col">Total pend.</th><th class="num-col">Exceções</th><th></th>
         </tr></thead>
         <tbody id="tbody-disciplinas"></tbody>
       </table>
@@ -1324,6 +1310,10 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
 async function salvarLote(grupos, aoProgredir){
   const revisoesTocadas = new Map();
   const avisos = { fotosFalharam: [], fotosSemRecurso: 0, descricaoCortada: [], gravacaoFalhou: [], fotosNaoAssociadas: [], fotosEnviadas: 0, liberacaoRemovidaPorVM: [], revisarLiberacao: [] };
+  // acumula, em todo o lote, os itens que existiam antes e sumiram agora nos locais
+  // reenviados — a IAC não marca "resolvido" na planilha dela, só exclui a linha; pra nós,
+  // isso é um VD de verdade. Não mexe em nada do fluxo normal de salvar, só observa.
+  const recemResolvidosDoLote = [];
 
   for (const [key, g] of grupos){
     const docId = 'R' + g.revisao + '_' + g.andar;
@@ -1358,6 +1348,18 @@ async function salvarLote(grupos, aoProgredir){
         avisos.fotosNaoAssociadas.push(a.arquivo + ' (' + a.totalNoArquivo + ' no arquivo, ' + a.totalUsadas + ' associada(s) a item)');
       }
     });
+
+    // quem existia antes, num local que está sendo reenviado agora, e não veio mais no
+    // novo lote — isso é "excluído pela IAC", que pra nós equivale a VD confirmado
+    try{
+      const idsNovosFinal = new Set(itensFinal.map((it) => it.id));
+      (existente && Array.isArray(existente.itens) ? existente.itens : []).forEach((it) => {
+        const chaveLocal = it.t + '|' + (it.q==null ? '' : it.q);
+        if (locaisNovos.has(chaveLocal) && !idsNovosFinal.has(it.id)){
+          recemResolvidosDoLote.push({ id: it.id, andar: g.andar, disciplina: it.d, descricao: it.x||'', revisao: String(g.revisao) });
+        }
+      });
+    }catch(e){ console.warn('não consegui calcular recém-resolvidos deste andar', e); }
 
     const vm = itensFinal.filter((i)=>i.s==='VM').length;
     const am = itensFinal.filter((i)=>i.s==='AM').length;
@@ -1420,6 +1422,17 @@ async function salvarLote(grupos, aoProgredir){
       }
     }
   }
+
+  // grava os "resolvidos por desaparecimento" deste lote inteiro — cada um guardado pelo
+  // próprio id do item, então reenviar de novo não duplica, só confirma o que já estava lá
+  if (recemResolvidosDoLote.length > 0){
+    try{
+      await comLimiteDeConcorrencia(recemResolvidosDoLote, 4, async (res) => {
+        await store.setDoc('resolvidos_historico', res.id, Object.assign({ resolvidoEm: new Date().toISOString() }, res));
+      });
+    }catch(e){ console.warn('não consegui gravar o histórico de resolvidos deste lote', e); }
+  }
+
   for (const [revisao, andaresSet] of revisoesTocadas){
     const docId = 'R' + revisao;
     const atual = await store.getDoc('revisoes', docId);
@@ -1477,7 +1490,7 @@ async function alternarAcompanhamento(itemId, campo){
   acompanhamento[itemId] = novo;
   await store.setDoc('acompanhamento', itemId, novo);
   renderItens();
-  renderResumoGeral();
+  await renderResumoGeral();
 }
 
 /* data prevista de conclusão — só existe (e só é mostrada) quando o local já está liberado
@@ -1820,8 +1833,14 @@ function renderTorreAndares(){
   });
 }
 
-function renderResumoGeral(){
+async function renderResumoGeral(){
   const grid = document.getElementById('grid-resumo');
+  // total histórico de itens resolvidos por desaparecimento (a IAC não marca "feito" na
+  // planilha dela, só exclui a linha — a partir da R20 em diante, isso conta como VD de
+  // verdade pra gente, mesmo não aparecendo mais em nenhuma planilha atual)
+  let vdHistorico = 0;
+  try{ vdHistorico = (await store.listCollection('resolvidos_historico')).length; }
+  catch(e){ console.warn('não consegui carregar o histórico de resolvidos', e); }
   const c = contarVMAM(itensRevisaoAtual);
   const locais = agruparPorLocal(itensRevisaoAtual);
   let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0;
@@ -1851,6 +1870,7 @@ function renderResumoGeral(){
     '<div class="grupo-label">Progresso dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
+      '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (sem nenhuma ação)</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div></div>' +
       '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div></div>' +
@@ -2202,7 +2222,7 @@ function renderQuartos(){
     }
     tr.innerHTML = '<td class="mono">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
       '<td><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
-      '<td class="num-col">'+c.vm+'</td><td class="num-col">'+c.am+'</td>' +
+      '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col">'+awExecDoLocal+'</td><td class="num-col">'+iacOkDoLocal+'</td>' +
       '<td class="num-col">'+c.total+'</td>' +
       '<td>'+acaoHtml+'</td>';
@@ -2570,7 +2590,7 @@ function renderDisciplinas(){
     const nomeFornecedor = fornecedores[disc] || '';
     tr.innerHTML = '<td data-label="Disciplina">'+esc(disc)+'</td>' +
       '<td data-label="Fornecedor padrão"><input type="text" class="fornecedor-input" data-disc="'+esc(disc)+'" value="'+esc(nomeFornecedor)+'" placeholder="Nome do fornecedor" autocomplete="off"></td>' +
-      '<td class="num-col" data-label="VM">'+c.vm+'</td><td class="num-col" data-label="AM">'+c.am+'</td><td class="num-col" data-label="Total pend.">'+c.total+'</td>' +
+      '<td class="num-col col-vm" data-label="VM">'+c.vm+'</td><td class="num-col col-am" data-label="AM">'+c.am+'</td><td class="num-col" data-label="Total pend.">'+c.total+'</td>' +
       '<td class="num-col" data-label="Exceções">'+(excecoes>0?excecoes:'—')+'</td>' +
       '<td data-label=""><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
     tbody.appendChild(tr);
@@ -3043,7 +3063,7 @@ function renderPreviewEnvio(){
     const totalArquivos = resultadosAcumulados.length;
     html += '<div class="card card-pad" style="margin-bottom:12px;">';
     html += '<h2>Acumulado para salvar — '+totalArquivos+' arquivo(s)'+(totalFotos>0?' · '+totalFotos+' foto(s) encontrada(s)':'')+(pdfsIgnoradosPorXlsx>0?' · '+pdfsIgnoradosPorXlsx+' PDF(s) ignorado(s) por já ter o Excel equivalente':'')+'</h2>';
-    html += '<table><thead><tr><th>Revisão</th><th>Andar</th><th>Arquivos incluídos</th><th class="num-col">Itens</th><th class="num-col">VM</th><th class="num-col">AM</th><th class="num-col">Fotos</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Revisão</th><th>Andar</th><th>Arquivos incluídos</th><th class="num-col">Itens</th><th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col">Fotos</th></tr></thead><tbody>';
     const gruposOrdenados = Array.from(grupos.values()).sort((a,b) => a.andar - b.andar);
     gruposOrdenados.forEach((g) => {
       const c = contarVMAM(g.itens);
@@ -3051,7 +3071,7 @@ function renderPreviewEnvio(){
       const chips = g.arquivos.slice().sort().map((nome) => '<span class="chip-arquivo">'+esc(nome)+'</span>').join('');
       html += '<tr><td class="mono">R'+esc(g.revisao)+'</td><td class="mono">'+g.andar+'º</td>' +
         '<td><div class="contagem-chips">'+g.arquivos.length+' arquivo(s)</div><div class="chips-arquivos">'+chips+'</div></td>' +
-        '<td class="num-col">'+g.itens.length+'</td><td class="num-col">'+c.vm+'</td><td class="num-col">'+c.am+'</td><td class="num-col">'+totalFotosAndar+'</td></tr>';
+        '<td class="num-col">'+g.itens.length+'</td><td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td><td class="num-col">'+totalFotosAndar+'</td></tr>';
     });
     html += '</tbody></table></div>';
     html += '<div style="display:flex; gap:10px;">';
@@ -3246,7 +3266,7 @@ async function selecionarRevisao(numeroStr){
   areasLiberadasRevisaoAtual = carregado.areasLiberadas;
   if (numeroStr) await capturarSnapshotDiarioSeNecessario(numeroStr);
   renderTorreAndares();
-  renderResumoGeral();
+  await renderResumoGeral();
   renderInsightsResumo();
   renderEvolucaoPendencias();
   renderRankings();
