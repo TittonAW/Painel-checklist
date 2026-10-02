@@ -137,20 +137,40 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   .linha-toolbar > select, .linha-toolbar > input[type=text]{ width:100%; min-width:0; flex:1 1 100%; }
   .badge{ font-size:10px; padding:2px 8px; }
 
+  /* cartão desenhado especificamente pra essa tabela (não é mais o transform genérico de
+     "linha vira lista") — disciplina como título, fornecedor com campo full-width embaixo
+     do rótulo (não do lado, que era o que fazia o campo vazar pra fora da tela), e os três
+     números compactos lado a lado */
   table.tabela-cartao-mobile thead{ display:none; }
-  table.tabela-cartao-mobile, table.tabela-cartao-mobile tbody,
-  table.tabela-cartao-mobile tr, table.tabela-cartao-mobile td{ display:block; width:100%; }
-  table.tabela-cartao-mobile tr{ border-bottom:1px solid var(--line); padding:12px 0; }
+  table.tabela-cartao-mobile, table.tabela-cartao-mobile tbody{ display:block; width:100%; }
+  table.tabela-cartao-mobile tr{
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    grid-template-areas:"disc disc disc" "forn forn forn" "vm am total" "exc exc verbtn";
+    gap:8px 10px; padding:16px 4px; border-bottom:1px solid var(--line);
+  }
   table.tabela-cartao-mobile tr:last-child{ border-bottom:none; }
-  table.tabela-cartao-mobile td{
-    display:flex; justify-content:flex-start; align-items:center; gap:10px;
-    padding:5px 4px; border:none; text-align:left;
+  table.tabela-cartao-mobile td{ display:block; padding:0; border:none; text-align:left; }
+
+  table.tabela-cartao-mobile td:nth-child(1){ grid-area:disc; font-weight:700; font-size:14px; }
+
+  table.tabela-cartao-mobile td:nth-child(2){ grid-area:forn; display:flex; flex-direction:column; gap:4px; }
+  table.tabela-cartao-mobile td:nth-child(2)::before{ content:"Fornecedor padrão"; font-size:11px; font-weight:600; color:var(--muted); }
+  table.tabela-cartao-mobile td:nth-child(2) input[type=text]{ width:100%; }
+
+  table.tabela-cartao-mobile td:nth-child(3){ grid-area:vm; }
+  table.tabela-cartao-mobile td:nth-child(4){ grid-area:am; }
+  table.tabela-cartao-mobile td:nth-child(5){ grid-area:total; }
+  table.tabela-cartao-mobile td:nth-child(3), table.tabela-cartao-mobile td:nth-child(4), table.tabela-cartao-mobile td:nth-child(5){
+    display:flex; flex-direction:column; gap:2px; background:var(--paper-2); border-radius:8px;
+    padding:6px 4px; text-align:center !important;
   }
-  table.tabela-cartao-mobile td[data-label]:not([data-label=""])::before{
-    content: attr(data-label); font-weight:600; color:var(--muted); text-align:left; flex:none;
-    min-width:112px; /* rótulos alinhados numa coluna só, valor logo ao lado — sem vão no meio */
-  }
-  table.tabela-cartao-mobile td input[type=text]{ flex:1; min-width:0; text-align:left; }
+  table.tabela-cartao-mobile td:nth-child(3)::before{ content:"VM"; font-size:9.5px; font-weight:600; color:var(--muted); }
+  table.tabela-cartao-mobile td:nth-child(4)::before{ content:"AM"; font-size:9.5px; font-weight:600; color:var(--muted); }
+  table.tabela-cartao-mobile td:nth-child(5)::before{ content:"Total pend."; font-size:9.5px; font-weight:600; color:var(--muted); }
+
+  table.tabela-cartao-mobile td:nth-child(6){ grid-area:exc; display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--muted); }
+  table.tabela-cartao-mobile td:nth-child(6)::before{ content:"Exceções:"; font-weight:600; }
+  table.tabela-cartao-mobile td:nth-child(7){ grid-area:verbtn; display:flex; align-items:center; justify-content:flex-end; }
 }
 
 .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--shadow); overflow-x:auto; max-width:100%; }
