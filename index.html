@@ -380,6 +380,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <div class="topo-controles">
     <div class="topo-controles-status">
       <span class="pill local" id="pill-armazenamento">verificando…</span>
+      <button type="button" class="btn fantasma" id="btn-usuario" title="Trocar o nome de quem está usando este aparelho" style="padding:6px 11px; font-size:13px; color:var(--text-2); white-space:nowrap;"></button>
       <select id="seletor-revisao" title="Revisão em exibição"></select>
     </div>
     <button class="btn primario" id="btn-ir-enviar">+ Enviar planilhas</button>
@@ -634,6 +635,22 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 </div>
 
 <div id="aviso-flutuante" class="aviso-flutuante ok" hidden></div>
+
+<div class="modal-overlay oculto" id="modal-usuario">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-usuario">
+    <h3 id="titulo-modal-usuario">Quem está usando o painel?</h3>
+    <div class="modal-sub">Seu nome fica registrado em cada item que você der baixa (Executado AW, Vistoriado IAC, reincidência), pra saber quem foi o responsável. É pedido uma vez só neste aparelho.</div>
+    <div class="modal-campo">
+      <label for="input-nome-usuario">Nome e sobrenome</label>
+      <input type="text" id="input-nome-usuario" placeholder="Ex.: João Silva" autocomplete="name" autocapitalize="words">
+      <div id="erro-nome-usuario" style="font-size:12.5px; color:var(--vm); margin-top:6px; min-height:18px;"></div>
+    </div>
+    <div class="modal-acoes">
+      <button class="btn fantasma oculto" id="btn-cancelar-usuario">Cancelar</button>
+      <button class="btn primario" id="btn-salvar-usuario">Continuar</button>
+    </div>
+  </div>
+</div>
 
 <div class="lightbox-overlay oculto" id="lightbox-foto">
   <button class="lightbox-fechar" id="lightbox-fechar" aria-label="Fechar" title="Fechar">&times;</button>
@@ -1561,6 +1578,7 @@ async function carregarAcompanhamento(){
       disciplinaOverride: d.disciplinaOverride||null, fornecedorOverride: d.fornecedorOverride||null,
       dataPrevista: d.dataPrevista||null,
       reincidencias: d.reincidencias||0,
+      awExecPor: d.awExecPor||null, iacOkPor: d.iacOkPor||null,
       historico: Array.isArray(d.historico) ? d.historico : null
     };
   });
@@ -1601,14 +1619,76 @@ function atualizarTelasAposAcompanhamento(){
   renderResumoGeral();
 }
 
-/* histórico de cada item: [{t:'aw'|'iac'|'reinc', em}] — é dele que o gráfico de evolução
+/* ===================== QUEM ESTÁ USANDO =====================
+   Nome e sobrenome guardados neste aparelho (não é login com senha — serve pra registrar
+   quem deu cada baixa). Pedido uma vez; dá pra trocar clicando no nome, no topo. */
+const CHAVE_USUARIO = 'obra_usuario_nome';
+let usuarioAtual = '';
+function lerUsuarioSalvo(){
+  try{ return (localStorage.getItem(CHAVE_USUARIO) || '').trim(); }catch(e){ return usuarioAtual; }
+}
+function normalizarNome(s){
+  return String(s||'').trim().replace(/\s+/g,' ').split(' ')
+    .map((p) => p.length <= 3 && /^(da|de|do|das|dos|e)$/i.test(p) ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(' ');
+}
+function nomeValido(s){
+  const partes = String(s||'').trim().split(/\s+/).filter((p) => p.length >= 2);
+  return partes.length >= 2;
+}
+function renderUsuarioTopo(){
+  const b = document.getElementById('btn-usuario');
+  if (!b) return;
+  b.textContent = usuarioAtual ? usuarioAtual : 'Identificar-se';
+}
+let resolverPedidoNome = null;
+function pedirNomeUsuario(podeCancelar){
+  return new Promise((resolve) => {
+    resolverPedidoNome = resolve;
+    const ov = document.getElementById('modal-usuario');
+    const inp = document.getElementById('input-nome-usuario');
+    inp.value = usuarioAtual || '';
+    document.getElementById('erro-nome-usuario').textContent = '';
+    document.getElementById('btn-cancelar-usuario').classList.toggle('oculto', !podeCancelar);
+    ov.classList.remove('oculto');
+    setTimeout(() => inp.focus(), 50);
+  });
+}
+function confirmarNomeUsuario(){
+  const inp = document.getElementById('input-nome-usuario');
+  if (!nomeValido(inp.value)){
+    document.getElementById('erro-nome-usuario').textContent = 'Digite nome e sobrenome.';
+    inp.focus(); return;
+  }
+  usuarioAtual = normalizarNome(inp.value);
+  try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); }catch(e){}
+  document.getElementById('modal-usuario').classList.add('oculto');
+  renderUsuarioTopo();
+  if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
+}
+function cancelarNomeUsuario(){
+  document.getElementById('modal-usuario').classList.add('oculto');
+  if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
+}
+/* garante um nome antes de qualquer baixa (se alguém pulou a janela, ela volta) */
+async function garantirUsuario(){
+  if (usuarioAtual) return true;
+  await pedirNomeUsuario(true);
+  return !!usuarioAtual;
+}
+function dataHoraCurta(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+}
+
+/* histórico de cada item: [{t:'aw'|'iac'|'reinc', em, por}] — é dele que o gráfico de evolução
    reconstrói os dias, então desmarcar um item NÃO apaga o passado. Itens marcados antes do
    histórico existir ganham um histórico montado a partir das datas que já tinham. */
 function historicoDoItem(a){
   if (a && Array.isArray(a.historico)) return a.historico;
   const h = [];
-  if (a && a.awExecEm) h.push({ t:'aw', em:a.awExecEm });
-  if (a && a.iacOkEm) h.push({ t:'iac', em:a.iacOkEm });
+  if (a && a.awExecEm) h.push({ t:'aw', em:a.awExecEm, por:a.awExecPor||null });
+  if (a && a.iacOkEm) h.push({ t:'iac', em:a.iacOkEm, por:a.iacOkPor||null });
   return h;
 }
 const MINUTOS_CORRECAO_ENGANO = 15;
@@ -1618,6 +1698,8 @@ const MINUTOS_CORRECAO_ENGANO = 15;
    e conta uma REINCIDÊNCIA — exceto se for desmarcado em até 15 minutos depois de marcar,
    que aí é tratado como correção de engano (marcou o item errado) e some do histórico. */
 async function alternarAcompanhamento(itemId, campo){
+  if (!(await garantirUsuario())) return;
+  const por = usuarioAtual;
   const anterior = acompanhamento[itemId];
   const atual = anterior || { awExecEm:null, iacOkEm:null };
   const agora = new Date().toISOString();
@@ -1626,24 +1708,25 @@ async function alternarAcompanhamento(itemId, campo){
   let msg = 'Salvo', tipoMsg = 'ok';
   if (campo === 'awExecEm'){
     if (!atual.awExecEm){
-      novo.awExecEm = agora; hist.push({ t:'aw', em:agora });
+      novo.awExecEm = agora; novo.awExecPor = por; hist.push({ t:'aw', em:agora, por });
     } else {
       const minutos = (Date.now() - new Date(atual.awExecEm).getTime()) / 60000;
       novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
+      novo.awExecPor = null; novo.iacOkPor = null;
       if (minutos <= MINUTOS_CORRECAO_ENGANO){
         for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i); break; } }
         msg = 'Marcação desfeita';
       } else {
-        hist.push({ t:'reinc', em:agora });
+        hist.push({ t:'reinc', em:agora, por });
         novo.reincidencias = (atual.reincidencias || 0) + 1;
         msg = 'Item voltou para aberto · reincidência ' + novo.reincidencias + '×'; tipoMsg = 'info';
       }
     }
   } else {
     if (!atual.iacOkEm){
-      novo.iacOkEm = agora; hist.push({ t:'iac', em:agora });
+      novo.iacOkEm = agora; novo.iacOkPor = por; hist.push({ t:'iac', em:agora, por });
     } else {
-      novo.iacOkEm = null;
+      novo.iacOkEm = null; novo.iacOkPor = null;
       for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
       msg = 'Vistoria desfeita';
     }
@@ -1685,6 +1768,7 @@ async function salvarDataPrevista(itemId, dataStr){
    tipo|quarto. Reseta sozinho quando esse local recebe dados novos num próximo envio
    (ver salvarLote) — por decisão sua, pra nunca manter uma liberação velha por engano. */
 async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
+  if (!(await garantirUsuario())) return;
   const docId = 'R' + revisaoStr + '_' + andar;
   const doc = await store.getDoc('snapshots', docId);
   if (!doc) return;
@@ -1695,7 +1779,7 @@ async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
     // guarda quais itens existiam agora — é contra essa lista que a gente compara quando
     // chegar planilha nova, pra saber se "apareceu item amarelo novo" nesse local
     const idsAgora = (doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id);
-    atual[chave] = { em: new Date().toISOString(), itens: idsAgora };
+    atual[chave] = { em: new Date().toISOString(), itens: idsAgora, por: usuarioAtual };
   }
   await store.setDoc('snapshots', docId, Object.assign({}, doc, { areasLiberadas: atual }));
   await selecionarRevisao(revisaoSelecionada);
@@ -2860,6 +2944,8 @@ function renderItens(){
       '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Vistoriado IAC':'Vistoriado IAC')+'</button>' +
       '<button class="chip-acao" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
+      (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">AW: '+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
+      (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
@@ -2960,6 +3046,14 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
         '<div><div class="rotulo">Status (da planilha)</div><div class="valor"><span class="badge '+statusClasse+'">'+esc(statusTexto)+'</span></div></div>' +
         '<div><div class="rotulo">Versão / lançado em</div><div class="valor">'+esc(revLabel)+' · '+dataFmt+'</div></div>' +
       '</div>' +
+      (function(){
+        const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
+        if (!h.length) return '';
+        const nomeEv = { aw:'Executado AW', iac:'Vistoriado IAC', reinc:'Voltou para aberto (reincidência)' };
+        return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
+          h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
+          '</div></div>';
+      })() +
       '<div class="modal-campo">' +
         '<label for="edit-disc">Disciplina <span style="font-weight:400; color:var(--muted);">(vem da planilha, só reclassifica entre as existentes)</span></label>' +
         '<select id="edit-disc">'+opcoesDisc+'</select>' +
@@ -4187,12 +4281,17 @@ async function exportarItensPdf(){
         else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
         const temPrev = !!(ac.dataPrevista && !ac.iacOkEm);
         const temReinc = !!ac.reincidencias;
-        const extras = (temPrev?1:0) + (temReinc?1:0);
+        const responsavel = ac.iacOkEm ? ac.iacOkPor : (ac.awExecEm ? ac.awExecPor : null);
+        const extras = (temPrev?1:0) + (temReinc?1:0) + (responsavel?1:0);
         const sy = mid - 9 - extras*6;
         pdfFill(doc, bg); pdfDraw(doc, bd); doc.setLineWidth(0.6);
         doc.roundedRect(cx+X.flux, sy, FLUX_W, 18, 5, 5, 'FD');
         pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+12, txt, 7.5, fg, 'center');
         let yExtra = sy + 30;
+        if (responsavel){
+          pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, pdfCaber(doc, 'por '+responsavel, 7, FLUX_W+20), 7, PDF_COR.muted, 'center');
+          yExtra += 10;
+        }
         if (temPrev){
           pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, 'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), 7, PDF_COR.muted, 'center');
           yExtra += 10;
@@ -4208,6 +4307,13 @@ async function exportarItensPdf(){
 }
 
 async function iniciar(){
+  usuarioAtual = lerUsuarioSalvo();
+  renderUsuarioTopo();
+  document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
+  document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
+  document.getElementById('btn-cancelar-usuario').addEventListener('click', cancelarNomeUsuario);
+  document.getElementById('input-nome-usuario').addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarNomeUsuario(); });
+  if (!usuarioAtual) pedirNomeUsuario(false); // não trava o carregamento — só aparece por cima
   await store.init();
   await initAssets();
   renderPillArmazenamento();
