@@ -21,7 +21,6 @@
 <style>
 :root{
   box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
 
   --paper:#F4F5F7; --paper-2:#ECEEF1; --line:#E3E6EB; --text:#13151A; --muted:#6B7280;
@@ -62,7 +61,7 @@ a{ color:inherit; }
 button{ font-family:inherit; font-size:inherit; cursor:pointer; }
 ::selection{ background:var(--accent-soft); }
 
-.cabecalho-fixo{ position:sticky; top:env(safe-area-inset-top,0px); z-index:30; }
+.cabecalho-fixo{ position:sticky; top:0; z-index:30; padding-top:env(safe-area-inset-top,0px); background:var(--surface); }
 header.topo{
   display:flex; align-items:center; gap:18px; justify-content:space-between;
   padding:14px 32px; background:var(--surface); border-bottom:1px solid var(--line);
@@ -120,7 +119,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
   .topo-controles-status{ display:flex; gap:8px; }
   .topo-controles-status select{ flex:1; min-width:0; }
   #btn-ir-enviar{ width:100%; justify-content:center; }
-  main{ padding:14px 10px 56px; }
+  main{ padding:22px 10px 56px; }
   .card-pad{ padding:14px 12px; }
   .andar-barra{ gap:7px; padding:7px 8px; }
   .andar-barra .num{ width:22px; font-size:11.5px; }
@@ -382,7 +381,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <section class="secao" id="secao-quartos">
     <p style="color:var(--muted); margin-top:0;">Quartos e áreas sem nenhuma pendência (AM/VM) na revisão não aparecem aqui — considere-os liberados.</p>
     <div class="linha-toolbar">
-      <input type="text" id="busca-quarto" placeholder="Buscar quarto ou área…">
+      <input type="text" id="busca-quarto" placeholder="Buscar quarto ou área…" autocomplete="off">
       <select id="filtro-andar"><option value="">Todos os andares</option></select>
       <select id="filtro-ambiente"><option value="">Todos os ambientes</option></select>
       <select id="filtro-disciplina"><option value="">Todas as disciplinas</option></select>
@@ -422,7 +421,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <!-- ITENS (detalhe) -->
   <section class="secao" id="secao-itens">
     <div class="linha-toolbar">
-      <input type="text" id="busca-item" placeholder="Buscar por nº do item, disciplina ou descrição…">
+      <input type="text" id="busca-item" placeholder="Buscar por nº do item, disciplina ou descrição…" autocomplete="off">
       <select id="filtro-item-andar"><option value="">Todos os andares</option></select>
       <select id="filtro-item-ambiente"><option value="">Todos os ambientes</option></select>
       <select id="filtro-item-disciplina"><option value="">Todas as disciplinas</option></select>
@@ -448,7 +447,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div id="status-pdf-itens" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto" id="barra-selecao-itens" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
       <strong id="contagem-selecao-itens">0 selecionado(s)</strong>
-      <input type="text" id="bulk-fornecedor" placeholder="Nome do fornecedor">
+      <input type="text" id="bulk-fornecedor" placeholder="Nome do fornecedor" autocomplete="off">
       <button class="btn" id="btn-aplicar-fornecedor-lote">Aplicar aos selecionados</button>
       <button class="btn fantasma" id="btn-limpar-selecao-itens">Limpar seleção</button>
     </div>
@@ -2481,7 +2480,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       '<div class="modal-campo">' +
         '<label for="edit-forn">Fornecedor</label>' +
         '<select id="edit-forn">'+opcoesForn+'</select>' +
-        '<input type="text" id="edit-forn-novo" placeholder="Nome do novo fornecedor" style="margin-top:8px;'+(fornEhConhecido||!fornAtual?' display:none;':'')+'" value="'+(fornEhConhecido?'':esc(fornAtual))+'">' +
+        '<input type="text" id="edit-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px;'+(fornEhConhecido||!fornAtual?' display:none;':'')+'" value="'+(fornEhConhecido?'':esc(fornAtual))+'">' +
       '</div>' +
       '<p style="font-size:11.5px; color:var(--muted); margin:-6px 0 16px;">O status vem direto da planilha da IAC e não é editável aqui — use os botões Executado AW / Vistoriado IAC na tabela pra acompanhar o andamento.</p>' +
       '<div class="modal-acoes">' +
@@ -2546,7 +2545,7 @@ function renderDisciplinas(){
     const tr = document.createElement('tr');
     const nomeFornecedor = fornecedores[disc] || '';
     tr.innerHTML = '<td data-label="Disciplina">'+esc(disc)+'</td>' +
-      '<td data-label="Fornecedor padrão"><input type="text" class="fornecedor-input" data-disc="'+esc(disc)+'" value="'+esc(nomeFornecedor)+'" placeholder="Nome do fornecedor"></td>' +
+      '<td data-label="Fornecedor padrão"><input type="text" class="fornecedor-input" data-disc="'+esc(disc)+'" value="'+esc(nomeFornecedor)+'" placeholder="Nome do fornecedor" autocomplete="off"></td>' +
       '<td class="num-col" data-label="VM">'+c.vm+'</td><td class="num-col" data-label="AM">'+c.am+'</td><td class="num-col" data-label="Total pend.">'+c.total+'</td>' +
       '<td class="num-col" data-label="Exceções">'+(excecoes>0?excecoes:'—')+'</td>' +
       '<td data-label=""><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
