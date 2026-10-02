@@ -2233,168 +2233,192 @@ function renderEvolucaoPendencias(){
   const hojeChave = chaveDiaLocal(new Date());
   const rotuloDia = (chave) => chave === hojeChave ? 'hoje' : chave.split('-').reverse().slice(0,2).join('/');
 
-  // tendência do "em aberto": reta de mínimos quadrados sobre os dias, projetada à frente
-  let tend = null;
-  if (n >= 2){
+  /* projeção (tendência): reta de mínimos quadrados sobre os dias já vividos, recalculada a
+     cada dia, continuando a partir de hoje. Em aberto cai no ritmo médio; Executado AW sobe
+     na mesma medida (o que sai de "aberto" entra em "executado"); Vistoriado IAC segue o
+     próprio ritmo, nunca passando do executado; Total fica constante. */
+  function inclinacao(chave){
+    if (n < 2) return 0;
     let sx=0, sy=0, sxy=0, sxx=0;
-    pontos.forEach((p,i) => { sx+=i; sy+=p.aberto; sxy+=i*p.aberto; sxx+=i*i; });
-    const incl = (n*sxy - sx*sy) / (n*sxx - sx*sx);
-    const base = (sy - incl*sx) / n;
-    const projecao = Math.max(3, Math.round(n*0.35));
-    tend = { incl, base, projecao };
-    if (incl < 0){
-      const diasAteZero = Math.ceil((base + incl*(n-1)) / -incl);
-      if (diasAteZero > 0 && diasAteZero <= 365){
-        const dz = new Date(); dz.setHours(0,0,0,0); dz.setDate(dz.getDate() + diasAteZero);
-        tend.zeraEm = dz.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
-        tend.diasAteZero = diasAteZero;
-      }
+    pontos.forEach((p,i) => { sx+=i; sy+=p[chave]; sxy+=i*p[chave]; sxx+=i*i; });
+    return (n*sxy - sx*sy) / (n*sxx - sx*sx);
+  }
+  const incAberto = Math.min(0, inclinacao('aberto'));
+  const incIac = Math.max(0, inclinacao('iac'));
+  // a projeção segue até o "em aberto" zerar no ritmo atual (no máximo 30 dias à frente);
+  // se o ritmo ainda não mostra queda, projeta 7 dias
+  let diasProj = 0;
+  if (n >= 2){
+    diasProj = incAberto < 0 ? Math.ceil(ult.aberto / -incAberto) : 7;
+    diasProj = Math.min(30, Math.max(3, diasProj));
+  }
+  const futuro = [];
+  let antes = ult;
+  for (let k=1; k<=diasProj; k++){
+    const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+k);
+    const aberto = Math.max(0, ult.aberto + incAberto*k);
+    const aw = ult.total - aberto;
+    const iac = Math.min(aw, ult.iac + incIac*k);
+    // meta do dia = quanto precisa sair do "em aberto" (e entrar na IAC) naquele dia pra seguir a tendência
+    futuro.push({ data: chaveDiaLocal(d), aberto, aw, iac, total: ult.total,
+      awDia: Math.max(0, Math.round(aw - antes.aw)), iacDia: Math.max(0, Math.round(iac - antes.iac)) });
+    antes = { aw, iac };
+  }
+  let zeraEm = null, diasAteZero = null;
+  if (incAberto < 0){
+    diasAteZero = Math.ceil(ult.aberto / -incAberto);
+    if (diasAteZero > 0 && diasAteZero <= 365){
+      const dz = new Date(); dz.setHours(0,0,0,0); dz.setDate(dz.getDate()+diasAteZero);
+      zeraEm = dz.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
     }
   }
 
   // desenha na largura real do cartão: no celular o texto fica legível em vez de encolher
-  const W = Math.max(320, Math.round(cont.clientWidth || 960)), H = W < 600 ? 230 : 300;
-  const padL=44, padR=W < 600 ? 14 : 24, padT=18, padB=30;
-  const diasEixo = n + (tend ? tend.projecao : 0);
-  const passoX = diasEixo > 1 ? (W-padL-padR)/(diasEixo-1) : 0;
-  const xAt = (i) => diasEixo > 1 ? padL + i*passoX : (W)/2;
+  const W = Math.max(320, Math.round(cont.clientWidth || 960));
+  const pequeno = W < 600;
+  const H = pequeno ? 270 : 330;
+  const padL = pequeno ? 34 : 40, padR = pequeno ? 22 : 26, padT = 16, padB = 64;
+  const yBase = H - padB;
+  const diasEixo = n + diasProj;
+  const ox = pequeno ? 20 : 26; // folga entre o eixo e o 1º dia, pra caber "AW"/"IAC" sem encostar no número
+  const passoX = diasEixo > 1 ? (W-padL-ox-padR)/(diasEixo-1) : 0;
+  const xAt = (i) => diasEixo > 1 ? padL + ox + i*passoX : W/2;
   const visiveis = SERIES_EVOLUCAO.filter((s) => !seriesOcultas[s.chave]);
-  let maxBruto = Math.max(1, ...pontos.map((p) => Math.max(...visiveis.map((s) => p[s.chave]), 0)));
+  const maxBruto = Math.max(1, ...pontos.concat(futuro).map((p) => Math.max(...visiveis.map((s) => p[s.chave]), 0)));
   const passoBruto = maxBruto*1.05/4, mag = Math.pow(10, Math.floor(Math.log10(passoBruto)));
   const passoY = [1,2,2.5,5,10].map((k) => k*mag).find((s) => s >= passoBruto);
   const maxY = Math.ceil(maxBruto*1.05/passoY)*passoY;
-  const yAt = (v) => H-padB - (Math.max(0,v)/maxY)*(H-padB-padT);
+  const yAt = (v) => yBase - (Math.max(0,v)/maxY)*(yBase-padT);
+  const fs = pequeno ? 10 : 10.5;
 
-  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%; height:auto; display:block; font-family:\'IBM Plex Sans\',sans-serif; overflow:visible;">';
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="max-width:100%; height:auto; display:block; font-family:\'IBM Plex Sans\',sans-serif; overflow:visible;">';
   svg += '<defs>';
   SERIES_EVOLUCAO.forEach((s) => {
     svg += '<linearGradient id="grad-'+s.chave+'" x1="0" y1="0" x2="0" y2="1">' +
       '<stop offset="0%" stop-color="'+s.cor+'" stop-opacity="'+(s.chave==='total'?0.10:0.28)+'"/>' +
       '<stop offset="100%" stop-color="'+s.cor+'" stop-opacity="0"/></linearGradient>';
+    svg += '<linearGradient id="gradf-'+s.chave+'" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="'+s.cor+'" stop-opacity="'+(s.chave==='total'?0.04:0.10)+'"/>' +
+      '<stop offset="100%" stop-color="'+s.cor+'" stop-opacity="0"/></linearGradient>';
   });
   svg += '<filter id="brilho-linha" x="-5%" y="-30%" width="110%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>';
   svg += '</defs>';
+
+  // faixa clarinha marcando o futuro
+  if (diasProj){
+    const xh = xAt(n-1);
+    svg += '<rect x="'+xh.toFixed(1)+'" y="'+padT+'" width="'+(W-padR-xh).toFixed(1)+'" height="'+(yBase-padT)+'" style="fill:var(--paper-2); opacity:.45;"/>';
+    svg += '<text x="'+(xh+8).toFixed(1)+'" y="'+(padT+12)+'" font-size="'+fs+'" style="fill:var(--muted)">'+(pequeno ? 'projeção' : 'projeção · números embaixo = meta por dia pra seguir o ritmo')+'</text>';
+  }
   // grade
   for (let v=0; v<=maxY+0.0001; v+=passoY){
-    const g = v, y = yAt(v);
-    svg += '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" style="stroke:var(--line); stroke-width:1;'+(g?' stroke-dasharray:2 4;':'')+'"/>';
-    svg += '<text x="'+(padL-8)+'" y="'+(y+4).toFixed(1)+'" font-size="10.5" text-anchor="end" style="fill:var(--muted)">'+numCurto(v)+'</text>';
+    const y = yAt(v);
+    svg += '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" style="stroke:var(--line); stroke-width:1;'+(v?' stroke-dasharray:2 4;':'')+'"/>';
+    svg += '<text x="'+(padL-6)+'" y="'+(y+4).toFixed(1)+'" font-size="'+fs+'" text-anchor="end" style="fill:var(--muted)">'+numCurto(v)+'</text>';
   }
-  // rótulos de data
-  const passoRot = Math.max(1, Math.ceil(n/(W < 600 ? 5 : 10)));
-  pontos.forEach((p,i) => {
-    if (i%passoRot===0 || i===n-1){
-      svg += '<text x="'+xAt(i).toFixed(1)+'" y="'+(H-padB+19)+'" font-size="10.5" text-anchor="middle" style="fill:'+(p.data===hojeChave?'var(--text)':'var(--muted)')+'">'+rotuloDia(p.data)+'</text>';
-    }
+
+  // datas + o que foi feito em cada dia, logo abaixo da data (só dias já vividos)
+  const todos = pontos.concat(futuro);
+  const espacoMin = pequeno ? 40 : 46; // px mínimos entre um dia e outro pra os números não se encostarem
+  const passoRot = Math.max(1, Math.ceil(espacoMin / Math.max(1, passoX)));
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#39976A">AW</text>';
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#4C73D9">IAC</text>';
+  todos.forEach((p,i) => {
+    const passado = i < n;
+    if ((i - (n-1)) % passoRot !== 0) return; // conta a partir de hoje, pra hoje nunca sumir
+    const x = xAt(i).toFixed(1);
+    svg += '<text x="'+x+'" y="'+(yBase+17)+'" font-size="'+fs+'" text-anchor="middle" style="fill:'+(p.data===hojeChave?'var(--text)':(passado?'var(--muted)':'#B4B9C1'))+'">'+rotuloDia(p.data)+'</text>';
+    // passado: o que foi feito no dia | futuro (clarinho): quanto precisa ser feito por dia pra seguir a tendência
+    const corAw = passado ? '#39976A' : '#9FD3B8', corIac = passado ? '#4C73D9' : '#AFC1F2';
+    const pre = passado ? '+' : '≈';
+    svg += '<text x="'+x+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.awDia?corAw:'#C4C8CF')+'">'+(p.awDia?pre+pdfNum(p.awDia):'—')+'</text>';
+    svg += '<text x="'+x+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.iacDia?corIac:'#C4C8CF')+'">'+(p.iacDia?pre+pdfNum(p.iacDia):'—')+'</text>';
   });
-  // áreas com degradê ("neon" da linha pra baixo), das maiores pras menores
+
   const ordemDesenho = ['total','aberto','aw','iac'];
+  const ptsDe = (ch) => pontos.map((p,i) => [xAt(i), yAt(p[ch])]);
+  const ptsFuturoDe = (ch) => [[xAt(n-1), yAt(ult[ch])]].concat(futuro.map((p,k) => [xAt(n+k), yAt(p[ch])]));
+  const area = (pts, fill) => '<path d="'+caminhoSuave(pts)+' L'+pts[pts.length-1][0].toFixed(1)+' '+yBase+' L'+pts[0][0].toFixed(1)+' '+yBase+' Z" style="fill:'+fill+';"/>';
+  // áreas: passado (degradê forte) e futuro (degradê bem clarinho)
   ordemDesenho.forEach((ch) => {
-    const s = SERIES_EVOLUCAO.find((x) => x.chave === ch);
     if (seriesOcultas[ch]) return;
-    const pts = pontos.map((p,i) => [xAt(i), yAt(p[ch])]);
-    if (n >= 2){
-      const linha = caminhoSuave(pts);
-      svg += '<path d="'+linha+' L'+pts[n-1][0].toFixed(1)+' '+yAt(0).toFixed(1)+' L'+pts[0][0].toFixed(1)+' '+yAt(0).toFixed(1)+' Z" style="fill:url(#grad-'+ch+');"/>';
-    }
+    if (n >= 2) svg += area(ptsDe(ch), 'url(#grad-'+ch+')');
+    if (diasProj) svg += area(ptsFuturoDe(ch), 'url(#gradf-'+ch+')');
   });
-  // tendência (tracejada), por trás das linhas
-  if (tend && !seriesOcultas.aberto){
-    const i0 = 0, i1 = n-1+tend.projecao;
-    svg += '<line x1="'+xAt(i0).toFixed(1)+'" y1="'+yAt(tend.base).toFixed(1)+'" x2="'+xAt(i1).toFixed(1)+'" y2="'+yAt(tend.base+tend.incl*i1).toFixed(1)+'" style="stroke:#7C5CC9; stroke-width:1.4; stroke-dasharray:6 5; opacity:.75;"/>';
-    svg += '<text x="'+(xAt(i1)-4).toFixed(1)+'" y="'+(yAt(tend.base+tend.incl*i1)-8).toFixed(1)+'" font-size="10.5" text-anchor="end" style="fill:#7C5CC9">tendência</text>';
-  }
-  // linhas com brilho suave por baixo
+  // linhas: passado sólido com brilho; futuro pontilhado e claro
   ordemDesenho.forEach((ch) => {
     const s = SERIES_EVOLUCAO.find((x) => x.chave === ch);
     if (seriesOcultas[ch]) return;
-    const pts = pontos.map((p,i) => [xAt(i), yAt(p[ch])]);
     if (n >= 2){
-      const linha = caminhoSuave(pts);
+      const linha = caminhoSuave(ptsDe(ch));
       if (ch !== 'total') svg += '<path d="'+linha+'" style="fill:none; stroke:'+s.cor+'; stroke-width:'+(s.largura+3)+'; opacity:.35;" filter="url(#brilho-linha)"/>';
       svg += '<path d="'+linha+'" style="fill:none; stroke:'+s.cor+'; stroke-width:'+s.largura+'; stroke-linecap:round; stroke-linejoin:round;"/>';
     }
-    // ponto do último dia
-    svg += '<circle cx="'+pts[n-1][0].toFixed(1)+'" cy="'+pts[n-1][1].toFixed(1)+'" r="3.6" style="fill:'+s.cor+'; stroke:#fff; stroke-width:1.5;"/>';
+    if (diasProj){
+      const lf = caminhoSuave(ptsFuturoDe(ch));
+      if (ch !== 'total') svg += '<path d="'+lf+'" style="fill:none; stroke:'+s.cor+'; stroke-width:'+(s.largura+2)+'; opacity:.12;" filter="url(#brilho-linha)"/>';
+      svg += '<path d="'+lf+'" style="fill:none; stroke:'+s.cor+'; stroke-width:'+Math.max(1.2, s.largura-0.6)+'; stroke-dasharray:2 5; stroke-linecap:round; opacity:.55;"/>';
+    }
+    const ph = [xAt(n-1), yAt(ult[ch])];
+    svg += '<circle cx="'+ph[0].toFixed(1)+'" cy="'+ph[1].toFixed(1)+'" r="3.6" style="fill:'+s.cor+'; stroke:#fff; stroke-width:1.5;"/>';
   });
-  // marcador do dia sob o dedo/mouse (preenchido pelo script)
-  svg += '<g id="evo-cursor" style="display:none;"><line id="evo-cursor-linha" y1="'+padT+'" y2="'+(H-padB)+'" style="stroke:var(--text); stroke-width:1.2;"/>';
+  // cursor
+  svg += '<g id="evo-cursor" style="display:none;"><line id="evo-cursor-linha" y1="'+padT+'" y2="'+yBase+'" style="stroke:var(--text); stroke-width:1.2;"/>';
   SERIES_EVOLUCAO.forEach((s) => { svg += '<circle id="evo-cursor-'+s.chave+'" r="4.5" style="fill:'+s.cor+'; stroke:#fff; stroke-width:2;"/>'; });
   svg += '</g>';
-  svg += '<rect id="evo-area-toque" x="'+padL+'" y="'+padT+'" width="'+(W-padL-padR)+'" height="'+(H-padT-padB)+'" style="fill:transparent; cursor:crosshair;"/>';
+  svg += '<rect id="evo-area-toque" x="'+padL+'" y="'+padT+'" width="'+(W-padL-padR)+'" height="'+(yBase-padT)+'" style="fill:transparent; cursor:crosshair;"/>';
   svg += '</svg>';
 
-  // cabeçalho: valor atual de cada linha (clicável pra esconder/mostrar)
-  let topo = '<div style="font-size:12px; color:var(--muted); margin:2px 0 6px;">Valores de <span id="evo-dia-sel" style="color:var(--text);">hoje</span> — toque ou passe o mouse no gráfico pra ver outro dia</div>';
-  topo += '<div style="display:flex; flex-wrap:wrap; gap:14px 28px; align-items:flex-end; margin:0 0 14px;">';
+  // cabeçalho: valores do dia selecionado (padrão: hoje), clicáveis pra esconder/mostrar
+  let topo = '<div style="display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; margin:2px 0 8px; font-size:12px; color:var(--muted);">' +
+    '<span>Valores de <span id="evo-dia-sel" style="color:var(--text);">hoje</span></span>' +
+    '<span id="evo-feito-sel"></span>' +
+    (zeraEm ? '<span style="margin-left:auto;">No ritmo atual, o em aberto zera por volta de <span style="color:var(--text);">'+zeraEm+'</span> ('+diasAteZero+' dias)</span>'
+      : (n >= 2 ? '<span style="margin-left:auto;">Em aberto sem queda no período</span>' : '')) +
+    '</div>';
+  topo += '<div style="display:flex; flex-wrap:wrap; gap:12px 28px; margin:0 0 10px;">';
   SERIES_EVOLUCAO.forEach((s) => {
     const off = !!seriesOcultas[s.chave];
-    const extra = (s.chave==='aw' || s.chave==='iac') ? '<span data-dia-de="'+s.chave+'" style="font-size:12px; color:var(--muted); margin-left:6px;"></span>' : '';
     topo += '<button type="button" data-serie="'+s.chave+'" style="all:unset; cursor:pointer; opacity:'+(off?0.35:1)+';" title="Mostrar/ocultar linha">' +
       '<div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:'+s.cor+'; display:inline-block;"></span>'+s.rotulo+'</div>' +
-      '<div style="font-size:24px; color:var(--text); line-height:1.25; font-family:\'IBM Plex Sans\',sans-serif;"><span data-valor-de="'+s.chave+'"></span>'+extra+'</div></button>';
+      '<div data-valor-de="'+s.chave+'" style="font-size:'+(pequeno?20:24)+'px; color:var(--text); line-height:1.25;"></div></button>';
   });
-  if (tend){
-    const txt = tend.zeraEm ? 'No ritmo atual, o em aberto zera por volta de <span style="color:var(--text);">'+tend.zeraEm+'</span> ('+tend.diasAteZero+' dias)'
-      : (tend.incl < 0 ? 'Em aberto caindo '+pdfNum(Math.round(-tend.incl))+' itens/dia' : 'Em aberto sem queda no período');
-    topo += '<div style="margin-left:auto; font-size:12px; color:var(--muted); max-width:260px; text-align:right;">'+txt+'</div>';
-  }
   topo += '</div>';
 
-  // tabela por dia: cada indicador na sua linha
-  const diasTab = pontos.slice().reverse(); // mais recente primeiro
-  const linhaTab = (rot, cor, fn, sub) => '<tr><td style="padding:7px 12px 7px 0; white-space:nowrap; color:'+(sub?'var(--muted)':'var(--text)')+'; '+(sub?'padding-left:14px; font-size:12px;':'')+' position:sticky; left:0; background:var(--surface);">' +
-    (cor?'<span style="width:8px; height:8px; border-radius:50%; background:'+cor+'; display:inline-block; margin-right:7px;"></span>':'')+rot+'</td>' +
-    diasTab.map((p) => '<td class="mono" style="padding:7px 10px; text-align:right; white-space:nowrap; color:'+(sub?'var(--muted)':'var(--text)')+'; '+(sub?'font-size:12px;':'')+'">'+fn(p)+'</td>').join('') + '</tr>';
-  let tabela = '<div style="overflow-x:auto; margin-top:16px; border-top:1px solid var(--line);"><table style="min-width:0; width:auto; font-size:13px;"><thead><tr><th style="position:sticky; left:0; background:var(--surface);"></th>' +
-    diasTab.map((p) => '<th style="text-align:right; padding:8px 10px; font-weight:400; color:'+(p.data===hojeChave?'var(--text)':'var(--muted)')+';">'+rotuloDia(p.data)+'</th>').join('') + '</tr></thead><tbody>' +
-    linhaTab('Em aberto', '#7C5CC9', (p) => pdfNum(p.aberto)) +
-    linhaTab('Executado AW', '#39976A', (p) => pdfNum(p.aw)) +
-    linhaTab('feitos no dia', null, (p) => p.awDia ? '+'+pdfNum(p.awDia) : '—', true) +
-    linhaTab('Vistoriado IAC', '#4C73D9', (p) => pdfNum(p.iac)) +
-    linhaTab('validados no dia', null, (p) => p.iacDia ? '+'+pdfNum(p.iacDia) : '—', true) +
-    linhaTab('Total', '#99A1AC', (p) => pdfNum(p.total)) +
-    '</tbody></table></div>';
-
   cont.innerHTML = topo + '<div id="evo-wrap" style="position:relative;">' + svg +
-    '<div id="evo-tooltip" style="display:none; position:absolute; pointer-events:none; background:var(--text); color:#fff; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:var(--shadow-lg); z-index:5;"></div></div>' + tabela;
+    '<div id="evo-tooltip" style="display:none; position:absolute; pointer-events:none; background:var(--text); color:#fff; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:var(--shadow-lg); z-index:5;"></div></div>';
 
-  // legenda clicável
   cont.querySelectorAll('[data-serie]').forEach((b) => b.addEventListener('click', () => {
     const ch = b.dataset.serie;
     seriesOcultas[ch] = !seriesOcultas[ch];
-    if (SERIES_EVOLUCAO.every((s) => seriesOcultas[s.chave])) seriesOcultas[ch] = false; // nunca esconde todas
+    if (SERIES_EVOLUCAO.every((s) => seriesOcultas[s.chave])) seriesOcultas[ch] = false;
     renderEvolucaoPendencias();
   }));
 
-  // tooltip: passa o mouse ou toca/arrasta o dedo
-  const area = cont.querySelector('#evo-area-toque'), svgEl = cont.querySelector('svg');
+  const areaToque = cont.querySelector('#evo-area-toque'), svgEl = cont.querySelector('svg');
   const tip = cont.querySelector('#evo-tooltip'), wrap = cont.querySelector('#evo-wrap');
   const cursor = cont.querySelector('#evo-cursor');
-  const telaPequena = W < 600;
   function preencherTopo(p){
     cont.querySelector('#evo-dia-sel').textContent = p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().join('/');
+    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#39976A;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#4C73D9;">IAC +'+pdfNum(p.iacDia)+'</span>';
     SERIES_EVOLUCAO.forEach((s) => { const el = cont.querySelector('[data-valor-de="'+s.chave+'"]'); if (el) el.textContent = pdfNum(p[s.chave]); });
-    const a = cont.querySelector('[data-dia-de="aw"]'), b = cont.querySelector('[data-dia-de="iac"]');
-    if (a) a.textContent = '+'+pdfNum(p.awDia)+' no dia';
-    if (b) b.textContent = '+'+pdfNum(p.iacDia)+' no dia';
   }
   preencherTopo(ult);
   function mostrar(ev){
     const r = svgEl.getBoundingClientRect();
     const xv = (ev.clientX - r.left) / r.width * W;
-    let i = diasEixo > 1 ? Math.round((xv - padL)/passoX) : 0;
-    i = Math.max(0, Math.min(n-1, i));
+    let i = diasEixo > 1 ? Math.round((xv - padL - ox)/passoX) : 0;
+    i = Math.max(0, Math.min(n-1, i)); // só dias já vividos
     const p = pontos[i], x = xAt(i);
     cursor.style.display = '';
-    cont.querySelector('#evo-cursor-linha').setAttribute('x1', x); cont.querySelector('#evo-cursor-linha').setAttribute('x2', x);
+    const cl = cont.querySelector('#evo-cursor-linha'); cl.setAttribute('x1', x); cl.setAttribute('x2', x);
     SERIES_EVOLUCAO.forEach((s) => {
       const c = cont.querySelector('#evo-cursor-'+s.chave);
       c.style.display = seriesOcultas[s.chave] ? 'none' : '';
       c.setAttribute('cx', x); c.setAttribute('cy', yAt(p[s.chave]));
     });
     preencherTopo(p);
-    if (telaPequena) return; // no celular os números do topo já mostram o dia tocado
+    if (pequeno) return; // no celular os números do topo já mostram o dia tocado
     const dataFmt = p.data === hojeChave ? 'Hoje' : p.data.split('-').reverse().join('/');
     tip.innerHTML = '<div style="color:#C9CDD3; margin-bottom:2px;">'+dataFmt+'</div>' +
       '<div><span style="color:#B9A6EC;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
@@ -2402,16 +2426,14 @@ function renderEvolucaoPendencias(){
       '<div><span style="color:#9CB4F2;">●</span> Vistoriado IAC: '+pdfNum(p.iac)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.iacDia)+' no dia)</span></div>' +
       '<div><span style="color:#C9CDD3;">●</span> Total: '+pdfNum(p.total)+'</div>';
     tip.style.display = 'block';
-    const px = x / W * r.width, wr = wrap.getBoundingClientRect().width;
-    const tw = tip.offsetWidth;
+    const px = x / W * r.width, wr = wrap.getBoundingClientRect().width, tw = tip.offsetWidth;
     let left = px + 14; if (left + tw > wr) left = px - tw - 14; if (left < 0) left = 0;
-    tip.style.left = left + 'px';
-    tip.style.top = '8px';
+    tip.style.left = left + 'px'; tip.style.top = '8px';
   }
   function esconder(){ cursor.style.display = 'none'; tip.style.display = 'none'; preencherTopo(ult); }
-  area.addEventListener('pointermove', mostrar);
-  area.addEventListener('pointerdown', mostrar);
-  area.addEventListener('pointerleave', esconder);
+  areaToque.addEventListener('pointermove', mostrar);
+  areaToque.addEventListener('pointerdown', mostrar);
+  areaToque.addEventListener('pointerleave', esconder);
 }
 
 /* redesenha o gráfico ao girar o celular / redimensionar a janela */
