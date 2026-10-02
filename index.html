@@ -343,6 +343,15 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 }
 @media (hover:hover) and (pointer:fine){ .lightbox-fechar:hover{ background:rgba(20,20,20,.8); } }
 
+.aviso-flutuante{
+  position:fixed; left:50%; transform:translateX(-50%); z-index:150;
+  bottom:calc(18px + env(safe-area-inset-bottom,0px)); max-width:calc(100% - 32px);
+  padding:9px 16px; border-radius:99px; font-size:13px; box-shadow:var(--shadow);
+  background:var(--text); color:#fff;
+}
+.aviso-flutuante.erro{ background:var(--vm); border-radius:var(--r-md); }
+.aviso-flutuante[hidden]{ display:none; }
+
 @media print{
   body *{ visibility:hidden; }
   #card-divergencia-iac, #card-divergencia-iac *{ visibility:visible; }
@@ -618,6 +627,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   </div>
 </div>
 
+<div id="aviso-flutuante" class="aviso-flutuante ok" hidden></div>
+
 <div class="lightbox-overlay oculto" id="lightbox-foto">
   <button class="lightbox-fechar" id="lightbox-fechar" aria-label="Fechar" title="Fechar">&times;</button>
   <img class="lightbox-imagem" id="lightbox-imagem-el" src="" alt="Foto ampliada">
@@ -683,6 +694,24 @@ async function initAssets(){
   };
 }
 
+/* O Supabase devolve no MÁXIMO 1000 linhas por consulta (limite padrão do servidor).
+   Sem paginar, coleções grandes (ex: 'acompanhamento', uma linha por item marcado como
+   Executado AW / Vistoriado IAC) eram lidas pela metade ao abrir o painel — as marcações
+   ficavam salvas no banco, mas sumiam da tela ao atualizar. Aqui busca de 1000 em 1000,
+   em ordem fixa (doc_id), até acabar. */
+async function selecionarTudoPaginado(montarConsulta){
+  const PASSO = 1000;
+  let de = 0, todos = [];
+  while (true){
+    const { data, error } = await montarConsulta().order('doc_id', { ascending: true }).range(de, de + PASSO - 1);
+    if (error) throw error;
+    todos = todos.concat(data || []);
+    if (!data || data.length < PASSO) break;
+    de += PASSO;
+  }
+  return todos;
+}
+
 const store = {
   backend: 'local',
   mem: {},
@@ -738,10 +767,9 @@ const store = {
   async listCollection(col){
     if (this.backend === 'cloud'){
       try{
-        const { data, error } = await supa.from('app_data').select('doc_id, data').eq('collection', col);
-        if (error) return [];
+        const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ return []; }
+      }catch(e){ console.error('falha ao ler a coleção', col, e); return []; }
     }
     const all = this._lerLocal(col);
     return Object.keys(all).map(id => Object.assign({ _id: id }, all[id]));
@@ -749,10 +777,9 @@ const store = {
   async queryRevisao(col, revisaoStr){
     if (this.backend === 'cloud'){
       try{
-        const { data, error } = await supa.from('app_data').select('doc_id, data').eq('collection', col).eq('data->>revisao', revisaoStr);
-        if (error) return [];
+        const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col).eq('data->>revisao', revisaoStr));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ return []; }
+      }catch(e){ console.error('falha ao ler a revisão', col, revisaoStr, e); return []; }
     }
     const all = await this.listCollection(col);
     return all.filter(d => d.revisao === revisaoStr);
@@ -761,10 +788,9 @@ const store = {
     if (this.backend === 'cloud'){
       try{
         const strs = listaRevisoes.map(String);
-        const { data, error } = await supa.from('app_data').select('doc_id, data').eq('collection', col).in('data->>revisao', strs);
-        if (error) return [];
+        const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col).in('data->>revisao', strs));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ return []; }
+      }catch(e){ console.error('falha ao ler as revisões', col, e); return []; }
     }
     const all = await this.listCollection(col);
     return all.filter(d => listaRevisoes.includes(d.revisao));
@@ -1532,26 +1558,76 @@ async function carregarAcompanhamento(){
   });
 }
 
+/* grava com 1 nova tentativa automática — falha de rede no canteiro costuma ser passageira */
+async function salvarAcompanhamentoComRetry(itemId, dados){
+  let r = await store.setDoc('acompanhamento', itemId, dados);
+  if (!r.ok){
+    await new Promise((res) => setTimeout(res, 1500));
+    r = await store.setDoc('acompanhamento', itemId, dados);
+  }
+  return r;
+}
+
+/* aviso flutuante no rodapé da tela (some sozinho) — confirma que salvou ou avisa se falhou */
+let idTimeoutAviso = null;
+function avisoFlutuante(texto, tipo){
+  const el = document.getElementById('aviso-flutuante');
+  if (!el) return;
+  el.textContent = texto;
+  el.className = 'aviso-flutuante ' + (tipo || 'ok');
+  el.hidden = false;
+  clearTimeout(idTimeoutAviso);
+  idTimeoutAviso = setTimeout(() => { el.hidden = true; }, tipo === 'erro' ? 6000 : 1800);
+}
+
+/* depois de qualquer marcação, redesenha tudo que mostra contagem de AW/IAC/Aberto —
+   antes só a aba Itens e o resumo eram atualizados, e a torre de andares e a aba Quartos
+   ficavam com o número antigo até recarregar a página */
+function atualizarTelasAposAcompanhamento(){
+  renderItens();
+  renderTorreAndares();
+  renderQuartos();
+  renderDisciplinas();
+  renderRankings();
+  renderResumoGeral();
+}
+
 async function alternarAcompanhamento(itemId, campo){
-  const atual = acompanhamento[itemId] || { awExecEm:null, iacOkEm:null };
+  const anterior = acompanhamento[itemId];
+  const atual = anterior || { awExecEm:null, iacOkEm:null };
   const novoValor = atual[campo] ? null : new Date().toISOString();
   const novo = Object.assign({}, atual, { [campo]: novoValor });
   // cascata: se desmarcar "Executado AW", não faz sentido manter "Vistoriado IAC" marcado
   if (campo === 'awExecEm' && !novoValor) novo.iacOkEm = null;
+  // mostra na hora (não espera a internet), e salva em seguida
   acompanhamento[itemId] = novo;
-  await store.setDoc('acompanhamento', itemId, novo);
-  renderItens();
-  await renderResumoGeral();
+  atualizarTelasAposAcompanhamento();
+  const r = await salvarAcompanhamentoComRetry(itemId, novo);
+  if (r.ok){
+    avisoFlutuante('Salvo', 'ok');
+  } else {
+    // não salvou: desfaz na tela também, pra nunca mostrar verde algo que não está no banco
+    if (anterior) acompanhamento[itemId] = anterior; else delete acompanhamento[itemId];
+    atualizarTelasAposAcompanhamento();
+    avisoFlutuante('Não foi salvo (sem conexão?). A marcação foi desfeita — toque de novo.', 'erro');
+  }
 }
 
 /* data prevista de conclusão — só existe (e só é mostrada) quando o local já está liberado
    com pendência e o usuário de fato preencheu uma data; some sozinha quando o item é
    vistoriado pela IAC, já que nesse ponto a pendência não existe mais */
 async function salvarDataPrevista(itemId, dataStr){
-  const atual = acompanhamento[itemId] || { awExecEm:null, iacOkEm:null };
+  const anterior = acompanhamento[itemId];
+  const atual = anterior || { awExecEm:null, iacOkEm:null };
   const novo = Object.assign({}, atual, { dataPrevista: dataStr || null });
   acompanhamento[itemId] = novo;
-  await store.setDoc('acompanhamento', itemId, novo);
+  const r = await salvarAcompanhamentoComRetry(itemId, novo);
+  if (r.ok) avisoFlutuante('Previsão salva', 'ok');
+  else {
+    if (anterior) acompanhamento[itemId] = anterior; else delete acompanhamento[itemId];
+    renderItens();
+    avisoFlutuante('A previsão não foi salva (sem conexão?). Tente de novo.', 'erro');
+  }
 }
 
 /* ===================== LIBERAÇÃO MANUAL DE QUARTO/ÁREA (azul) =====================
@@ -1896,14 +1972,18 @@ function renderTorreAndares(){
   });
 }
 
-async function renderResumoGeral(){
+let vdHistoricoCache = null;
+async function renderResumoGeral(recarregarHistorico){
   const grid = document.getElementById('grid-resumo');
   // total histórico de itens resolvidos por desaparecimento (a IAC não marca "feito" na
   // planilha dela, só exclui a linha — a partir da R20 em diante, isso conta como VD de
   // verdade pra gente, mesmo não aparecendo mais em nenhuma planilha atual)
   let vdHistorico = 0;
-  try{ vdHistorico = (await store.listCollection('resolvidos_historico')).length; }
-  catch(e){ console.warn('não consegui carregar o histórico de resolvidos', e); }
+  if (recarregarHistorico || vdHistoricoCache === null){
+    try{ vdHistoricoCache = (await store.listCollection('resolvidos_historico')).length; }
+    catch(e){ console.warn('não consegui carregar o histórico de resolvidos', e); }
+  }
+  vdHistorico = vdHistoricoCache || 0;
   const c = contarVMAM(itensRevisaoAtual);
   const locais = agruparPorLocal(itensRevisaoAtual);
   let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0;
@@ -2636,8 +2716,14 @@ async function salvarClassificacaoItem(itemId, novaDisc, novoForn){
   const fornecedorPadrao = fornecedores[disciplinaOverride || (it?it.disciplina:'')] || '';
   const fornecedorOverride = (novoForn && novoForn !== fornecedorPadrao) ? novoForn : null;
   const novo = Object.assign({}, atual, { disciplinaOverride, fornecedorOverride });
+  const anterior = acompanhamento[itemId];
   acompanhamento[itemId] = novo;
-  await store.setDoc('acompanhamento', itemId, novo);
+  const r = await salvarAcompanhamentoComRetry(itemId, novo);
+  if (!r.ok){
+    if (anterior) acompanhamento[itemId] = anterior; else delete acompanhamento[itemId];
+    avisoFlutuante('A alteração do item '+itemId+' não foi salva (sem conexão?). Tente de novo.', 'erro');
+  }
+  return r.ok;
 }
 
 /* ===================== RENDER: DISCIPLINAS ===================== */
@@ -3335,7 +3421,7 @@ async function selecionarRevisao(numeroStr){
   areasLiberadasRevisaoAtual = carregado.areasLiberadas;
   if (numeroStr) await capturarSnapshotDiarioSeNecessario(numeroStr);
   renderTorreAndares();
-  await renderResumoGeral();
+  await renderResumoGeral(true);
   renderInsightsResumo();
   renderEvolucaoPendencias();
   renderRankings();
@@ -3361,8 +3447,207 @@ function jsPdfDisponivel(){
   return !!(window.jspdf && window.jspdf.jsPDF);
 }
 
-/* baixa uma foto já salva e devolve como data: URL (formato que o jsPDF consegue desenhar
-   direto, sem precisar de mais nenhuma rede no meio da montagem do PDF) */
+/* ===================== RELATÓRIOS EM PDF (layout aprovado) =====================
+   Mesmo visual do painel: cabeçalho com logos, cartões de resumo (Em aberto em destaque),
+   barra de andamento, linha de Prioridades e a tabela dentro de um cartão de borda
+   arredondada, com as mesmas colunas e cores da tela. Hierarquia pela variação do preto
+   para o cinza — sem negrito. Quartos sai em pé; Itens sai deitado (precisa da largura
+   pra foto e descrição). Tabelas longas continuam nas páginas seguintes, repetindo os
+   títulos das colunas. */
+const PDF_COR = {
+  ink:[19,21,26], ink2:[63,68,77], muted:[122,128,138], faint:[180,185,193],
+  line:[230,232,236], paper:[245,246,248], white:[255,255,255],
+  acc:[15,118,110], accs:[226,243,241],
+  vm:[201,67,62], vms:[251,233,232], am:[185,126,46], ams:[251,240,222],
+  az:[76,115,217], azs:[233,238,252], vd:[57,151,106], vds:[227,243,234],
+  heroLabel:[201,205,211], heroSub:[154,160,169]
+};
+const PDF_PRIO = {
+  BLOQUEADO:{ fg:PDF_COR.vm, bg:PDF_COR.vms, curto:'VM', longo:'VM (vermelho)' },
+  PENDENTE:{ fg:PDF_COR.am, bg:PDF_COR.ams, curto:'AM', longo:'AM (amarelo)' },
+  LIBERADO_PEND:{ fg:PDF_COR.az, bg:PDF_COR.azs, curto:'Liberado c/ pend.', longo:'Liberado c/ pendência' },
+  CONCLUIDO:{ fg:PDF_COR.vd, bg:PDF_COR.vds, curto:'VD', longo:'VD (verde)' }
+};
+const PDF_M = 36;
+
+function pdfNum(n){ return Number(n||0).toLocaleString('pt-BR'); }
+function pdfPct(a, b){ return b ? Math.round(a/b*100) : 0; }
+
+function pdfTxt(doc, x, y, s, size, cor, align){
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(size || 9);
+  doc.setTextColor.apply(doc, cor || PDF_COR.ink);
+  doc.text(String(s==null?'':s), x, y, align ? { align: align } : undefined);
+}
+function pdfFill(doc, cor){ doc.setFillColor.apply(doc, cor); }
+function pdfDraw(doc, cor){ doc.setDrawColor.apply(doc, cor); }
+function pdfLarg(doc, s, size){ doc.setFont('helvetica','normal'); doc.setFontSize(size); return doc.getTextWidth(String(s)); }
+
+/* etiqueta arredondada (fundo clarinho + texto na cor), y = linha de base do texto */
+function pdfPill(doc, x, y, texto, fg, bg, size){
+  size = size || 7.5;
+  const w = pdfLarg(doc, texto, size) + 14;
+  pdfFill(doc, bg); doc.roundedRect(x, y-9, w, 13, 6.5, 6.5, 'F');
+  pdfTxt(doc, x+7, y, texto, size, fg);
+  return w;
+}
+
+/* corta um texto pra caber numa largura (com reticências), pra filtros muito longos */
+function pdfCaber(doc, s, size, larguraMax){
+  s = String(s||'');
+  if (pdfLarg(doc, s, size) <= larguraMax) return s;
+  while (s.length > 1 && pdfLarg(doc, s+'…', size) > larguraMax) s = s.slice(0, -1);
+  return s + '…';
+}
+
+/* resume os filtros ativos na tela ("18º andar · Elétrica"), ou "Todos" sem filtro */
+function descreverFiltros(idsSelects, idBusca, extras){
+  const partes = [];
+  const busca = idBusca ? (document.getElementById(idBusca).value || '').trim() : '';
+  if (busca) partes.push('"'+busca+'"');
+  idsSelects.forEach((id) => {
+    const sel = document.getElementById(id);
+    if (sel && sel.value){
+      const op = sel.options[sel.selectedIndex];
+      if (op) partes.push(op.textContent.trim());
+    }
+  });
+  (extras||[]).forEach((e) => { if (e) partes.push(e); });
+  return partes.length ? partes.join(' · ') : 'Todos';
+}
+
+function pdfLogos(){
+  const s = document.querySelector('.logo-chip.sofitel img');
+  const a = document.querySelector('.logo-chip.aw img');
+  return {
+    sofitel: s ? { src: s.src, ratio: (s.naturalWidth && s.naturalHeight) ? s.naturalWidth/s.naturalHeight : 2.7 } : null,
+    aw: a ? { src: a.src } : null
+  };
+}
+
+/* cabeçalho completo (só na 1ª página) — devolve o y onde a tabela pode começar */
+function pdfCabecalho(doc, ctx){
+  const PW = doc.internal.pageSize.getWidth();
+  const M = PDF_M;
+  pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
+
+  // logos
+  const logos = pdfLogos();
+  pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6);
+  doc.roundedRect(M, 28, 78, 30, 6, 6, 'FD');
+  if (logos.sofitel){
+    let lh = 22, lw = lh*logos.sofitel.ratio;
+    if (lw > 64){ lw = 64; lh = lw/logos.sofitel.ratio; }
+    try{ doc.addImage(logos.sofitel.src, 'PNG', M+39-lw/2, 43-lh/2, lw, lh); }catch(e){}
+  }
+  if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+86, 28, 30, 30); }catch(e){} }
+
+  pdfTxt(doc, M+128, 43, ctx.titulo, 17, PDF_COR.ink);
+  pdfTxt(doc, M+128, 55, 'Relatório de pendências · Hotel Sofitel Ipanema', 8, PDF_COR.muted);
+  if (ctx.revisao){
+    const t = 'Revisão '+ctx.revisao, w = pdfLarg(doc, t, 7.5) + 20;
+    pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 28, w, 16, 8, 8, 'F');
+    pdfTxt(doc, PW-M-w/2, 39, t, 7.5, PDF_COR.acc, 'center');
+  }
+  pdfTxt(doc, PW-M, 56, ctx.dataHora, 7.5, PDF_COR.muted, 'right');
+
+  // filtro aplicado
+  pdfTxt(doc, M, 80, 'Filtro', 7.5, PDF_COR.muted);
+  const filtro = pdfCaber(doc, ctx.filtro, 7.5, PW - 2*M - 140);
+  const fw = pdfLarg(doc, filtro, 7.5) + 16;
+  pdfFill(doc, PDF_COR.paper); doc.roundedRect(M+26, 70, fw, 14, 7, 7, 'F');
+  pdfTxt(doc, M+26+fw/2, 80, filtro, 7.5, PDF_COR.ink2, 'center');
+  pdfTxt(doc, M+34+fw, 80, ctx.contagem, 7.5, PDF_COR.muted);
+
+  // cartões de resumo
+  const gap = 8, n = ctx.cartoes.length, cw = (PW - 2*M - (n-1)*gap)/n, top = 92;
+  ctx.cartoes.forEach((cd, i) => {
+    const x = M + i*(cw+gap);
+    pdfFill(doc, cd.destaque ? PDF_COR.ink : PDF_COR.paper);
+    doc.roundedRect(x, top, cw, 54, 8, 8, 'F');
+    pdfTxt(doc, x+11, top+16, cd.rotulo, 7.5, cd.destaque ? PDF_COR.heroLabel : PDF_COR.muted);
+    pdfTxt(doc, x+11, top+37, pdfNum(cd.valor), 20, cd.destaque ? PDF_COR.white : PDF_COR.ink);
+    pdfTxt(doc, x+11, top+47, cd.sub, 6.8, cd.destaque ? PDF_COR.heroSub : PDF_COR.faint);
+  });
+
+  // andamento
+  const a = ctx.andamento, bw = PW - 2*M;
+  pdfTxt(doc, M, 166, ctx.tituloAndamento, 8.5, PDF_COR.ink2);
+  pdfTxt(doc, PW-M, 166, pdfPct(a.aw, a.total)+'% executado pela AW  ·  '+pdfNum(a.aberto)+' em aberto', 7.5, PDF_COR.muted, 'right');
+  pdfFill(doc, PDF_COR.line); doc.roundedRect(M, 172, bw, 6, 3, 3, 'F');
+  const wAw = a.total ? bw*a.aw/a.total : 0;
+  if (wAw >= 6){ pdfFill(doc, PDF_COR.acc); doc.roundedRect(M, 172, wAw, 6, 3, 3, 'F'); }
+  const wIac = a.total ? bw*a.iac/a.total : 0;
+  if (wIac >= 6){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(M, 172, wIac, 6, 3, 3, 'F'); }
+
+  // prioridades
+  pdfTxt(doc, M, 198, 'Prioridades', 7.5, PDF_COR.muted);
+  let x = M + 50;
+  ['BLOQUEADO','PENDENTE','LIBERADO_PEND','CONCLUIDO'].forEach((k) => {
+    const p = PDF_PRIO[k];
+    x += pdfPill(doc, x, 198, p.curto+'  '+pdfNum(ctx.prioridades[k]||0), p.fg, p.bg) + 6;
+  });
+  return 214;
+}
+
+function pdfRodape(doc, pagina, total){
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M;
+  pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.line(M, PH-40, PW-M, PH-40);
+  pdfTxt(doc, M, PH-28, 'Painel de obra AW · Sofitel Ipanema — Quartos', 7, PDF_COR.muted);
+  pdfTxt(doc, PW-M, PH-28, 'Página '+pagina+' de '+total, 7, PDF_COR.muted, 'right');
+}
+
+/* desenha a tabela em cartões arredondados, quebrando página quando precisa.
+   colunas: [{rotulo, x, align, cor}] (x relativo ao cartão); linhas: [{altura, desenhar(doc, cx, top)}] */
+function pdfTabelaPaginada(doc, ctx, colunas, linhas){
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M;
+  const CW = PW - 2*M, HEAD = 26, LIMITE = PH - 52, TOPO_DEMAIS = 40;
+  // divide as linhas em páginas antes de desenhar, pra saber o total de páginas no rodapé
+  const paginas = [];
+  let atual = [], usado = 0, inicio = 214;
+  linhas.forEach((ln) => {
+    if (inicio + HEAD + usado + ln.altura > LIMITE && atual.length){
+      paginas.push(atual); atual = []; usado = 0; inicio = TOPO_DEMAIS;
+    }
+    atual.push(ln); usado += ln.altura;
+  });
+  if (atual.length || paginas.length === 0) paginas.push(atual);
+
+  paginas.forEach((pag, ip) => {
+    let top;
+    if (ip === 0) top = pdfCabecalho(doc, ctx);
+    else {
+      doc.addPage();
+      pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
+      pdfTxt(doc, M, 26, ctx.titulo+(ctx.revisao ? '  ·  Revisão '+ctx.revisao : ''), 9, PDF_COR.ink2);
+      pdfTxt(doc, PW-M, 26, pdfCaber(doc, ctx.filtro, 7.5, 300), 7.5, PDF_COR.muted, 'right');
+      top = TOPO_DEMAIS;
+    }
+    const h = HEAD + pag.reduce((s, l) => s + l.altura, 0);
+    pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.8);
+    doc.roundedRect(M, top, CW, h, 12, 12, 'FD');
+    colunas.forEach((c) => pdfTxt(doc, M + c.x, top + 17, c.rotulo, 7.5, c.cor || PDF_COR.muted, c.align));
+    let y = top + HEAD;
+    pag.forEach((ln) => {
+      pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.line(M, y, M+CW, y);
+      ln.desenhar(doc, M, y);
+      y += ln.altura;
+    });
+    pdfRodape(doc, ip+1, paginas.length);
+  });
+}
+
+function pdfContextoBase(titulo){
+  const metaRev = revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada);
+  const agora = new Date();
+  return {
+    titulo,
+    revisao: metaRev ? metaRev.label : '',
+    dataHora: agora.toLocaleDateString('pt-BR') + ' · ' + agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })
+  };
+}
+
+/* baixa uma foto já salva e devolve como data: URL (formato que o jsPDF desenha direto) */
 async function buscarImagemComoDataURL(assetId){
   try{
     const resp = await fetch(urlDaFoto(assetId));
@@ -3376,96 +3661,29 @@ async function buscarImagemComoDataURL(assetId){
     });
   }catch(e){ return null; }
 }
-/* nem toda foto já passou pela recompressão nova (pode ainda ser PNG original do Excel) —
-   detecta o formato de verdade em vez de forçar um só, pro jsPDF não desenhar errado */
-function formatoDaDataUrl(dataUrl){
-  const m = /^data:image\/(\w+);base64,/.exec(dataUrl||'');
-  if (!m) return 'JPEG';
-  const tipo = m[1].toUpperCase();
-  return tipo === 'JPG' ? 'JPEG' : tipo;
-}
 
-/* idxColunaFoto + imagensPorLinha são opcionais — só usados por quem precisa de foto na
-   linha (Itens). Quando tem foto(s), a linha fica mais alta pra caber uma miniatura
-   quadrada legível; 2 fotos no mesmo item ficam lado a lado, nunca uma em cima da outra. */
-/* decide as cores da coluna Status no PDF — fundo clarinho + texto na cor, exatamente a
-   mesma paleta pastel dos badges da tela (não a cor forte usada nos gráficos). "Verde"/"VD"
-   tem prioridade sobre "VM" porque um item "Verde (IAC) — era VM" já foi resolvido, não é
-   mais crítico, mesmo citando o status antigo no texto */
-function corDoStatusPdf(texto){
-  const t = String(texto||'').toUpperCase();
-  if (t.indexOf('VERDE') !== -1 || t.indexOf('VD') !== -1) return { fundo:[225,243,233], texto:[57,151,106] };
-  if (t.indexOf('LIBERADO') !== -1) return { fundo:[231,236,252], texto:[76,115,217] };
-  if (t.indexOf('VM') !== -1) return { fundo:[251,231,230], texto:[209,68,63] };
-  if (t.indexOf('AM') !== -1) return { fundo:[251,238,217], texto:[198,137,52] };
-  return null;
-}
-
-function construirPdfTabela(titulo, subtitulo, colunas, larguras, linhas, idxColunaFoto, imagensPorLinha, idxColunaStatus){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-  const margemX = 28;
-  const larguraPagina = doc.internal.pageSize.getWidth() - margemX*2;
-  const alturaPagina = doc.internal.pageSize.getHeight() - 30;
-  const ALTURA_SEM_FOTO = 13, ALTURA_COM_FOTO = 48, TAMANHO_IMG = 40;
-  let y = 36;
-  function cabecalho(){
-    doc.setFont(undefined,'bold'); doc.setFontSize(13);
-    doc.text(titulo, margemX, y);
-    doc.setFont(undefined,'normal'); doc.setFontSize(8.5); doc.setTextColor(110);
-    doc.text(subtitulo, margemX, y+14);
-    doc.setTextColor(0);
-    y += 30;
-    doc.setFont(undefined,'bold'); doc.setFontSize(8.5);
-    let x = margemX;
-    colunas.forEach((c,i) => { doc.text(String(c), x, y); x += larguras[i]; });
-    y += 4;
-    doc.setLineWidth(0.6);
-    doc.line(margemX, y, margemX+larguraPagina, y);
-    y += 11;
-    doc.setFont(undefined,'normal');
-  }
-  cabecalho();
-  doc.setFontSize(8);
-  linhas.forEach((linha, idxLinha) => {
-    const imgs = (imagensPorLinha && imagensPorLinha[idxLinha]) || [];
-    const alturaLinha = imgs.length>0 ? ALTURA_COM_FOTO : ALTURA_SEM_FOTO;
-    if (y + (imgs.length>0 ? alturaLinha-13 : 0) > alturaPagina){ doc.addPage(); y = 36; cabecalho(); doc.setFontSize(8); }
-    let x = margemX;
-    linha.forEach((celula,i) => {
-      if (i === idxColunaFoto){
-        if (imgs.length === 1){
-          try{ doc.addImage(imgs[0], formatoDaDataUrl(imgs[0]), x+2, y-9, TAMANHO_IMG, TAMANHO_IMG); }catch(e){ /* imagem corrompida/indisponível, segue sem ela */ }
-        } else if (imgs.length >= 2){
-          const tam2 = Math.min(TAMANHO_IMG, (larguras[i]-6)/2);
-          try{ doc.addImage(imgs[0], formatoDaDataUrl(imgs[0]), x+1, y-9, tam2, tam2); }catch(e){}
-          try{ doc.addImage(imgs[1], formatoDaDataUrl(imgs[1]), x+3+tam2, y-9, tam2, tam2); }catch(e){}
-        }
-      } else if (i === idxColunaStatus){
-        const texto = String(celula==null?'':celula);
-        const cortado = texto.length > 40 ? texto.slice(0,37)+'…' : texto;
-        const cor = corDoStatusPdf(cortado);
-        if (cor){
-          const largTexto = doc.getTextWidth(cortado);
-          const padX = 5, altoSelo = 12;
-          doc.setFillColor(cor.fundo[0], cor.fundo[1], cor.fundo[2]);
-          doc.roundedRect(x, y-9, Math.min(largTexto+padX*2, larguras[i]-4), altoSelo, 3, 3, 'F');
-          doc.setTextColor(cor.texto[0], cor.texto[1], cor.texto[2]);
-          doc.text(cortado, x+padX, y);
-          doc.setTextColor(0);
-        } else {
-          doc.text(cortado, x, y);
-        }
-      } else {
-        const texto = String(celula==null?'':celula);
-        const cortado = texto.length > 90 ? texto.slice(0,87)+'…' : texto;
-        doc.text(cortado, x, y);
-      }
-      x += larguras[i];
-    });
-    y += alturaLinha;
+/* recorta a foto no formato exato da miniatura (sem esticar) e já com os cantos
+   arredondados, do mesmo jeito que aparece na tabela do painel */
+function prepararMiniatura(dataUrl, wPt, hPt, raioPt){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try{
+        const k = 4, cw = Math.round(wPt*k), ch = Math.round(hPt*k), r = raioPt*k;
+        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+        const ctx = cv.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cw, ch);
+        ctx.beginPath();
+        ctx.moveTo(r, 0); ctx.arcTo(cw, 0, cw, ch, r); ctx.arcTo(cw, ch, 0, ch, r);
+        ctx.arcTo(0, ch, 0, 0, r); ctx.arcTo(0, 0, cw, 0, r); ctx.closePath(); ctx.clip();
+        const s = Math.max(cw/img.width, ch/img.height), dw = img.width*s, dh = img.height*s;
+        ctx.drawImage(img, (cw-dw)/2, (ch-dh)/2, dw, dh);
+        resolve(cv.toDataURL('image/jpeg', 0.85));
+      }catch(e){ resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
   });
-  return doc.output('blob');
 }
 
 async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
@@ -3488,58 +3706,196 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
   if (statusEl) statusEl.textContent = 'PDF baixado (o compartilhamento direto não está disponível aqui) — abra o arquivo baixado e use o ícone de compartilhar do seu celular pra mandar por WhatsApp.';
 }
 
+function nomeArquivoPdf(base){
+  const metaRev = revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada);
+  return base + (metaRev ? '-' + metaRev.label : '') + '.pdf';
+}
+
 async function exportarQuartosPdf(){
   const statusEl = document.getElementById('status-pdf-quartos');
   if (!jsPdfDisponivel()){ statusEl.textContent = 'PDF indisponível no momento (biblioteca não carregou) — tente recarregar a página.'; return; }
-  statusEl.textContent = 'Gerando PDF…';
   const locais = obterLocaisFiltrados();
-  const colunas = ['Andar','Quarto/área','Status','VM','AM','Aberto','AW','IAC','Total'];
-  const larguras = [38, 150, 135, 26, 26, 40, 26, 26, 36];
-  const linhas = locais.map((l) => {
-    const status = classificarComLiberacao(l.itens, l.liberado);
+  if (locais.length === 0){ statusEl.textContent = 'Nada para exportar com esses filtros.'; return; }
+  statusEl.textContent = 'Gerando PDF…';
+
+  const dados = locais.map((l) => {
     const c = contarVMAM(l.itens);
-    const awExecDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
-    const iacOkDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
-    return [l.andar+'º', l.label, BADGE_MAP_STATUS[status][1], c.vm, c.am, contarEmAberto(l.itens), awExecDoLocal, iacOkDoLocal, c.total];
+    return {
+      l, status: classificarComLiberacao(l.itens, l.liberado), vm: c.vm, am: c.am, total: c.total,
+      aberto: contarEmAberto(l.itens),
+      aw: l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length,
+      iac: l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length
+    };
   });
-  const blob = construirPdfTabela('Sofitel Ipanema — Quartos & Áreas', 'Gerado em '+new Date().toLocaleString('pt-BR')+' · '+linhas.length+' local(is)', colunas, larguras, linhas, undefined, undefined, 2);
-  await compartilharOuBaixarPdf(blob, 'quartos-areas.pdf', statusEl);
+  const soma = (k) => dados.reduce((s, d) => s + d[k], 0);
+  const tot = soma('total'), ab = soma('aberto'), aw = soma('aw'), iac = soma('iac');
+  const prioridades = {};
+  dados.forEach((d) => { prioridades[d.status] = (prioridades[d.status]||0) + 1; });
+  const andarFiltrado = document.getElementById('filtro-andar').value;
+
+  const ctx = Object.assign(pdfContextoBase('Quartos e áreas'), {
+    filtro: descreverFiltros(['filtro-andar','filtro-ambiente','filtro-disciplina','filtro-fornecedor','filtro-status','filtro-progresso'], 'busca-quarto'),
+    contagem: dados.length + (dados.length === 1 ? ' local' : ' locais'),
+    cartoes: [
+      { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
+      { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,tot)+'% do total' },
+      { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,tot)+'% do total' },
+      { rotulo:'Total de itens', valor:tot, sub:'pendências na revisão' },
+      { rotulo:'Locais', valor:dados.length, sub:'quartos e áreas' }
+    ],
+    tituloAndamento: andarFiltrado ? 'Andamento do andar' : 'Andamento',
+    andamento: { aw, iac, total: tot, aberto: ab },
+    prioridades
+  });
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+  const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M, RH = 21;
+  const colunas = [
+    { rotulo:'Andar', x:P }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:P+150 },
+    { rotulo:'VM', x:P+298, align:'right', cor:PDF_COR.vm }, { rotulo:'AM', x:P+334, align:'right', cor:PDF_COR.am },
+    { rotulo:'Aberto', x:P+372, align:'right', cor:PDF_COR.ink }, { rotulo:'AW', x:P+404, align:'right' },
+    { rotulo:'IAC', x:P+436, align:'right' }, { rotulo:'Total pend.', x:CW-P, align:'right' }
+  ];
+  const linhas = dados.map((d) => ({
+    altura: RH,
+    desenhar: (doc, cx, top) => {
+      const b = top + RH/2 + 3;
+      pdfTxt(doc, cx+P, b, d.l.andar+'º', 8.5, PDF_COR.ink2);
+      pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 100), 8.5, PDF_COR.ink);
+      const p = PDF_PRIO[d.status];
+      pdfPill(doc, cx+P+150, b, p.longo, p.fg, p.bg);
+      pdfTxt(doc, cx+P+298, b, d.vm, 8.5, PDF_COR.vm, 'right');
+      pdfTxt(doc, cx+P+334, b, d.am, 8.5, PDF_COR.am, 'right');
+      pdfTxt(doc, cx+P+372, b, d.aberto, 9, PDF_COR.ink, 'right');
+      pdfTxt(doc, cx+P+404, b, d.aw, 8.5, PDF_COR.muted, 'right');
+      pdfTxt(doc, cx+P+436, b, d.iac, 8.5, PDF_COR.muted, 'right');
+      pdfTxt(doc, cx+CW-P, b, d.total, 8.5, PDF_COR.muted, 'right');
+    }
+  }));
+  pdfTabelaPaginada(doc, ctx, colunas, linhas);
+  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('quartos-areas'), statusEl);
 }
 
 async function exportarItensPdf(){
   const statusEl = document.getElementById('status-pdf-itens');
   if (!jsPdfDisponivel()){ statusEl.textContent = 'PDF indisponível no momento (biblioteca não carregou) — tente recarregar a página.'; return; }
   const itens = obterItensFiltrados();
-  const colunas = ['Item','Andar','Local','Disciplina','Fornecedor','Status','Previsão','Foto','Descrição'];
-  const larguras = [42, 30, 65, 68, 68, 62, 45, 80, 326];
-  const idxColunaFoto = 7;
-  // busca as fotos (até 2 por item) ANTES de montar o PDF — o jsPDF precisa da imagem já
-  // pronta, não dá pra buscar durante o desenho
-  statusEl.textContent = 'Buscando fotos… 0/'+itens.length;
-  const imagensPorLinha = new Array(itens.length).fill(null).map(() => []);
+  if (itens.length === 0){ statusEl.textContent = 'Nada para exportar com esses filtros.'; return; }
+
+  const FW = 72, FH = 54;
+  // busca as fotos ANTES de montar o PDF (o jsPDF precisa da imagem pronta) — 1 por item,
+  // já recortada no tamanho da miniatura e com os cantos arredondados
+  const miniaturas = new Array(itens.length).fill(null);
   const comFoto = [];
-  itens.forEach((it, i) => { if (it.fotos && it.fotos.length) comFoto.push({ i, ids: it.fotos.slice(0,2) }); });
+  itens.forEach((it, i) => { if (it.fotos && it.fotos.length) comFoto.push(i); });
   let feitas = 0;
-  await comLimiteDeConcorrencia(comFoto, 4, async (tarefa) => {
-    for (const id of tarefa.ids){
-      const dataUrl = await buscarImagemComoDataURL(id);
-      if (dataUrl) imagensPorLinha[tarefa.i].push(dataUrl);
-    }
+  statusEl.textContent = 'Buscando fotos… 0/'+comFoto.length;
+  await comLimiteDeConcorrencia(comFoto, 4, async (i) => {
+    const bruto = await buscarImagemComoDataURL(itens[i].fotos[0]);
+    if (bruto) miniaturas[i] = await prepararMiniatura(bruto, FW, FH, 6);
     feitas++;
     statusEl.textContent = 'Buscando fotos… '+feitas+'/'+comFoto.length;
   });
   statusEl.textContent = 'Gerando PDF…';
-  const linhas = itens.map((it) => {
-    const label = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo);
-    const ac = acompanhamento[it.id] || {};
-    const statusTxt = ac.iacOkEm ? 'Verde (IAC) — era '+it.status : it.status;
-    // "previsão" só mostra algo quando o usuário de fato preencheu uma data — em branco
-    // pros itens que não têm (não força um campo vazio aparecendo pra todo mundo)
-    const dataTxt = ac.dataPrevista ? ac.dataPrevista.split('-').reverse().join('/') : '';
-    return [it.id, it.andar+'º', label, disciplinaEfetiva(it), fornecedorEfetivo(it)||'—', statusTxt, dataTxt, '', it.desc||''];
+
+  const ab = contarEmAberto(itens);
+  const aw = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+  const iac = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
+  const prioridades = {};
+  itens.forEach((it) => { const s = classificarItemComContexto(it); prioridades[s] = (prioridades[s]||0) + 1; });
+  const extras = [];
+  if (filtroItemLocal){
+    const ex = itens[0];
+    extras.push(filtroItemLocal.tipo === 'APTO' ? String(filtroItemLocal.quarto) : labelTipo(filtroItemLocal.tipo) + (ex ? ' '+ex.andar+'º' : ''));
+  }
+  if (filtroProgresso) extras.push({ aberto:'Em aberto', awExec:'Executado AW', iacOk:'Vistoriado IAC' }[filtroProgresso] || '');
+  if (filtroStatusBrutoAdHoc) extras.push(filtroStatusBrutoAdHoc);
+
+  const ctx = Object.assign(pdfContextoBase('Itens'), {
+    filtro: descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso'], 'busca-item', extras),
+    contagem: itens.length + (itens.length === 1 ? ' item' : ' itens'),
+    cartoes: [
+      { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
+      { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,itens.length)+'% dos itens' },
+      { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,itens.length)+'% dos itens' },
+      { rotulo:'Total de itens', valor:itens.length, sub:'no filtro aplicado' }
+    ],
+    tituloAndamento: document.getElementById('filtro-item-andar').value ? 'Andamento do andar' : 'Andamento',
+    andamento: { aw, iac, total: itens.length, aberto: ab },
+    prioridades
   });
-  const blob = construirPdfTabela('Sofitel Ipanema — Itens', 'Gerado em '+new Date().toLocaleString('pt-BR')+' · '+linhas.length+' item(ns)', colunas, larguras, linhas, idxColunaFoto, imagensPorLinha, 5);
-  await compartilharOuBaixarPdf(blob, 'itens.pdf', statusEl);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M;
+  const X = { item:P, andar:P+48, local:P+82, disc:P+146, forn:P+240, prio:P+302, desc:P+354, foto:P+592, flux:P+680 };
+  const DESC_W = X.foto - X.desc - 16, FLUX_W = CW - X.flux - P;
+  const colunas = [
+    { rotulo:'Item', x:X.item }, { rotulo:'Andar', x:X.andar }, { rotulo:'Local', x:X.local },
+    { rotulo:'Disciplina', x:X.disc }, { rotulo:'Fornecedor', x:X.forn }, { rotulo:'Prioridade', x:X.prio },
+    { rotulo:'Descrição', x:X.desc }, { rotulo:'Foto', x:X.foto }, { rotulo:'Fluxo', x:X.flux }
+  ];
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  const linhas = itens.map((it, i) => {
+    const ac = acompanhamento[it.id] || {};
+    const local = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo);
+    doc.setFontSize(8.5);
+    let desc = doc.splitTextToSize(it.desc || '—', DESC_W);
+    if (desc.length > 12){ desc = desc.slice(0, 12); desc[11] = desc[11].replace(/\s*\S*$/, '') + '…'; }
+    const loc = doc.splitTextToSize(local, X.disc - X.local - 8).slice(0, 3);
+    const disc = doc.splitTextToSize(disciplinaEfetiva(it) || '—', X.forn - X.disc - 8).slice(0, 3);
+    const forn = doc.splitTextToSize(fornecedorEfetivo(it) || '—', X.prio - X.forn - 8).slice(0, 3);
+    const altura = Math.max(FH + 14, desc.length*11 + 20, loc.length*11 + 20, disc.length*11 + 20);
+    let prio;
+    if (ac.iacOkEm) prio = PDF_PRIO.CONCLUIDO;
+    else if (it.status === 'VM') prio = PDF_PRIO.BLOQUEADO;
+    else if (it.status === 'AM') prio = PDF_PRIO.PENDENTE;
+    else prio = PDF_PRIO.CONCLUIDO;
+    return {
+      altura,
+      desenhar: (doc, cx, top) => {
+        const mid = top + altura/2;
+        const bloco = (x, ls, cor) => {
+          let yb = mid - (ls.length*11)/2 + 8;
+          ls.forEach((t) => { pdfTxt(doc, cx+x, yb, t, 8.5, cor); yb += 11; });
+        };
+        pdfTxt(doc, cx+X.item, mid+3, it.id, 8.5, PDF_COR.ink2);
+        pdfTxt(doc, cx+X.andar, mid+3, it.andar+'º', 8.5, PDF_COR.ink2);
+        bloco(X.local, loc, PDF_COR.ink2);
+        bloco(X.disc, disc, PDF_COR.ink2);
+        bloco(X.forn, forn, PDF_COR.ink2);
+        pdfPill(doc, cx+X.prio, mid+3, prio.curto, prio.fg, prio.bg);
+        bloco(X.desc, desc, PDF_COR.ink);
+        // foto
+        const fx = cx+X.foto, fy = mid - FH/2;
+        if (miniaturas[i]){
+          try{ doc.addImage(miniaturas[i], 'JPEG', fx, fy, FW, FH); }catch(e){}
+          pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(fx, fy, FW, FH, 6, 6, 'S');
+          if (it.fotos.length > 1) pdfTxt(doc, fx+FW+4, fy+FH-2, '+'+(it.fotos.length-1), 7, PDF_COR.muted);
+        } else {
+          pdfFill(doc, PDF_COR.paper); doc.roundedRect(fx, fy, FW, FH, 6, 6, 'F');
+          pdfTxt(doc, fx+FW/2, mid+2, it.fotos && it.fotos.length ? 'foto indisponível' : 'sem foto', 6.8, PDF_COR.faint, 'center');
+        }
+        // fluxo: selo com a situação, nas cores do painel
+        let txt, fg, bg, bd;
+        if (ac.iacOkEm){ txt='Vistoriado IAC'; fg=PDF_COR.az; bg=PDF_COR.azs; bd=PDF_COR.az; }
+        else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
+        else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
+        const temPrev = !!(ac.dataPrevista && !ac.iacOkEm);
+        const sy = temPrev ? mid - 15 : mid - 9;
+        pdfFill(doc, bg); pdfDraw(doc, bd); doc.setLineWidth(0.6);
+        doc.roundedRect(cx+X.flux, sy, FLUX_W, 18, 5, 5, 'FD');
+        pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+12, txt, 7.5, fg, 'center');
+        if (temPrev){
+          pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+30, 'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), 7, PDF_COR.muted, 'center');
+        }
+      }
+    };
+  });
+  pdfTabelaPaginada(doc, ctx, colunas, linhas);
+  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('itens'), statusEl);
 }
 
 async function iniciar(){
@@ -3655,19 +4011,21 @@ async function iniciar(){
     const ids = Array.from(itensSelecionados);
     const btn = document.getElementById('btn-aplicar-fornecedor-lote');
     btn.disabled = true; btn.textContent = 'Aplicando… 0/'+ids.length;
-    let feitos = 0;
+    let feitos = 0, falhas = 0;
     await comLimiteDeConcorrencia(ids, 4, async (id) => {
       const it = itensRevisaoAtual.find((x) => x.id === id);
       const discAtual = it ? disciplinaEfetiva(it) : '';
-      await salvarClassificacaoItem(id, discAtual, nome); // mantém a disciplina de cada item, só troca o fornecedor
+      const ok = await salvarClassificacaoItem(id, discAtual, nome); // mantém a disciplina de cada item, só troca o fornecedor
+      if (!ok) falhas++;
       feitos++;
       btn.textContent = 'Aplicando… '+feitos+'/'+ids.length;
     });
     btn.disabled = false; btn.textContent = 'Aplicar aos selecionados';
     document.getElementById('bulk-fornecedor').value = '';
     itensSelecionados.clear();
-    renderItens();
-    renderDisciplinas();
+    atualizarTelasAposAcompanhamento();
+    if (falhas) avisoFlutuante(falhas+' de '+ids.length+' item(ns) não foram salvos (sem conexão?). Tente de novo.', 'erro');
+    else avisoFlutuante('Fornecedor aplicado a '+ids.length+' item(ns)', 'ok');
     popularFiltroFornecedor('filtro-item-fornecedor');
     popularFiltroFornecedor('filtro-fornecedor');
   });
