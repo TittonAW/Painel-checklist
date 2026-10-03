@@ -652,6 +652,18 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   </div>
 </div>
 
+<div class="modal-overlay oculto" id="modal-semelhante" style="z-index:140;">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-semelhante">
+    <h3 id="titulo-semelhante"></h3>
+    <div class="modal-sub" id="texto-semelhante"></div>
+    <div id="opcoes-semelhante" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;"></div>
+    <button type="button" class="btn fantasma" id="btn-semelhante-novo" style="justify-content:center; white-space:normal; text-align:center;"></button>
+    <div class="modal-acoes" style="margin-top:12px;">
+      <button type="button" class="btn fantasma" id="btn-semelhante-cancelar">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox-overlay oculto" id="lightbox-foto">
   <button class="lightbox-fechar" id="lightbox-fechar" aria-label="Fechar" title="Fechar">&times;</button>
   <img class="lightbox-imagem" id="lightbox-imagem-el" src="" alt="Foto ampliada">
@@ -1632,6 +1644,109 @@ function normalizarNome(s){
     .map((p) => p.length <= 3 && /^(da|de|do|das|dos|e)$/i.test(p) ? p.toLowerCase() : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
     .join(' ');
 }
+/* ===================== NOMES PARECIDOS (pessoas e fornecedores) =====================
+   Antes de aceitar um nome novo, compara com os que já existem pra não nascerem duplicatas
+   como "Temon" / "Temon " / "temon" / "Temon Engenharia", ou "Eliseu" / "Elizeu":
+   - igual ignorando maiúscula, acento, pontuação e espaços → usa o já cadastrado, sem perguntar;
+   - parecido (até 1–3 letras de diferença, conforme o tamanho, ou um contém o outro) → pergunta;
+   - nada parecido → aceita como novo. */
+function chaveComparacao(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[.,;:\-_/\\'"()]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function distanciaEdicao(a, b){
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let ant = Array.from({ length: n+1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++){
+    const atual = [i];
+    for (let j = 1; j <= n; j++){
+      atual[j] = Math.min(ant[j] + 1, atual[j-1] + 1, ant[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    }
+    ant = atual;
+  }
+  return ant[n];
+}
+function buscarSemelhantes(digitado, lista){
+  const k = chaveComparacao(digitado), kSemEspaco = k.replace(/ /g, '');
+  const vistos = new Set(), parecidos = [];
+  let igual = null;
+  (lista || []).forEach((nome) => {
+    const n = String(nome||'').trim();
+    if (!n || vistos.has(n)) return;
+    vistos.add(n);
+    const kc = chaveComparacao(n);
+    if (kc === k || kc.replace(/ /g, '') === kSemEspaco){ if (!igual) igual = n; return; }
+    const d = distanciaEdicao(k, kc);
+    const limite = k.length <= 5 ? 1 : (k.length <= 10 ? 2 : 3);
+    const contem = k.length >= 4 && kc.length >= 4 && (kc.includes(k) || k.includes(kc));
+    // pessoas: mesmo primeiro nome e sobrenome quase igual ("Eliseu Ribeiro" x "Elizeu Ribeiro")
+    const tk = k.split(' '), tc = kc.split(' ');
+    const nomeParecido = tk.length >= 2 && tc.length >= 2 && distanciaEdicao(tk[0], tc[0]) <= 1 &&
+      distanciaEdicao(tk[tk.length-1], tc[tc.length-1]) <= 1;
+    if (d <= limite || contem || nomeParecido) parecidos.push({ nome: n, d });
+  });
+  parecidos.sort((a, b) => a.d - b.d);
+  return { igual, parecidos: parecidos.slice(0, 5).map((p) => p.nome) };
+}
+let resolverSemelhante = null;
+function perguntarSemelhante(titulo, texto, opcoes, rotuloNovo){
+  return new Promise((resolve) => {
+    resolverSemelhante = resolve;
+    document.getElementById('titulo-semelhante').textContent = titulo;
+    document.getElementById('texto-semelhante').textContent = texto;
+    const box = document.getElementById('opcoes-semelhante');
+    box.innerHTML = opcoes.map((o, i) => '<button type="button" class="btn" data-opcao="'+i+'" style="justify-content:space-between; color:var(--text); border-color:var(--accent);">'+esc(o)+'<span style="color:var(--accent); font-size:12.5px;">É esse</span></button>').join('');
+    box.querySelectorAll('[data-opcao]').forEach((b) => b.addEventListener('click', () => fecharSemelhante(opcoes[+b.dataset.opcao])));
+    document.getElementById('btn-semelhante-novo').textContent = rotuloNovo;
+    document.getElementById('modal-semelhante').classList.remove('oculto');
+  });
+}
+function fecharSemelhante(valor){
+  document.getElementById('modal-semelhante').classList.add('oculto');
+  if (resolverSemelhante){ resolverSemelhante(valor); resolverSemelhante = null; }
+}
+/* devolve o nome a usar: o já existente, o digitado (se for realmente novo) ou null (cancelou) */
+async function resolverNomeSemelhante(digitado, lista, tipo){
+  const nome = String(digitado||'').trim().replace(/\s+/g, ' ');
+  if (!nome) return '';
+  const r = buscarSemelhantes(nome, lista);
+  if (r.igual){
+    if (r.igual !== nome) avisoFlutuante('Usando “'+r.igual+'”, que já estava cadastrado', 'ok');
+    return r.igual;
+  }
+  if (!r.parecidos.length) return nome;
+  if (tipo === 'pessoa'){
+    return await perguntarSemelhante('Você é uma destas pessoas?',
+      'Já existe um nome parecido registrado no painel. Se for você, toque no seu nome — assim todas as suas baixas ficam juntas.',
+      r.parecidos, 'Não, sou outra pessoa — usar “'+nome+'”').then((v) => v === '__novo__' ? nome : v);
+  }
+  return await perguntarSemelhante('Esse fornecedor já existe?',
+    'Encontrei fornecedor com nome parecido. Use o existente pra não separar as pendências em dois nomes.',
+    r.parecidos, 'Não, é um fornecedor novo — criar “'+nome+'”').then((v) => v === '__novo__' ? nome : v);
+}
+/* nomes de pessoas que já deram alguma baixa (pra comparar com quem está se identificando) */
+function pessoasConhecidas(){
+  const s = new Set();
+  Object.values(acompanhamento).forEach((a) => {
+    if (!a) return;
+    if (a.awExecPor) s.add(a.awExecPor);
+    if (a.iacOkPor) s.add(a.iacOkPor);
+    (Array.isArray(a.historico) ? a.historico : []).forEach((e) => { if (e && e.por) s.add(e.por); });
+  });
+  return Array.from(s);
+}
+/* todos os fornecedores já usados: padrões por disciplina + exceções em qualquer item */
+function todosFornecedoresConhecidos(){
+  const s = new Set(listaFornecedoresConhecidos());
+  Object.values(acompanhamento).forEach((a) => { if (a && a.fornecedorOverride) s.add(String(a.fornecedorOverride).trim()); });
+  return Array.from(s).filter(Boolean);
+}
+// os dados do banco carregam em paralelo com a janela de nome — a checagem espera por eles
+let resolverDadosCarregados = null;
+const promessaDadosCarregados = new Promise((res) => { resolverDadosCarregados = res; });
+
 function nomeValido(s){
   const partes = String(s||'').trim().split(/\s+/).filter((p) => p.length >= 2);
   return partes.length >= 2;
@@ -1654,13 +1769,20 @@ function pedirNomeUsuario(podeCancelar){
     setTimeout(() => inp.focus(), 50);
   });
 }
-function confirmarNomeUsuario(){
+async function confirmarNomeUsuario(){
   const inp = document.getElementById('input-nome-usuario');
   if (!nomeValido(inp.value)){
     document.getElementById('erro-nome-usuario').textContent = 'Digite nome e sobrenome.';
     inp.focus(); return;
   }
-  usuarioAtual = normalizarNome(inp.value);
+  const btn = document.getElementById('btn-salvar-usuario');
+  btn.disabled = true;
+  // espera os dados (no máx. 5s) pra conseguir comparar com quem já usou o painel
+  await Promise.race([promessaDadosCarregados, new Promise((r) => setTimeout(r, 5000))]);
+  btn.disabled = false;
+  const escolhido = await resolverNomeSemelhante(normalizarNome(inp.value), pessoasConhecidas(), 'pessoa');
+  if (!escolhido){ inp.focus(); return; } // cancelou: continua na janela de nome
+  usuarioAtual = escolhido;
   try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); }catch(e){}
   document.getElementById('modal-usuario').classList.add('oculto');
   renderUsuarioTopo();
@@ -3083,7 +3205,11 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
   document.getElementById('edit-salvar').addEventListener('click', async () => {
     const novaDisc = document.getElementById('edit-disc').value;
     const selForn = document.getElementById('edit-forn').value;
-    const novoForn = selForn === '__novo__' ? document.getElementById('edit-forn-novo').value.trim() : selForn;
+    let novoForn = selForn;
+    if (selForn === '__novo__'){
+      novoForn = await resolverNomeSemelhante(document.getElementById('edit-forn-novo').value, todosFornecedoresConhecidos(), 'fornecedor');
+      if (novoForn === null) return; // cancelou: continua editando
+    }
     await salvarClassificacaoItem(itemId, novaDisc, novoForn);
     fecharModalEdicao();
     renderItens();
@@ -3146,7 +3272,13 @@ function renderDisciplinas(){
   tbody.querySelectorAll('.fornecedor-input').forEach((inp) => {
     inp.addEventListener('change', async (e) => {
       const disc = e.target.dataset.disc;
-      fornecedores[disc] = e.target.value.trim();
+      const anterior = fornecedores[disc] || '';
+      const outros = todosFornecedoresConhecidos().filter((n) => n !== anterior);
+      const nome = await resolverNomeSemelhante(e.target.value, outros.concat(anterior ? [anterior] : []), 'fornecedor');
+      if (nome === null){ e.target.value = anterior; return; } // cancelou: volta o que estava
+      e.target.value = nome;
+      if (nome === anterior) return;
+      fornecedores[disc] = nome;
       await salvarFornecedores();
       popularFiltroFornecedor('filtro-fornecedor');
       popularFiltroFornecedor('filtro-item-fornecedor');
@@ -4311,6 +4443,8 @@ async function iniciar(){
   renderUsuarioTopo();
   document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
   document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
+  document.getElementById('btn-semelhante-novo').addEventListener('click', () => fecharSemelhante('__novo__'));
+  document.getElementById('btn-semelhante-cancelar').addEventListener('click', () => fecharSemelhante(null));
   document.getElementById('btn-cancelar-usuario').addEventListener('click', cancelarNomeUsuario);
   document.getElementById('input-nome-usuario').addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarNomeUsuario(); });
   if (!usuarioAtual) pedirNomeUsuario(false); // não trava o carregamento — só aparece por cima
@@ -4319,6 +4453,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento()]);
+  if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
   popularSeletoresComparacao();
   renderTorreAndares(); // já mostra o estado vazio certo mesmo sem nenhuma revisão ainda
@@ -4421,8 +4556,11 @@ async function iniciar(){
     renderItens();
   });
   document.getElementById('btn-aplicar-fornecedor-lote').addEventListener('click', async () => {
-    const nome = document.getElementById('bulk-fornecedor').value.trim();
-    if (!nome){ document.getElementById('bulk-fornecedor').focus(); return; }
+    const digitado = document.getElementById('bulk-fornecedor').value.trim();
+    if (!digitado){ document.getElementById('bulk-fornecedor').focus(); return; }
+    const nome = await resolverNomeSemelhante(digitado, todosFornecedoresConhecidos(), 'fornecedor');
+    if (!nome) return; // cancelou
+    document.getElementById('bulk-fornecedor').value = nome;
     const ids = Array.from(itensSelecionados);
     const btn = document.getElementById('btn-aplicar-fornecedor-lote');
     btn.disabled = true; btn.textContent = 'Aplicando… 0/'+ids.length;
