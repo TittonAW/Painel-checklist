@@ -360,14 +360,22 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   padding:7px 14px; border-radius:99px; font-size:12.5px; pointer-events:none; white-space:nowrap;
 }
 .puxar-atualizar.visivel{ opacity:1; }
+.barra-voltar{ padding:4px 20px 8px; border-top:1px solid var(--line); background:var(--surface); }
+.barra-voltar[hidden]{ display:none; }
 .btn-voltar-nav{
-  position:fixed; left:14px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:110;
-  max-width:calc(100% - 28px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  background:var(--surface); color:var(--text); border:1px solid var(--line); box-shadow:var(--shadow);
-  padding:10px 16px; border-radius:99px; font:inherit; font-size:13.5px; cursor:pointer;
+  background:none; border:0; padding:6px 0; font:inherit; font-size:14px; color:var(--accent);
+  cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;
 }
-.btn-voltar-nav[hidden]{ display:none; }
-body.com-voltar .aviso-flutuante{ bottom:calc(68px + env(safe-area-inset-bottom,0px)); }
+@media (max-width:640px){ .barra-voltar{ padding:2px 16px 6px; } }
+/* quando a lista é rolada e o voltar sai da tela, ele aparece fixo no topo */
+.barra-voltar-fixa{
+  position:fixed; top:0; left:0; right:0; z-index:90;
+  padding:calc(env(safe-area-inset-top,0px) + 4px) 16px 6px;
+  background:color-mix(in srgb, var(--surface) 94%, transparent);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+.barra-voltar-fixa[hidden]{ display:none; }
 .aviso-flutuante{
   position:fixed; left:50%; transform:translateX(-50%); z-index:150;
   bottom:calc(18px + env(safe-area-inset-bottom,0px)); max-width:calc(100% - 32px);
@@ -418,6 +426,9 @@ body.com-voltar .aviso-flutuante{ bottom:calc(68px + env(safe-area-inset-bottom,
   <button data-aba="tendencia">Tendência</button>
   <button data-aba="enviar">Enviar planilhas</button>
 </nav>
+<div id="barra-voltar" class="barra-voltar" hidden>
+  <button type="button" id="btn-voltar-nav" class="btn-voltar-nav"></button>
+</div>
 </div>
 <div id="banner-progresso" class="banner-progresso" hidden></div>
 
@@ -659,7 +670,8 @@ body.com-voltar .aviso-flutuante{ bottom:calc(68px + env(safe-area-inset-bottom,
 
 <div id="aviso-flutuante" class="aviso-flutuante ok" hidden></div>
 <div id="puxar-atualizar" class="puxar-atualizar">Puxe para atualizar</div>
-<button type="button" id="btn-voltar-nav" class="btn-voltar-nav" hidden></button>
+<div id="barra-voltar-fixa" class="barra-voltar-fixa" hidden><button type="button" id="btn-voltar-fixo" class="btn-voltar-nav"></button></div>
+
 
 <div class="modal-overlay oculto" id="modal-usuario">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-usuario">
@@ -781,7 +793,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.10';
+const VERSAO_APP = '2026-10-03.11';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -3166,12 +3178,36 @@ function empilharNavegacao(){
   renderBotaoVoltar();
 }
 function renderBotaoVoltar(){
-  const b = document.getElementById('btn-voltar-nav');
-  if (!b) return;
+  const b = document.getElementById('btn-voltar-nav'), barra = document.getElementById('barra-voltar');
+  if (!b || !barra) return;
   const topo = pilhaNavegacao[pilhaNavegacao.length-1];
-  b.hidden = !topo;
-  if (topo) b.textContent = '← ' + topo.rotulo;
-  document.body.classList.toggle('com-voltar', !!topo);
+  barra.hidden = !topo;
+  if (topo){
+    b.textContent = '‹ Voltar para ' + topo.rotulo;
+    document.getElementById('btn-voltar-fixo').textContent = b.textContent;
+  }
+  atualizarVoltarFixo();
+}
+/* mostra a faixa fixa só quando há pra onde voltar e o voltar normal saiu da tela */
+let voltarNormalVisivel = true;
+function atualizarVoltarFixo(){
+  const fixa = document.getElementById('barra-voltar-fixa');
+  if (fixa) fixa.hidden = !(pilhaNavegacao.length && !voltarNormalVisivel);
+}
+function iniciarVoltarFixo(){
+  const barra = document.getElementById('barra-voltar');
+  if ('IntersectionObserver' in window){
+    new IntersectionObserver((ents) => {
+      voltarNormalVisivel = ents[0].isIntersecting || barra.hidden;
+      atualizarVoltarFixo();
+    }).observe(barra);
+  }
+  window.addEventListener('scroll', () => {
+    if (barra.hidden) return;
+    const r = barra.getBoundingClientRect();
+    voltarNormalVisivel = r.bottom > 0;
+    atualizarVoltarFixo();
+  }, { passive:true });
 }
 function restaurarEstadoTela(est){
   // andar primeiro: a lista de locais depende dele
@@ -4808,9 +4844,10 @@ async function iniciar(){
   document.querySelectorAll('nav.abas button').forEach((b) => {
     b.addEventListener('click', () => { limparNavegacao(); irParaAba(b.dataset.aba); });
   });
-  document.getElementById('btn-voltar-nav').addEventListener('click', () => {
-    if (history.state && history.state.nav) history.back(); else voltarNavegacao();
-  });
+  const aoVoltar = () => { if (history.state && history.state.nav) history.back(); else voltarNavegacao(); };
+  document.getElementById('btn-voltar-nav').addEventListener('click', aoVoltar);
+  document.getElementById('btn-voltar-fixo').addEventListener('click', aoVoltar);
+  iniciarVoltarFixo();
   window.addEventListener('popstate', () => { if (pilhaNavegacao.length) voltarNavegacao(); });
   iniciarSincronizacaoAutomatica();
   document.getElementById('btn-ir-enviar').addEventListener('click', () => irParaAba('enviar'));
