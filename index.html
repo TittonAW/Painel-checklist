@@ -3,14 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Painel da Obra — Sofitel Ipanema (Quartos)</title>
+<title>Sofitel - Checklist</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#0F766E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Obra">
+<meta name="apple-mobile-web-app-title" content="Checklist">
+<meta name="application-name" content="Sofitel - Checklist">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
@@ -753,7 +754,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.2';
+const VERSAO_APP = '2026-10-03.4';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -4296,7 +4297,7 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
 
 /* nome do arquivo = nome do app + aba + filtro aplicado, ex.:
    "Painel da Obra Sofitel - Itens - 18º andar - Executado AW.pdf" */
-const NOME_APP_ARQUIVO = 'Painel da Obra Sofitel';
+const NOME_APP_ARQUIVO = 'Sofitel - Checklist';
 function nomeArquivoPdf(aba, filtro){
   const partes = [NOME_APP_ARQUIVO, aba];
   if (filtro && filtro !== 'Todos') partes.push(String(filtro).split(' · ').join(' - '));
