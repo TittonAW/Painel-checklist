@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sofitel - Checklist</title>
+<title>Checklist</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Checklist">
-<meta name="application-name" content="Sofitel - Checklist">
+<meta name="application-name" content="Checklist">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
@@ -239,7 +239,13 @@ th{ text-align:left; font-weight:400; color:var(--muted); font-size:11.5px; padd
 td{ padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--text-2); }
 tr:last-child td{ border-bottom:none; }
 @media (hover:hover) and (pointer:fine){ tbody tr:hover{ background:var(--paper-2); } }
-.num-col{ font-family:inherit; font-variant-numeric:tabular-nums; text-align:right; }
+.num-col{ font-family:inherit; font-variant-numeric:tabular-nums; text-align:center; }
+/* ALINHAMENTO DAS TABELAS: o título segue o conteúdo da coluna.
+   Centro = o que é curto e de largura parecida (números, códigos, andar, etiquetas, botões, foto).
+   Esquerda = texto longo (descrição, disciplina, fornecedor, nome do local), que quebra linha. */
+th.col-centro, td.col-centro{ text-align:center; }
+td.col-centro .chips-arquivos{ justify-content:center; margin:0 auto; }
+td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 /* identifica VM/AM/VD pela cor em qualquer lugar que apareçam como coluna/número, não só
    nos badges — pra dar pra reconhecer de relance, sem precisar ler a sigla */
 .col-vm{ color:var(--vm); font-weight:400; }
@@ -355,7 +361,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 }
 .aviso-flutuante.erro{ background:var(--vm); border-radius:var(--r-md); }
 .aviso-flutuante.info{ background:#7A2E2B; }
-.tag-reinc{ display:inline-flex; align-items:center; margin-left:6px; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--vm-soft); color:var(--vm); white-space:nowrap; vertical-align:middle; }
+.tag-reinc{ display:inline-flex; align-items:center; margin:4px 0 0 0; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--vm-soft); color:var(--vm); white-space:nowrap; vertical-align:middle; }
 .aviso-flutuante[hidden]{ display:none; }
 
 @media print{
@@ -477,8 +483,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card">
       <table>
         <thead><tr>
-          <th>Andar</th><th>Quarto / área</th><th>Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th>Ação</th>
+          <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th class="col-centro">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -524,8 +530,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card">
       <table>
         <thead><tr>
-          <th><input type="checkbox" id="check-todos-itens" title="Selecionar todos os visíveis"></th>
-          <th>Item</th><th>Andar</th><th>Local</th><th>Disciplina</th><th>Fornecedor</th><th>Status</th><th>Descrição</th><th>Foto</th><th>Fluxo</th>
+          <th class="col-centro"><input type="checkbox" id="check-todos-itens" title="Selecionar todos os visíveis"></th>
+          <th class="col-centro">Item</th><th class="col-centro">Andar</th><th class="col-centro">Local</th><th>Disciplina</th><th>Fornecedor</th><th class="col-centro">Status</th><th>Descrição</th><th class="col-centro">Foto</th><th class="col-centro">Fluxo</th>
         </tr></thead>
         <tbody id="tbody-itens"></tbody>
       </table>
@@ -754,7 +760,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.4';
+const VERSAO_APP = '2026-10-03.6';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -2925,13 +2931,13 @@ function renderQuartos(){
       const texto = status === 'LIBERADO_PEND' ? 'Remover liberação' : 'Liberar c/ pendência';
       acaoHtml = '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado iac':'')+'" data-acao-liberar="1">'+texto+'</button>';
     }
-    tr.innerHTML = '<td class="mono">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
-      '<td><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
+    tr.innerHTML = '<td class="mono col-centro">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
+      '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
       '<td class="num-col col-fluxo">'+awExecDoLocal+'</td><td class="num-col col-fluxo">'+iacOkDoLocal+'</td>' +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
-      '<td>'+acaoHtml+'</td>';
+      '<td class="col-centro">'+acaoHtml+'</td>';
     tbody.appendChild(tr);
     linhas++;
   });
@@ -3132,14 +3138,14 @@ function renderItens(){
       '</div>';
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
-    tr.innerHTML = '<td><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono">'+esc(it.id)+'</td><td class="mono">'+it.andar+'º</td><td>'+esc(label)+'</td>' +
+    tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
+      '<td class="mono col-centro">'+esc(it.id)+'</td><td class="mono col-centro">'+it.andar+'º</td><td class="col-centro">'+esc(label)+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
-      '<td><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
+      '<td class="col-centro"><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
         (ac.reincidencias ? '<span class="tag-reinc" title="Voltou para aberto depois de executado ('+ac.reincidencias+' vez'+(ac.reincidencias>1?'es':'')+')">↺ Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':'')+'</span>' : '') +
       '</td>' +
-      '<td>'+esc(it.desc)+'</td><td>'+fotoHtml+'</td><td>'+fluxoHtml+'</td>';
+      '<td>'+esc(it.desc)+'</td><td class="col-centro">'+fotoHtml+'</td><td class="col-centro">'+fluxoHtml+'</td>';
     tbody.appendChild(tr);
   });
   document.getElementById('vazio-itens').classList.toggle('oculto', todosFiltrados.length>0);
@@ -3326,7 +3332,7 @@ function renderDisciplinas(){
       '<td class="num-col col-fluxo" data-label="Total pend.">'+c.total+'</td>' +
       '<td class="num-col" data-label="Exceções">'+(excecoes>0?excecoes:'—')+'</td>' +
       '<td class="num-col'+(reinc?' col-vm':'')+'" data-label="Reinc.">'+(reinc>0?reinc:'—')+'</td>' +
-      '<td data-label=""><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
+      '<td data-label="" class="col-centro"><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
     tbody.appendChild(tr);
   });
   document.getElementById('vazio-disciplinas').classList.toggle('oculto', chaves.length>0);
@@ -4182,7 +4188,7 @@ function pdfCabecalho(doc, ctx){
 function pdfRodape(doc, pagina, total){
   const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M;
   pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.line(M, PH-40, PW-M, PH-40);
-  pdfTxt(doc, M, PH-28, 'Painel de obra AW · Sofitel Ipanema — Quartos', 7, PDF_COR.muted);
+  pdfTxt(doc, M, PH-28, 'Checklist · AW — Sofitel Ipanema', 7, PDF_COR.muted);
   pdfTxt(doc, PW-M, PH-28, 'Página '+pagina+' de '+total, 7, PDF_COR.muted, 'right');
 }
 
@@ -4297,7 +4303,7 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
 
 /* nome do arquivo = nome do app + aba + filtro aplicado, ex.:
    "Painel da Obra Sofitel - Itens - 18º andar - Executado AW.pdf" */
-const NOME_APP_ARQUIVO = 'Sofitel - Checklist';
+const NOME_APP_ARQUIVO = 'Checklist';
 function nomeArquivoPdf(aba, filtro){
   const partes = [NOME_APP_ARQUIVO, aba];
   if (filtro && filtro !== 'Todos') partes.push(String(filtro).split(' · ').join(' - '));
@@ -4347,26 +4353,28 @@ async function exportarQuartosPdf(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
   const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M, RH = 21;
+  // centros das colunas centralizadas (igual à tela): Andar, Status e os números
+  const C = { andar:P+14, status:P+206, vm:P+290, am:P+326, aberto:P+366, aw:P+402, iac:P+436, total:CW-P-24 };
   const colunas = [
-    { rotulo:'Andar', x:P }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:P+150 },
-    { rotulo:'VM', x:P+298, align:'right', cor:PDF_COR.vm }, { rotulo:'AM', x:P+334, align:'right', cor:PDF_COR.am },
-    { rotulo:'Aberto', x:P+372, align:'right', cor:PDF_COR.ink }, { rotulo:'AW', x:P+404, align:'right' },
-    { rotulo:'IAC', x:P+436, align:'right' }, { rotulo:'Total pend.', x:CW-P, align:'right' }
+    { rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:C.status, align:'center' },
+    { rotulo:'VM', x:C.vm, align:'center', cor:PDF_COR.vm }, { rotulo:'AM', x:C.am, align:'center', cor:PDF_COR.am },
+    { rotulo:'Aberto', x:C.aberto, align:'center', cor:PDF_COR.ink }, { rotulo:'AW', x:C.aw, align:'center' },
+    { rotulo:'IAC', x:C.iac, align:'center' }, { rotulo:'Total pend.', x:C.total, align:'center' }
   ];
   const linhas = dados.map((d) => ({
     altura: RH,
     desenhar: (doc, cx, top) => {
       const b = top + RH/2 + 3;
-      pdfTxt(doc, cx+P, b, d.l.andar+'º', 8.5, PDF_COR.ink2);
+      pdfTxt(doc, cx+C.andar, b, d.l.andar+'º', 8.5, PDF_COR.ink2, 'center');
       pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 100), 8.5, PDF_COR.ink);
       const p = PDF_PRIO[d.status];
-      pdfPill(doc, cx+P+150, b, p.longo, p.fg, p.bg);
-      pdfTxt(doc, cx+P+298, b, d.vm, 8.5, PDF_COR.vm, 'right');
-      pdfTxt(doc, cx+P+334, b, d.am, 8.5, PDF_COR.am, 'right');
-      pdfTxt(doc, cx+P+372, b, d.aberto, 9, PDF_COR.ink, 'right');
-      pdfTxt(doc, cx+P+404, b, d.aw, 8.5, PDF_COR.muted, 'right');
-      pdfTxt(doc, cx+P+436, b, d.iac, 8.5, PDF_COR.muted, 'right');
-      pdfTxt(doc, cx+CW-P, b, d.total, 8.5, PDF_COR.muted, 'right');
+      pdfPill(doc, cx+C.status - (pdfLarg(doc, p.longo, 7.5)+14)/2, b, p.longo, p.fg, p.bg);
+      pdfTxt(doc, cx+C.vm, b, d.vm, 8.5, PDF_COR.vm, 'center');
+      pdfTxt(doc, cx+C.am, b, d.am, 8.5, PDF_COR.am, 'center');
+      pdfTxt(doc, cx+C.aberto, b, d.aberto, 9, PDF_COR.ink, 'center');
+      pdfTxt(doc, cx+C.aw, b, d.aw, 8.5, PDF_COR.muted, 'center');
+      pdfTxt(doc, cx+C.iac, b, d.iac, 8.5, PDF_COR.muted, 'center');
+      pdfTxt(doc, cx+C.total, b, d.total, 8.5, PDF_COR.muted, 'center');
     }
   }));
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
@@ -4430,10 +4438,13 @@ async function exportarItensPdf(){
   // baixa no AW e na IAC com data e hora, previsão).
   const X = { item:P, andar:P+44, local:P+74, disc:P+132, forn:P+222, prio:P+290, desc:P+346, foto:P+566, flux:P+650 };
   const DESC_W = X.foto - X.desc - 16, FLUX_W = CW - X.flux - P;
+  // centros das colunas centralizadas (igual à tela)
+  const CI = { item:(X.item+X.andar)/2 - 4, andar:(X.andar+X.local)/2 - 2, local:(X.local+X.disc)/2 - 4,
+    prio:(X.prio+X.desc)/2 - 4, foto:X.foto + FW/2, flux:X.flux + FLUX_W/2 };
   const colunas = [
-    { rotulo:'Item', x:X.item }, { rotulo:'Andar', x:X.andar }, { rotulo:'Local', x:X.local },
-    { rotulo:'Disciplina', x:X.disc }, { rotulo:'Fornecedor', x:X.forn }, { rotulo:'Prioridade', x:X.prio },
-    { rotulo:'Descrição', x:X.desc }, { rotulo:'Foto', x:X.foto }, { rotulo:'Fluxo', x:X.flux }
+    { rotulo:'Item', x:CI.item, align:'center' }, { rotulo:'Andar', x:CI.andar, align:'center' }, { rotulo:'Local', x:CI.local, align:'center' },
+    { rotulo:'Disciplina', x:X.disc }, { rotulo:'Fornecedor', x:X.forn }, { rotulo:'Prioridade', x:CI.prio, align:'center' },
+    { rotulo:'Descrição', x:X.desc }, { rotulo:'Foto', x:CI.foto, align:'center' }, { rotulo:'Fluxo', x:CI.flux, align:'center' }
   ];
   const LH = 11, LH2 = 9; // altura de linha: texto normal / anotação pequena
 
@@ -4480,22 +4491,22 @@ async function exportarItensPdf(){
       desenhar: (doc, cx, top) => {
         const mid = top + altura/2;
         // bloco de texto centralizado na altura da linha, com anotação pequena opcional embaixo
-        const bloco = (x, ls, cor, nota) => {
+        const bloco = (x, ls, cor, nota, alinhar) => {
           const h = ls.length*LH + (nota ? LH2 : 0);
           let yb = mid - h/2 + 8;
-          ls.forEach((tx) => { pdfTxt(doc, cx+x, yb, tx, 8.5, cor); yb += LH; });
-          if (nota) pdfTxt(doc, cx+x, yb - 1, nota, 6.8, PDF_COR.faint);
+          ls.forEach((tx) => { pdfTxt(doc, cx+x, yb, tx, 8.5, cor, alinhar); yb += LH; });
+          if (nota) pdfTxt(doc, cx+x, yb - 1, nota, 6.8, PDF_COR.faint, alinhar);
         };
-        pdfTxt(doc, cx+X.item, mid+3, it.id, 8.5, PDF_COR.ink2);
-        pdfTxt(doc, cx+X.andar, mid+3, it.andar+'º', 8.5, PDF_COR.ink2);
-        bloco(X.local, loc, PDF_COR.ink2);
+        pdfTxt(doc, cx+CI.item, mid+3, it.id, 8.5, PDF_COR.ink2, 'center');
+        pdfTxt(doc, cx+CI.andar, mid+3, it.andar+'º', 8.5, PDF_COR.ink2, 'center');
+        bloco(CI.local, loc, PDF_COR.ink2, null, 'center');
         bloco(X.disc, discTxt, PDF_COR.ink2, discNota);
         bloco(X.forn, fornTxt, PDF_COR.ink2, fornNota);
         // prioridade + anotações ("era AM", reincidência)
         let yp = mid - prioH/2 + 9;
-        pdfPill(doc, cx+X.prio, yp, prio.curto, prio.fg, prio.bg);
+        pdfPill(doc, cx+CI.prio - (pdfLarg(doc, prio.curto, 7.5)+14)/2, yp, prio.curto, prio.fg, prio.bg);
         yp += 13;
-        prioNotas.forEach((n) => { pdfTxt(doc, cx+X.prio, yp, n.t, 6.8, n.cor); yp += LH2; });
+        prioNotas.forEach((n) => { pdfTxt(doc, cx+CI.prio, yp, n.t, 6.8, n.cor, 'center'); yp += LH2; });
         bloco(X.desc, desc, PDF_COR.ink);
         // foto
         const fx = cx+X.foto, fy = mid - FH/2;
@@ -4517,7 +4528,7 @@ async function exportarItensPdf(){
         doc.roundedRect(cx+X.flux, sy, FLUX_W, 18, 5, 5, 'FD');
         pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+12, txt, 7.5, fg, 'center');
         let yf = sy + 18 + 5 + 6;
-        fluxLinhas.forEach((l) => { pdfTxt(doc, cx+X.flux, yf, pdfCaber(doc, l.t, l.s, FLUX_W), l.s, l.cor); yf += LH2; });
+        fluxLinhas.forEach((l) => { pdfTxt(doc, cx+CI.flux, yf, pdfCaber(doc, l.t, l.s, FLUX_W), l.s, l.cor, 'center'); yf += LH2; });
       }
     };
   });
