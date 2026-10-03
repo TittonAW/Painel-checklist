@@ -353,6 +353,21 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 }
 @media (hover:hover) and (pointer:fine){ .lightbox-fechar:hover{ background:rgba(20,20,20,.8); } }
 
+.puxar-atualizar{
+  position:fixed; left:50%; top:calc(env(safe-area-inset-top,0px) + 8px); z-index:160;
+  transform:translate(-50%,-80px); transition:transform .15s ease, opacity .15s ease; opacity:0;
+  background:var(--surface); color:var(--text-2); border:1px solid var(--line); box-shadow:var(--shadow);
+  padding:7px 14px; border-radius:99px; font-size:12.5px; pointer-events:none; white-space:nowrap;
+}
+.puxar-atualizar.visivel{ opacity:1; }
+.btn-voltar-nav{
+  position:fixed; left:14px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:110;
+  max-width:calc(100% - 28px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  background:var(--surface); color:var(--text); border:1px solid var(--line); box-shadow:var(--shadow);
+  padding:10px 16px; border-radius:99px; font:inherit; font-size:13.5px; cursor:pointer;
+}
+.btn-voltar-nav[hidden]{ display:none; }
+body.com-voltar .aviso-flutuante{ bottom:calc(68px + env(safe-area-inset-bottom,0px)); }
 .aviso-flutuante{
   position:fixed; left:50%; transform:translateX(-50%); z-index:150;
   bottom:calc(18px + env(safe-area-inset-bottom,0px)); max-width:calc(100% - 32px);
@@ -643,6 +658,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 </div>
 
 <div id="aviso-flutuante" class="aviso-flutuante ok" hidden></div>
+<div id="puxar-atualizar" class="puxar-atualizar">Puxe para atualizar</div>
+<button type="button" id="btn-voltar-nav" class="btn-voltar-nav" hidden></button>
 
 <div class="modal-overlay oculto" id="modal-usuario">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-usuario">
@@ -760,7 +777,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.6';
+const VERSAO_APP = '2026-10-03.9';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -823,6 +840,16 @@ const store = {
   _gravarLocal(col, obj){
     try{ localStorage.setItem('obra_'+col, JSON.stringify(obj)); }
     catch(e){ this.mem[col] = obj; }
+  },
+  /* só os documentos alterados depois de "desde" (data ISO) — base da atualização automática */
+  async listMudancas(col, desde, revisaoStr){
+    if (this.backend !== 'cloud') return [];
+    const data = await selecionarTudoPaginado(() => {
+      let q = supa.from('app_data').select('doc_id, data').eq('collection', col).gt('updated_at', desde);
+      if (revisaoStr) q = q.eq('data->>revisao', revisaoStr);
+      return q;
+    });
+    return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
   },
   async getDoc(col, id){
     if (this.backend === 'cloud'){
@@ -1645,20 +1672,96 @@ async function salvarFornecedores(){
    revisões), numa coleção separada, pra sobreviver mesmo quando o item some/reaparece. */
 let acompanhamento = {}; // { itemId: { awExecEm, iacOkEm } }
 
+/* carrega TODOS os campos salvos de um item (não só AW/IAC) */
+function normalizarAcompanhamento(d){
+  return {
+    awExecEm: d.awExecEm||null, iacOkEm: d.iacOkEm||null,
+    disciplinaOverride: d.disciplinaOverride||null, fornecedorOverride: d.fornecedorOverride||null,
+    dataPrevista: d.dataPrevista||null,
+    reincidencias: d.reincidencias||0,
+    awExecPor: d.awExecPor||null, iacOkPor: d.iacOkPor||null,
+    historico: Array.isArray(d.historico) ? d.historico : null
+  };
+}
 async function carregarAcompanhamento(){
   const docs = await store.listCollection('acompanhamento');
   acompanhamento = {};
-  // carrega TODOS os campos salvos (não só AW/IAC) — antes, disciplinaOverride,
-  // fornecedorOverride e dataPrevista eram descartados ao recarregar a página
-  docs.forEach((d) => {
-    acompanhamento[d._id] = {
-      awExecEm: d.awExecEm||null, iacOkEm: d.iacOkEm||null,
-      disciplinaOverride: d.disciplinaOverride||null, fornecedorOverride: d.fornecedorOverride||null,
-      dataPrevista: d.dataPrevista||null,
-      reincidencias: d.reincidencias||0,
-      awExecPor: d.awExecPor||null, iacOkPor: d.iacOkPor||null,
-      historico: Array.isArray(d.historico) ? d.historico : null
-    };
+  docs.forEach((d) => { acompanhamento[d._id] = normalizarAcompanhamento(d); });
+}
+
+/* ===================== ATUALIZAÇÃO AUTOMÁTICA DOS DADOS =====================
+   A cada 1 min (com o app aberto), ao voltar pro app e ao puxar a tela pra baixo, busca
+   SÓ o que mudou no banco desde a última vez (baixas de outras pessoas, fornecedores,
+   planilhas novas) — rápido no 4G e leve no plano do Supabase. */
+let ultimaSincronizacao = null;
+let sincronizandoAgora = false;
+const itensGravandoAgora = new Set(); // itens com toque ainda salvando: o banco ainda não tem a versão nova
+async function sincronizarDados(manual){
+  if (store.backend !== 'cloud' || sincronizandoAgora || !ultimaSincronizacao) return { ok:false };
+  // não redesenha a tela enquanto a pessoa digita num campo (exceto se ela pediu)
+  const foco = document.activeElement;
+  if (!manual && foco && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)) return { ok:false };
+  sincronizandoAgora = true;
+  const novaMarca = new Date(Date.now() - 60*1000).toISOString(); // 1 min de folga pra relógio de celular adiantado/atrasado
+  try{
+    const [ac, cfg, rev, snaps] = await Promise.all([
+      store.listMudancas('acompanhamento', ultimaSincronizacao),
+      store.listMudancas('config', ultimaSincronizacao),
+      store.listMudancas('revisoes', ultimaSincronizacao),
+      revisaoSelecionada ? store.listMudancas('snapshots', ultimaSincronizacao, revisaoSelecionada) : Promise.resolve([])
+    ]);
+    let mudou = 0;
+    ac.forEach((d) => {
+      if (itensGravandoAgora.has(d._id)) return;
+      const novo = normalizarAcompanhamento(d);
+      if (JSON.stringify(acompanhamento[d._id]) !== JSON.stringify(novo)){ acompanhamento[d._id] = novo; mudou++; }
+    });
+    if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
+    let recarregarRevisao = snaps.length > 0;
+    if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
+    ultimaSincronizacao = novaMarca;
+    if (recarregarRevisao) await selecionarRevisao(revisaoSelecionada);
+    else if (mudou) atualizarTelasAposAcompanhamento();
+    return { ok:true, mudou: mudou + (recarregarRevisao ? 1 : 0) };
+  }catch(e){
+    console.warn('atualização automática falhou (tenta de novo depois):', e);
+    return { ok:false };
+  }finally{
+    sincronizandoAgora = false;
+  }
+}
+function iniciarSincronizacaoAutomatica(){
+  setInterval(() => { if (document.visibilityState === 'visible') sincronizarDados(false); }, 60*1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizarDados(false); });
+  // puxar a tela pra baixo (no topo da página) pra atualizar na hora
+  const ind = document.getElementById('puxar-atualizar');
+  let y0 = null, dy = 0;
+  const LIMITE = 90;
+  const esconder = () => { ind.classList.remove('visivel'); ind.style.transform = ''; };
+  window.addEventListener('touchstart', (e) => {
+    const modalAberto = document.querySelector('.modal-overlay:not(.oculto), .lightbox-overlay:not(.oculto)');
+    y0 = (window.scrollY <= 0 && !modalAberto && store.backend === 'cloud') ? e.touches[0].clientY : null;
+    dy = 0;
+  }, { passive:true });
+  window.addEventListener('touchmove', (e) => {
+    if (y0 === null) return;
+    if (window.scrollY > 0){ y0 = null; esconder(); return; }
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 10){ esconder(); return; }
+    ind.classList.add('visivel');
+    ind.style.transform = 'translate(-50%,' + (Math.min(dy*0.5, 60) - 20) + 'px)';
+    ind.textContent = dy > LIMITE ? 'Solte para atualizar' : 'Puxe para atualizar';
+  }, { passive:true });
+  window.addEventListener('touchend', async () => {
+    if (y0 === null) return;
+    const disparar = dy > LIMITE;
+    y0 = null;
+    if (!disparar){ esconder(); return; }
+    ind.textContent = 'Atualizando…';
+    ind.style.transform = 'translate(-50%,30px)';
+    const r = await sincronizarDados(true);
+    ind.textContent = !r.ok ? 'Sem conexão — tente de novo' : (r.mudou ? 'Atualizado' : 'Tudo em dia');
+    setTimeout(esconder, 1100);
   });
 }
 
@@ -1923,7 +2026,9 @@ async function alternarAcompanhamento(itemId, campo){
   // mostra na hora (não espera a internet), e salva em seguida
   acompanhamento[itemId] = novo;
   atualizarTelasAposAcompanhamento();
+  itensGravandoAgora.add(itemId);
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
+  itensGravandoAgora.delete(itemId);
   if (r.ok){
     avisoFlutuante(msg, tipoMsg);
   } else {
@@ -2034,11 +2139,17 @@ function chaveAreaGlobal(andar, tipo, quarto){
 /* classificação de um local levando em conta a liberação manual (independente do que vem da
    planilha): BLOQUEADO (tem VM, nunca liberável por botão) > PENDENTE (só AM, ninguém liberou
    ainda) > LIBERADO_PEND (só AM, liberado manualmente) > CONCLUIDO (zero itens, automático) */
+/* cor de um local/andar (torre, Quartos & áreas, Prioridades, PDF):
+   - VERMELHO só enquanto existir item VM ainda EM ABERTO (a AW ainda não executou);
+     executado pela AW, o vermelho sai — não precisa esperar a vistoria da IAC;
+   - AMARELO (ou AZUL, se liberado com pendência) enquanto houver item ainda não vistoriado pela IAC;
+   - VERDE quando todos os itens já foram vistoriados pela IAC (ou não há mais pendência). */
 function classificarComLiberacao(itens, liberadoManualmente){
-  const vm = itens.some((i) => i.status === 'VM');
-  if (vm) return 'BLOQUEADO';
-  const am = itens.some((i) => i.status === 'AM');
-  if (am) return liberadoManualmente ? 'LIBERADO_PEND' : 'PENDENTE';
+  const vmEmAberto = itens.some((i) => i.status === 'VM' && estaEmAberto(i));
+  if (vmEmAberto) return 'BLOQUEADO';
+  const pendente = itens.some((i) => (i.status === 'VM' || i.status === 'AM') &&
+    !(acompanhamento[i.id] && acompanhamento[i.id].iacOkEm));
+  if (pendente) return liberadoManualmente ? 'LIBERADO_PEND' : 'PENDENTE';
   return 'CONCLUIDO';
 }
 function classificarStatusLista(itens){
@@ -2945,11 +3056,17 @@ function renderQuartos(){
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
     tr.addEventListener('click', (e) => {
       if (e.target.closest('[data-acao-liberar]')) return; // o botão trata seu próprio clique
+      // segue a "história" do usuário: o que ele filtrou em Quartos continua valendo em Itens
+      const tipo = tr.dataset.tipo, quarto = tr.dataset.quarto;
+      const chaveLocal = tipo === 'APTO' ? ('APTO-'+quarto) : (tipo+'-'+tr.dataset.andar);
       abrirItens({
         andar: tr.dataset.andar,
-        local: { tipo: tr.dataset.tipo, quarto: tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10) },
+        ambiente: 'local:' + chaveLocal,
+        local: { tipo, quarto: quarto === '' ? null : parseInt(quarto,10) },
         disciplina: document.getElementById('filtro-disciplina').value,
-        fornecedor: document.getElementById('filtro-fornecedor').value
+        fornecedor: document.getElementById('filtro-fornecedor').value,
+        status: document.getElementById('filtro-status').value,
+        fluxo: document.getElementById('filtro-progresso').value
       });
     });
     const btn = tr.querySelector('[data-acao-liberar]');
@@ -2972,19 +3089,94 @@ let filtroProgresso = null; // 'aberto' | 'awExec' | 'iacOk' | null — cliques 
 let filtroStatusBrutoAdHoc = null; // 'VM' | 'AM' | null — pra cliques em contagens que não mapeiam 1:1 no dropdown de status
 let itensSelecionados = new Set(); // ids selecionados pra classificação em lote (Disciplina/Fornecedor)
 
+/* ===================== VOLTAR INTELIGENTE =====================
+   Ao "mergulhar" (torre → andar, quarto → itens, cartões, Ver itens…) guarda a tela de onde
+   veio: aba, filtros, página e posição da rolagem. O botão "← …" no canto e o voltar do
+   Android devolvem exatamente pra ela. Trocar de aba pelo menu começa do zero. */
+const pilhaNavegacao = [];
+const NOMES_ABA_CURTOS = { 'visao-geral':'Visão geral', quartos:'Quartos', itens:'Itens', disciplinas:'Disciplinas', comparacao:'Comparação', tendencia:'Tendência', enviar:'Enviar' };
+function abaAtual(){
+  const b = document.querySelector('nav.abas button.ativa');
+  return b ? b.dataset.aba : 'visao-geral';
+}
+function capturarEstadoTela(){
+  const aba = abaAtual();
+  const campos = {}, rotulos = [];
+  document.querySelectorAll('#secao-'+aba+' select[id], #secao-'+aba+' input[id]').forEach((el) => {
+    if (el.type === 'checkbox' || el.type === 'file' || el.id === 'bulk-fornecedor') return;
+    campos[el.id] = el.value;
+    if (el.tagName === 'SELECT' && el.value){
+      const op = el.options[el.selectedIndex];
+      if (op) rotulos.push(op.textContent.trim().replace(/\s*\(.*\)$/, ''));
+    }
+  });
+  return {
+    aba, campos, scroll: window.scrollY, pagina: itensPaginaAtual,
+    extras: { filtroItemLocal, filtroProgresso, filtroStatusBrutoAdHoc },
+    rotulo: [NOMES_ABA_CURTOS[aba] || aba].concat(rotulos.slice(0, 2)).join(' · ')
+  };
+}
+function empilharNavegacao(){
+  pilhaNavegacao.push(capturarEstadoTela());
+  if (pilhaNavegacao.length > 20) pilhaNavegacao.shift();
+  try{ history.pushState({ nav: pilhaNavegacao.length }, ''); }catch(e){}
+  renderBotaoVoltar();
+}
+function renderBotaoVoltar(){
+  const b = document.getElementById('btn-voltar-nav');
+  if (!b) return;
+  const topo = pilhaNavegacao[pilhaNavegacao.length-1];
+  b.hidden = !topo;
+  if (topo) b.textContent = '← ' + topo.rotulo;
+  document.body.classList.toggle('com-voltar', !!topo);
+}
+function restaurarEstadoTela(est){
+  // andar primeiro: a lista de locais depende dele
+  [['filtro-andar','filtro-ambiente'], ['filtro-item-andar','filtro-item-ambiente']].forEach(([andar, amb]) => {
+    if (andar in est.campos){
+      document.getElementById(andar).value = est.campos[andar];
+      popularFiltroAmbiente(amb, andar);
+    }
+  });
+  Object.keys(est.campos).forEach((id) => { const el = document.getElementById(id); if (el) el.value = est.campos[id]; });
+  if (est.aba === 'itens'){
+    filtroItemLocal = est.extras.filtroItemLocal;
+    filtroProgresso = est.extras.filtroProgresso;
+    filtroStatusBrutoAdHoc = est.extras.filtroStatusBrutoAdHoc;
+    itensPaginaAtual = est.pagina || 1;
+  }
+  irParaAba(est.aba);
+  if (est.aba === 'quartos') renderQuartos();
+  else if (est.aba === 'itens') renderItens();
+  else if (est.aba === 'disciplinas') renderDisciplinas();
+  requestAnimationFrame(() => window.scrollTo({ top: est.scroll, behavior:'instant' }));
+}
+function voltarNavegacao(){
+  const est = pilhaNavegacao.pop();
+  renderBotaoVoltar();
+  if (est) restaurarEstadoTela(est);
+}
+function limparNavegacao(){
+  pilhaNavegacao.length = 0;
+  renderBotaoVoltar();
+}
+
 function abrirItens(filtros){
+  empilharNavegacao();
   filtros = filtros || {};
   document.getElementById('filtro-item-andar').value = filtros.andar != null ? String(filtros.andar) : '';
   popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar');
-  document.getElementById('filtro-item-ambiente').value = filtros.ambiente || '';
+  const selAmb = document.getElementById('filtro-item-ambiente');
+  selAmb.value = (filtros.ambiente && Array.from(selAmb.options).some((o) => o.value === filtros.ambiente)) ? filtros.ambiente : '';
   popularFiltroDisciplina('filtro-item-disciplina');
   document.getElementById('filtro-item-disciplina').value = filtros.disciplina || '';
   popularFiltroFornecedor('filtro-item-fornecedor');
   document.getElementById('filtro-item-fornecedor').value = filtros.fornecedor || '';
   document.getElementById('filtro-item-status').value = filtros.status || '';
-  document.getElementById('filtro-item-progresso').value = '';
+  document.getElementById('filtro-item-progresso').value = filtros.fluxo || '';
   document.getElementById('busca-item').value = filtros.busca || '';
-  filtroItemLocal = filtros.local || null;
+  // se o local já está no seletor de ambiente (visível), não precisa do filtro escondido
+  filtroItemLocal = (selAmb.value && filtros.ambiente === selAmb.value) ? null : (filtros.local || null);
   filtroProgresso = filtros.progresso || null;
   filtroStatusBrutoAdHoc = filtros.statusBruto || null;
   itensPaginaAtual = 1;
@@ -2993,9 +3185,13 @@ function abrirItens(filtros){
 }
 
 function abrirQuartosComFiltro(filtros){
+  empilharNavegacao();
   filtros = filtros || {};
   document.getElementById('filtro-andar').value = filtros.andar != null ? String(filtros.andar) : '';
   popularFiltroAmbiente('filtro-ambiente', 'filtro-andar');
+  document.getElementById('filtro-ambiente').value = '';
+  document.getElementById('filtro-disciplina').value = '';
+  document.getElementById('filtro-fornecedor').value = '';
   document.getElementById('filtro-status').value = filtros.status || '';
   document.getElementById('filtro-progresso').value = '';
   document.getElementById('busca-quarto').value = filtros.busca || '';
@@ -4551,7 +4747,9 @@ async function iniciar(){
   await initAssets();
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
+  const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
   await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento()]);
+  ultimaSincronizacao = marcaCarga;
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
   popularSeletoresComparacao();
@@ -4563,8 +4761,13 @@ async function iniciar(){
   }
 
   document.querySelectorAll('nav.abas button').forEach((b) => {
-    b.addEventListener('click', () => irParaAba(b.dataset.aba));
+    b.addEventListener('click', () => { limparNavegacao(); irParaAba(b.dataset.aba); });
   });
+  document.getElementById('btn-voltar-nav').addEventListener('click', () => {
+    if (history.state && history.state.nav) history.back(); else voltarNavegacao();
+  });
+  window.addEventListener('popstate', () => { if (pilhaNavegacao.length) voltarNavegacao(); });
+  iniciarSincronizacaoAutomatica();
   document.getElementById('btn-ir-enviar').addEventListener('click', () => irParaAba('enviar'));
   document.getElementById('btn-apagar-tudo').addEventListener('click', apagarTudo);
   document.getElementById('btn-limpar-fotos-orfas').addEventListener('click', async () => {
