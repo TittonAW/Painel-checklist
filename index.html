@@ -606,6 +606,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     </div>
   </section>
 
+  <div id="versao-app" class="rodape-nota" style="margin-top:36px; font-size:11px; color:var(--faint);"></div>
 </main>
 
 <div class="modal-overlay oculto" id="modal-conflito">
@@ -747,6 +748,61 @@ async function selecionarTudoPaginado(montarConsulta){
   return todos;
 }
 
+/* ===================== ATUALIZAÇÃO AUTOMÁTICA =====================
+   Cada publicação leva um número de versão. O app confere se o arquivo no GitHub mudou
+   (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
+   seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
+   guardado no aparelho e não se perde na atualização. */
+const VERSAO_APP = '2026-10-03.2';
+let gravacoesEmAndamento = 0;
+let versaoNovaEncontrada = null;
+function momentoSeguroParaRecarregar(){
+  if (gravacoesEmAndamento > 0) return false;                     // salvando algo
+  const banner = document.getElementById('banner-progresso');
+  if (banner && !banner.hidden) return false;                     // envio/limpeza de fotos rodando
+  if (document.querySelector('.modal-overlay:not(.oculto)')) return false; // janela aberta (Editar, nome…)
+  if (typeof resultadosAcumulados !== 'undefined' && resultadosAcumulados.length) return false; // planilhas arrastadas esperando salvar
+  return true;
+}
+function recarregarQuandoSeguro(){
+  if (!versaoNovaEncontrada) return;
+  if (!momentoSeguroParaRecarregar()){ setTimeout(recarregarQuandoSeguro, 10000); return; }
+  avisoFlutuante('Atualizando para a versão nova…', 'info');
+  // endereço com a versão no final: garante que o navegador busca o arquivo novo, não o guardado
+  setTimeout(() => {
+    location.replace(location.pathname + '?v=' + encodeURIComponent(versaoNovaEncontrada) + location.hash);
+  }, 1200);
+}
+let ultimaVerificacaoVersao = 0;
+async function verificarNovaVersao(){
+  if (versaoNovaEncontrada || !/^https?:/.test(location.protocol)) return;
+  ultimaVerificacaoVersao = Date.now();
+  try{
+    const resp = await fetch(location.pathname + '?checar=' + Date.now(), { cache:'no-store' });
+    if (!resp.ok) return;
+    const texto = await resp.text();
+    const m = texto.match(/const VERSAO_APP = '([^']+)'/);
+    if (m && m[1] !== VERSAO_APP){ versaoNovaEncontrada = m[1]; recarregarQuandoSeguro(); }
+  }catch(e){ /* sem internet agora — tenta de novo depois */ }
+}
+function iniciarVerificacaoDeVersao(){
+  // tira o "?v=..." do endereço depois de atualizar (fica mais limpo; não afeta nada)
+  if (/[?&]v=/.test(location.search)){
+    try{ history.replaceState(null, '', location.pathname + location.hash); }catch(e){}
+  }
+  const el = document.getElementById('versao-app');
+  if (el) el.textContent = 'versão ' + VERSAO_APP;
+  setTimeout(verificarNovaVersao, 4000);
+  setInterval(verificarNovaVersao, 5*60*1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verificarNovaVersao(); });
+  window.addEventListener('focus', verificarNovaVersao);
+  // qualquer ação da pessoa (dar baixa, mudar filtro, trocar de aba…) também confere a versão —
+  // no máximo uma vez por minuto, pra não ficar consultando o GitHub a cada clique
+  const aoAgir = () => { if (Date.now() - ultimaVerificacaoVersao > 60*1000) verificarNovaVersao(); };
+  document.addEventListener('click', aoAgir, true);
+  document.addEventListener('change', aoAgir, true);
+}
+
 const store = {
   backend: 'local',
   mem: {},
@@ -774,12 +830,15 @@ const store = {
   },
   async setDoc(col, id, data){
     if (this.backend === 'cloud'){
+      gravacoesEmAndamento++;
       try{
         const { error } = await supa.from('app_data').upsert({ collection: col, doc_id: id, data: data, updated_at: new Date().toISOString() });
         if (error) return { ok:false, codigo: error.code, erro: error.message };
         return { ok:true };
       }catch(e){
         return { ok:false, erro: (e && e.message) || String(e) };
+      }finally{
+        gravacoesEmAndamento--;
       }
     }
     const all = this._lerLocal(col);
@@ -2138,7 +2197,8 @@ function renderSeletorRevisao(){
   ordenado.forEach((r) => {
     const opt = document.createElement('option');
     opt.value = String(r.numero);
-    opt.textContent = r.label + ' · ' + r.andares.length + ' andar(es)';
+    // só a revisão — a quantidade de andares já aparece no corte do prédio, e cortava o texto no celular
+    opt.textContent = 'Revisão ' + r.numero;
     sel.appendChild(opt);
   });
   if (!revisaoSelecionada || !ordenado.some((r) => String(r.numero) === revisaoSelecionada)){
@@ -3988,7 +4048,7 @@ const PDF_COR = {
   acc:[15,118,110], accs:[226,243,241],
   vm:[201,67,62], vms:[251,233,232], am:[185,126,46], ams:[251,240,222],
   az:[76,115,217], azs:[233,238,252], vd:[57,151,106], vds:[227,243,234],
-  heroLabel:[201,205,211], heroSub:[154,160,169]
+  heroLabel:[208,212,218], heroSub:[168,174,183], grafite:[58,63,71]
 };
 const PDF_PRIO = {
   BLOQUEADO:{ fg:PDF_COR.vm, bg:PDF_COR.vms, curto:'VM', longo:'VM (vermelho)' },
@@ -4091,7 +4151,7 @@ function pdfCabecalho(doc, ctx){
   const gap = 8, n = ctx.cartoes.length, cw = (PW - 2*M - (n-1)*gap)/n, top = 92;
   ctx.cartoes.forEach((cd, i) => {
     const x = M + i*(cw+gap);
-    pdfFill(doc, cd.destaque ? PDF_COR.ink : PDF_COR.paper);
+    pdfFill(doc, cd.destaque ? PDF_COR.grafite : PDF_COR.paper);
     doc.roundedRect(x, top, cw, 54, 8, 8, 'F');
     pdfTxt(doc, x+11, top+16, cd.rotulo, 7.5, cd.destaque ? PDF_COR.heroLabel : PDF_COR.muted);
     pdfTxt(doc, x+11, top+37, pdfNum(cd.valor), 20, cd.destaque ? PDF_COR.white : PDF_COR.ink);
@@ -4234,9 +4294,16 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
   if (statusEl) statusEl.textContent = 'PDF baixado (o compartilhamento direto não está disponível aqui) — abra o arquivo baixado e use o ícone de compartilhar do seu celular pra mandar por WhatsApp.';
 }
 
-function nomeArquivoPdf(base){
-  const metaRev = revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada);
-  return base + (metaRev ? '-' + metaRev.label : '') + '.pdf';
+/* nome do arquivo = nome do app + aba + filtro aplicado, ex.:
+   "Painel da Obra Sofitel - Itens - 18º andar - Executado AW.pdf" */
+const NOME_APP_ARQUIVO = 'Painel da Obra Sofitel';
+function nomeArquivoPdf(aba, filtro){
+  const partes = [NOME_APP_ARQUIVO, aba];
+  if (filtro && filtro !== 'Todos') partes.push(String(filtro).split(' · ').join(' - '));
+  else partes.push('Todos');
+  let nome = partes.join(' - ').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (nome.length > 120) nome = nome.slice(0, 120).trim();
+  return nome + '.pdf';
 }
 
 async function exportarQuartosPdf(){
@@ -4302,7 +4369,7 @@ async function exportarQuartosPdf(){
     }
   }));
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
-  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('quartos-areas'), statusEl);
+  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('Quartos e áreas', ctx.filtro), statusEl);
 }
 
 async function exportarItensPdf(){
@@ -4357,13 +4424,17 @@ async function exportarItensPdf(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
   const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M;
-  const X = { item:P, andar:P+48, local:P+82, disc:P+146, forn:P+240, prio:P+302, desc:P+354, foto:P+592, flux:P+680 };
+  // REGRA: o PDF é o espelho da tela — tudo que a aba Itens mostra de cada item vai pro PDF
+  // (disciplina reclassificada, fornecedor padrão/editado, "era AM", reincidência, quem deu
+  // baixa no AW e na IAC com data e hora, previsão).
+  const X = { item:P, andar:P+44, local:P+74, disc:P+132, forn:P+222, prio:P+290, desc:P+346, foto:P+566, flux:P+650 };
   const DESC_W = X.foto - X.desc - 16, FLUX_W = CW - X.flux - P;
   const colunas = [
     { rotulo:'Item', x:X.item }, { rotulo:'Andar', x:X.andar }, { rotulo:'Local', x:X.local },
     { rotulo:'Disciplina', x:X.disc }, { rotulo:'Fornecedor', x:X.forn }, { rotulo:'Prioridade', x:X.prio },
     { rotulo:'Descrição', x:X.desc }, { rotulo:'Foto', x:X.foto }, { rotulo:'Fluxo', x:X.flux }
   ];
+  const LH = 11, LH2 = 9; // altura de linha: texto normal / anotação pequena
 
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   const linhas = itens.map((it, i) => {
@@ -4373,9 +4444,31 @@ async function exportarItensPdf(){
     let desc = doc.splitTextToSize(it.desc || '—', DESC_W);
     if (desc.length > 12){ desc = desc.slice(0, 12); desc[11] = desc[11].replace(/\s*\S*$/, '') + '…'; }
     const loc = doc.splitTextToSize(local, X.disc - X.local - 8).slice(0, 3);
-    const disc = doc.splitTextToSize(disciplinaEfetiva(it) || '—', X.forn - X.disc - 8).slice(0, 3);
-    const forn = doc.splitTextToSize(fornecedorEfetivo(it) || '—', X.prio - X.forn - 8).slice(0, 3);
-    const altura = Math.max(FH + 14, desc.length*11 + 20, loc.length*11 + 20, disc.length*11 + 20);
+    const discTxt = doc.splitTextToSize(disciplinaEfetiva(it) || '—', X.forn - X.disc - 8).slice(0, 3);
+    const fornNome = fornecedorEfetivo(it);
+    const fornTxt = doc.splitTextToSize(fornNome || '—', X.prio - X.forn - 8).slice(0, 3);
+    // anotações pequenas, iguais às marcas da tela
+    const discNota = ac.disciplinaOverride ? 'reclassificada' : null;
+    const fornNota = ac.fornecedorOverride ? 'editado' : (fornNome ? 'padrão' : null);
+    const prioNotas = [];
+    if (ac.iacOkEm) prioNotas.push({ t:'era '+(it.status||'—'), cor:PDF_COR.muted });
+    if (ac.reincidencias) prioNotas.push({ t:'Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':''), cor:PDF_COR.vm });
+    // fluxo: selo + quem deu cada baixa, com data e hora + previsão
+    const fluxLinhas = [];
+    if (ac.awExecEm){
+      fluxLinhas.push({ t:'AW · '+(ac.awExecPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
+      fluxLinhas.push({ t:dataHoraCurta(ac.awExecEm), cor:PDF_COR.muted, s:6.8 });
+    }
+    if (ac.iacOkEm){
+      fluxLinhas.push({ t:'IAC · '+(ac.iacOkPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
+      fluxLinhas.push({ t:dataHoraCurta(ac.iacOkEm), cor:PDF_COR.muted, s:6.8 });
+    }
+    if (ac.dataPrevista && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
+    const fluxH = 18 + (fluxLinhas.length ? 5 + fluxLinhas.length*LH2 : 0);
+    const prioH = 13 + prioNotas.length*LH2 + (prioNotas.length ? 3 : 0);
+    const altura = Math.max(FH + 14, desc.length*LH + 20, loc.length*LH + 20,
+      discTxt.length*LH + (discNota?LH2:0) + 20, fornTxt.length*LH + (fornNota?LH2:0) + 20,
+      fluxH + 16, prioH + 18);
     let prio;
     if (ac.iacOkEm) prio = PDF_PRIO.CONCLUIDO;
     else if (it.status === 'VM') prio = PDF_PRIO.BLOQUEADO;
@@ -4385,60 +4478,54 @@ async function exportarItensPdf(){
       altura,
       desenhar: (doc, cx, top) => {
         const mid = top + altura/2;
-        const bloco = (x, ls, cor) => {
-          let yb = mid - (ls.length*11)/2 + 8;
-          ls.forEach((t) => { pdfTxt(doc, cx+x, yb, t, 8.5, cor); yb += 11; });
+        // bloco de texto centralizado na altura da linha, com anotação pequena opcional embaixo
+        const bloco = (x, ls, cor, nota) => {
+          const h = ls.length*LH + (nota ? LH2 : 0);
+          let yb = mid - h/2 + 8;
+          ls.forEach((tx) => { pdfTxt(doc, cx+x, yb, tx, 8.5, cor); yb += LH; });
+          if (nota) pdfTxt(doc, cx+x, yb - 1, nota, 6.8, PDF_COR.faint);
         };
         pdfTxt(doc, cx+X.item, mid+3, it.id, 8.5, PDF_COR.ink2);
         pdfTxt(doc, cx+X.andar, mid+3, it.andar+'º', 8.5, PDF_COR.ink2);
         bloco(X.local, loc, PDF_COR.ink2);
-        bloco(X.disc, disc, PDF_COR.ink2);
-        bloco(X.forn, forn, PDF_COR.ink2);
-        pdfPill(doc, cx+X.prio, mid+3, prio.curto, prio.fg, prio.bg);
+        bloco(X.disc, discTxt, PDF_COR.ink2, discNota);
+        bloco(X.forn, fornTxt, PDF_COR.ink2, fornNota);
+        // prioridade + anotações ("era AM", reincidência)
+        let yp = mid - prioH/2 + 9;
+        pdfPill(doc, cx+X.prio, yp, prio.curto, prio.fg, prio.bg);
+        yp += 13;
+        prioNotas.forEach((n) => { pdfTxt(doc, cx+X.prio, yp, n.t, 6.8, n.cor); yp += LH2; });
         bloco(X.desc, desc, PDF_COR.ink);
         // foto
         const fx = cx+X.foto, fy = mid - FH/2;
         if (miniaturas[i]){
           try{ doc.addImage(miniaturas[i], 'JPEG', fx, fy, FW, FH); }catch(e){}
           pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(fx, fy, FW, FH, 6, 6, 'S');
-          if (it.fotos.length > 1) pdfTxt(doc, fx+FW+4, fy+FH-2, '+'+(it.fotos.length-1), 7, PDF_COR.muted);
+          if (it.fotos.length > 1) pdfTxt(doc, fx+FW+3, fy+FH-2, '+'+(it.fotos.length-1), 7, PDF_COR.muted);
         } else {
           pdfFill(doc, PDF_COR.paper); doc.roundedRect(fx, fy, FW, FH, 6, 6, 'F');
           pdfTxt(doc, fx+FW/2, mid+2, it.fotos && it.fotos.length ? 'foto indisponível' : 'sem foto', 6.8, PDF_COR.faint, 'center');
         }
-        // fluxo: selo com a situação, nas cores do painel
+        // fluxo: selo com a situação, nas cores do painel, e embaixo quem deu cada baixa
         let txt, fg, bg, bd;
         if (ac.iacOkEm){ txt='Vistoriado IAC'; fg=PDF_COR.az; bg=PDF_COR.azs; bd=PDF_COR.az; }
         else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
         else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
-        const temPrev = !!(ac.dataPrevista && !ac.iacOkEm);
-        const temReinc = !!ac.reincidencias;
-        const responsavel = ac.iacOkEm ? ac.iacOkPor : (ac.awExecEm ? ac.awExecPor : null);
-        const extras = (temPrev?1:0) + (temReinc?1:0) + (responsavel?1:0);
-        const sy = mid - 9 - extras*6;
+        const sy = mid - fluxH/2;
         pdfFill(doc, bg); pdfDraw(doc, bd); doc.setLineWidth(0.6);
         doc.roundedRect(cx+X.flux, sy, FLUX_W, 18, 5, 5, 'FD');
         pdfTxt(doc, cx+X.flux+FLUX_W/2, sy+12, txt, 7.5, fg, 'center');
-        let yExtra = sy + 30;
-        if (responsavel){
-          pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, pdfCaber(doc, 'por '+responsavel, 7, FLUX_W+20), 7, PDF_COR.muted, 'center');
-          yExtra += 10;
-        }
-        if (temPrev){
-          pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, 'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), 7, PDF_COR.muted, 'center');
-          yExtra += 10;
-        }
-        if (temReinc){
-          pdfTxt(doc, cx+X.flux+FLUX_W/2, yExtra, 'Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':''), 7, PDF_COR.vm, 'center');
-        }
+        let yf = sy + 18 + 5 + 6;
+        fluxLinhas.forEach((l) => { pdfTxt(doc, cx+X.flux, yf, pdfCaber(doc, l.t, l.s, FLUX_W), l.s, l.cor); yf += LH2; });
       }
     };
   });
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
-  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('itens'), statusEl);
+  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('Itens', ctx.filtro), statusEl);
 }
 
 async function iniciar(){
+  iniciarVerificacaoDeVersao();
   usuarioAtual = lerUsuarioSalvo();
   renderUsuarioTopo();
   document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
