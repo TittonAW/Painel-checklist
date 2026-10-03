@@ -1,6 +1,6 @@
 {
   "name": "Acompanhamento de Obra",
-  "short_name": "Obra",
+  "short_name": "Checklist",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
