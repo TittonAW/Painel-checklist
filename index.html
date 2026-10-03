@@ -664,9 +664,13 @@ body.com-voltar .aviso-flutuante{ bottom:calc(68px + env(safe-area-inset-bottom,
 <div class="modal-overlay oculto" id="modal-usuario">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-usuario">
     <h3 id="titulo-modal-usuario">Quem está usando o painel?</h3>
-    <div class="modal-sub">Seu nome fica registrado em cada item que você der baixa (Executado AW, Vistoriado IAC, reincidência), pra saber quem foi o responsável. É pedido uma vez só neste aparelho.</div>
+    <div class="modal-sub">Seu nome fica registrado em cada item que você der baixa (Executado AW, Vistoriado IAC, reincidência), pra saber quem foi o responsável.</div>
+    <div id="bloco-equipe" class="modal-campo oculto">
+      <label>Toque no seu nome</label>
+      <div id="lista-equipe" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+    </div>
     <div class="modal-campo">
-      <label for="input-nome-usuario">Nome e sobrenome</label>
+      <label for="input-nome-usuario" id="rotulo-nome-usuario">Nome e sobrenome</label>
       <input type="text" id="input-nome-usuario" placeholder="Ex.: João Silva" autocomplete="name" autocapitalize="words">
       <div id="erro-nome-usuario" style="font-size:12.5px; color:var(--vm); margin-top:6px; min-height:18px;"></div>
     </div>
@@ -777,7 +781,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.9';
+const VERSAO_APP = '2026-10-03.10';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -1717,6 +1721,7 @@ async function sincronizarDados(manual){
       if (JSON.stringify(acompanhamento[d._id]) !== JSON.stringify(novo)){ acompanhamento[d._id] = novo; mudou++; }
     });
     if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
+    if (cfg.some((d) => d._id === 'pessoas')) await carregarPessoas();
     let recarregarRevisao = snaps.length > 0;
     if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
     ultimaSincronizacao = novaMarca;
@@ -1896,8 +1901,29 @@ async function resolverNomeSemelhante(digitado, lista, tipo){
     r.parecidos, 'Não, é um fornecedor novo — criar “'+nome+'”').then((v) => v === '__novo__' ? nome : v);
 }
 /* nomes de pessoas que já deram alguma baixa (pra comparar com quem está se identificando) */
+/* equipe: nomes guardados no banco (config/pessoas) assim que alguém se identifica — não
+   depende de a pessoa já ter dado baixa. Assim a checagem de nome parecido funciona desde o
+   primeiro acesso, e a janela de identificação mostra a lista pra tocar em vez de digitar. */
+const PESSOAS_INICIAIS = ['Guilherme Titton', 'Marcel Camilo', 'Elizeu Ribeiro', 'Leonardo Borba', 'Hiro Arima'];
+let pessoasRegistradas = [];
+async function carregarPessoas(){
+  try{
+    const doc = await store.getDoc('config', 'pessoas');
+    pessoasRegistradas = (doc && Array.isArray(doc.lista)) ? doc.lista : [];
+  }catch(e){ pessoasRegistradas = []; }
+}
+async function registrarPessoa(nome){
+  try{
+    const doc = await store.getDoc('config', 'pessoas');   // lê na hora: outra pessoa pode ter entrado agora
+    const lista = (doc && Array.isArray(doc.lista)) ? doc.lista.slice() : [];
+    if (lista.some((n) => chaveComparacao(n) === chaveComparacao(nome))) return;
+    lista.push(nome);
+    await store.setDoc('config', 'pessoas', { lista });
+    pessoasRegistradas = lista;
+  }catch(e){ console.warn('não consegui registrar o nome na equipe', e); }
+}
 function pessoasConhecidas(){
-  const s = new Set();
+  const s = new Set(PESSOAS_INICIAIS.concat(pessoasRegistradas));
   Object.values(acompanhamento).forEach((a) => {
     if (!a) return;
     if (a.awExecPor) s.add(a.awExecPor);
@@ -1926,16 +1952,36 @@ function renderUsuarioTopo(){
   b.textContent = usuarioAtual ? usuarioAtual : 'Identificar-se';
 }
 let resolverPedidoNome = null;
+/* lista da equipe na janela de identificação (um toque, sem risco de digitar errado) */
+function renderListaEquipe(){
+  const bloco = document.getElementById('bloco-equipe'), box = document.getElementById('lista-equipe');
+  if (!bloco || !box) return;
+  // um nome por pessoa (se houver variações parecidas, fica a primeira que apareceu)
+  const unicos = [];
+  pessoasConhecidas().forEach((n) => { if (!unicos.some((u) => chaveComparacao(u) === chaveComparacao(n))) unicos.push(n); });
+  unicos.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  bloco.classList.toggle('oculto', unicos.length === 0);
+  document.getElementById('rotulo-nome-usuario').textContent = unicos.length ? 'Não está na lista? Digite nome e sobrenome' : 'Nome e sobrenome';
+  box.innerHTML = unicos.map((n) => '<button type="button" class="btn" data-pessoa="'+esc(n)+'" style="padding:8px 14px;'+(n===usuarioAtual?' border-color:var(--accent); color:var(--accent);':'')+'">'+esc(n)+'</button>').join('');
+  box.querySelectorAll('[data-pessoa]').forEach((b) => b.addEventListener('click', () => definirUsuario(b.dataset.pessoa)));
+}
+function definirUsuario(nome){
+  usuarioAtual = nome;
+  try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); }catch(e){}
+  document.getElementById('modal-usuario').classList.add('oculto');
+  renderUsuarioTopo();
+  if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
+}
 function pedirNomeUsuario(podeCancelar){
   return new Promise((resolve) => {
     resolverPedidoNome = resolve;
     const ov = document.getElementById('modal-usuario');
     const inp = document.getElementById('input-nome-usuario');
-    inp.value = usuarioAtual || '';
+    renderListaEquipe();
+    inp.value = '';
     document.getElementById('erro-nome-usuario').textContent = '';
     document.getElementById('btn-cancelar-usuario').classList.toggle('oculto', !podeCancelar);
     ov.classList.remove('oculto');
-    setTimeout(() => inp.focus(), 50);
   });
 }
 async function confirmarNomeUsuario(){
@@ -1951,11 +1997,8 @@ async function confirmarNomeUsuario(){
   btn.disabled = false;
   const escolhido = await resolverNomeSemelhante(normalizarNome(inp.value), pessoasConhecidas(), 'pessoa');
   if (!escolhido){ inp.focus(); return; } // cancelou: continua na janela de nome
-  usuarioAtual = escolhido;
-  try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); }catch(e){}
-  document.getElementById('modal-usuario').classList.add('oculto');
-  renderUsuarioTopo();
-  if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
+  definirUsuario(escolhido);
+  if (!pessoasConhecidas().some((n) => n === escolhido)) registrarPessoa(escolhido); // pessoa nova entra na lista da equipe
 }
 function cancelarNomeUsuario(){
   document.getElementById('modal-usuario').classList.add('oculto');
@@ -4735,6 +4778,7 @@ async function exportarItensPdf(){
 async function iniciar(){
   iniciarVerificacaoDeVersao();
   usuarioAtual = lerUsuarioSalvo();
+  try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   renderUsuarioTopo();
   document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
   document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
@@ -4748,7 +4792,8 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas()]);
+  renderListaEquipe();
   ultimaSincronizacao = marcaCarga;
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
