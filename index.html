@@ -485,7 +485,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="itens">Itens</button>
   <button data-aba="disciplinas">Disciplinas &amp; fornecedores</button>
   <button data-aba="comparacao">Comparação</button>
-  <button data-aba="tendencia">Tendência</button>
+  <button data-aba="tendencia">Plano</button>
   <button data-aba="enviar">Enviar planilhas</button>
 </nav>
 <div id="barra-voltar" class="barra-voltar" hidden>
@@ -683,10 +683,24 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
   <!-- TENDÊNCIA -->
   <section class="secao" id="secao-tendencia">
-    <div class="card card-pad">
-      <h2>Total de pendências por revisão (últimas 30)</h2>
-      <div id="grafico-tendencia"></div>
-      <div class="vazio oculto" id="vazio-tendencia">Envie ao menos duas revisões para ver a tendência.</div>
+    <div class="card card-pad" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+        <div>
+          <h2 style="margin-bottom:4px;">Plano para zerar as pendências</h2>
+          <p class="rodape-nota" style="text-align:left; margin:0;">Calculado com os dados do painel (sem palpite): ritmo dos últimos 7 dias, o que falta e onde atacar primeiro.</p>
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);">Quero zerar até
+          <input type="date" id="plano-meta" style="width:auto;"></label>
+      </div>
+      <div id="plano-ritmo" style="margin-top:14px;"></div>
+    </div>
+    <div class="grid-2" id="plano-blocos" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;"></div>
+    <div class="card card-pad" style="margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Resumo pra mandar no grupo</h2>
+        <button type="button" class="btn fantasma" id="btn-copiar-resumo-plano">Copiar texto</button>
+      </div>
+      <div id="plano-resumo" style="margin-top:10px; font-size:14px; line-height:1.6; color:var(--text-2); white-space:pre-line;"></div>
     </div>
   </section>
 
@@ -890,7 +904,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.51';
+const VERSAO_APP = '2026-10-03.53';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3988,6 +4002,12 @@ function renderItens(){
   const tbody = document.getElementById('tbody-itens');
   tbody.innerHTML = '';
   const todosFiltrados = obterItensFiltrados();
+  // a seleção só vale pro que está na tela: item que saiu do filtro (mudou andar, aplicou
+  // fornecedor, deu baixa…) sai da seleção também — a barra some sozinha quando não sobra nenhum
+  if (itensSelecionados.size){
+    const naTela = new Set(todosFiltrados.map((it) => it.id));
+    Array.from(itensSelecionados).forEach((id) => { if (!naTela.has(id)) itensSelecionados.delete(id); });
+  }
   const itens = todosFiltrados.slice(0, itensPaginaAtual * ITENS_POR_PAGINA);
   // resumo do que está na tela, conforme os filtros
   const resumoEl = document.getElementById('resumo-filtro-itens');
@@ -4470,54 +4490,141 @@ function renderDivergenciasIac(itensDaRevisaoPara){
 }
 
 /* ===================== RENDER: TENDÊNCIA ===================== */
+/* ===================== PLANO PARA ZERAR AS PENDÊNCIAS =====================
+   Tudo calculado com regras claras a partir dos dados (sem IA): ritmo real dos últimos 7 dias,
+   meta diária pra data escolhida, previsão, e onde atacar primeiro. */
+let planoMeta = '';
+async function carregarMetaPlano(){
+  try{ const d = await store.getDoc('config', 'plano'); planoMeta = (d && d.meta) || ''; }catch(e){ planoMeta = ''; }
+}
 async function renderTendencia(){
-  const ordenado = revisoesMeta.slice().sort((a,b) => b.numero-a.numero).slice(0,30);
-  const numerosAsc = ordenado.map((r) => r.numero).sort((a,b)=>a-b);
-  const cont = document.getElementById('grafico-tendencia');
-  if (numerosAsc.length < 2){
-    cont.innerHTML = '';
-    document.getElementById('vazio-tendencia').classList.remove('oculto');
-    return;
+  if (!planoMeta) await carregarMetaPlano();
+  const inpMeta = document.getElementById('plano-meta');
+  if (inpMeta && !inpMeta.dataset.ligado){
+    inpMeta.dataset.ligado = '1';
+    inpMeta.addEventListener('change', async () => {
+      planoMeta = inpMeta.value || '';
+      await store.setDoc('config', 'plano', { meta: planoMeta });
+      renderTendencia();
+    });
+    document.getElementById('btn-copiar-resumo-plano').addEventListener('click', async () => {
+      const txt = document.getElementById('plano-resumo').innerText;
+      try{ await navigator.clipboard.writeText(txt); avisoFlutuante('Texto copiado', 'ok'); }
+      catch(e){ avisoFlutuante('Não consegui copiar — selecione o texto e copie', 'erro'); }
+    });
   }
-  document.getElementById('vazio-tendencia').classList.add('oculto');
-  const strs = numerosAsc.map(String);
-  const snaps = await store.queryRevisoesIn('snapshots', strs);
-  const porRevisao = new Map();
-  numerosAsc.forEach((n) => porRevisao.set(String(n), { vm:0, am:0 }));
-  snaps.forEach((s) => {
-    if (!porRevisao.has(s.revisao)) porRevisao.set(s.revisao, {vm:0,am:0});
-    const acc = porRevisao.get(s.revisao);
-    acc.vm += (s.totalVM||0); acc.am += (s.totalAM||0);
+  if (inpMeta) inpMeta.value = planoMeta;
+  const ritmoEl = document.getElementById('plano-ritmo'), blocos = document.getElementById('plano-blocos'), resumoEl = document.getElementById('plano-resumo');
+  const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
+  if (!pend.length){ ritmoEl.innerHTML = '<div class="vazio">Sem pendências nesta revisão.</div>'; blocos.innerHTML = ''; resumoEl.textContent = ''; return; }
+  const DIA = 86400000, agora = Date.now();
+  const fmtData = (d) => d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+  const emAberto = pend.filter(estaEmAberto).length;
+  const aguardando = pend.filter((it) => { const a = acompanhamento[it.id]; return a && a.awExecEm && !a.iacOkEm; }).length;
+
+  // ritmo real: média por dia dos últimos 7 dias (dias sem baixa contam como zero)
+  const pontos = calcularEvolucaoPendencias(30);
+  const ult7 = pontos.slice(-7);
+  const diasJanela = Math.max(1, ult7.length);
+  const ritmoAw = ult7.reduce((s, p) => s + (p.awDia || 0), 0) / diasJanela;
+  const ritmoIac = ult7.reduce((s, p) => s + (p.iacDia || 0), 0) / diasJanela;
+  const previsao = ritmoAw > 0 ? new Date(agora + Math.ceil(emAberto / ritmoAw) * DIA) : null;
+  let metaHtml = '', metaTxt = '';
+  if (planoMeta){
+    const fim = new Date(planoMeta + 'T23:59:59');
+    const dias = Math.max(1, Math.ceil((fim - agora) / DIA));
+    const precisa = Math.ceil(emAberto / dias);
+    const falta = Math.max(0, Math.ceil(precisa - ritmoAw));
+    metaHtml = '<span><span class="grande" style="color:'+(falta ? 'var(--vm)' : 'var(--vd)')+';">'+pdfNum(precisa)+'/dia</span> <span class="rot">necessário até '+fmtData(fim)+' ('+dias+' dia(s))'+(falta ? ' · faltam '+pdfNum(falta)+'/dia no ritmo atual' : ' · o ritmo atual dá conta')+'</span></span>';
+    metaTxt = 'Para zerar até '+fmtData(fim)+', precisamos de '+pdfNum(precisa)+' itens por dia' + (falta ? ' (hoje fazemos '+pdfNum(Math.round(ritmoAw))+'; faltam '+pdfNum(falta)+' por dia).' : ' — o ritmo atual dá conta.');
+  } else {
+    metaHtml = '<span class="rot">Escolha a data em "Quero zerar até" para ver quantos itens por dia são necessários.</span>';
+  }
+  ritmoEl.innerHTML = '<div class="destaque-pct" style="padding-bottom:4px;">' +
+    '<span><span class="grande">'+pdfNum(emAberto)+'</span> <span class="rot">em aberto</span></span>' +
+    '<span><span class="grande" style="color:var(--aw);">'+pdfNum(Math.round(ritmoAw))+'/dia</span> <span class="rot">ritmo AW (7 dias)</span></span>' +
+    '<span><span class="grande" style="color:var(--vd);">'+pdfNum(Math.round(ritmoIac))+'/dia</span> <span class="rot">ritmo IAC (7 dias)</span></span>' +
+    '<span><span class="grande">'+(previsao ? fmtData(previsao) : '—')+'</span> <span class="rot">'+(previsao ? 'zera no ritmo atual' : 'sem baixas nos últimos 7 dias')+'</span></span>' +
+    '</div><div class="destaque-pct" style="padding-bottom:0;">'+metaHtml+'</div>';
+
+  const card = (titulo, sub, corpo) => '<div class="card card-pad"><h2 style="margin-bottom:2px;">'+titulo+'</h2><div class="rodape-nota" style="text-align:left; margin:0 0 10px;">'+sub+'</div>'+corpo+'</div>';
+  const linha = (esq, detalhe, dir, attrs) => '<div class="insight-item'+(attrs ? ' clicavel' : '')+'" '+(attrs||'')+' style="'+(attrs ? 'cursor:pointer;' : '')+'"><div><div class="local">'+esq+'</div><div class="detalhe">'+detalhe+'</div></div><div style="text-align:right; white-space:nowrap;">'+dir+'</div></div>';
+  let html = '';
+
+  // vermelhos em aberto (travam a liberação)
+  const vms = pend.filter((it) => it.status === 'VM' && estaEmAberto(it));
+  html += card('Vermelhos em aberto', 'Travam a liberação dos ambientes — sempre primeiro.',
+    vms.length ? vms.slice(0, 6).map((it) => linha(esc(it.id)+' · '+it.andar+'º · '+esc(localLabel(it)), esc((it.desc||'').slice(0,70)), '<span class="badge bloqueado">VM</span>',
+      'data-plano-item="'+esc(it.id)+'" data-andar="'+it.andar+'" data-local="'+esc(localKey(it))+'"')).join('') + (vms.length > 6 ? '<div class="detalhe" style="margin-top:6px;">+ '+(vms.length-6)+' outro(s)</div>' : '')
+    : '<div class="vazio">Nenhum vermelho em aberto.</div>');
+
+  // quartos quase prontos
+  const locais = agruparPorLocal(pend).map((l) => ({ l, aberto: l.itens.filter(estaEmAberto).length, pct: percentualExecutado(l.itens) }))
+    .filter((x) => x.pct >= 90 && x.aberto > 0).sort((a,b) => a.aberto - b.aberto || b.pct - a.pct);
+  html += card('Quase prontos', 'Ambientes com 90% ou mais executados — poucos itens fecham o ambiente.',
+    locais.length ? locais.slice(0, 8).map((x) => linha(esc(x.l.label)+' · '+x.l.andar+'º', x.pct+'% executado', '<span style="color:var(--text);">faltam '+x.aberto+'</span>',
+      'data-plano-local="'+esc(x.l.key)+'" data-andar="'+x.l.andar+'"')).join('') + (locais.length > 8 ? '<div class="detalhe" style="margin-top:6px;">+ '+(locais.length-8)+' outro(s)</div>' : '')
+    : '<div class="vazio">Nenhum ambiente acima de 90% com itens em aberto.</div>');
+
+  // disciplinas que andam mais rápido
+  const desde = agora - 7*DIA;
+  const porDisc = new Map();
+  pend.forEach((it) => {
+    const d = disciplinaEfetiva(it), a = acompanhamento[it.id];
+    if (!porDisc.has(d)) porDisc.set(d, { nome: d, aberto: 0, feitos7: 0 });
+    const x = porDisc.get(d);
+    if (estaEmAberto(it)) x.aberto++;
+    if (a && a.awExecEm && new Date(a.awExecEm).getTime() >= desde) x.feitos7++;
   });
-  const pontos = numerosAsc.map((n) => {
-    const acc = porRevisao.get(String(n)) || {vm:0,am:0};
-    return { n, total: acc.vm+acc.am, vm: acc.vm };
+  const rapidas = Array.from(porDisc.values()).filter((x) => x.feitos7 > 0 && x.aberto > 0).sort((a,b) => b.feitos7 - a.feitos7);
+  html += card('Disciplinas que mais andam', 'Mais itens executados nos últimos 7 dias — onde investir equipe rende volume.',
+    rapidas.length ? rapidas.slice(0, 6).map((x) => {
+      const porDia = x.feitos7 / 7, dias = Math.ceil(x.aberto / porDia);
+      return linha(esc(x.nome), pdfNum(Math.round(porDia*10)/10)+'/dia · faltam '+pdfNum(x.aberto), '<span style="color:var(--aw);">zera em ~'+dias+' dia(s)</span>', 'data-plano-disc="'+esc(x.nome)+'"');
+    }).join('') : '<div class="vazio">Nenhuma execução registrada nos últimos 7 dias.</div>');
+
+  // fornecedores parados
+  const porForn = new Map();
+  pend.forEach((it) => {
+    const f = fornecedorEfetivo(it); if (!f) return;
+    const a = acompanhamento[it.id];
+    if (!porForn.has(f)) porForn.set(f, { nome: f, aberto: 0, ultima: 0 });
+    const x = porForn.get(f);
+    if (estaEmAberto(it)) x.aberto++;
+    if (a && a.awExecEm) x.ultima = Math.max(x.ultima, new Date(a.awExecEm).getTime());
   });
-  const W = 900, H = 240, padL = 40, padB = 30, padT = 16, padR = 16;
-  const maxVal = Math.max(1, ...pontos.map((p) => p.total));
-  const passoX = pontos.length>1 ? (W-padL-padR)/(pontos.length-1) : 0;
-  function xAt(i){ return padL + i*passoX; }
-  function yAt(v){ return H-padB - (v/maxVal)*(H-padB-padT); }
-  let pathTotal = '', pathVm = '';
-  pontos.forEach((p,i) => {
-    pathTotal += (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(p.total).toFixed(1) + ' ';
-    pathVm += (i===0?'M':'L') + xAt(i).toFixed(1) + ',' + yAt(p.vm).toFixed(1) + ' ';
-  });
-  let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:100%; height:auto; font-family:\'IBM Plex Sans\',sans-serif; font-variant-numeric:tabular-nums;">';
-  svg += '<line x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-padR)+'" y2="'+(H-padB)+'" style="stroke:var(--line); stroke-width:1"/>';
-  svg += '<path d="'+pathTotal+'" style="fill:none; stroke:var(--accent); stroke-width:2.2"/>';
-  svg += '<path d="'+pathVm+'" style="fill:none; stroke:var(--vm); stroke-width:2" stroke-dasharray="4 3"/>';
-  pontos.forEach((p,i) => {
-    svg += '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(p.total).toFixed(1)+'" r="3" style="fill:var(--accent)"/>';
-    if (i % Math.ceil(pontos.length/12 || 1) === 0 || i===pontos.length-1){
-      svg += '<text x="'+xAt(i).toFixed(1)+'" y="'+(H-padB+16)+'" font-size="10" style="fill:var(--muted)" text-anchor="middle">R'+p.n+'</text>';
-    }
-  });
-  svg += '</svg>';
-  svg += '<div style="margin-top:6px; font-size:12px; color:var(--muted);">' +
-    '<span style="color:var(--accent);">— total de pendências</span> &nbsp; ' +
-    '<span style="color:var(--vm);">╌ críticas (VM)</span></div>';
-  cont.innerHTML = svg;
+  const parados = Array.from(porForn.values()).map((x) => Object.assign(x, { dias: x.ultima ? Math.floor((agora - x.ultima) / DIA) : null }))
+    .filter((x) => x.aberto > 0 && (x.dias === null || x.dias >= 3)).sort((a,b) => b.aberto - a.aberto);
+  html += card('Fornecedores parados', 'Com itens em aberto e sem nenhuma baixa há 3 dias ou mais — pra cobrar.',
+    parados.length ? parados.slice(0, 8).map((x) => linha(esc(x.nome), pdfNum(x.aberto)+' em aberto', '<span style="color:var(--aviso-cor);">'+(x.dias === null ? 'nunca deu baixa' : 'sem baixa há '+x.dias+' dia(s)')+'</span>', 'data-plano-forn="'+esc(x.nome)+'"')).join('')
+    : '<div class="vazio">Todos os fornecedores com itens em aberto tiveram baixa nos últimos 3 dias.</div>');
+
+  // fila da IAC por andar
+  const filaAndar = new Map();
+  pend.forEach((it) => { const a = acompanhamento[it.id]; if (a && a.awExecEm && !a.iacOkEm) filaAndar.set(it.andar, (filaAndar.get(it.andar)||0) + 1); });
+  const fila = Array.from(filaAndar.entries()).sort((a,b) => b[1] - a[1]);
+  html += card('Fila da IAC', pdfNum(aguardando)+' item(ns) executados aguardando vistoria — por andar, pra organizar a próxima vistoria.',
+    fila.length ? fila.slice(0, 8).map(([andar, n]) => linha(andar+'º andar', 'aguardando vistoria', '<span style="color:var(--vd);">'+pdfNum(n)+'</span>', 'data-plano-fila="'+andar+'"')).join('')
+    : '<div class="vazio">Nada aguardando vistoria.</div>');
+  blocos.innerHTML = html;
+
+  // cliques levam pra aba Itens já filtrada
+  blocos.querySelectorAll('[data-plano-item]').forEach((el) => el.addEventListener('click', () => abrirItens({ andar: el.dataset.andar, ambiente: 'local:'+el.dataset.local, busca: el.dataset.planoItem })));
+  blocos.querySelectorAll('[data-plano-local]').forEach((el) => el.addEventListener('click', () => abrirItens({ andar: el.dataset.andar, ambiente: 'local:'+el.dataset.planoLocal, fluxo: 'emAberto' })));
+  blocos.querySelectorAll('[data-plano-disc]').forEach((el) => el.addEventListener('click', () => abrirItens({ disciplina: el.dataset.planoDisc, fluxo: 'emAberto' })));
+  blocos.querySelectorAll('[data-plano-forn]').forEach((el) => el.addEventListener('click', () => abrirItens({ fornecedor: el.dataset.planoForn, fluxo: 'emAberto' })));
+  blocos.querySelectorAll('[data-plano-fila]').forEach((el) => el.addEventListener('click', () => abrirItens({ andar: el.dataset.planoFila, fluxo: 'awSemIac' })));
+
+  // resumo em texto pro grupo
+  const linhasTxt = [];
+  linhasTxt.push('Faltam '+pdfNum(emAberto)+' itens em aberto. Ritmo dos últimos 7 dias: '+pdfNum(Math.round(ritmoAw))+'/dia executados pela AW e '+pdfNum(Math.round(ritmoIac))+'/dia vistoriados pela IAC.');
+  linhasTxt.push(previsao ? 'No ritmo atual, zera por volta de '+fmtData(previsao)+'.' : 'Sem execuções nos últimos 7 dias — não dá pra prever data.');
+  if (metaTxt) linhasTxt.push(metaTxt);
+  if (vms.length) linhasTxt.push('Prioridade 1: '+vms.length+' vermelho(s) em aberto.');
+  if (locais.length) linhasTxt.push('Fechar '+locais.length+' ambiente(s) acima de 90% (ex.: '+locais.slice(0,3).map((x) => x.l.label+' '+x.l.andar+'º (faltam '+x.aberto+')').join(', ')+').');
+  if (parados.length) linhasTxt.push('Cobrar: '+parados.slice(0,3).map((x) => x.nome+' ('+(x.dias === null ? 'sem baixas' : x.dias+' dias sem baixa')+')').join(', ')+'.');
+  if (aguardando) linhasTxt.push('IAC: '+pdfNum(aguardando)+' itens aguardando vistoria'+(fila.length ? ', principalmente no '+fila.slice(0,2).map(([a]) => a+'º').join(' e ') : '')+'.');
+  resumoEl.textContent = linhasTxt.join('\n');
 }
 
 /* ===================== ENVIO ===================== */
