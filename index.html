@@ -4,9 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Checklist</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="apple-touch-icon" href="icon-180.png">
+<script>
+/* manifesto e ícones só no endereço publicado: na pré-visualização do Claude esses arquivos
+   não existem e cada um virava um erro no console */
+(function(){
+  var preview = location.protocol === 'about:' || location.protocol === 'blob:' || location.origin === 'null' ||
+    /claudeusercontent\.com$|claude\.ai$|claude\.site$|anthropic/.test(location.hostname);
+  if (!preview) document.write('<link rel="manifest" href="manifest.json">' +
+    '<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">' +
+    '<link rel="apple-touch-icon" href="icon-180.png">');
+})();
+</script>
 <meta name="theme-color" content="#0F766E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -155,6 +163,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
     grid-template-areas:
       "disc disc disc  disc aberto"
       "disc disc disc  disc total"
+      "pct  pct  pct   pct  pct"
       "vm   am   reinc exc  btn"
       "forn forn forn  forn forn";
     gap:10px 6px; align-items:center;
@@ -184,7 +193,12 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 
   table.tabela-cartao-mobile td:nth-child(8){ grid-area:reinc; font-size:12px; color:var(--muted); white-space:nowrap; }
   table.tabela-cartao-mobile td:nth-child(8)::before{ content:"↺ "; }
-  table.tabela-cartao-mobile td:nth-child(9){ grid-area:btn; }
+  table.tabela-cartao-mobile td:nth-child(9){ grid-area:pct; text-align:left; }
+  table.tabela-cartao-mobile td:nth-child(9) .pct-trilho{ width:100%; flex:1; }
+  table.tabela-cartao-mobile td:nth-child(9) .pct-cel{ display:flex; width:100%; }
+  table.tabela-cartao-mobile td:nth-child(9) .pct-num::after{ content:" executado"; }
+  table.tabela-cartao-mobile td:nth-child(9) .pct-num{ min-width:0; }
+  table.tabela-cartao-mobile td:nth-child(10){ grid-area:btn; }
 
   /* fornecedor: mesma largura, altura e borda dos filtros (Todos os andares etc.) */
   table.tabela-cartao-mobile td:nth-child(2){ grid-area:forn; }
@@ -207,6 +221,24 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .andar-barra .barra{ flex:1 1 auto; min-width:60px; height:18px; border-radius:5px; background:var(--semdados-soft); position:relative; overflow:hidden; }
 .andar-barra .barra > span{ position:absolute; inset:0; border-radius:5px; }
 .mini-stats{ display:flex; gap:7px; flex:none; }
+/* torre: o preenchimento da barra = % executado; o fundo clarinho mantém a cor do status */
+.andar-barra .barra.fundo-status-vm{ background:var(--vm-soft); }
+.andar-barra .barra.fundo-status-pendente{ background:var(--aviso-cor-soft); }
+.andar-barra .barra.fundo-status-liberado-pend{ background:var(--azul-soft); }
+.andar-barra .barra.fundo-status-vd{ background:var(--vd-soft); }
+.andar-barra .barra > span.preenchido{ right:auto; border-radius:5px 0 0 5px; }
+.andar-barra .barra > span.pct-barra{ position:absolute; inset:auto; left:auto; right:7px; top:50%; transform:translateY(-50%); border-radius:0; font-size:10.5px; color:var(--text-2); font-variant-numeric:tabular-nums; z-index:1; }
+/* % nas tabelas */
+.pct-cel{ display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+.pct-trilho{ width:46px; height:5px; border-radius:3px; background:var(--line); overflow:hidden; display:inline-block; }
+.pct-feito{ display:block; height:100%; background:var(--accent); border-radius:3px; }
+.pct-num{ font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums; min-width:32px; text-align:right; }
+.destaque-pct{ display:flex; flex-wrap:wrap; gap:6px 22px; align-items:baseline; padding:2px 0 16px; }
+.destaque-pct .grande{ font-size:26px; color:var(--text); font-weight:300; }
+.destaque-pct .rot{ font-size:12.5px; color:var(--muted); }
+.stat .pct-sub{ font-size:11.5px; color:var(--faint); margin-top:2px; }
+.resumo-filtro{ font-size:13px; color:var(--muted); margin:2px 2px 10px; }
+.resumo-filtro b{ font-weight:400; color:var(--text); }
 .mini-stat{ display:flex; flex-direction:column; align-items:center; width:28px; line-height:1.15; }
 .mini-rotulo{ font-size:9.5px; color:var(--muted); font-weight:400; letter-spacing:.2px; }
 .mini-valor{ font-size:12px; color:var(--muted); font-weight:500; }
@@ -511,7 +543,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th class="col-centro">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -554,6 +586,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn" id="btn-aplicar-fornecedor-lote">Aplicar aos selecionados</button>
       <button class="btn fantasma" id="btn-limpar-selecao-itens">Limpar seleção</button>
     </div>
+    <div class="resumo-filtro" id="resumo-filtro-itens"></div>
     <div class="card">
       <table>
         <thead><tr>
@@ -576,7 +609,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table class="tabela-cartao-mobile">
         <thead><tr>
           <th>Disciplina</th><th>Fornecedor padrão</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">Total pend.</th><th class="num-col">Exceções</th><th class="num-col">Reinc.</th><th></th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">Total pend.</th><th class="num-col">Exceções</th><th class="num-col">Reinc.</th><th class="col-centro">% exec.</th><th></th>
         </tr></thead>
         <tbody id="tbody-disciplinas"></tbody>
       </table>
@@ -712,9 +745,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="modal-sub" id="texto-reprovado"></div>
     <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
       <button type="button" class="btn" id="btn-reprovado-sim" style="justify-content:center; color:var(--vm); border-color:var(--vm);">Item reprovado pela IAC</button>
-      <button type="button" class="btn" id="btn-reprovado-cancelar" style="justify-content:center;">Cancelar</button>
+      <button type="button" class="btn" id="btn-reprovado-engano" style="justify-content:center;">Marquei como executado por engano</button>
+      <button type="button" class="btn fantasma" id="btn-reprovado-cancelar" style="justify-content:center;">Cancelar</button>
     </div>
-    <div style="font-size:12px; color:var(--muted); margin-top:12px; text-align:center;">Reprovado: o item volta para aberto e fica marcado como reincidência.</div>
+    <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.5; text-align:center;">Reprovado: volta para aberto e conta como reincidência.<br>Por engano: volta para aberto sem contar reincidência.</div>
   </div>
 </div>
 
@@ -738,12 +772,17 @@ const SUPABASE_URL = 'https://mspozldtbdbgwgttlgtc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1B5A_eRO3MejJDFAnLcvXg_5MQFmulU';
 const SUPABASE_BUCKET = 'fotos';
 
+/* Na pré-visualização do Claude (e em qualquer endereço que não seja o publicado), o acesso ao
+   Supabase é bloqueado — tentar conectar só enchia o console de erros. Ali o painel roda no
+   modo de pré-visualização: sem nuvem, sem erro, com os dados guardados só nesse navegador. */
+const EM_PREVIEW = location.protocol === 'about:' || location.protocol === 'blob:' || location.origin === 'null' ||
+  /claudeusercontent\.com$|claude\.ai$|claude\.site$|anthropic/.test(location.hostname);
 let supa = null;
 try{
-  if (window.supabase && SUPABASE_URL.indexOf('COLE_AQUI') === -1){
+  if (!EM_PREVIEW && window.supabase && SUPABASE_URL.indexOf('COLE_AQUI') === -1){
     supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
-}catch(e){ console.error('Supabase não inicializou:', e); supa = null; }
+}catch(e){ console.warn('Supabase não inicializou:', (e && e.message) || e); supa = null; }
 
 /* monta a URL pública de uma foto guardada no bucket — substitui o antigo "/_blob/"+id */
 function urlDaFoto(id){
@@ -806,7 +845,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.16';
+const VERSAO_APP = '2026-10-03.19';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -926,7 +965,7 @@ const store = {
       try{
         const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ console.error('falha ao ler a coleção', col, e); return []; }
+      }catch(e){ console.warn('falha ao ler a coleção', col, '—', (e && (e.message || e.details)) || e); return []; }
     }
     const all = this._lerLocal(col);
     return Object.keys(all).map(id => Object.assign({ _id: id }, all[id]));
@@ -936,7 +975,7 @@ const store = {
       try{
         const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col).eq('data->>revisao', revisaoStr));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ console.error('falha ao ler a revisão', col, revisaoStr, e); return []; }
+      }catch(e){ console.warn('falha ao ler a revisão', col, revisaoStr, '—', (e && (e.message || e.details)) || e); return []; }
     }
     const all = await this.listCollection(col);
     return all.filter(d => d.revisao === revisaoStr);
@@ -947,7 +986,7 @@ const store = {
         const strs = listaRevisoes.map(String);
         const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col).in('data->>revisao', strs));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ console.error('falha ao ler as revisões', col, e); return []; }
+      }catch(e){ console.warn('falha ao ler as revisões', col, '—', (e && (e.message || e.details)) || e); return []; }
     }
     const all = await this.listCollection(col);
     return all.filter(d => listaRevisoes.includes(d.revisao));
@@ -2102,6 +2141,7 @@ async function alternarAcompanhamento(itemId, campo, modo){
       if (!foiEngano){
         const escolha = await perguntarReprovado(itemId, atual);
         if (!escolha) return; // Cancelar: continua executado, nada muda
+        foiEngano = escolha === 'engano';
       }
       novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
       novo.awExecPor = null; novo.iacOkPor = null;
@@ -2269,6 +2309,21 @@ function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
 /* VM e AM AINDA EM ABERTO (a AW não executou) — é isso que as colunas VM/AM, os cartões e
    os PDFs mostram: o que falta, e não a cor com que o item veio na planilha.
    total = todos os itens da planilha (não muda com a execução). */
+/* % executado = itens VM/AM que a AW já executou (ou a IAC já vistoriou) ÷ total da planilha */
+function percentualExecutado(itens){
+  let total = 0, feitos = 0;
+  itens.forEach((i) => {
+    if (i.status !== 'VM' && i.status !== 'AM') return;
+    total++;
+    if (!estaEmAberto(i)) feitos++;
+  });
+  return total ? Math.round(feitos/total*100) : 0;
+}
+function fmtPct(n){ return n + '%'; }
+/* barrinha de progresso + número, usada nas tabelas */
+function barraPct(pct){
+  return '<span class="pct-cel"><span class="pct-trilho"><span class="pct-feito" style="width:'+pct+'%"></span></span><span class="pct-num">'+pct+'%</span></span>';
+}
 function contarVMAMAbertos(itens){
   let vm=0, am=0, total=0;
   itens.forEach((i) => {
@@ -2446,7 +2501,7 @@ function renderPillArmazenamento(){
     pill.textContent = 'Salvo na nuvem';
     pill.className = 'pill cloud';
   } else {
-    pill.textContent = 'Salvo neste navegador';
+    pill.textContent = EM_PREVIEW ? 'Pré-visualização' : 'Salvo neste navegador';
     pill.className = 'pill local';
   }
 }
@@ -2489,6 +2544,7 @@ function renderTorreAndares(){
     row.dataset.andar = andar;
     let statusClasse = 'status-sem', contagemTxt = 'sem dados', liberadoTotal = false;
     let miniStatsHtml = '';
+    let pctAndar = null;
     if (temDados){
       const itensDoAndar = registro ? registro.itens : [];
       const locaisDoAndar = todosLocais.filter((l) => l.andar === andar);
@@ -2502,6 +2558,7 @@ function renderTorreAndares(){
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const abertoDoAndar = contarEmAberto(itensDoAndar);
+      pctAndar = percentualExecutado(itensDoAndar);
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
         '<span class="mini-stat"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+awExecDoAndar+'</span></span>' +
@@ -2511,7 +2568,9 @@ function renderTorreAndares(){
     }
     row.classList.toggle('liberado-total', liberadoTotal);
     row.innerHTML = '<span class="num mono">' + andar + 'º</span>' +
-      '<span class="barra"><span class="' + statusClasse + '"></span></span>' +
+      (pctAndar === null
+        ? '<span class="barra"><span class="' + statusClasse + '"></span></span>'
+        : '<span class="barra fundo-' + statusClasse + '" title="'+pctAndar+'% executado pela AW"><span class="' + statusClasse + ' preenchido" style="width:'+pctAndar+'%"></span><span class="pct-barra">'+pctAndar+'%</span></span>') +
       (miniStatsHtml || '<span class="contagem mono">' + contagemTxt + '</span>') +
       (liberadoTotal ? '<span class="selo-liberado" title="Andar liberado por inteiro">✓</span>' : '');
     row.addEventListener('click', () => {
@@ -2558,23 +2617,35 @@ async function renderResumoGeral(recarregarHistorico){
     if (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO') andaresLiberadosTotal++;
   });
 
+  const totalItens = c.total || 1;
+  const pctExec = percentualExecutado(itensRevisaoAtual);
+  const pctVist = Math.round(iacOk/totalItens*100);
+  const vmTotal = itensRevisaoAtual.filter((it) => it.status === 'VM').length;
+  const vmFeitos = vmTotal - c.vm;
+  const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
+  const sub = (n) => '<div class="pct-sub">'+Math.round(n/totalItens*100)+'% do total</div>';
   grid.innerHTML =
+    '<div class="destaque-pct">' +
+      '<span><span class="grande">'+fmtPct(pctExec)+'</span> <span class="rot">executado pela AW</span></span>' +
+      '<span><span class="grande">'+fmtPct(pctVist)+'</span> <span class="rot">vistoriado pela IAC</span></span>' +
+      (vmTotal ? '<span><span class="grande" style="color:var(--vm);">'+vmFeitos+' de '+vmTotal+'</span> <span class="rot">vermelhos executados ('+pctVm+'%)</span></span>' : '') +
+    '</div>' +
     '<div class="grupo-label">Progresso dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (AW ainda não executou)</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div></div>' +
-      '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (AW ainda não executou)</div>'+sub(emAberto)+'</div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div>'+sub(awExec)+'</div>' +
+      '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div>'+sub(iacOk)+'</div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
       '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Itens por situação atual</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div></div>' +
-      '<div class="stat executado clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+(awExec - itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && acompanhamento[it.id].iacOkEm).length)+'</div><div class="rotulo">Executado AW (aguardando IAC)</div></div>' +
-      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div></div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div>'+sub(c.am)+'</div>' +
+      '<div class="stat executado clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+(awExec - itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && acompanhamento[it.id].iacOkEm).length)+'</div><div class="rotulo">Executado AW (aguardando IAC)</div>'+sub(awExec - itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && acompanhamento[it.id].iacOkEm).length)+'</div>' +
+      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div>'+sub(iacOk)+'</div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
@@ -2957,7 +3028,12 @@ function renderEvolucaoPendencias(){
     cont.querySelector('#evo-dia-sel').textContent = p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().join('/');
     cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#39976A;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#4C73D9;">IAC +'+pdfNum(p.iacDia)+'</span>' +
       (p.reincDia ? ' · <span style="color:#D1443F;">'+pdfNum(p.reincDia)+' reincidência'+(p.reincDia>1?'s':'')+'</span>' : '');
-    SERIES_EVOLUCAO.forEach((s) => { const el = cont.querySelector('[data-valor-de="'+s.chave+'"]'); if (el) el.textContent = pdfNum(p[s.chave]); });
+    SERIES_EVOLUCAO.forEach((s) => {
+      const el = cont.querySelector('[data-valor-de="'+s.chave+'"]');
+      if (!el) return;
+      const pct = (s.chave === 'total' || !p.total) ? '' : '<span style="font-size:13px; color:var(--muted); margin-left:6px;">'+Math.round(p[s.chave]/p.total*100)+'%</span>';
+      el.innerHTML = pdfNum(p[s.chave]) + pct;
+    });
   }
   preencherTopo(ult);
   function mostrar(ev){
@@ -3019,14 +3095,14 @@ function envolverTextoEm2Linhas(texto, maxCharsPorLinha){
   return [linha1, linha2];
 }
 
-function construirRankingHorizontal(mapaContagens, corBarra, maxItens){
+function construirRankingHorizontal(mapaContagens, corBarra, maxItens, sufixos){
   const lista = Array.from(mapaContagens.entries()).sort((a,b) => b[1]-a[1]).slice(0, maxItens||12);
   if (lista.length === 0) return '<div class="vazio">Sem pendências nesta revisão.</div>';
   const maxVal = Math.max(1, ...lista.map(([,v]) => v));
   // ALTURA_BARRA é fixa sempre — só o espaço da LINHA (pra caber o rótulo em 2 linhas) varia.
   // a barra nunca fica "gorda" ou "fina" por causa do texto, só o espaço ao redor dela.
   const ALTURA_BARRA = 26;
-  const padL=172, padR=52, padT=8, gap=16, alturaUmaLinha=34, alturaDuasLinhas=50;
+  const padL=172, padR=sufixos ? 150 : 52, padT=8, gap=16, alturaUmaLinha=34, alturaDuasLinhas=50;
   const W = 660;
   const itens = lista.map(([nome,valor]) => {
     const linhas = envolverTextoEm2Linhas(nome, 20);
@@ -3049,7 +3125,8 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens){
       svg += '<text x="'+(padL-12)+'" y="'+(centroY+16)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[1])+'</text>';
     }
     svg += '<rect x="'+padL+'" y="'+yBarra.toFixed(1)+'" width="'+larguraBarra.toFixed(1)+'" height="'+ALTURA_BARRA+'" rx="6" style="fill:'+corBarra+'"/>';
-    svg += '<text x="'+(padL+larguraBarra+10)+'" y="'+(centroY+5)+'" font-size="13.5" style="fill:var(--muted)">'+it.valor+'</text>';
+    svg += '<text x="'+(padL+larguraBarra+10)+'" y="'+(centroY+5)+'" font-size="13.5" style="fill:var(--muted)">'+it.valor+
+      (sufixos && sufixos.get(it.nome) ? '<tspan style="fill:var(--faint)">  ·  '+esc(sufixos.get(it.nome))+'</tspan>' : '')+'</text>';
   });
   svg += '</svg>';
   return svg;
@@ -3058,6 +3135,15 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens){
 function renderRankings(){
   const porForn = new Map();
   const porDisc = new Map();
+  // % executado de cada fornecedor / disciplina (sobre todos os itens dele)
+  const todosForn = new Map(), todosDisc = new Map();
+  itensRevisaoAtual.forEach((it) => {
+    const f = fornecedorEfetivo(it) || 'Sem fornecedor definido', d = disciplinaEfetiva(it);
+    if (!todosForn.has(f)) todosForn.set(f, []); todosForn.get(f).push(it);
+    if (!todosDisc.has(d)) todosDisc.set(d, []); todosDisc.get(d).push(it);
+  });
+  const sufForn = new Map(Array.from(todosForn.entries()).map(([k,v]) => [k, percentualExecutado(v)+'% exec.']));
+  const sufDisc = new Map(Array.from(todosDisc.entries()).map(([k,v]) => [k, percentualExecutado(v)+'% exec.']));
   // conta só o que AINDA está em aberto (some do ranking assim que a AW executa)
   itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).forEach((it) => {
     const nomeForn = fornecedorEfetivo(it) || 'Sem fornecedor definido';
@@ -3065,8 +3151,8 @@ function renderRankings(){
     const disc = disciplinaEfetiva(it);
     porDisc.set(disc, (porDisc.get(disc)||0)+1);
   });
-  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--lilas-fill)');
-  document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)');
+  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--lilas-fill)', null, sufForn);
+  document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)', null, sufDisc);
 }
 
 /* ===================== RENDER: QUARTOS ===================== */
@@ -3161,6 +3247,7 @@ function renderQuartos(){
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
       '<td class="num-col col-fluxo">'+awExecDoLocal+'</td><td class="num-col col-fluxo">'+iacOkDoLocal+'</td>' +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
+      '<td class="col-centro">'+barraPct(percentualExecutado(l.itens))+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>';
     tbody.appendChild(tr);
     linhas++;
@@ -3421,6 +3508,15 @@ function renderItens(){
   tbody.innerHTML = '';
   const todosFiltrados = obterItensFiltrados();
   const itens = todosFiltrados.slice(0, itensPaginaAtual * ITENS_POR_PAGINA);
+  // resumo do que está na tela, conforme os filtros
+  const resumoEl = document.getElementById('resumo-filtro-itens');
+  if (resumoEl){
+    const vmAbertos = todosFiltrados.filter((it) => it.status === 'VM' && estaEmAberto(it)).length;
+    resumoEl.innerHTML = todosFiltrados.length
+      ? '<b>'+pdfNum(todosFiltrados.length)+'</b> '+(todosFiltrados.length===1?'item':'itens')+' · <b>'+percentualExecutado(todosFiltrados)+'%</b> executados pela AW' +
+        (vmAbertos ? ' · <span style="color:var(--vm);">'+vmAbertos+' VM em aberto</span>' : '')
+      : '';
+  }
 
   // disciplinas que EXISTEM na planilha (não inclui nada inventado) — é a lista fechada
   // que o editor vai oferecer, já que disciplina é dado do cliente, não posso criar uma nova
@@ -3573,8 +3669,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
       })() +
-      (ac.awExecEm ? '<div class="modal-campo"><button type="button" class="btn fantasma" id="edit-desfazer-aw" style="width:100%; justify-content:center; font-size:13px;">Desfazer Executado AW (marcado por engano)</button>' +
-        '<div style="font-size:12px; color:var(--muted); margin-top:6px;">Volta o item para aberto sem registrar reincidência. Use só quando o item foi marcado como executado sem ter sido feito.</div></div>' : '') +
+
       '<div class="modal-campo">' +
         '<label for="edit-disc">Disciplina <span style="font-weight:400; color:var(--muted);">(vem da planilha, só reclassifica entre as existentes)</span></label>' +
         '<select id="edit-disc">'+opcoesDisc+'</select>' +
@@ -3669,6 +3764,7 @@ function renderDisciplinas(){
       '<td class="num-col col-fluxo" data-label="Total pend.">'+c.total+'</td>' +
       '<td class="num-col" data-label="Exceções">'+(excecoes>0?excecoes:'—')+'</td>' +
       '<td class="num-col'+(reinc?' col-vm':'')+'" data-label="Reinc.">'+(reinc>0?reinc:'—')+'</td>' +
+      '<td class="col-centro" data-label="% exec.">'+barraPct(percentualExecutado(itens))+'</td>' +
       '<td data-label="" class="col-centro"><button class="chip-acao" data-ver-disc="'+esc(disc)+'">Ver itens</button></td>';
     tbody.appendChild(tr);
   });
@@ -4693,19 +4789,20 @@ async function exportarQuartosPdf(){
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
   const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M, RH = 21;
   // centros das colunas centralizadas (igual à tela): Andar, Status e os números
-  const C = { andar:P+14, status:P+206, vm:P+290, am:P+326, aberto:P+366, aw:P+402, iac:P+436, total:CW-P-24 };
+  const C = { andar:P+14, status:P+192, vm:P+262, am:P+294, aberto:P+330, aw:P+364, iac:P+396, total:P+432, pct:P+452 };
   const colunas = [
     { rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:C.status, align:'center' },
     { rotulo:'VM', x:C.vm, align:'center', cor:PDF_COR.vm }, { rotulo:'AM', x:C.am, align:'center', cor:PDF_COR.am },
     { rotulo:'Aberto', x:C.aberto, align:'center', cor:PDF_COR.ink }, { rotulo:'AW', x:C.aw, align:'center' },
-    { rotulo:'IAC', x:C.iac, align:'center' }, { rotulo:'Total pend.', x:C.total, align:'center' }
+    { rotulo:'IAC', x:C.iac, align:'center' }, { rotulo:'Total', x:C.total, align:'center' },
+    { rotulo:'% exec.', x:(C.pct + CW - P)/2, align:'center' }
   ];
   const linhas = dados.map((d) => ({
     altura: RH,
     desenhar: (doc, cx, top) => {
       const b = top + RH/2 + 3;
       pdfTxt(doc, cx+C.andar, b, d.l.andar+'º', 8.5, PDF_COR.ink2, 'center');
-      pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 100), 8.5, PDF_COR.ink);
+      pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 86), 8.5, PDF_COR.ink);
       const p = PDF_PRIO[d.status];
       pdfPill(doc, cx+C.status - (pdfLarg(doc, p.longo, 7.5)+14)/2, b, p.longo, p.fg, p.bg);
       pdfTxt(doc, cx+C.vm, b, d.vm, 8.5, PDF_COR.vm, 'center');
@@ -4714,6 +4811,11 @@ async function exportarQuartosPdf(){
       pdfTxt(doc, cx+C.aw, b, d.aw, 8.5, PDF_COR.muted, 'center');
       pdfTxt(doc, cx+C.iac, b, d.iac, 8.5, PDF_COR.muted, 'center');
       pdfTxt(doc, cx+C.total, b, d.total, 8.5, PDF_COR.muted, 'center');
+      // % executado: barrinha + número (igual à coluna da tela)
+      const pct = percentualExecutado(d.l.itens), bw = 24;
+      pdfFill(doc, PDF_COR.line); doc.roundedRect(cx+C.pct, b-5, bw, 4, 2, 2, 'F');
+      if (pct > 0){ pdfFill(doc, PDF_COR.acc); doc.roundedRect(cx+C.pct, b-5, Math.max(4, bw*pct/100), 4, 2, 2, 'F'); }
+      pdfTxt(doc, cx+CW-P, b, pct+'%', 7.5, PDF_COR.muted, 'right');
     }
   }));
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
@@ -4884,6 +4986,7 @@ async function iniciar(){
   document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
   document.getElementById('btn-semelhante-novo').addEventListener('click', () => fecharSemelhante('__novo__'));
   document.getElementById('btn-reprovado-sim').addEventListener('click', () => fecharReprovado('reinc'));
+  document.getElementById('btn-reprovado-engano').addEventListener('click', () => fecharReprovado('engano'));
   document.getElementById('btn-reprovado-cancelar').addEventListener('click', () => fecharReprovado(null));
   document.getElementById('btn-semelhante-cancelar').addEventListener('click', () => fecharSemelhante(null));
   document.getElementById('btn-cancelar-usuario').addEventListener('click', cancelarNomeUsuario);
