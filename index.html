@@ -614,6 +614,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <input type="text" id="bulk-fornecedor" placeholder="Nome do fornecedor" autocomplete="off">
       <button class="btn" id="btn-aplicar-fornecedor-lote">Aplicar aos selecionados</button>
       <button class="btn fantasma" id="btn-limpar-selecao-itens">Limpar seleção</button>
+      <button class="btn fantasma ambar oculto" id="btn-tirar-obra-lote" style="margin-left:auto;">🗑 Tirar da obra (outra diretoria)</button>
     </div>
     <div class="resumo-filtro" id="resumo-filtro-itens"></div>
     <div class="card">
@@ -702,6 +703,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </div>
       <input type="file" id="input-arquivos" accept=".xlsx,.pdf,.zip" multiple class="oculto">
       <div id="preview-envio" style="margin-top:16px;"></div>
+    </div>
+    <div class="card card-pad oculto" id="lista-excluidos" style="margin-top:16px;">
     </div>
   </section>
 
@@ -883,7 +886,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.49';
+const VERSAO_APP = '2026-10-03.50';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1982,7 +1985,9 @@ async function sincronizarDados(manual){
     });
     if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
     if (cfg.some((d) => d._id === 'pessoas')) await carregarPessoas();
-    let recarregarRevisao = snaps.length > 0;
+    let recarregarPorExclusao = false;
+    if (cfg.some((d) => d._id === 'excluidos')){ await carregarExcluidos(); recarregarPorExclusao = true; renderListaExcluidos(); }
+    let recarregarRevisao = snaps.length > 0 || recarregarPorExclusao;
     if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
     ultimaSincronizacao = novaMarca;
     if (recarregarRevisao) await selecionarRevisao(revisaoSelecionada);
@@ -2207,6 +2212,7 @@ function nomeValido(s){
   return partes.length >= 2;
 }
 function renderUsuarioTopo(){
+  try{ atualizarBotaoTirarLote(); renderListaExcluidos(); }catch(e){}
   const b = document.getElementById('btn-usuario');
   if (!b) return;
   b.textContent = usuarioAtual ? usuarioAtual : 'Identificar-se';
@@ -2431,6 +2437,73 @@ async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter)
   await store.setDoc('snapshots', docId, Object.assign({}, doc, { areasLiberadas: atual }));
 }
 
+/* ===================== ITENS DE OUTRA DIRETORIA =====================
+   Item que veio na planilha da IAC mas não é da nossa obra: some de tudo (torre, abas,
+   números, PDFs) e continua escondido nas próximas revisões (guardado pelo número do item).
+   Dá pra restaurar. Só Guilherme Titton e Marcel Camilo veem os botões (não é senha —
+   é pra evitar engano no dia a dia). */
+let itensExcluidos = {}; // id → { por, em, andar, local, disciplina, desc }
+const PODE_TIRAR_DA_OBRA = ['Guilherme Titton', 'Marcel Camilo'];
+function podeTirarDaObra(){
+  return !!usuarioAtual && PODE_TIRAR_DA_OBRA.some((n) => chaveComparacao(n) === chaveComparacao(usuarioAtual));
+}
+async function carregarExcluidos(){
+  try{
+    const d = await store.getDoc('config', 'excluidos');
+    itensExcluidos = (d && d.itens) ? d.itens : {};
+  }catch(e){ itensExcluidos = {}; }
+}
+async function tirarDaObra(ids){
+  if (!podeTirarDaObra() || !ids.length) return false;
+  const doc = await store.getDoc('config', 'excluidos');   // lê na hora: outra pessoa pode ter mexido
+  const atual = (doc && doc.itens) ? Object.assign({}, doc.itens) : {};
+  const agora = new Date().toISOString();
+  ids.forEach((id) => {
+    const it = itensRevisaoAtual.find((x) => x.id === id) || {};
+    atual[id] = { por: usuarioAtual, em: agora, andar: it.andar || null,
+      local: it.tipo ? (it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo)) : '',
+      disciplina: it.disciplina || '', desc: String(it.desc || '').slice(0, 200) };
+  });
+  const r = await store.setDoc('config', 'excluidos', { itens: atual });
+  if (r.ok) itensExcluidos = atual;
+  return r.ok;
+}
+async function restaurarNaObra(id){
+  if (!podeTirarDaObra()) return false;
+  const doc = await store.getDoc('config', 'excluidos');
+  const atual = (doc && doc.itens) ? Object.assign({}, doc.itens) : {};
+  delete atual[id];
+  const r = await store.setDoc('config', 'excluidos', { itens: atual });
+  if (r.ok) itensExcluidos = atual;
+  return r.ok;
+}
+async function recarregarAposExclusao(){
+  await selecionarRevisao(revisaoSelecionada);
+  renderListaExcluidos();
+}
+function renderListaExcluidos(){
+  const cont = document.getElementById('lista-excluidos');
+  if (!cont) return;
+  const ids = Object.keys(itensExcluidos);
+  if (!ids.length || !podeTirarDaObra()){ cont.innerHTML = ''; cont.classList.add('oculto'); return; }
+  cont.classList.remove('oculto');
+  const linhas = ids.map((id) => Object.assign({ id }, itensExcluidos[id])).sort((a,b) => (a.andar||0) - (b.andar||0) || String(a.id).localeCompare(String(b.id), 'pt-BR', { numeric:true }));
+  cont.innerHTML = '<h2 style="margin-bottom:4px;">Itens de outra diretoria ('+ids.length+')</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Tirados da nossa obra — não aparecem em nenhuma tela nem nas próximas revisões. Restaure se algum foi tirado por engano.</p>' +
+    '<div style="overflow-x:auto;"><table><thead><tr><th class="col-centro">Item</th><th class="col-centro">Andar</th><th class="col-centro">Local</th><th>Disciplina</th><th>Descrição</th><th class="col-centro">Tirado por</th><th class="col-centro">Ação</th></tr></thead><tbody>' +
+    linhas.map((l) => '<tr><td class="mono col-centro">'+esc(l.id)+'</td><td class="mono col-centro">'+(l.andar ? l.andar+'º' : '—')+'</td><td class="col-centro">'+esc(l.local||'—')+'</td>' +
+      '<td>'+esc(l.disciplina||'—')+'</td><td>'+esc(l.desc||'—')+'</td>' +
+      '<td class="col-centro" style="font-size:12px; color:var(--muted);">'+esc(l.por||'—')+'<br>'+(l.em ? dataHoraCurta(l.em) : '')+'</td>' +
+      '<td class="col-centro"><button type="button" class="chip-acao" data-restaurar="'+esc(l.id)+'">Restaurar</button></td></tr>').join('') +
+    '</tbody></table></div>';
+  cont.querySelectorAll('[data-restaurar]').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const ok = await restaurarNaObra(b.dataset.restaurar);
+    avisoFlutuante(ok ? 'Item restaurado na obra' : 'Não consegui restaurar (sem conexão?)', ok ? 'ok' : 'erro');
+    await recarregarAposExclusao();
+  }));
+}
+
 async function carregarItensDaRevisao(numeroStr){
   const snaps = await store.queryRevisao('snapshots', numeroStr);
   const itens = [];
@@ -2448,7 +2521,7 @@ async function carregarItensDaRevisao(numeroStr){
       areasLiberadas[snap.andar + '|' + chave] = snap.areasLiberadas[chave];
     });
   });
-  return { itens, areasLiberadas };
+  return { itens: itens.filter((it) => !itensExcluidos[it.id]), areasLiberadas };
 }
 
 /* ===================== AGREGAÇÕES ===================== */
@@ -3673,6 +3746,10 @@ let filtroItemLocal = null; // { tipo, quarto } quando veio de um drill-down esp
 let filtroProgresso = null; // 'aberto' | 'awExec' | 'iacOk' | null — cliques que não têm um select próprio
 let filtroStatusBrutoAdHoc = null; // 'VM' | 'AM' | null — pra cliques em contagens que não mapeiam 1:1 no dropdown de status
 let itensSelecionados = new Set(); // ids selecionados pra classificação em lote (Disciplina/Fornecedor)
+function atualizarBotaoTirarLote(){
+  const b = document.getElementById('btn-tirar-obra-lote');
+  if (b) b.classList.toggle('oculto', !podeTirarDaObra());
+}
 
 /* ===================== VOLTAR INTELIGENTE =====================
    Ao "mergulhar" (torre → andar, quarto → itens, cartões, Ver itens…) guarda a tela de onde
@@ -4066,6 +4143,8 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
         '<input type="text" id="edit-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px;'+(fornEhConhecido||!fornAtual?' display:none;':'')+'" value="'+(fornEhConhecido?'':esc(fornAtual))+'">' +
       '</div>' +
       '<p style="font-size:11.5px; color:var(--muted); margin:-6px 0 16px;">O status vem direto da planilha da IAC e não é editável aqui — use os botões Executado AW / Vistoriado IAC na tabela pra acompanhar o andamento.</p>' +
+      (podeTirarDaObra() ? '<div class="modal-campo"><button type="button" class="btn fantasma ambar" id="edit-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar da obra (é de outra diretoria)</button>' +
+        '<div style="font-size:12px; color:var(--muted); margin-top:6px;">O item some de todas as telas e continua escondido nas próximas revisões. Dá pra restaurar na aba Enviar planilhas.</div></div>' : '') +
       '<div class="modal-acoes">' +
         '<button class="btn fantasma" id="edit-cancelar">Cancelar</button>' +
         '<button class="btn primario" id="edit-salvar">Salvar</button>' +
@@ -4082,6 +4161,14 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
     if (e.target.value === '__novo__') document.getElementById('edit-forn-novo').focus();
   });
   document.getElementById('edit-cancelar').addEventListener('click', fecharModalEdicao);
+  const btnTirar = document.getElementById('edit-tirar-obra');
+  if (btnTirar) btnTirar.addEventListener('click', async () => {
+    if (!window.confirm('Tirar o item '+itemId+' da obra?\n\nEle é de outra diretoria: some de todas as telas e das próximas revisões. Dá pra restaurar depois.')) return;
+    fecharModalEdicao();
+    const ok = await tirarDaObra([itemId]);
+    avisoFlutuante(ok ? 'Item tirado da obra' : 'Não consegui tirar (sem conexão?)', ok ? 'ok' : 'erro');
+    if (ok) await recarregarAposExclusao();
+  });
   const btnDesfazerAw = document.getElementById('edit-desfazer-aw');
   if (btnDesfazerAw) btnDesfazerAw.addEventListener('click', async () => {
     fecharModalEdicao();
@@ -5521,7 +5608,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
@@ -5632,6 +5719,14 @@ async function iniciar(){
   document.getElementById('btn-carregar-mais-itens').addEventListener('click', () => {
     itensPaginaAtual++;
     renderItens();
+  });
+  document.getElementById('btn-tirar-obra-lote').addEventListener('click', async () => {
+    const ids = Array.from(itensSelecionados);
+    if (!ids.length) return;
+    if (!window.confirm('Tirar '+ids.length+' item(ns) da obra?\n\nSão de outra diretoria: somem de todas as telas e das próximas revisões. Dá pra restaurar depois na aba Enviar planilhas.')) return;
+    const ok = await tirarDaObra(ids);
+    avisoFlutuante(ok ? ids.length+' item(ns) tirados da obra' : 'Não consegui tirar (sem conexão?)', ok ? 'ok' : 'erro');
+    if (ok){ itensSelecionados.clear(); await recarregarAposExclusao(); }
   });
   document.getElementById('btn-limpar-selecao-itens').addEventListener('click', () => {
     itensSelecionados.clear();
