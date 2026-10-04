@@ -310,6 +310,8 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .chip-acao.marcado.lib{ background:var(--lib-soft); color:var(--lib); border-color:var(--lib); }
 .col-aw{ color:var(--azul); } .col-iac{ color:var(--vd); }
 .mini-stat.aw .mini-valor{ color:var(--azul); } .mini-stat.iac .mini-valor{ color:var(--vd); }
+.mini-pct{ font-size:9.5px; line-height:1.2; font-variant-numeric:tabular-nums; color:var(--text-2); opacity:.75; }
+.mini-stat.aw .mini-pct{ color:var(--azul); }
 .chip-acao:disabled{ opacity:.4; cursor:not-allowed; }
 @media (hover:hover) and (pointer:fine){ .chip-acao:disabled:hover{ border-color:var(--line); color:var(--muted); } }
 .tag-origem{ font-size:10px; padding:1px 7px; border-radius:99px; font-weight:400; vertical-align:middle; }
@@ -516,12 +518,12 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="grid-metade" style="margin-top:18px;">
       <div class="card card-pad">
         <h2 style="margin-bottom:4px;">Pendências por fornecedor</h2>
-        <div class="rodape-nota" style="margin:0 0 12px; text-align:left;">Ordem: mais itens em aberto · parte forte = em aberto · parte clara = executado · % = quanto ainda está em aberto</div>
+        <div class="rodape-nota" style="margin:0 0 12px; text-align:left;">Ordem: mais itens em aberto · barra inteira = total · parte forte e % = executado</div>
         <div id="ranking-fornecedor"></div>
       </div>
       <div class="card card-pad">
         <h2 style="margin-bottom:4px;">Pendências por disciplina</h2>
-        <div class="rodape-nota" style="margin:0 0 12px; text-align:left;">Ordem: mais itens em aberto · parte forte = em aberto · parte clara = executado · % = quanto ainda está em aberto</div>
+        <div class="rodape-nota" style="margin:0 0 12px; text-align:left;">Ordem: mais itens em aberto · barra inteira = total · parte forte e % = executado</div>
         <div id="ranking-disciplina"></div>
       </div>
     </div>
@@ -861,7 +863,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.26';
+const VERSAO_APP = '2026-10-03.28';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -2586,9 +2588,9 @@ function renderTorreAndares(){
     row.innerHTML = '<span class="num mono">' + andar + 'º</span>' +
       (pctAndar === null
         ? '<span class="barra"><span class="' + statusClasse + '"></span></span>'
-        // mesmo desenho dos rankings: parte FORTE = o que ainda está em aberto; quanto menos
-        // cor, mais executado o andar está. O % na ponta = quanto ainda está em aberto.
-        : '<span class="barra fundo-' + statusClasse + '" title="'+(100-pctAndar)+'% ainda em aberto · '+pctAndar+'% executado pela AW"><span class="' + statusClasse + ' preenchido" style="width:'+(100-pctAndar)+'%"></span><span class="pct-barra'+((100-pctAndar) >= 88 ? ' sobre-forte' : '')+'">'+(100-pctAndar)+'%</span></span>') +
+        // REGRA ÚNICA das barras (torre e rankings): clarinho = total; parte FORTE = o que já foi
+        // executado (enche conforme a obra avança). O % fica ao lado, junto de cada número.
+        : '<span class="barra fundo-' + statusClasse + '" title="'+pctAndar+'% executado pela AW · '+(100-pctAndar)+'% ainda em aberto"><span class="' + statusClasse + ' preenchido" style="width:'+pctAndar+'%"></span><span class="pct-barra'+(pctAndar >= 88 ? ' sobre-forte' : '')+'">'+pctAndar+'%</span></span>') +
       (miniStatsHtml || '<span class="contagem mono">' + contagemTxt + '</span>') +
       (liberadoTotal ? '<span class="selo-liberado" title="Andar liberado por inteiro">✓</span>' : '');
     row.addEventListener('click', () => {
@@ -3150,18 +3152,17 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens, sufixos){
   return svg;
 }
 
-/* Ranking de pendências:
-   ordem = quem tem MAIS ITENS EM ABERTO fica em cima;
-   barra inteira = total de itens que ele recebeu;
-   parte FORTE (à esquerda) = o que ainda está em aberto → vai diminuindo de cima pra baixo;
-   parte clarinha = o que já foi executado;
-   dentro da barra = % ainda em aberto dele; ao lado = em aberto · executados · total. */
+/* Ranking de pendências — MESMA REGRA da torre:
+   barra clarinha = total de itens que ele recebeu; parte FORTE = o que já foi executado;
+   o clarinho que sobra = o que ainda está em aberto;
+   ordem = quem tem MAIS ITENS EM ABERTO fica em cima (o clarinho que sobra vai diminuindo);
+   ao lado = em aberto (com %) · executados (com %) · total. */
 function construirRankingProgresso(lista, cor, maxItens){
   lista = lista.slice().sort((a,b) => b.aberto - a.aberto || b.total - a.total).slice(0, maxItens||14);
   if (lista.length === 0) return '<div class="vazio">Sem pendências nesta revisão.</div>';
   const maxTotal = Math.max(1, ...lista.map((x) => x.total));
   const ALTURA_BARRA = 26;
-  const padL=172, padR=268, padT=8, gap=16, alturaUmaLinha=34, alturaDuasLinhas=50;
+  const padL=172, padR=270, padT=8, gap=16, alturaUmaLinha=34, alturaDuasLinhas=50;
   const W = 660;
   const itens = lista.map((x) => {
     const linhas = envolverTextoEm2Linhas(x.nome, 20);
@@ -3176,7 +3177,7 @@ function construirRankingProgresso(lista, cor, maxItens){
     const yBarra = centroY - ALTURA_BARRA/2;
     const larguraMax = W-padL-padR;
     const larguraTotal = Math.max(4, (it.total/maxTotal)*larguraMax);
-    const larguraAberto = it.total ? larguraTotal * it.aberto / it.total : 0;
+    const larguraFeita = it.total ? larguraTotal * (it.total - it.aberto) / it.total : 0;
     const pctAberto = it.total ? Math.round(it.aberto / it.total * 100) : 0;
     if (it.linhas.length === 1){
       svg += '<text x="'+(padL-12)+'" y="'+(centroY+5)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[0])+'</text>';
@@ -3184,16 +3185,19 @@ function construirRankingProgresso(lista, cor, maxItens){
       svg += '<text x="'+(padL-12)+'" y="'+(centroY-2)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[0])+'</text>';
       svg += '<text x="'+(padL-12)+'" y="'+(centroY+16)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[1])+'</text>';
     }
-    // barra inteira clarinha = total (o claro que sobra = executado); parte forte = em aberto
+    // barra inteira clarinha = total; parte forte = executado
     svg += '<rect x="'+padL+'" y="'+yBarra.toFixed(1)+'" width="'+larguraTotal.toFixed(1)+'" height="'+ALTURA_BARRA+'" rx="6" style="fill:'+cor+'; opacity:.25"/>';
-    if (larguraAberto > 0) svg += '<rect x="'+padL+'" y="'+yBarra.toFixed(1)+'" width="'+Math.max(6,larguraAberto).toFixed(1)+'" height="'+ALTURA_BARRA+'" rx="6" style="fill:'+cor+'"/>';
-    // % ainda em aberto, dentro da barra (na ponta), quando cabe
-    if (larguraTotal >= 46){
-      const dentroDoForte = larguraAberto >= larguraTotal - 4;
-      svg += '<text x="'+(padL+larguraTotal-8).toFixed(1)+'" y="'+(centroY+4.5)+'" font-size="12" text-anchor="end" style="fill:'+(dentroDoForte ? '#fff' : 'var(--text-2)')+'">'+pctAberto+'%</text>';
+    if (larguraFeita > 0) svg += '<rect x="'+padL+'" y="'+yBarra.toFixed(1)+'" width="'+Math.max(6,larguraFeita).toFixed(1)+'" height="'+ALTURA_BARRA+'" rx="6" style="fill:'+cor+'"/>';
+    // % executado dentro da barra, na ponta (como na torre)
+    if (larguraTotal >= 40){
+      const pctExec = 100 - pctAberto;
+      svg += '<text x="'+(padL+larguraTotal-8).toFixed(1)+'" y="'+(centroY+4.5)+'" font-size="12" text-anchor="end" style="fill:'+(pctExec >= 88 ? '#fff' : 'var(--text-2)')+'">'+pctExec+'%</text>';
     }
-    svg += '<text x="'+(padL+larguraTotal+10)+'" y="'+(centroY+5)+'" font-size="13" style="fill:var(--text-2)">'+pdfNum(it.aberto)+' em aberto' +
-      '<tspan style="fill:var(--faint)">  ·  '+pdfNum(it.total - it.aberto)+' exec.  ·  '+pdfNum(it.total)+' total</tspan></text>';
+    // ao lado: em aberto · executados · total
+    svg += '<text x="'+(padL+larguraTotal+10)+'" y="'+(centroY+5)+'" font-size="13" style="fill:var(--text)">'+pdfNum(it.aberto)+' em aberto' +
+      '<tspan style="fill:var(--faint)">\u00A0\u00A0·\u00A0\u00A0</tspan>' +
+      '<tspan style="fill:var(--azul)">'+pdfNum(it.total - it.aberto)+' exec.</tspan>' +
+      '<tspan style="fill:var(--faint)">\u00A0\u00A0·\u00A0\u00A0'+pdfNum(it.total)+' total</tspan></text>';
   });
   svg += '</svg>';
   return svg;
