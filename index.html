@@ -654,7 +654,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     </div>
     <div class="card card-pad" id="comp-resumo" style="margin-bottom:16px;"></div>
     <div class="card card-pad">
-      <h2>Por andar / quarto</h2>
+      <h2>Por quarto / área</h2>
       <div id="comp-detalhe"></div>
       <div class="vazio oculto" id="vazio-comparacao">Escolha duas revisões para comparar.</div>
     </div>
@@ -877,7 +877,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.37';
+const VERSAO_APP = '2026-10-03.38';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4071,19 +4071,19 @@ async function executarComparacao(){
     '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas críticas (VM)</div></div>' +
     '</div>';
 
-  // por andar → por quarto/área; tocar no quarto abre os itens novos e resolvidos ali mesmo
+  // TABELA no mesmo formato da aba Quartos & áreas: uma linha por quarto/área;
+  // tocar na linha abre, logo abaixo, a tabela dos itens que entraram e saíram
   const podeAbrirNosItens = (para === revisaoSelecionada);
+  const ordemLocal = (l) => (String(l.chave).indexOf('APTO-') === 0 ? 0 : 1);
+  const locais = agruparDiferencas(diff).flatMap((g) => Array.from(g.locais.values()))
+    .sort((x,y) => x.andar - y.andar || ordemLocal(x) - ordemLocal(y) || String(x.label).localeCompare(String(y.label), 'pt-BR', { numeric:true }));
   const linhaItem = (it, tipo) => {
-    const label = it.tipo==='APTO' ? String(it.quarto) : labelTipo(it.tipo);
-    const pill = it.status === 'VM' ? '<span class="badge bloqueado">VM</span>' : '<span class="badge pendente">AM</span>';
-    return '<div class="comp-item" style="display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line);">' +
-      '<span class="mono" style="min-width:58px; color:var(--text-2);">'+esc(it.id)+'</span>' + pill +
-      '<div style="flex:1; min-width:0;"><div style="font-size:12.5px; color:var(--muted);">'+esc(it.disciplina||'')+'</div>' +
-      '<div style="font-size:13px; color:var(--text);">'+esc(it.desc||'—')+'</div></div>' +
-      (tipo === 'novo' && podeAbrirNosItens ? '<button type="button" class="chip-acao" data-abrir-item="'+esc(it.id)+'" data-andar="'+it.andar+'" data-local="'+esc(localKey(it))+'">abrir nos Itens</button>' : '') +
-      '</div>';
+    const pill = it.status === 'VM' ? '<span class="badge bloqueado">VM (vermelho)</span>' : '<span class="badge pendente">AM (amarelo)</span>';
+    const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>' : '<span class="badge vd" style="background:var(--vd-soft); color:var(--vd);">Saiu / resolvido</span>';
+    return '<tr><td class="mono col-centro">'+esc(it.id)+'</td><td class="col-centro">'+pill+'</td><td>'+esc(it.disciplina||'—')+'</td>' +
+      '<td style="color:var(--text);">'+esc(it.desc||'—')+'</td><td class="col-centro">'+mov+'</td>' +
+      '<td class="col-centro">'+(tipo === 'novo' && podeAbrirNosItens ? '<button type="button" class="chip-acao" data-abrir-item="'+esc(it.id)+'" data-andar="'+it.andar+'" data-local="'+esc(localKey(it))+'">Abrir nos Itens</button>' : '—')+'</td></tr>';
   };
-  const grupos = agruparDiferencas(diff);
   let htmlDet = '';
   if (diff.semDadosNoPara.length){
     htmlDet += '<div class="aviso" style="margin-bottom:12px;">Sem dados na revisão '+esc(para)+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — não contados como resolvidos.</div>';
@@ -4091,35 +4091,40 @@ async function executarComparacao(){
   if (diff.andaresNovos.length){
     htmlDet += '<div class="rodape-nota" style="text-align:left; margin-bottom:12px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
   }
-  if (grupos.length === 0){
+  if (locais.length === 0){
     htmlDet += '<div class="vazio">Nenhuma diferença encontrada entre essas duas revisões.</div>';
   } else {
-    htmlDet += grupos.map((g) => {
-      const s = g.novos - g.resolvidos;
-      const locais = Array.from(g.locais.values()).sort((x,y) => (y.novos.length + y.resolvidos.length) - (x.novos.length + x.resolvidos.length));
-      return '<div id="comp-andar-'+g.andar+'" style="margin-bottom:18px; scroll-margin-top:120px;">' +
-        '<div style="display:flex; justify-content:space-between; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--line);">' +
-          '<span style="font-size:15px; color:var(--text);">'+g.andar+'º andar</span>' +
-          '<span style="font-size:13px; color:var(--muted);"><span style="color:var(--vm);">+'+pdfNum(g.novos)+'</span> · <span style="color:var(--vd);">−'+pdfNum(g.resolvidos)+'</span> · <span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></span></div>' +
-        locais.map((l) => {
-          const sl = l.novos.length - l.resolvidos.length;
-          return '<div class="comp-local">' +
-            '<div class="insight-item clicavel" data-toggle-local style="cursor:pointer;"><div><div class="local">'+esc(l.label)+' <span style="color:var(--faint); font-size:12px;">▾ ver itens</span></div>' +
-            '<div class="detalhe">+'+l.novos.length+' nova(s) · −'+l.resolvidos.length+' resolvida(s)</div></div>' +
-            '<div class="saldo '+(sl>0?'pos':(sl<0?'neg':'zero'))+'">'+(sl>0?'+':'')+sl+'</div></div>' +
-            '<div class="comp-itens oculto" style="padding:0 0 10px 8px;">' +
-              (l.novos.length ? '<div style="font-size:12px; color:var(--vm); margin:6px 0 2px;">Entraram ('+l.novos.length+')</div>' + l.novos.map((it) => linhaItem(it, 'novo')).join('') : '') +
-              (l.resolvidos.length ? '<div style="font-size:12px; color:var(--vd); margin:10px 0 2px;">Saíram / resolvidas ('+l.resolvidos.length+')</div>' + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('') : '') +
-            '</div></div>';
-        }).join('') + '</div>';
-    }).join('');
+    const primeiroDoAndar = new Set();
+    htmlDet += '<div style="overflow-x:auto;"><table><thead><tr>' +
+      '<th class="col-centro">Andar</th><th>Quarto / área</th>' +
+      '<th class="num-col col-vm">Novas</th><th class="num-col col-vm">Novas VM</th><th class="num-col col-vd">Resolvidas</th>' +
+      '<th class="num-col">Saldo</th><th class="col-centro">Itens</th></tr></thead><tbody>' +
+      locais.map((l) => {
+        const s = l.novos.length - l.resolvidos.length;
+        const novasVm = l.novos.filter((it) => it.status === 'VM').length;
+        const idAndar = primeiroDoAndar.has(l.andar) ? '' : ' id="comp-andar-'+l.andar+'" style="scroll-margin-top:140px;"';
+        primeiroDoAndar.add(l.andar);
+        const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
+        return '<tr class="clicavel" data-toggle-local'+idAndar+'>' +
+            '<td class="mono col-centro">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
+            '<td class="num-col col-vm">'+(l.novos.length ? '+'+l.novos.length : '0')+'</td>' +
+            '<td class="num-col col-vm">'+novasVm+'</td>' +
+            '<td class="num-col col-vd">'+(l.resolvidos.length ? '−'+l.resolvidos.length : '0')+'</td>' +
+            '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
+            '<td class="col-centro"><button type="button" class="chip-acao" data-seta>Ver itens ▾</button></td></tr>' +
+          '<tr class="comp-itens oculto"><td colspan="7" style="background:var(--paper); padding:10px 12px 14px;">' +
+            '<div class="card" style="overflow-x:auto;"><table><thead><tr><th class="col-centro">Item</th><th class="col-centro">Prioridade</th><th>Disciplina</th><th>Descrição</th><th class="col-centro">Movimento</th><th class="col-centro">Ação</th></tr></thead>' +
+            '<tbody>'+itensHtml+'</tbody></table></div></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="rodape-nota" style="margin-top:10px;">Toque numa linha para ver os itens que entraram e os que saíram daquele quarto/área.</p>';
   }
   detalhe.innerHTML = htmlDet;
-  detalhe.querySelectorAll('[data-toggle-local]').forEach((el) => el.addEventListener('click', () => {
-    const box = el.nextElementSibling;
+  detalhe.querySelectorAll('[data-toggle-local]').forEach((tr) => tr.addEventListener('click', (e) => {
+    if (e.target.closest('[data-abrir-item]')) return;
+    const box = tr.nextElementSibling;
     box.classList.toggle('oculto');
-    const seta = el.querySelector('.local span');
-    if (seta) seta.textContent = box.classList.contains('oculto') ? '▾ ver itens' : '▴ esconder';
+    const seta = tr.querySelector('[data-seta]');
+    if (seta) seta.textContent = box.classList.contains('oculto') ? 'Ver itens ▾' : 'Esconder ▴';
   }));
   detalhe.querySelectorAll('[data-abrir-item]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
