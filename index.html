@@ -42,7 +42,7 @@
   /* PADRÃO DE CORES POR ETAPA (igual em todo o app e nos PDFs):
      vermelho = VM em aberto · âmbar = AM em aberto · grafite = em aberto (total)
      azul = Executado AW · verde = Vistoriado IAC / VD · lilás = Liberado c/ pendência */
-  --lib:#7C5CC9; --lib-soft:#EFEAFB; --lib-fill:rgba(124,92,201,.80); --grafite:#3A3F47;
+  --lib:#7C5CC9; --lib-soft:#EFEAFB; --lib-fill:rgba(124,92,201,.80); --grafite:#3A3F47; --vd-forte:#1F6B45;
   --surface:#FFFFFF; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 28px rgba(16,24,40,.07);
   --shadow-lg: 0 20px 55px rgba(16,24,40,.16);
   --r-sm:9px; --r-md:14px; --r-lg:20px;
@@ -57,7 +57,7 @@
   --vd:#5FB88B; --vd-soft:#133023; --vd-fill:rgba(95,184,139,.78);
   --semdados:#6E7680; --semdados-soft:#1C2027; --aviso-cor:#D9A95E; --aviso-cor-soft:#3A2D14; --aviso-fill:rgba(217,169,94,.78);
   --lilas:#A98FE8; --lilas-fill:rgba(169,143,232,.78); --cinza-grafico:#8B95A3; --cinza-grafico-fill:rgba(139,149,163,.78);
-  --lib:#A98FE8; --lib-soft:#262040; --lib-fill:rgba(169,143,232,.78); --grafite:#C9CDD3;
+  --lib:#A98FE8; --lib-soft:#262040; --lib-fill:rgba(169,143,232,.78); --grafite:#C9CDD3; --vd-forte:#6BC79A;
   --surface:#15181D; --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.4);
   --shadow-lg: 0 20px 55px rgba(0,0,0,.5);
 }
@@ -569,7 +569,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-vm">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -881,7 +881,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.41';
+const VERSAO_APP = '2026-10-03.45';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1602,7 +1602,19 @@ async function impressaoDigitalFoto(blob){
     return 'f-' + Array.from(new Uint8Array(h)).slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
   }catch(e){ return null; }
 }
+let arquivosNaPasta = null; // nomes que já existem no bucket (carregado no início de cada envio)
+async function carregarArquivosNaPasta(){
+  try{
+    const r = await assetsCap.list();
+    arquivosNaPasta = new Set(((r && r.assets) || []).map((a) => a.id));
+  }catch(e){ arquivosNaPasta = null; } // se falhar, cai na checagem uma a uma
+}
 async function fotoJaExiste(nomeBase){
+  if (arquivosNaPasta){
+    if (arquivosNaPasta.has(nomeBase + '.jpg')) return nomeBase + '.jpg';
+    if (arquivosNaPasta.has(nomeBase + '.png')) return nomeBase + '.png';
+    return null;
+  }
   for (const ext of ['jpg', 'png']){
     try{
       const r = await fetch(urlDaFoto(nomeBase + '.' + ext), { method:'HEAD', cache:'no-store' });
@@ -1627,6 +1639,7 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
   }
   const idsPorItem = itens.map(() => []);
   let concluidas = 0;
+  if (!arquivosNaPasta) await carregarArquivosNaPasta();
   // processa UMA foto: reaproveita se já existe; senão comprime e sobe com o nome da impressão digital
   async function processarFoto(tarefa){
     const digital = await impressaoDigitalFoto(tarefa.blob);
@@ -1640,7 +1653,9 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
         const existente = await fotoJaExiste(digital);
         if (existente) return { id: existente, reaproveitada: true };
         const blobMenor = await comprimirImagem(tarefa.blob);
-        return await subirUmaFotoComRetry(blobMenor, 3, digital);
+        const up = await subirUmaFotoComRetry(blobMenor, 3, digital);
+        if (up && up.id && arquivosNaPasta) arquivosNaPasta.add(up.id);
+        return up;
       })());
     }
     try{
@@ -1731,11 +1746,24 @@ async function salvarLote(grupos, aoProgredir){
       }
     });
 
-    // quem existia antes, num local que está sendo reenviado agora, e não veio mais no
-    // novo lote — isso é "excluído pela IAC", que pra nós equivale a VD confirmado
+    // quem existia antes, num local que está sendo (re)enviado agora, e não veio mais no
+    // novo lote — isso é "excluído pela IAC", que pra nós equivale a VD confirmado.
+    // Mesma revisão reenviada: compara com o que já estava salvo nela. REVISÃO NOVA: compara
+    // com a revisão anterior desse mesmo andar (antes isso não era contado, e o "VD
+    // confirmado" ficava zerado mesmo com centenas de itens saindo da planilha).
     try{
       const idsNovosFinal = new Set(itensFinal.map((it) => it.id));
-      (existente && Array.isArray(existente.itens) ? existente.itens : []).forEach((it) => {
+      let base = (existente && Array.isArray(existente.itens)) ? existente.itens : null;
+      if (!base){
+        const anteriores = revisoesMeta
+          .filter((r) => r.numero < Number(g.revisao) && (r.andares || []).indexOf(g.andar) !== -1)
+          .sort((a,b) => b.numero - a.numero);
+        if (anteriores.length){
+          const docAnt = await store.getDoc('snapshots', 'R' + anteriores[0].numero + '_' + g.andar);
+          base = (docAnt && Array.isArray(docAnt.itens)) ? docAnt.itens : [];
+        }
+      }
+      (base || []).forEach((it) => {
         const chaveLocal = it.t + '|' + (it.q==null ? '' : it.q);
         if (locaisNovos.has(chaveLocal) && !idsNovosFinal.has(it.id)){
           recemResolvidosDoLote.push({ id: it.id, andar: g.andar, disciplina: it.d, descricao: it.x||'', revisao: String(g.revisao) });
@@ -2759,16 +2787,22 @@ async function renderResumoGeral(recarregarHistorico){
       (vmTotal ? '<span><span class="grande" style="color:var(--vm);">'+vmFeitos+' de '+vmTotal+'</span> <span class="rot">vermelhos executados ('+pctVm+'%)</span></span>' : '') +
     '</div>' +
     // UM bloco só, sem repetir número: cada informação aparece uma vez, sempre na situação ATUAL
+    // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (AW ainda não executou)</div>'+sub(emAberto)+'</div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>'+sub(emAberto)+'</div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div>'+sub(awExec)+'</div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando vistoria IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não passou</div></div>' +
-      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div>'+sub(iacOk)+'</div>' +
-      '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoDeuBaixa).length+'</div><div class="rotulo">Vistoriados que a IAC não deu baixa</div><div class="pct-sub">validados em vistoria, mas ainda na lista da IAC</div></div>' +
-      '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
+    '</div>' +
+
+    // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
+    '<div class="grupo-label" style="margin-top:22px;">Vistoria da IAC</div>' +
+    '<div class="resumo-grid">' +
+      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div>'+sub(iacOk)+'</div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoDeuBaixa).length+'</div><div class="rotulo">IAC não deu baixa</div><div class="pct-sub">vistoriado, mas ainda na lista da IAC</div></div>' +
+      '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC tirou da planilha dela (ela não marca resolvido, só exclui a linha), desde a R20">Confirmado pela IAC</div><div class="pct-sub">a IAC tirou da planilha dela</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
@@ -2824,16 +2858,17 @@ function compararRevisoes(itensDe, itensPara){
 function agruparDiferencas(diff){
   const andares = new Map();
   const add = (it, tipo) => {
-    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, subiu:0, desceu:0, locais: new Map() });
+    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, subiu:0, desceu:0, semBaixa:0, locais: new Map() });
     const a = andares.get(it.andar); a[tipo]++;
     const k = localKey(it);
-    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[], subiu:[], desceu:[] });
+    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[], subiu:[], desceu:[], semBaixa:[] });
     a.locais.get(k)[tipo].push(it);
   };
   diff.novos.forEach((it) => add(it, 'novos'));
   diff.resolvidos.forEach((it) => add(it, 'resolvidos'));
   (diff.subiu || []).forEach((it) => add(it, 'subiu'));
   (diff.desceu || []).forEach((it) => add(it, 'desceu'));
+  (diff.semBaixa || []).forEach((it) => add(it, 'semBaixa'));
   return Array.from(andares.values()).sort((a,b) => b.andar - a.andar);
 }
 function abrirComparacao(de, para, andar){
@@ -3531,6 +3566,8 @@ function renderQuartos(){
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
       '<td class="num-col col-aw">'+awExecDoLocal+'</td><td class="num-col col-iac">'+iacOkDoLocal+'</td>' +
+      (function(){ const r = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
+        return '<td class="num-col '+(r ? 'col-vm' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
       '<td class="col-centro">'+barraPct(percentualExecutado(l.itens))+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>';
@@ -4113,6 +4150,8 @@ async function executarComparacao(){
   document.getElementById('vazio-comparacao').classList.add('oculto');
   const [de_, para_] = await Promise.all([carregarItensDaRevisao(de), carregarItensDaRevisao(para)]);
   const diff = compararRevisoes(de_.itens, para_.itens);
+  // vistoriados no app que a planilha nova ainda lista (a IAC não deu baixa) — por andar/ambiente
+  diff.semBaixa = para_.itens.filter(iacNaoDeuBaixa);
   const saldo = diff.novos.length - diff.resolvidos.length;
   const saldoClasse = saldo>0?'pos':(saldo<0?'neg':'zero');
   const criticosNovos = diff.novos.filter((i)=>i.status==='VM').length;
@@ -4136,6 +4175,7 @@ async function executarComparacao(){
     const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>'
       : tipo === 'subiu' ? '<span class="badge bloqueado">Subiu AM → VM</span>'
       : tipo === 'desceu' ? '<span class="badge pendente">Desceu VM → AM</span>'
+      : tipo === 'semBaixa' ? '<span class="badge pendente">Vistoriado — IAC não deu baixa</span>'
       : '<span class="badge vd" style="background:var(--vd-soft); color:var(--vd);">Saiu / resolvido</span>';
     return '<tr><td class="mono col-centro">'+esc(it.id)+'</td><td class="col-centro">'+pill+'</td><td>'+esc(it.disciplina||'—')+'</td>' +
       '<td style="color:var(--text);">'+esc(it.desc||'—')+'</td><td class="col-centro">'+mov+'</td>' +
@@ -4161,32 +4201,36 @@ async function executarComparacao(){
       const s = l.novos.length - l.resolvidos.length;
       const novasVm = l.novos.filter((it) => it.status === 'VM').length;
       const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.subiu.map((it) => linhaItem(it, 'subiu')).join('') +
-        l.desceu.map((it) => linhaItem(it, 'desceu')).join('') + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
+        l.desceu.map((it) => linhaItem(it, 'desceu')).join('') + l.semBaixa.map((it) => linhaItem(it, 'semBaixa')).join('') +
+        l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
       return '<tr class="comp-local-row oculto clicavel" data-andar-pai="'+l.andar+'" data-toggle-local>' +
           '<td class="col-centro" style="color:var(--faint);">↳</td><td style="padding-left:18px;">'+esc(l.label)+'</td>' +
           '<td class="num-col col-vm">'+celNovas(l.novos.length, novasVm)+'</td>' +
           '<td class="num-col col-vd">'+(l.resolvidos.length ? '−'+l.resolvidos.length : '0')+'</td>' +
           '<td class="num-col">'+celPrioridade(l.subiu.length, l.desceu.length)+'</td>' +
+          '<td class="num-col" style="color:'+(l.semBaixa.length ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(l.semBaixa.length || '—')+'</td>' +
           '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
           '<td class="col-centro"><button type="button" class="chip-acao" data-seta>Ver itens ▾</button></td></tr>' +
-        '<tr class="comp-itens oculto" data-andar-pai="'+l.andar+'"><td colspan="7" style="background:var(--paper); padding:10px 12px 14px;">' +
+         '<tr class="comp-itens oculto" data-andar-pai="'+l.andar+'"><td colspan="8" style="background:var(--paper); padding:10px 12px 14px;">' +
           '<div class="card" style="overflow-x:auto;"><table><thead><tr><th class="col-centro">Item</th><th class="col-centro">Prioridade</th><th>Disciplina</th><th>Descrição</th><th class="col-centro">Movimento</th><th class="col-centro">Ação</th></tr></thead>' +
           '<tbody>'+itensHtml+'</tbody></table></div></td></tr>';
     };
     htmlDet += '<div style="overflow-x:auto;"><table><thead><tr>' +
       '<th class="col-centro">Andar</th><th>Ambiente</th>' +
-      '<th class="num-col col-vm">Novas</th><th class="num-col col-vd">Resolvidas</th><th class="num-col">Prioridade</th>' +
+      '<th class="num-col col-vm">Novas</th><th class="num-col col-vd">Resolvidas</th><th class="num-col">Prioridade</th><th class="num-col col-am">IAC não deu baixa</th>' +
       '<th class="num-col">Saldo</th><th class="col-centro">Detalhe</th></tr></thead><tbody>' +
       Array.from(porAndar.entries()).sort((x,y) => x[0] - y[0]).map(([andar, ls]) => {
         const nov = ls.reduce((a, l) => a + l.novos.length, 0), res = ls.reduce((a, l) => a + l.resolvidos.length, 0);
         const vm = ls.reduce((a, l) => a + l.novos.filter((it) => it.status === 'VM').length, 0), s = nov - res;
         const sub = ls.reduce((a, l) => a + l.subiu.length, 0), des = ls.reduce((a, l) => a + l.desceu.length, 0);
+        const semB = ls.reduce((a, l) => a + l.semBaixa.length, 0);
         return '<tr class="clicavel" data-toggle-andar="'+andar+'" id="comp-andar-'+andar+'" style="scroll-margin-top:140px;">' +
             '<td class="mono col-centro" style="color:var(--text);">'+andar+'º</td>' +
-            '<td style="color:var(--muted);">'+ls.length+' ambiente(s) com mudança</td>' +
+            '<td style="color:var(--muted);">'+ls.length+' ambiente(s)</td>' +
             '<td class="num-col col-vm">'+celNovas(nov, vm)+'</td>' +
             '<td class="num-col col-vd">'+(res ? '−'+pdfNum(res) : '0')+'</td>' +
             '<td class="num-col">'+celPrioridade(sub, des)+'</td>' +
+            '<td class="num-col" style="color:'+(semB ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(semB || '—')+'</td>' +
             '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
             '<td class="col-centro"><button type="button" class="chip-acao" data-seta-andar>Ver ambientes ▾</button></td></tr>' +
           ls.map(linhaLocal).join('');
@@ -4428,7 +4472,8 @@ async function executarSalvamento(grupos, btn, cont){
   // se este lote vai subir foto nova, libera espaço primeiro (apaga fotos órfãs de testes/trocas
   // anteriores) — sem perguntar nada, é manutenção automática, não mexe em nada que esteja em uso.
   const totalFotosNoLote = Array.from(grupos.values()).reduce((acc,g) => acc + g.itens.reduce((a2,it)=>a2+(it.fotosBlob?it.fotosBlob.length:0),0), 0);
-  if (totalFotosNoLote > 0 && assetsCap){
+  arquivosNaPasta = null; fotosDesteEnvio.clear();
+  if (totalFotosNoLote > 0 && assetsCap && !MODO_TESTE){ // no teste, a limpeza só enxergaria os dados de teste — desligada
     btn.textContent = 'Liberando espaço de fotos…';
     mostrarBannerProgresso('Liberando espaço de fotos… (pode ficar em qualquer aba, isso continua rodando)');
     try{ await limparFotosOrfas(); }catch(e){ console.warn('limpeza automática de fotos órfãs falhou:', e); }
@@ -5174,12 +5219,13 @@ async function exportarQuartosPdf(){
   const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
   const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M, RH = 21;
   // centros das colunas centralizadas (igual à tela): Andar, Status e os números
-  const C = { andar:P+14, status:P+192, vm:P+262, am:P+294, aberto:P+330, aw:P+364, iac:P+396, total:P+432, pct:P+452 };
+  const C = { andar:P+14, status:P+186, vm:P+252, am:P+282, aberto:P+316, aw:P+348, iac:P+378, reinc:P+408, total:P+440, pct:P+462 };
   const colunas = [
     { rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:C.status, align:'center' },
     { rotulo:'VM', x:C.vm, align:'center', cor:PDF_COR.vm }, { rotulo:'AM', x:C.am, align:'center', cor:PDF_COR.am },
     { rotulo:'Aberto', x:C.aberto, align:'center', cor:PDF_COR.ink }, { rotulo:'AW', x:C.aw, align:'center', cor:PDF_COR.az },
-    { rotulo:'IAC', x:C.iac, align:'center', cor:PDF_COR.vd }, { rotulo:'Total', x:C.total, align:'center' },
+    { rotulo:'IAC', x:C.iac, align:'center', cor:PDF_COR.vd }, { rotulo:'Reinc.', x:C.reinc, align:'center', cor:PDF_COR.vm },
+    { rotulo:'Total', x:C.total, align:'center' },
     { rotulo:'% exec.', x:(C.pct + CW - P)/2, align:'center' }
   ];
   const linhas = dados.map((d) => ({
@@ -5187,7 +5233,7 @@ async function exportarQuartosPdf(){
     desenhar: (doc, cx, top) => {
       const b = top + RH/2 + 3;
       pdfTxt(doc, cx+C.andar, b, d.l.andar+'º', 8.5, PDF_COR.ink2, 'center');
-      pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 86), 8.5, PDF_COR.ink);
+      pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 80), 8.5, PDF_COR.ink);
       const p = PDF_PRIO[d.status];
       pdfPill(doc, cx+C.status - (pdfLarg(doc, p.longo, 7.5)+14)/2, b, p.longo, p.fg, p.bg);
       pdfTxt(doc, cx+C.vm, b, d.vm, 8.5, PDF_COR.vm, 'center');
@@ -5195,9 +5241,11 @@ async function exportarQuartosPdf(){
       pdfTxt(doc, cx+C.aberto, b, d.aberto, 9, PDF_COR.ink, 'center');
       pdfTxt(doc, cx+C.aw, b, d.aw, 8.5, PDF_COR.az, 'center');
       pdfTxt(doc, cx+C.iac, b, d.iac, 8.5, PDF_COR.vd, 'center');
+      const reincLocal = d.l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
+      pdfTxt(doc, cx+C.reinc, b, reincLocal ? String(reincLocal) : '—', 8.5, reincLocal ? PDF_COR.vm : PDF_COR.faint, 'center');
       pdfTxt(doc, cx+C.total, b, d.total, 8.5, PDF_COR.muted, 'center');
       // % executado: barrinha + número (igual à coluna da tela)
-      const pct = percentualExecutado(d.l.itens), bw = 24;
+      const pct = percentualExecutado(d.l.itens), bw = 18;
       pdfFill(doc, PDF_COR.line); doc.roundedRect(cx+C.pct, b-5, bw, 4, 2, 2, 'F');
       if (pct > 0){ pdfFill(doc, PDF_COR.az); doc.roundedRect(cx+C.pct, b-5, Math.max(4, bw*pct/100), 4, 2, 2, 'F'); }
       pdfTxt(doc, cx+CW-P, b, pct+'%', 7.5, PDF_COR.muted, 'right');
