@@ -706,6 +706,18 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   </div>
 </div>
 
+<div class="modal-overlay oculto" id="modal-reprovado" style="z-index:140;">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-reprovado">
+    <h3 id="titulo-reprovado">Tirar o Executado AW</h3>
+    <div class="modal-sub" id="texto-reprovado"></div>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+      <button type="button" class="btn" id="btn-reprovado-sim" style="justify-content:center; color:var(--vm); border-color:var(--vm);">Item reprovado pela IAC</button>
+      <button type="button" class="btn" id="btn-reprovado-cancelar" style="justify-content:center;">Cancelar</button>
+    </div>
+    <div style="font-size:12px; color:var(--muted); margin-top:12px; text-align:center;">Reprovado: o item volta para aberto e fica marcado como reincidência.</div>
+  </div>
+</div>
+
 <div class="lightbox-overlay oculto" id="lightbox-foto">
   <button class="lightbox-fechar" id="lightbox-fechar" aria-label="Fechar" title="Fechar">&times;</button>
   <img class="lightbox-imagem" id="lightbox-imagem-el" src="" alt="Foto ampliada">
@@ -794,7 +806,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.13';
+const VERSAO_APP = '2026-10-03.16';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -2047,11 +2059,30 @@ function historicoDoItem(a){
 }
 const MINUTOS_CORRECAO_ENGANO = 15;
 
+/* Desmarcar o Executado AW depois de 15 min: confirma antes de registrar reincidência,
+   pra um toque errado não virar reprovação. Devolve 'reinc', 'engano' ou null (cancelou). */
+let resolverReprovado = null;
+function perguntarReprovado(itemId, ac){
+  return new Promise((resolve) => {
+    resolverReprovado = resolve;
+    const it = itensRevisaoAtual.find((x) => x.id === itemId);
+    const local = it ? (it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo)+' '+it.andar+'º') : '';
+    document.getElementById('texto-reprovado').textContent =
+      'Item '+itemId+(local ? ' · '+local : '')+' — marcado como Executado AW'+
+      (ac.awExecPor ? ' por '+ac.awExecPor : '')+' em '+dataHoraCurta(ac.awExecEm)+'.';
+    document.getElementById('modal-reprovado').classList.remove('oculto');
+  });
+}
+function fecharReprovado(valor){
+  document.getElementById('modal-reprovado').classList.add('oculto');
+  if (resolverReprovado){ resolverReprovado(valor); resolverReprovado = null; }
+}
+
 /* Executado AW / Vistoriado IAC.
    Desmarcar o Executado AW devolve o item pra "em aberto" (ele vai ter que ser feito de novo)
    e conta uma REINCIDÊNCIA — exceto se for desmarcado em até 15 minutos depois de marcar,
    que aí é tratado como correção de engano (marcou o item errado) e some do histórico. */
-async function alternarAcompanhamento(itemId, campo){
+async function alternarAcompanhamento(itemId, campo, modo){
   if (!(await garantirUsuario())) return;
   const por = usuarioAtual;
   const anterior = acompanhamento[itemId];
@@ -2065,9 +2096,16 @@ async function alternarAcompanhamento(itemId, campo){
       novo.awExecEm = agora; novo.awExecPor = por; hist.push({ t:'aw', em:agora, por });
     } else {
       const minutos = (Date.now() - new Date(atual.awExecEm).getTime()) / 60000;
+      // tirar o Executado AW: pela tabela, SEMPRE confirma que foi reprovado pela IAC (um toque
+      // errado não vira reincidência); pela janela Editar, "marcado por engano" desfaz sem reincidência
+      let foiEngano = modo === 'engano';
+      if (!foiEngano){
+        const escolha = await perguntarReprovado(itemId, atual);
+        if (!escolha) return; // Cancelar: continua executado, nada muda
+      }
       novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
       novo.awExecPor = null; novo.iacOkPor = null;
-      if (minutos <= MINUTOS_CORRECAO_ENGANO){
+      if (foiEngano){
         for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i); break; } }
         msg = 'Marcação desfeita';
       } else {
@@ -3535,6 +3573,8 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
       })() +
+      (ac.awExecEm ? '<div class="modal-campo"><button type="button" class="btn fantasma" id="edit-desfazer-aw" style="width:100%; justify-content:center; font-size:13px;">Desfazer Executado AW (marcado por engano)</button>' +
+        '<div style="font-size:12px; color:var(--muted); margin-top:6px;">Volta o item para aberto sem registrar reincidência. Use só quando o item foi marcado como executado sem ter sido feito.</div></div>' : '') +
       '<div class="modal-campo">' +
         '<label for="edit-disc">Disciplina <span style="font-weight:400; color:var(--muted);">(vem da planilha, só reclassifica entre as existentes)</span></label>' +
         '<select id="edit-disc">'+opcoesDisc+'</select>' +
@@ -3561,6 +3601,11 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
     if (e.target.value === '__novo__') document.getElementById('edit-forn-novo').focus();
   });
   document.getElementById('edit-cancelar').addEventListener('click', fecharModalEdicao);
+  const btnDesfazerAw = document.getElementById('edit-desfazer-aw');
+  if (btnDesfazerAw) btnDesfazerAw.addEventListener('click', async () => {
+    fecharModalEdicao();
+    await alternarAcompanhamento(itemId, 'awExecEm', 'engano');
+  });
   document.getElementById('edit-salvar').addEventListener('click', async () => {
     const novaDisc = document.getElementById('edit-disc').value;
     const selForn = document.getElementById('edit-forn').value;
@@ -4838,6 +4883,8 @@ async function iniciar(){
   document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
   document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
   document.getElementById('btn-semelhante-novo').addEventListener('click', () => fecharSemelhante('__novo__'));
+  document.getElementById('btn-reprovado-sim').addEventListener('click', () => fecharReprovado('reinc'));
+  document.getElementById('btn-reprovado-cancelar').addEventListener('click', () => fecharReprovado(null));
   document.getElementById('btn-semelhante-cancelar').addEventListener('click', () => fecharSemelhante(null));
   document.getElementById('btn-cancelar-usuario').addEventListener('click', cancelarNomeUsuario);
   document.getElementById('input-nome-usuario').addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarNomeUsuario(); });
