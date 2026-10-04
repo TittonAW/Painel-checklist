@@ -863,7 +863,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.28';
+const VERSAO_APP = '2026-10-03.30';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -2643,6 +2643,7 @@ async function renderResumoGeral(recarregarHistorico){
   const vmTotal = itensRevisaoAtual.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
+  const aguardandoIac = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && !acompanhamento[it.id].iacOkEm).length;
   const sub = (n) => '<div class="pct-sub">'+Math.round(n/totalItens*100)+'% do total</div>';
   grid.innerHTML =
     '<div class="destaque-pct">' +
@@ -2650,22 +2651,22 @@ async function renderResumoGeral(recarregarHistorico){
       '<span><span class="grande" style="color:var(--vd);">'+fmtPct(pctVist)+'</span> <span class="rot">vistoriado pela IAC</span></span>' +
       (vmTotal ? '<span><span class="grande" style="color:var(--vm);">'+vmFeitos+' de '+vmTotal+'</span> <span class="rot">vermelhos executados ('+pctVm+'%)</span></span>' : '') +
     '</div>' +
-    '<div class="grupo-label">Progresso dos itens</div>' +
+    // UM bloco só, sem repetir número: cada informação aparece uma vez, sempre na situação ATUAL
+    '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (AW ainda não executou)</div>'+sub(emAberto)+'</div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div>'+sub(awExec)+'</div>' +
-      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div>'+sub(iacOk)+'</div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando vistoria IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não passou</div></div>' +
+      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div>'+sub(iacOk)+'</div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
       '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
 
-    '<div class="grupo-label" style="margin-top:22px;">Itens por situação atual</div>' +
+    '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
       '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div>'+sub(c.am)+'</div>' +
-      '<div class="stat executado clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+(awExec - itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && acompanhamento[it.id].iacOkEm).length)+'</div><div class="rotulo">Executado AW (aguardando IAC)</div>'+sub(awExec - itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && acompanhamento[it.id].iacOkEm).length)+'</div>' +
-      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div>'+sub(iacOk)+'</div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
@@ -3214,7 +3215,7 @@ function renderRankings(){
   const montar = (mapa) => Array.from(mapa.entries()).map(([nome, lista]) => ({
     nome, total: lista.length, aberto: lista.filter(estaEmAberto).length, pct: percentualExecutado(lista)
   }));
-  document.getElementById('ranking-fornecedor').innerHTML = construirRankingProgresso(montar(porForn), 'var(--lilas)');
+  document.getElementById('ranking-fornecedor').innerHTML = construirRankingProgresso(montar(porForn), 'var(--accent)');
   document.getElementById('ranking-disciplina').innerHTML = construirRankingProgresso(montar(porDisc), 'var(--cinza-grafico)');
 }
 
