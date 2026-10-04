@@ -877,7 +877,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.36';
+const VERSAO_APP = '2026-10-03.37';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2793,6 +2793,41 @@ function mapaPorId(itens){
   itens.forEach((it) => m.set(it.id, it));
   return m;
 }
+/* Compara duas revisões ANDAR POR ANDAR: andar que não veio numa das revisões não entra na
+   conta (antes, um andar ausente na revisão nova fazia todos os itens dele parecerem
+   "resolvidos"). Devolve também quais andares ficaram sem dados de cada lado. */
+function compararRevisoes(itensDe, itensPara){
+  const andDe = new Set(itensDe.map((i) => i.andar)), andPara = new Set(itensPara.map((i) => i.andar));
+  const diff = compararItens(itensDe.filter((i) => andPara.has(i.andar)), itensPara.filter((i) => andDe.has(i.andar)));
+  diff.semDadosNoPara = Array.from(andDe).filter((a) => !andPara.has(a)).sort((a,b) => a-b);
+  diff.andaresNovos = Array.from(andPara).filter((a) => !andDe.has(a)).sort((a,b) => a-b);
+  return diff;
+}
+/* agrupa novos e resolvidos por andar e por local, com os itens de cada um (pro detalhe) */
+function agruparDiferencas(diff){
+  const andares = new Map();
+  const add = (it, tipo) => {
+    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, locais: new Map() });
+    const a = andares.get(it.andar); a[tipo]++;
+    const k = localKey(it);
+    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[] });
+    a.locais.get(k)[tipo].push(it);
+  };
+  diff.novos.forEach((it) => add(it, 'novos'));
+  diff.resolvidos.forEach((it) => add(it, 'resolvidos'));
+  return Array.from(andares.values()).sort((a,b) => b.andar - a.andar);
+}
+function abrirComparacao(de, para, andar){
+  irParaAba('comparacao');
+  popularSeletoresComparacao();
+  document.getElementById('comp-de').value = de;
+  document.getElementById('comp-para').value = para;
+  executarComparacao().then(() => {
+    const el = andar != null ? document.getElementById('comp-andar-' + andar) : null;
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+}
+
 function compararItens(itensAnterior, itensAtual){
   const mAnt = mapaPorId(itensAnterior), mAtu = mapaPorId(itensAtual);
   const novos = [], resolvidos = [], mudaram = [];
@@ -2825,23 +2860,55 @@ function renderInsightsResumo(){
     return;
   }
   carregarItensDaRevisao(String(anteriorMeta.numero)).then((anterior) => {
-    const diff = compararItens(anterior.itens, itensRevisaoAtual);
+    const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
     const saldo = diff.novos.length - diff.resolvidos.length;
     const saldoClasse = saldo>0?'pos':(saldo<0?'neg':'zero');
+    const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
     let html = '<div class="insight-item"><div><div class="local">De '+anteriorMeta.label+' para '+atualMeta.label+'</div>' +
-      '<div class="detalhe">'+diff.novos.length+' pendência(s) nova(s) · '+diff.resolvidos.length+' resolvida(s)</div></div>' +
+      '<div class="detalhe">'+pdfNum(diff.novos.length)+' pendência(s) nova(s) · '+pdfNum(diff.resolvidos.length)+' resolvida(s)</div></div>' +
       '<div class="saldo '+saldoClasse+'">'+(saldo>0?'+':'')+saldo+'</div></div>';
-    // o mais relevante: pendências novas que já chegam CRÍTICAS (VM) — isso é o que precisa de atenção imediata
+    if (diff.semDadosNoPara.length){
+      html += '<div class="aviso" style="margin:8px 0;">Sem dados na '+atualMeta.label+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ') +
+        ' — esses andares não vieram nesta revisão e <b>não</b> foram contados como resolvidos.</div>';
+    }
+    if (diff.andaresNovos.length){
+      html += '<div class="detalhe" style="margin:6px 0;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
+    }
+    // por andar: onde entrou e onde saiu (clique leva pra comparação já naquele andar)
+    const porAndar = agruparDiferencas(diff);
+    if (porAndar.length){
+      html += '<div class="detalhe" style="margin:12px 0 4px;">Por andar <span style="color:var(--faint);">(toque pra ver os itens)</span></div>' +
+        '<table style="min-width:0; width:100%; font-size:13px;"><tbody>' +
+        porAndar.map((a) => {
+          const s = a.novos - a.resolvidos;
+          return '<tr class="clicavel" data-comp-andar="'+a.andar+'" style="cursor:pointer;">' +
+            '<td style="padding:6px 8px 6px 0;">'+a.andar+'º andar</td>' +
+            '<td class="num-col" style="padding:6px 8px; color:var(--vm);">+'+pdfNum(a.novos)+' nova(s)</td>' +
+            '<td class="num-col" style="padding:6px 8px; color:var(--vd);">−'+pdfNum(a.resolvidos)+' resolvida(s)</td>' +
+            '<td class="num-col" style="padding:6px 0 6px 8px;"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td></tr>';
+        }).join('') + '</tbody></table>';
+      // locais com mais pendências novas
+      const locais = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,y) => y.novos.length - x.novos.length).slice(0, 4);
+      if (locais.length){
+        html += '<div class="detalhe" style="margin:12px 0 4px;">Onde mais entraram pendências novas</div>' +
+          locais.map((l) => '<div class="detalhe" style="color:var(--text-2);">'+esc(l.label)+' · '+l.andar+'º — <span style="color:var(--vm);">+'+l.novos.length+'</span></div>').join('');
+      }
+    }
+    // pendências novas que já chegam CRÍTICAS (VM)
     const novasCriticas = diff.novos.filter((it) => it.status==='VM').slice(0,6);
     if (novasCriticas.length>0){
-      html += '<div style="margin-top:4px;"><div class="detalhe" style="margin-bottom:6px;">Novas críticas que pedem atenção:</div>' +
+      html += '<div style="margin-top:12px;"><div class="detalhe" style="margin-bottom:6px;">Novas críticas (VM) que pedem atenção:</div>' +
         novasCriticas.map((it) => {
           const label = it.tipo==='APTO' ? String(it.quarto) : labelTipo(it.tipo);
           return '<div class="insight-item" style="padding:7px 0;"><div><div class="local" style="font-size:12.5px;">'+esc(it.id)+' · '+it.andar+'º · '+esc(label)+'</div>' +
             '<div class="detalhe">'+esc((it.desc||'').slice(0,70))+'</div></div></div>';
         }).join('') + '</div>';
     }
+    html += '<button type="button" class="btn fantasma" id="btn-ver-comparacao" style="margin-top:12px;">Ver comparação completa →</button>';
     cont.innerHTML = html;
+    cont.querySelectorAll('[data-comp-andar]').forEach((tr) => tr.addEventListener('click', () => abrirComparacao(deStr, paraStr, tr.dataset.compAndar)));
+    const bv = document.getElementById('btn-ver-comparacao');
+    if (bv) bv.addEventListener('click', () => abrirComparacao(deStr, paraStr, null));
   });
 }
 
@@ -3992,7 +4059,7 @@ async function executarComparacao(){
   if (!de || !para){ document.getElementById('vazio-comparacao').classList.remove('oculto'); return; }
   document.getElementById('vazio-comparacao').classList.add('oculto');
   const [de_, para_] = await Promise.all([carregarItensDaRevisao(de), carregarItensDaRevisao(para)]);
-  const diff = compararItens(de_.itens, para_.itens);
+  const diff = compararRevisoes(de_.itens, para_.itens);
   const saldo = diff.novos.length - diff.resolvidos.length;
   const saldoClasse = saldo>0?'pos':(saldo<0?'neg':'zero');
   const criticosNovos = diff.novos.filter((i)=>i.status==='VM').length;
@@ -4004,31 +4071,60 @@ async function executarComparacao(){
     '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas críticas (VM)</div></div>' +
     '</div>';
 
-  // agrupar por local
-  const porLocal = new Map();
-  function chave(it){ return localKey(it); }
-  diff.novos.forEach((it) => {
-    const k = chave(it);
-    if (!porLocal.has(k)) porLocal.set(k, { label: localLabel(it), andar: it.andar, novos:0, resolvidos:0 });
-    porLocal.get(k).novos++;
-  });
-  diff.resolvidos.forEach((it) => {
-    const k = chave(it);
-    if (!porLocal.has(k)) porLocal.set(k, { label: localLabel(it), andar: it.andar, novos:0, resolvidos:0 });
-    porLocal.get(k).resolvidos++;
-  });
-  const lista = Array.from(porLocal.values()).sort((a,b) => (Math.abs(b.novos-b.resolvidos)) - (Math.abs(a.novos-a.resolvidos)));
-  if (lista.length === 0){
-    detalhe.innerHTML = '<div class="vazio">Nenhuma diferença encontrada entre essas duas revisões.</div>';
+  // por andar → por quarto/área; tocar no quarto abre os itens novos e resolvidos ali mesmo
+  const podeAbrirNosItens = (para === revisaoSelecionada);
+  const linhaItem = (it, tipo) => {
+    const label = it.tipo==='APTO' ? String(it.quarto) : labelTipo(it.tipo);
+    const pill = it.status === 'VM' ? '<span class="badge bloqueado">VM</span>' : '<span class="badge pendente">AM</span>';
+    return '<div class="comp-item" style="display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line);">' +
+      '<span class="mono" style="min-width:58px; color:var(--text-2);">'+esc(it.id)+'</span>' + pill +
+      '<div style="flex:1; min-width:0;"><div style="font-size:12.5px; color:var(--muted);">'+esc(it.disciplina||'')+'</div>' +
+      '<div style="font-size:13px; color:var(--text);">'+esc(it.desc||'—')+'</div></div>' +
+      (tipo === 'novo' && podeAbrirNosItens ? '<button type="button" class="chip-acao" data-abrir-item="'+esc(it.id)+'" data-andar="'+it.andar+'" data-local="'+esc(localKey(it))+'">abrir nos Itens</button>' : '') +
+      '</div>';
+  };
+  const grupos = agruparDiferencas(diff);
+  let htmlDet = '';
+  if (diff.semDadosNoPara.length){
+    htmlDet += '<div class="aviso" style="margin-bottom:12px;">Sem dados na revisão '+esc(para)+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — não contados como resolvidos.</div>';
+  }
+  if (diff.andaresNovos.length){
+    htmlDet += '<div class="rodape-nota" style="text-align:left; margin-bottom:12px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
+  }
+  if (grupos.length === 0){
+    htmlDet += '<div class="vazio">Nenhuma diferença encontrada entre essas duas revisões.</div>';
   } else {
-    detalhe.innerHTML = lista.map((l) => {
-      const s = l.novos - l.resolvidos;
-      const sc = s>0?'pos':(s<0?'neg':'zero');
-      return '<div class="insight-item"><div><div class="local">'+esc(l.label)+' · '+l.andar+'º andar</div>' +
-        '<div class="detalhe">+'+l.novos+' nova(s) · -'+l.resolvidos+' resolvida(s)</div></div>' +
-        '<div class="saldo '+sc+'">'+(s>0?'+':'')+s+'</div></div>';
+    htmlDet += grupos.map((g) => {
+      const s = g.novos - g.resolvidos;
+      const locais = Array.from(g.locais.values()).sort((x,y) => (y.novos.length + y.resolvidos.length) - (x.novos.length + x.resolvidos.length));
+      return '<div id="comp-andar-'+g.andar+'" style="margin-bottom:18px; scroll-margin-top:120px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--line);">' +
+          '<span style="font-size:15px; color:var(--text);">'+g.andar+'º andar</span>' +
+          '<span style="font-size:13px; color:var(--muted);"><span style="color:var(--vm);">+'+pdfNum(g.novos)+'</span> · <span style="color:var(--vd);">−'+pdfNum(g.resolvidos)+'</span> · <span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></span></div>' +
+        locais.map((l) => {
+          const sl = l.novos.length - l.resolvidos.length;
+          return '<div class="comp-local">' +
+            '<div class="insight-item clicavel" data-toggle-local style="cursor:pointer;"><div><div class="local">'+esc(l.label)+' <span style="color:var(--faint); font-size:12px;">▾ ver itens</span></div>' +
+            '<div class="detalhe">+'+l.novos.length+' nova(s) · −'+l.resolvidos.length+' resolvida(s)</div></div>' +
+            '<div class="saldo '+(sl>0?'pos':(sl<0?'neg':'zero'))+'">'+(sl>0?'+':'')+sl+'</div></div>' +
+            '<div class="comp-itens oculto" style="padding:0 0 10px 8px;">' +
+              (l.novos.length ? '<div style="font-size:12px; color:var(--vm); margin:6px 0 2px;">Entraram ('+l.novos.length+')</div>' + l.novos.map((it) => linhaItem(it, 'novo')).join('') : '') +
+              (l.resolvidos.length ? '<div style="font-size:12px; color:var(--vd); margin:10px 0 2px;">Saíram / resolvidas ('+l.resolvidos.length+')</div>' + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('') : '') +
+            '</div></div>';
+        }).join('') + '</div>';
     }).join('');
   }
+  detalhe.innerHTML = htmlDet;
+  detalhe.querySelectorAll('[data-toggle-local]').forEach((el) => el.addEventListener('click', () => {
+    const box = el.nextElementSibling;
+    box.classList.toggle('oculto');
+    const seta = el.querySelector('.local span');
+    if (seta) seta.textContent = box.classList.contains('oculto') ? '▾ ver itens' : '▴ esconder';
+  }));
+  detalhe.querySelectorAll('[data-abrir-item]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    abrirItens({ andar: b.dataset.andar, ambiente: 'local:' + b.dataset.local, busca: b.dataset.abrirItem });
+  }));
 
   renderDivergenciasIac(para_.itens);
 }
