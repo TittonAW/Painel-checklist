@@ -601,6 +601,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="liberado">Liberado (sem pendência)</option>
         <option value="emAberto">Em aberto (AW ainda não executou)</option>
         <option value="comReinc">Com reincidência</option>
+        <option value="naoBaixadoIac">Vistoriado IAC — IAC não deu baixa</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
@@ -661,10 +662,13 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card card-pad" style="margin-top:16px;" id="card-divergencia-iac">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
         <div>
-          <h2 style="margin-bottom:2px;">Itens Vistoriados — Aguardando Atualização da IAC</h2>
-          <p style="color:var(--muted); margin:0;">Itens que você confirmou como "Vistoriado IAC" antes do envio desta revisão, e que ainda aparecem pendentes nela. Pronto pra imprimir ou salvar como PDF e enviar pra eles.</p>
+          <h2 style="margin-bottom:2px;">Vistoriados que a IAC não deu baixa</h2>
+          <p style="color:var(--muted); margin:0;">Itens marcados como "Vistoriado IAC" antes do envio da revisão selecionada, e que a planilha nova ainda lista como pendentes. "Gerar PDF para a IAC" já sai com quem validou e quando — pronto pra mandar no WhatsApp.</p>
         </div>
-        <button class="btn fantasma no-print" id="btn-imprimir-divergencia">Imprimir / salvar PDF</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn primario no-print" id="btn-pdf-divergencia">Gerar PDF para a IAC</button>
+          <button class="btn fantasma no-print" id="btn-ver-divergencia">Ver na aba Itens</button>
+        </div>
       </div>
       <div id="tabela-divergencia-iac"></div>
     </div>
@@ -877,7 +881,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.38';
+const VERSAO_APP = '2026-10-03.40';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2419,6 +2423,14 @@ function estaEmAberto(it){
   return !a || (!a.awExecEm && !a.iacOkEm);
 }
 function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
+/* Vistoriado IAC no app ANTES desta revisão do andar ser salva, e a planilha nova da IAC
+   continua listando o item como pendente (AM/VM) — ou seja, a IAC validou em vistoria mas
+   não deu baixa no relatório dela. */
+function iacNaoDeuBaixa(it){
+  const ac = acompanhamento[it.id];
+  if (!ac || !ac.iacOkEm || (it.status !== 'AM' && it.status !== 'VM')) return false;
+  return !(it.atualizadoEmAndar && new Date(ac.iacOkEm) >= new Date(it.atualizadoEmAndar));
+}
 /* VM e AM AINDA EM ABERTO (a AW não executou) — é isso que as colunas VM/AM, os cartões e
    os PDFs mostram: o que falta, e não a cor com que o item veio na planilha.
    total = todos os itens da planilha (não muda com a execução). */
@@ -2755,6 +2767,7 @@ async function renderResumoGeral(recarregarHistorico){
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando vistoria IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não passou</div></div>' +
       '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div>'+sub(iacOk)+'</div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoDeuBaixa).length+'</div><div class="rotulo">Vistoriados que a IAC não deu baixa</div><div class="pct-sub">validados em vistoria, mas ainda na lista da IAC</div></div>' +
       '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
 
@@ -2782,6 +2795,7 @@ async function renderResumoGeral(recarregarHistorico){
       const ir = el.dataset.ir;
       const status = el.dataset.status;
       if (ir === 'itens') abrirItens({ status: status, progresso: el.dataset.progresso, statusBruto: el.dataset.statusBruto });
+      else if (ir === 'itens-fluxo') abrirItens({ fluxo: el.dataset.fluxo });
       else if (ir === 'quartos') abrirQuartosComFiltro({ status: status });
     });
   });
@@ -2824,7 +2838,7 @@ function abrirComparacao(de, para, andar){
   document.getElementById('comp-para').value = para;
   executarComparacao().then(() => {
     const el = andar != null ? document.getElementById('comp-andar-' + andar) : null;
-    if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    if (el){ el.click(); el.scrollIntoView({ behavior:'smooth', block:'start' }); }
   });
 }
 
@@ -2862,37 +2876,62 @@ function renderInsightsResumo(){
   carregarItensDaRevisao(String(anteriorMeta.numero)).then((anterior) => {
     const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
     const saldo = diff.novos.length - diff.resolvidos.length;
-    const saldoClasse = saldo>0?'pos':(saldo<0?'neg':'zero');
     const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
-    let html = '<div class="insight-item"><div><div class="local">De '+anteriorMeta.label+' para '+atualMeta.label+'</div>' +
-      '<div class="detalhe">'+pdfNum(diff.novos.length)+' pendência(s) nova(s) · '+pdfNum(diff.resolvidos.length)+' resolvida(s)</div></div>' +
-      '<div class="saldo '+saldoClasse+'">'+(saldo>0?'+':'')+saldo+'</div></div>';
+    const corSaldo = saldo > 0 ? 'var(--vm)' : (saldo < 0 ? 'var(--vd)' : 'var(--muted)');
+    // números grandes no topo (mesmo estilo da linha de destaque da Visão geral)
+    let html = '<div class="detalhe" style="margin-bottom:4px;">De '+esc(anteriorMeta.label)+' para '+esc(atualMeta.label)+'</div>' +
+      '<div class="destaque-pct" style="padding-bottom:10px;">' +
+        '<span><span class="grande" style="color:var(--vm);">+'+pdfNum(diff.novos.length)+'</span> <span class="rot">entraram</span></span>' +
+        '<span><span class="grande" style="color:var(--vd);">−'+pdfNum(diff.resolvidos.length)+'</span> <span class="rot">saíram / resolvidas</span></span>' +
+        '<span><span class="grande" style="color:'+corSaldo+';">'+(saldo>0?'+':'')+pdfNum(saldo)+'</span> <span class="rot">saldo da lista</span></span>' +
+      '</div>';
     if (diff.semDadosNoPara.length){
-      html += '<div class="aviso" style="margin:8px 0;">Sem dados na '+atualMeta.label+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ') +
+      html += '<div class="aviso" style="margin:0 0 10px;">Sem dados na '+esc(atualMeta.label)+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ') +
         ' — esses andares não vieram nesta revisão e <b>não</b> foram contados como resolvidos.</div>';
     }
     if (diff.andaresNovos.length){
-      html += '<div class="detalhe" style="margin:6px 0;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
+      html += '<div class="detalhe" style="margin:0 0 10px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
     }
-    // por andar: onde entrou e onde saiu (clique leva pra comparação já naquele andar)
-    const porAndar = agruparDiferencas(diff);
+    // GRÁFICO DE BARRAS DIVERGENTES por andar: verde pra esquerda (saiu), vermelho pra direita (entrou)
+    const porAndar = agruparDiferencas(diff).sort((x,y) => y.andar - x.andar);
     if (porAndar.length){
-      html += '<div class="detalhe" style="margin:12px 0 4px;">Por andar <span style="color:var(--faint);">(toque pra ver os itens)</span></div>' +
-        '<table style="min-width:0; width:100%; font-size:13px;"><tbody>' +
-        porAndar.map((a) => {
-          const s = a.novos - a.resolvidos;
-          return '<tr class="clicavel" data-comp-andar="'+a.andar+'" style="cursor:pointer;">' +
-            '<td style="padding:6px 8px 6px 0;">'+a.andar+'º andar</td>' +
-            '<td class="num-col" style="padding:6px 8px; color:var(--vm);">+'+pdfNum(a.novos)+' nova(s)</td>' +
-            '<td class="num-col" style="padding:6px 8px; color:var(--vd);">−'+pdfNum(a.resolvidos)+' resolvida(s)</td>' +
-            '<td class="num-col" style="padding:6px 0 6px 8px;"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td></tr>';
-        }).join('') + '</tbody></table>';
-      // locais com mais pendências novas
-      const locais = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,y) => y.novos.length - x.novos.length).slice(0, 4);
+      const W = Math.max(320, Math.round(cont.clientWidth || 600));
+      const pequeno = W < 520;
+      const padL = 46, padR = pequeno ? 52 : 70, alturaLinha = 30, padT = 24;
+      const centro = padL + (W - padL - padR) / 2;
+      const meia = (W - padL - padR) / 2 - (pequeno ? 34 : 46); // deixa lugar pros números nas pontas
+      const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
+      const H = padT + porAndar.length * alturaLinha + 8;
+      let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="max-width:100%; height:auto; display:block; font-family:\'IBM Plex Sans\',sans-serif;">';
+      svg += '<text x="'+(centro-8)+'" y="12" font-size="11" text-anchor="end" style="fill:var(--vd)">← saíram</text>';
+      svg += '<text x="'+(centro+8)+'" y="12" font-size="11" style="fill:var(--vm)">entraram →</text>';
+      svg += '<text x="'+(W-4)+'" y="12" font-size="11" text-anchor="end" style="fill:var(--muted)">saldo</text>';
+      svg += '<line x1="'+centro+'" y1="'+(padT-4)+'" x2="'+centro+'" y2="'+(H-6)+'" style="stroke:var(--line); stroke-width:1.5;"/>';
+      porAndar.forEach((a, i) => {
+        const y = padT + i*alturaLinha, cy = y + alturaLinha/2, h = 16;
+        const wRes = a.resolvidos ? Math.max(3, a.resolvidos/maxV*meia) : 0;
+        const wNov = a.novos ? Math.max(3, a.novos/maxV*meia) : 0;
+        const s = a.novos - a.resolvidos;
+        svg += '<g class="clicavel" data-comp-andar="'+a.andar+'" style="cursor:pointer;">';
+        svg += '<rect x="0" y="'+y+'" width="'+W+'" height="'+alturaLinha+'" style="fill:transparent;"/>';
+        svg += '<text x="'+(padL-10)+'" y="'+(cy+4)+'" font-size="12.5" text-anchor="end" style="fill:var(--text)">'+a.andar+'º</text>';
+        if (wRes) svg += '<rect x="'+(centro-wRes).toFixed(1)+'" y="'+(cy-h/2)+'" width="'+wRes.toFixed(1)+'" height="'+h+'" rx="4" style="fill:var(--vd); opacity:.85;"/>';
+        if (wNov) svg += '<rect x="'+centro+'" y="'+(cy-h/2)+'" width="'+wNov.toFixed(1)+'" height="'+h+'" rx="4" style="fill:var(--vm); opacity:.85;"/>';
+        svg += '<text x="'+(centro-wRes-6).toFixed(1)+'" y="'+(cy+4)+'" font-size="11.5" text-anchor="end" style="fill:var(--vd)">'+(a.resolvidos ? '−'+pdfNum(a.resolvidos) : '0')+'</text>';
+        svg += '<text x="'+(centro+wNov+6).toFixed(1)+'" y="'+(cy+4)+'" font-size="11.5" style="fill:var(--vm)">'+(a.novos ? '+'+pdfNum(a.novos) : '0')+'</text>';
+        svg += '<text x="'+(W-4)+'" y="'+(cy+4)+'" font-size="12.5" text-anchor="end" style="fill:'+(s>0?'var(--vm)':(s<0?'var(--vd)':'var(--muted)'))+'">'+(s>0?'+':'')+pdfNum(s)+'</text>';
+        svg += '</g>';
+      });
+      svg += '</svg>';
+      html += svg + '<div class="rodape-nota" style="text-align:left; margin:4px 0 0;">Toque num andar pra ver os ambientes e os itens na Comparação.</div>';
+      // onde mais entraram pendências novas (etiquetas)
+      const locais = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,y) => y.novos.length - x.novos.length).slice(0, 6);
       if (locais.length){
-        html += '<div class="detalhe" style="margin:12px 0 4px;">Onde mais entraram pendências novas</div>' +
-          locais.map((l) => '<div class="detalhe" style="color:var(--text-2);">'+esc(l.label)+' · '+l.andar+'º — <span style="color:var(--vm);">+'+l.novos.length+'</span></div>').join('');
+        html += '<div class="detalhe" style="margin:14px 0 6px;">Onde mais entraram pendências</div><div style="display:flex; flex-wrap:wrap; gap:6px;">' +
+          locais.map((l) => '<span class="badge bloqueado" style="font-size:12px;">'+esc(l.label)+' · '+l.andar+'º  +'+l.novos.length+'</span>').join('') + '</div>';
       }
+    } else if (!diff.semDadosNoPara.length) {
+      html += '<div class="vazio">Nenhuma diferença entre as duas revisões.</div>';
     }
     // pendências novas que já chegam CRÍTICAS (VM)
     const novasCriticas = diff.novos.filter((it) => it.status==='VM').slice(0,6);
@@ -3707,6 +3746,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
+      if (filtroProgressoSelect === 'naoBaixadoIac') return iacNaoDeuBaixa(it);
       return true;
     });
   }
@@ -4094,31 +4134,55 @@ async function executarComparacao(){
   if (locais.length === 0){
     htmlDet += '<div class="vazio">Nenhuma diferença encontrada entre essas duas revisões.</div>';
   } else {
-    const primeiroDoAndar = new Set();
+    const porAndar = new Map();
+    locais.forEach((l) => { if (!porAndar.has(l.andar)) porAndar.set(l.andar, []); porAndar.get(l.andar).push(l); });
+    const linhaLocal = (l) => {
+      const s = l.novos.length - l.resolvidos.length;
+      const novasVm = l.novos.filter((it) => it.status === 'VM').length;
+      const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
+      return '<tr class="comp-local-row oculto clicavel" data-andar-pai="'+l.andar+'" data-toggle-local>' +
+          '<td class="col-centro" style="color:var(--faint);">↳</td><td style="padding-left:18px;">'+esc(l.label)+'</td>' +
+          '<td class="num-col col-vm">'+(l.novos.length ? '+'+l.novos.length : '0')+'</td>' +
+          '<td class="num-col col-vm">'+novasVm+'</td>' +
+          '<td class="num-col col-vd">'+(l.resolvidos.length ? '−'+l.resolvidos.length : '0')+'</td>' +
+          '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
+          '<td class="col-centro"><button type="button" class="chip-acao" data-seta>Ver itens ▾</button></td></tr>' +
+        '<tr class="comp-itens oculto" data-andar-pai="'+l.andar+'"><td colspan="7" style="background:var(--paper); padding:10px 12px 14px;">' +
+          '<div class="card" style="overflow-x:auto;"><table><thead><tr><th class="col-centro">Item</th><th class="col-centro">Prioridade</th><th>Disciplina</th><th>Descrição</th><th class="col-centro">Movimento</th><th class="col-centro">Ação</th></tr></thead>' +
+          '<tbody>'+itensHtml+'</tbody></table></div></td></tr>';
+    };
     htmlDet += '<div style="overflow-x:auto;"><table><thead><tr>' +
-      '<th class="col-centro">Andar</th><th>Quarto / área</th>' +
+      '<th class="col-centro">Andar</th><th>Ambiente</th>' +
       '<th class="num-col col-vm">Novas</th><th class="num-col col-vm">Novas VM</th><th class="num-col col-vd">Resolvidas</th>' +
-      '<th class="num-col">Saldo</th><th class="col-centro">Itens</th></tr></thead><tbody>' +
-      locais.map((l) => {
-        const s = l.novos.length - l.resolvidos.length;
-        const novasVm = l.novos.filter((it) => it.status === 'VM').length;
-        const idAndar = primeiroDoAndar.has(l.andar) ? '' : ' id="comp-andar-'+l.andar+'" style="scroll-margin-top:140px;"';
-        primeiroDoAndar.add(l.andar);
-        const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
-        return '<tr class="clicavel" data-toggle-local'+idAndar+'>' +
-            '<td class="mono col-centro">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
-            '<td class="num-col col-vm">'+(l.novos.length ? '+'+l.novos.length : '0')+'</td>' +
-            '<td class="num-col col-vm">'+novasVm+'</td>' +
-            '<td class="num-col col-vd">'+(l.resolvidos.length ? '−'+l.resolvidos.length : '0')+'</td>' +
+      '<th class="num-col">Saldo</th><th class="col-centro">Detalhe</th></tr></thead><tbody>' +
+      Array.from(porAndar.entries()).sort((x,y) => x[0] - y[0]).map(([andar, ls]) => {
+        const nov = ls.reduce((a, l) => a + l.novos.length, 0), res = ls.reduce((a, l) => a + l.resolvidos.length, 0);
+        const vm = ls.reduce((a, l) => a + l.novos.filter((it) => it.status === 'VM').length, 0), s = nov - res;
+        return '<tr class="clicavel" data-toggle-andar="'+andar+'" id="comp-andar-'+andar+'" style="scroll-margin-top:140px;">' +
+            '<td class="mono col-centro" style="color:var(--text);">'+andar+'º</td>' +
+            '<td style="color:var(--muted);">'+ls.length+' ambiente(s) com mudança</td>' +
+            '<td class="num-col col-vm">'+(nov ? '+'+pdfNum(nov) : '0')+'</td>' +
+            '<td class="num-col col-vm">'+vm+'</td>' +
+            '<td class="num-col col-vd">'+(res ? '−'+pdfNum(res) : '0')+'</td>' +
             '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
-            '<td class="col-centro"><button type="button" class="chip-acao" data-seta>Ver itens ▾</button></td></tr>' +
-          '<tr class="comp-itens oculto"><td colspan="7" style="background:var(--paper); padding:10px 12px 14px;">' +
-            '<div class="card" style="overflow-x:auto;"><table><thead><tr><th class="col-centro">Item</th><th class="col-centro">Prioridade</th><th>Disciplina</th><th>Descrição</th><th class="col-centro">Movimento</th><th class="col-centro">Ação</th></tr></thead>' +
-            '<tbody>'+itensHtml+'</tbody></table></div></td></tr>';
+            '<td class="col-centro"><button type="button" class="chip-acao" data-seta-andar>Ver ambientes ▾</button></td></tr>' +
+          ls.map(linhaLocal).join('');
       }).join('') + '</tbody></table></div>' +
-      '<p class="rodape-nota" style="margin-top:10px;">Toque numa linha para ver os itens que entraram e os que saíram daquele quarto/área.</p>';
+      '<p class="rodape-nota" style="margin-top:10px;">Toque num andar para ver os ambientes; toque num ambiente para ver os itens que entraram e saíram.</p>';
   }
   detalhe.innerHTML = htmlDet;
+  detalhe.querySelectorAll('[data-toggle-andar]').forEach((tr) => tr.addEventListener('click', () => {
+    const andar = tr.dataset.toggleAndar;
+    const linhas = detalhe.querySelectorAll('.comp-local-row[data-andar-pai="'+andar+'"]');
+    const abrir = linhas.length && linhas[0].classList.contains('oculto');
+    linhas.forEach((l) => {
+      l.classList.toggle('oculto', !abrir);
+      const bs = l.querySelector('[data-seta]'); if (bs) bs.textContent = 'Ver itens ▾';
+    });
+    if (!abrir) detalhe.querySelectorAll('.comp-itens[data-andar-pai="'+andar+'"]').forEach((l) => l.classList.add('oculto'));
+    const seta = tr.querySelector('[data-seta-andar]');
+    if (seta) seta.textContent = abrir ? 'Esconder ▴' : 'Ver ambientes ▾';
+  }));
   detalhe.querySelectorAll('[data-toggle-local]').forEach((tr) => tr.addEventListener('click', (e) => {
     if (e.target.closest('[data-abrir-item]')) return;
     const box = tr.nextElementSibling;
@@ -4131,7 +4195,7 @@ async function executarComparacao(){
     abrirItens({ andar: b.dataset.andar, ambiente: 'local:' + b.dataset.local, busca: b.dataset.abrirItem });
   }));
 
-  renderDivergenciasIac(para_.itens);
+  renderDivergenciasIac(itensRevisaoAtual);
 }
 
 /* ===================== DIVERGÊNCIAS COM A IAC =====================
@@ -5447,7 +5511,12 @@ async function iniciar(){
   });
 
   document.getElementById('btn-comparar').addEventListener('click', executarComparacao);
-  document.getElementById('btn-imprimir-divergencia').addEventListener('click', () => window.print());
+  // itens vistoriados que a IAC não tirou da lista: abre a aba Itens já filtrada (e gera o PDF, se pedido)
+  document.getElementById('btn-ver-divergencia').addEventListener('click', () => abrirItens({ fluxo: 'naoBaixadoIac' }));
+  document.getElementById('btn-pdf-divergencia').addEventListener('click', () => {
+    abrirItens({ fluxo: 'naoBaixadoIac' });
+    setTimeout(() => document.getElementById('btn-pdf-itens').click(), 400);
+  });
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
   document.getElementById('btn-pdf-itens').addEventListener('click', exportarItensPdf);
 
