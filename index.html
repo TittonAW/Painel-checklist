@@ -42,7 +42,9 @@
   /* PADRÃO DE CORES POR ETAPA (igual em todo o app e nos PDFs):
      vermelho = VM em aberto · âmbar = AM em aberto · grafite = em aberto (total)
      azul = Executado AW · verde = Vistoriado IAC / VD · lilás = Liberado c/ pendência */
-  --lib:#7C5CC9; --lib-soft:#EFEAFB; --lib-fill:rgba(124,92,201,.80); --grafite:#3A3F47; --vd-forte:#1F6B45;
+  /* Executado AW = roxo (--aw) · Liberado com pendência = azul (--lib) */
+  --aw:#7C5CC9; --aw-soft:#EFEAFB; --aw-fill:rgba(124,92,201,.80);
+  --lib:#4C73D9; --lib-soft:#E7ECFC; --lib-fill:rgba(76,115,217,.80); --grafite:#3A3F47; --vd-forte:#1F6B45;
   --surface:#FFFFFF; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 28px rgba(16,24,40,.07);
   --shadow-lg: 0 20px 55px rgba(16,24,40,.16);
   --r-sm:9px; --r-md:14px; --r-lg:20px;
@@ -57,7 +59,8 @@
   --vd:#5FB88B; --vd-soft:#133023; --vd-fill:rgba(95,184,139,.78);
   --semdados:#6E7680; --semdados-soft:#1C2027; --aviso-cor:#D9A95E; --aviso-cor-soft:#3A2D14; --aviso-fill:rgba(217,169,94,.78);
   --lilas:#A98FE8; --lilas-fill:rgba(169,143,232,.78); --cinza-grafico:#8B95A3; --cinza-grafico-fill:rgba(139,149,163,.78);
-  --lib:#A98FE8; --lib-soft:#262040; --lib-fill:rgba(169,143,232,.78); --grafite:#C9CDD3; --vd-forte:#6BC79A;
+  --aw:#A98FE8; --aw-soft:#262040; --aw-fill:rgba(169,143,232,.78);
+  --lib:#86A6F0; --lib-soft:#1A2440; --lib-fill:rgba(134,166,240,.78); --grafite:#C9CDD3; --vd-forte:#6BC79A;
   --surface:#15181D; --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.4);
   --shadow-lg: 0 20px 55px rgba(0,0,0,.5);
 }
@@ -242,7 +245,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 /* % nas tabelas */
 .pct-cel{ display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
 .pct-trilho{ width:46px; height:5px; border-radius:3px; background:var(--line); overflow:hidden; display:inline-block; }
-.pct-feito{ display:block; height:100%; background:var(--azul); border-radius:3px; }
+.pct-feito{ display:block; height:100%; background:var(--aw); border-radius:3px; }
 .pct-num{ font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums; min-width:32px; text-align:right; }
 .destaque-pct{ display:flex; flex-wrap:wrap; gap:6px 22px; align-items:baseline; padding:2px 0 16px; }
 .destaque-pct .grande{ font-size:26px; color:var(--text); font-weight:300; }
@@ -275,8 +278,8 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 tbody tr.linha-clicavel{ cursor:pointer; }
 .stat .valor{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:28px; font-weight:400; line-height:1.1; }
 .stat .rotulo{ font-size:12px; color:var(--muted); margin-top:6px; }
-.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--azul); }
-.stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--lib); } .stat.aw .valor{ color:var(--azul); }
+.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--aw); }
+.stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--lib); } .stat.aw .valor{ color:var(--aw); }
 
 table{ width:100%; min-width:620px; border-collapse:collapse; font-size:14px; }
 th{ text-align:left; font-weight:400; color:var(--muted); font-size:11.5px; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
@@ -305,13 +308,13 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .badge.semdados{ background:var(--semdados-soft); color:var(--semdados); }
 .chip-acao{ font-size:11.5px; padding:4px 10px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; white-space:nowrap; transition:border-color .15s, color .15s, background .15s; }
 @media (hover:hover) and (pointer:fine){ .chip-acao:hover{ border-color:var(--accent); color:var(--accent-2); } }
-.chip-acao.marcado{ background:var(--azul-soft); color:var(--azul); border-color:var(--azul); }
+.chip-acao.marcado{ background:var(--aw-soft); color:var(--aw); border-color:var(--aw); }
 .chip-acao.marcado.iac{ background:var(--vd-soft); color:var(--vd); border-color:var(--vd); }
 .chip-acao.marcado.lib{ background:var(--lib-soft); color:var(--lib); border-color:var(--lib); }
-.col-aw{ color:var(--azul); } .col-iac{ color:var(--vd); }
-.mini-stat.aw .mini-valor{ color:var(--azul); } .mini-stat.iac .mini-valor{ color:var(--vd); }
+.col-aw{ color:var(--aw); } .col-iac{ color:var(--vd); }
+.mini-stat.aw .mini-valor{ color:var(--aw); } .mini-stat.iac .mini-valor{ color:var(--vd); }
 .mini-pct{ font-size:9.5px; line-height:1.2; font-variant-numeric:tabular-nums; color:var(--text-2); opacity:.75; }
-.mini-stat.aw .mini-pct{ color:var(--azul); }
+.mini-stat.aw .mini-pct{ color:var(--aw); }
 .chip-acao:disabled{ opacity:.4; cursor:not-allowed; }
 @media (hover:hover) and (pointer:fine){ .chip-acao:disabled:hover{ border-color:var(--line); color:var(--muted); } }
 .tag-origem{ font-size:10px; padding:1px 7px; border-radius:99px; font-weight:400; vertical-align:middle; }
@@ -557,11 +560,11 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </select>
       <select id="filtro-progresso">
         <option value="">Todos os fluxos</option>
+        <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
         <option value="iacOk">Vistoriado IAC</option>
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
-        <option value="emAberto">Em aberto (AW ainda não executou)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-quartos">Gerar PDF</button>
@@ -597,13 +600,14 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </select>
       <select id="filtro-item-progresso">
         <option value="">Todos os fluxos</option>
+        <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
+        <option value="awSemIac">Aguardando vistoria IAC</option>
         <option value="iacOk">Vistoriado IAC</option>
+        <option value="comReinc">Com reincidência</option>
+        <option value="naoBaixadoIac">IAC não deu baixa</option>
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
-        <option value="emAberto">Em aberto (AW ainda não executou)</option>
-        <option value="comReinc">Com reincidência</option>
-        <option value="naoBaixadoIac">Vistoriado IAC — IAC não deu baixa</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
@@ -665,7 +669,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card card-pad" style="margin-top:16px;" id="card-divergencia-iac">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
         <div>
-          <h2 style="margin-bottom:2px;">Vistoriados que a IAC não deu baixa</h2>
+          <h2 style="margin-bottom:2px;">IAC não deu baixa</h2>
           <p style="color:var(--muted); margin:0;">Itens marcados como "Vistoriado IAC" antes do envio da revisão selecionada, e que a planilha nova ainda lista como pendentes. "Gerar PDF para a IAC" já sai com quem validou e quando — pronto pra mandar no WhatsApp.</p>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -886,7 +890,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.50';
+const VERSAO_APP = '2026-10-03.51';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1828,13 +1832,26 @@ async function salvarLote(grupos, aoProgredir){
     // Regra da liberação manual (azul): uma vez marcada, continua valendo nas próximas
     // planilhas desse mesmo local — EXCETO quando entra item crítico (sai sozinha) ou quando
     // aparece item amarelo que não existia antes (aí vira pergunta pro usuário, não decide aqui).
-    const areasLiberadasExistentes = (existente && existente.areasLiberadas) || {};
+    // revisão NOVA: herda as liberações da revisão anterior desse andar (antes se perdiam)
+    let areasLiberadasExistentes = (existente && existente.areasLiberadas) || null;
+    if (!existente){
+      const anteriores = revisoesMeta
+        .filter((r) => r.numero < Number(g.revisao) && (r.andares || []).indexOf(g.andar) !== -1)
+        .sort((a,b) => b.numero - a.numero);
+      if (anteriores.length){
+        try{
+          const docAnt = await store.getDoc('snapshots', 'R' + anteriores[0].numero + '_' + g.andar);
+          areasLiberadasExistentes = (docAnt && docAnt.areasLiberadas) || null;
+        }catch(e){ areasLiberadasExistentes = null; }
+      }
+    }
+    areasLiberadasExistentes = areasLiberadasExistentes || {};
     const areasLiberadasFinal = {};
     Object.keys(areasLiberadasExistentes).forEach((chave) => {
       const entrada = areasLiberadasExistentes[chave];
       if (!locaisNovos.has(chave)){ areasLiberadasFinal[chave] = entrada; return; } // local não tocado, mantém como estava
       const itensDoLocalAgora = itensFinal.filter((it) => chaveAreaDoc(it.t, it.q) === chave);
-      if (itensDoLocalAgora.some((it) => it.s === 'VM')){
+      if (itensDoLocalAgora.some((it) => it.s === 'VM' && estaEmAberto({ id: it.id }))){
         avisos.liberacaoRemovidaPorVM.push(g.andar + 'º andar · ' + chave.replace('|','-'));
         return; // sai do azul sozinha — não entra no final
       }
@@ -2918,7 +2935,7 @@ async function renderResumoGeral(recarregarHistorico){
   const sub = (n) => '<div class="pct-sub">'+Math.round(n/totalItens*100)+'% do total</div>';
   grid.innerHTML =
     '<div class="destaque-pct">' +
-      '<span><span class="grande" style="color:var(--azul);">'+fmtPct(pctExec)+'</span> <span class="rot">executado pela AW</span></span>' +
+      '<span><span class="grande" style="color:var(--aw);">'+fmtPct(pctExec)+'</span> <span class="rot">executado pela AW</span></span>' +
       '<span><span class="grande" style="color:var(--vd);">'+fmtPct(pctVist)+'</span> <span class="rot">vistoriado pela IAC</span></span>' +
       (vmTotal ? '<span><span class="grande" style="color:var(--vm);">'+vmFeitos+' de '+vmTotal+'</span> <span class="rot">vermelhos executados ('+pctVm+'%)</span></span>' : '') +
     '</div>' +
@@ -3244,7 +3261,7 @@ function numCurto(v){
 
 const SERIES_EVOLUCAO = [
   { chave:'aberto', rotulo:'Em aberto', cor:'#3A3F47', largura:2.6 },
-  { chave:'aw', rotulo:'Executado AW', cor:'#4C73D9', largura:2 },
+  { chave:'aw', rotulo:'Executado AW', cor:'#7C5CC9', largura:2 },
   { chave:'iac', rotulo:'Vistoriado IAC', cor:'#39976A', largura:2 },
   { chave:'total', rotulo:'Total', cor:'#99A1AC', largura:1.4 }
 ];
@@ -3351,7 +3368,7 @@ function renderEvolucaoPendencias(){
   const todos = pontos.concat(futuro);
   const espacoMin = pequeno ? 40 : 46; // px mínimos entre um dia e outro pra os números não se encostarem
   const passoRot = Math.max(1, Math.ceil(espacoMin / Math.max(1, passoX)));
-  svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#4C73D9">AW</text>';
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#7C5CC9">AW</text>';
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#39976A">IAC</text>';
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+66)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#D1443F">Reinc.</text>';
   todos.forEach((p,i) => {
@@ -3360,7 +3377,7 @@ function renderEvolucaoPendencias(){
     const x = xAt(i).toFixed(1);
     svg += '<text x="'+x+'" y="'+(yBase+17)+'" font-size="'+fs+'" text-anchor="middle" style="fill:'+(p.data===hojeChave?'var(--text)':(passado?'var(--muted)':'#B4B9C1'))+'">'+rotuloDia(p.data)+'</text>';
     // passado: o que foi feito no dia | futuro (clarinho): quanto precisa ser feito por dia pra seguir a tendência
-    const corAw = passado ? '#4C73D9' : '#AFC1F2', corIac = passado ? '#39976A' : '#9FD3B8';
+    const corAw = passado ? '#7C5CC9' : '#C9B8F0', corIac = passado ? '#39976A' : '#9FD3B8';
     const pre = passado ? '+' : '≈';
     svg += '<text x="'+x+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.awDia?corAw:'#C4C8CF')+'">'+(p.awDia?pre+pdfNum(p.awDia):'—')+'</text>';
     svg += '<text x="'+x+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.iacDia?corIac:'#C4C8CF')+'">'+(p.iacDia?pre+pdfNum(p.iacDia):'—')+'</text>';
@@ -3432,7 +3449,7 @@ function renderEvolucaoPendencias(){
   const cursor = cont.querySelector('#evo-cursor');
   function preencherTopo(p){
     cont.querySelector('#evo-dia-sel').textContent = p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().join('/');
-    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#4C73D9;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#39976A;">IAC +'+pdfNum(p.iacDia)+'</span>' +
+    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#7C5CC9;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#39976A;">IAC +'+pdfNum(p.iacDia)+'</span>' +
       (p.reincDia ? ' · <span style="color:#D1443F;">'+pdfNum(p.reincDia)+' reincidência'+(p.reincDia>1?'s':'')+'</span>' : '');
     SERIES_EVOLUCAO.forEach((s) => {
       const el = cont.querySelector('[data-valor-de="'+s.chave+'"]');
@@ -3459,7 +3476,7 @@ function renderEvolucaoPendencias(){
     const dataFmt = p.data === hojeChave ? 'Hoje' : p.data.split('-').reverse().join('/');
     tip.innerHTML = '<div style="color:#C9CDD3; margin-bottom:2px;">'+dataFmt+'</div>' +
       '<div><span style="color:#C9CDD3;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
-      '<div><span style="color:#9CB4F2;">●</span> Executado AW: '+pdfNum(p.aw)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.awDia)+' no dia)</span></div>' +
+      '<div><span style="color:#C1B0EE;">●</span> Executado AW: '+pdfNum(p.aw)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.awDia)+' no dia)</span></div>' +
       '<div><span style="color:#7FD1A6;">●</span> Vistoriado IAC: '+pdfNum(p.iac)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.iacDia)+' no dia)</span></div>' +
       '<div><span style="color:#C9CDD3;">●</span> Total: '+pdfNum(p.total)+'</div>' +
       (p.reincDia ? '<div><span style="color:#F09595;">●</span> Reincidências no dia: '+pdfNum(p.reincDia)+'</div>' : '');
@@ -3589,7 +3606,7 @@ function construirRankingProgresso(lista, cor, maxItens){
     // ao lado: em aberto · executados · total
     svg += '<text x="'+(padL+larguraTotal+10)+'" y="'+(centroY+5)+'" font-size="13" style="fill:var(--text)">'+pdfNum(it.aberto)+' em aberto' +
       '<tspan style="fill:var(--faint)">\u00A0\u00A0·\u00A0\u00A0</tspan>' +
-      '<tspan style="fill:var(--azul)">'+pdfNum(it.total - it.aberto)+' exec.</tspan>' +
+      '<tspan style="fill:var(--aw)">'+pdfNum(it.total - it.aberto)+' exec.</tspan>' +
       '<tspan style="fill:var(--faint)">\u00A0\u00A0·\u00A0\u00A0'+pdfNum(it.total)+' total</tspan></text>';
   });
   svg += '</svg>';
@@ -3937,6 +3954,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac') return iacNaoDeuBaixa(it);
+      if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
       return true;
     });
   }
@@ -5086,8 +5104,8 @@ const PDF_COR = {
   line:[230,232,236], paper:[245,246,248], white:[255,255,255],
   acc:[15,118,110], accs:[226,243,241],
   vm:[201,67,62], vms:[251,233,232], am:[185,126,46], ams:[251,240,222],
-  az:[76,115,217], azs:[233,238,252], vd:[57,151,106], vds:[227,243,234],
-  lib:[124,92,201], libs:[239,234,251],
+  az:[124,92,201], azs:[239,234,251], vd:[57,151,106], vds:[227,243,234], // az = Executado AW (roxo)
+  lib:[76,115,217], libs:[233,238,252],                                     // lib = Liberado c/ pendência (azul)
   heroLabel:[208,212,218], heroSub:[168,174,183], grafite:[58,63,71]
 };
 const PDF_PRIO = {
