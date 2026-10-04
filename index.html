@@ -432,6 +432,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   border-bottom:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.06);
 }
 .barra-voltar-fixa[hidden]{ display:none; }
+.aviso-ambar{ background:var(--aviso-cor-soft); color:var(--aviso-cor); border:1px solid color-mix(in srgb, var(--aviso-cor) 30%, transparent); border-radius:var(--r-md); padding:12px 16px; margin:0 0 12px; font-size:14px; line-height:1.5; }
+.btn.ambar{ color:var(--aviso-cor); border-color:color-mix(in srgb, var(--aviso-cor) 45%, transparent); }
 .aviso-flutuante{
   position:fixed; left:50%; transform:translateX(-50%); z-index:150;
   bottom:calc(18px + env(safe-area-inset-bottom,0px)); max-width:calc(100% - 32px);
@@ -694,7 +696,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         </div>
       </div>
       <div id="status-espaco-fotos" style="font-size:.85rem; color:var(--muted); margin-top:2px;"></div>
-      <button type="button" class="btn fantasma" id="btn-desfazer-ultimo-envio" hidden style="margin-top:8px; color:var(--vm); border-color:var(--vm-soft);">Desfazer o último envio</button>
       <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
       <div class="dropzone" id="dropzone">
         <strong>Arraste os arquivos .xlsx, PDF ou um .zip aqui</strong><br>ou clique para escolher
@@ -882,7 +883,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.48';
+const VERSAO_APP = '2026-10-03.49';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4608,8 +4609,8 @@ async function executarSalvamento(grupos, btn, cont){
   const discSemForn = Array.from(new Set(Array.from(grupos.values()).flatMap((g) => g.itens.map((it) => it.disciplina))
     .filter((d) => d && !fornecedorPadraoDaDisciplina(d)))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
   if (discSemForn.length){
-    html += '<div class="aviso">'+discSemForn.length+' disciplina(s) sem fornecedor padrão — os itens delas entraram como "sem fornecedor": ' +
-      discSemForn.map(esc).join(', ') + '. <button type="button" class="btn fantasma" id="btn-definir-fornecedores" style="margin-left:6px; padding:4px 12px;">Definir fornecedores</button></div>';
+    html += '<div class="aviso-ambar">'+discSemForn.length+' disciplina(s) sem fornecedor padrão — os itens delas entraram como "sem fornecedor": ' +
+      discSemForn.map(esc).join(', ') + '. <button type="button" class="btn fantasma ambar" id="btn-definir-fornecedores" style="margin-left:6px; padding:4px 12px;">Definir fornecedores</button></div>';
   }
   let idRevisaoBtn = 0;
   if (avisos.revisarLiberacao.length > 0){
@@ -4640,7 +4641,7 @@ async function executarSalvamento(grupos, btn, cont){
     html += '<div class="dica">Os itens (texto) foram salvos.'+resumoFotos+' Confira os avisos ACIMA antes de continuar — o painel só muda de tela quando não sobrar nenhum aviso.</div>';
     html += '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">' +
       '<button class="btn fantasma" id="btn-ok-com-avisos">Ciente, ir para a Visão geral mesmo assim</button>' +
-      '<button class="btn fantasma" id="btn-desfazer-este-envio" style="color:var(--vm); border-color:var(--vm-soft);">Desfazer este envio</button></div>';
+      '<button class="btn fantasma ambar" id="btn-desfazer-este-envio">Desfazer este envio</button></div>';
     cont.innerHTML = html;
     const btnOk = document.getElementById('btn-ok-com-avisos');
     if (btnOk) btnOk.addEventListener('click', () => irParaAba('visao-geral'));
@@ -5548,7 +5549,7 @@ async function iniciar(){
   iniciarSincronizacaoAutomatica();
   document.getElementById('btn-ir-enviar').addEventListener('click', () => irParaAba('enviar'));
   document.getElementById('btn-apagar-tudo').addEventListener('click', apagarTudo);
-  document.getElementById('btn-desfazer-ultimo-envio').addEventListener('click', () => executarDesfazerEnvio(document.getElementById('preview-envio')));
+
   document.getElementById('btn-limpar-fotos-orfas').addEventListener('click', async () => {
     const cont = document.getElementById('preview-envio');
     irParaAba('enviar');
