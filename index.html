@@ -514,11 +514,11 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
     <div class="grid-metade" style="margin-top:18px;">
       <div class="card card-pad">
-        <h2>Em aberto por fornecedor</h2>
+        <h2>Pendências por fornecedor</h2>
         <div id="ranking-fornecedor"></div>
       </div>
       <div class="card card-pad">
-        <h2>Em aberto por disciplina</h2>
+        <h2>Pendências por disciplina</h2>
         <div id="ranking-disciplina"></div>
       </div>
     </div>
@@ -858,7 +858,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.21';
+const VERSAO_APP = '2026-10-03.22';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -3138,7 +3138,7 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens, sufixos){
       svg += '<text x="'+(padL-12)+'" y="'+(centroY+16)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[1])+'</text>';
     }
     svg += '<rect x="'+padL+'" y="'+yBarra.toFixed(1)+'" width="'+larguraBarra.toFixed(1)+'" height="'+ALTURA_BARRA+'" rx="6" style="fill:'+corBarra+'"/>';
-    svg += '<text x="'+(padL+larguraBarra+10)+'" y="'+(centroY+5)+'" font-size="13.5" style="fill:var(--muted)">'+it.valor+
+    svg += '<text x="'+(padL+larguraBarra+10)+'" y="'+(centroY+5)+'" font-size="13.5" style="fill:var(--muted)">'+(sufixos ? pdfNum(it.valor)+' em aberto' : it.valor)+
       (sufixos && sufixos.get(it.nome) ? '<tspan style="fill:var(--faint)">  ·  '+esc(sufixos.get(it.nome))+'</tspan>' : '')+'</text>';
   });
   svg += '</svg>';
@@ -3155,9 +3155,12 @@ function renderRankings(){
     if (!todosForn.has(f)) todosForn.set(f, []); todosForn.get(f).push(it);
     if (!todosDisc.has(d)) todosDisc.set(d, []); todosDisc.get(d).push(it);
   });
-  // % que cada fornecedor / disciplina representa do total AINDA EM ABERTO
-  const totalAberto = itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).length || 1;
-  const pctDoTotal = (mapa) => new Map(Array.from(mapa.entries()).map(([k, v]) => [k, Math.round(v/totalAberto*100) + '% do em aberto']));
+  // barra = o que ainda está EM ABERTO (diminui e reordena conforme o fornecedor fecha os itens);
+  // % = quanto da obra inteira foi direcionado pra ele (todos os itens dele ÷ total da revisão) — fixo
+  const ehPendencia = (it) => it.status === 'VM' || it.status === 'AM';
+  const totalGeral = itensRevisaoAtual.filter(ehPendencia).length || 1;
+  const pctDoTotal = (todos) => new Map(Array.from(todos.entries()).map(([k, lista]) =>
+    [k, Math.round(lista.filter(ehPendencia).length/totalGeral*100) + '% do total']));
   // conta só o que AINDA está em aberto (some do ranking assim que a AW executa)
   itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).forEach((it) => {
     const nomeForn = fornecedorEfetivo(it) || 'Sem fornecedor definido';
@@ -3165,8 +3168,8 @@ function renderRankings(){
     const disc = disciplinaEfetiva(it);
     porDisc.set(disc, (porDisc.get(disc)||0)+1);
   });
-  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--lilas-fill)', null, pctDoTotal(porForn));
-  document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)', null, pctDoTotal(porDisc));
+  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--lilas-fill)', null, pctDoTotal(todosForn));
+  document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)', null, pctDoTotal(todosDisc));
 }
 
 /* ===================== RENDER: QUARTOS ===================== */
