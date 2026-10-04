@@ -325,6 +325,10 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 
 .contagem-chips{ font-size:11.5px; color:var(--muted); margin-bottom:4px; }
 .chips-arquivos{ display:flex; flex-wrap:wrap; gap:6px; max-width:300px; }
+.chip-arquivo.removivel{ position:relative; padding-right:22px; }
+.chip-remover{ position:absolute; top:50%; right:3px; transform:translateY(-50%); width:16px; height:16px; border:0; border-radius:50%;
+  background:transparent; color:var(--muted); font-size:13px; line-height:16px; padding:0; cursor:pointer; }
+.chip-remover:hover{ background:var(--vm-soft); color:var(--vm); }
 .chip-arquivo{ background:var(--paper-2); border:1px solid var(--line); border-radius:5px; padding:1px 7px; font-size:11px; font-family:inherit; font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
 .miniatura-foto{ width:140px; height:105px; object-fit:cover; border-radius:9px; border:1px solid var(--line); display:block; cursor:zoom-in; }
 .sem-foto{ color:var(--muted); }
@@ -873,7 +877,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.32';
+const VERSAO_APP = '2026-10-03.36';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1553,7 +1557,8 @@ async function subirUmaFotoComRetry(blob, tentativas, nomeFixo){
       ultimoErro = e;
     }
     if (i < tentativas-1){
-      const espera = 900*(i+1) + Math.random()*500; // 0.9s, 1.8s (+ um pouco aleatório)
+      const devagar = /slow ?down|too many|429|503/i.test(String((ultimoErro && (ultimoErro.message || ultimoErro.code || ultimoErro.statusCode)) || ''));
+      const espera = (devagar ? 3000 : 900)*(i+1) + Math.random()*500; // pedido de "SlowDown": espera bem mais
       await new Promise((resolve) => setTimeout(resolve, espera));
     }
   }
@@ -1618,37 +1623,64 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
   }
   const idsPorItem = itens.map(() => []);
   let concluidas = 0;
-  await comLimiteDeConcorrencia(tarefas, 4, async (tarefa) => {
-    try{
-      const digital = await impressaoDigitalFoto(tarefa.blob);
-      let up = null;
-      if (digital){
-        const repetidaNesteEnvio = fotosDesteEnvio.has(digital);
-        if (!repetidaNesteEnvio){
-          fotosDesteEnvio.set(digital, (async () => {
-            const existente = await fotoJaExiste(digital);
-            if (existente) return { id: existente, reaproveitada: true };
-            const blobMenor = await comprimirImagem(tarefa.blob);
-            return await subirUmaFotoComRetry(blobMenor, 3, digital);
-          })());
-        }
-        up = await fotosDesteEnvio.get(digital);
-        if (up && repetidaNesteEnvio) up = Object.assign({}, up, { reaproveitada: true });
-      } else {
+  // processa UMA foto: reaproveita se já existe; senão comprime e sobe com o nome da impressão digital
+  async function processarFoto(tarefa){
+    const digital = await impressaoDigitalFoto(tarefa.blob);
+    if (!digital){
+      const blobMenor = await comprimirImagem(tarefa.blob);
+      return await subirUmaFotoComRetry(blobMenor, 3);
+    }
+    const repetidaNesteEnvio = fotosDesteEnvio.has(digital);
+    if (!repetidaNesteEnvio){
+      fotosDesteEnvio.set(digital, (async () => {
+        const existente = await fotoJaExiste(digital);
+        if (existente) return { id: existente, reaproveitada: true };
         const blobMenor = await comprimirImagem(tarefa.blob);
-        up = await subirUmaFotoComRetry(blobMenor, 3);
-      }
-      if (up && up.id){
-        idsPorItem[tarefa.idxItem].push(up.id);
-        if (up.reaproveitada) avisos.fotosReaproveitadas = (avisos.fotosReaproveitadas||0) + 1; else avisos.fotosEnviadas++;
-      }
-      else avisos.fotosFalharam.push(tarefa.idItem);
+        return await subirUmaFotoComRetry(blobMenor, 3, digital);
+      })());
+    }
+    try{
+      const up = await fotosDesteEnvio.get(digital);
+      return (up && repetidaNesteEnvio) ? Object.assign({}, up, { reaproveitada: true }) : up;
     }catch(e){
-      console.warn('falha ao subir foto do item (depois de tentar de novo)', tarefa.idItem, e);
-      avisos.fotosFalharam.push(tarefa.idItem + (e && e.code ? ' ('+e.code+')' : ''));
+      // não deixa a falha "grudada": a próxima tentativa dessa mesma foto tenta de verdade
+      fotosDesteEnvio.delete(digital);
+      throw e;
+    }
+  }
+  function registrar(tarefa, up){
+    idsPorItem[tarefa.idxItem].push(up.id);
+    if (up.reaproveitada) avisos.fotosReaproveitadas = (avisos.fotosReaproveitadas||0) + 1; else avisos.fotosEnviadas++;
+  }
+  const pendentes = []; // falharam na 1ª rodada (ex: "SlowDown" do Supabase) → tentam de novo no fim, devagar
+  await comLimiteDeConcorrencia(tarefas, 3, async (tarefa) => {
+    try{
+      const up = await processarFoto(tarefa);
+      if (up && up.id) registrar(tarefa, up); else pendentes.push({ tarefa, erro: null });
+    }catch(e){
+      pendentes.push({ tarefa, erro: e });
     }
     concluidas++;
     if (aoProgredir) aoProgredir(concluidas, tarefas.length);
+  });
+  // 2ª e 3ª rodadas: uma foto por vez, com pausa — dá tempo do Supabase "respirar"
+  let restantes = pendentes;
+  for (const pausa of [8000, 20000]){
+    if (!restantes.length) break;
+    await new Promise((r) => setTimeout(r, pausa));
+    const aindaFalhando = [];
+    for (const p of restantes){
+      try{
+        const up = await processarFoto(p.tarefa);
+        if (up && up.id) registrar(p.tarefa, up); else aindaFalhando.push(p);
+      }catch(e){ aindaFalhando.push({ tarefa: p.tarefa, erro: e }); }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    restantes = aindaFalhando;
+  }
+  restantes.forEach((p) => {
+    console.warn('foto não subiu nem nas novas tentativas', p.tarefa.idItem, p.erro);
+    avisos.fotosFalharam.push(p.tarefa.idItem + (p.erro && p.erro.code ? ' ('+p.erro.code+')' : (p.erro && p.erro.message ? ' ('+String(p.erro.message).slice(0,30)+')' : '')));
   });
   return itens.map((it, i) => idsPorItem[i].length ? Object.assign({}, it, { fotoAssetIds: idsPorItem[i] }) : it);
 }
@@ -3081,7 +3113,7 @@ function renderEvolucaoPendencias(){
 
   // cabeçalho: valores do dia selecionado (padrão: hoje), clicáveis pra esconder/mostrar
   let topo = '<div style="display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; margin:2px 0 8px; font-size:12px; color:var(--muted);">' +
-    '<span>Valores de <span id="evo-dia-sel" style="color:var(--text);">hoje</span></span>' +
+    '<span>Valores de <span id="evo-dia-sel" style="color:var(--text);">hoje</span> · toque ou passe o mouse no gráfico pra ver cada dia</span>' +
     '<span id="evo-feito-sel"></span>' +
     (zeraEm ? '<span style="margin-left:auto;">No ritmo atual, o em aberto zera por volta de <span style="color:var(--text);">'+zeraEm+'</span> ('+diasAteZero+' dias)</span>'
       : (n >= 2 ? '<span style="margin-left:auto;">Em aberto sem queda no período</span>' : '')) +
@@ -3096,7 +3128,7 @@ function renderEvolucaoPendencias(){
   topo += '</div>';
 
   cont.innerHTML = topo + '<div id="evo-wrap" style="position:relative;">' + svg +
-    '<div id="evo-tooltip" style="display:none; position:absolute; pointer-events:none; background:var(--text); color:#fff; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:var(--shadow-lg); z-index:5;"></div></div>';
+    '<div id="evo-tooltip" style="display:none; position:absolute; pointer-events:none; background:var(--text); color:#fff; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.6; white-space:'+(pequeno?'normal':'nowrap')+'; max-width:'+(pequeno?'230px':'none')+'; box-shadow:var(--shadow-lg); z-index:5;"></div></div>';
 
   cont.querySelectorAll('[data-serie]').forEach((b) => b.addEventListener('click', () => {
     const ch = b.dataset.serie;
@@ -3133,8 +3165,7 @@ function renderEvolucaoPendencias(){
       c.style.display = seriesOcultas[s.chave] ? 'none' : '';
       c.setAttribute('cx', x); c.setAttribute('cy', yAt(p[s.chave]));
     });
-    preencherTopo(p);
-    if (pequeno) return; // no celular os números do topo já mostram o dia tocado
+    // o topo NÃO muda: mostra sempre a situação de hoje; o detalhe do dia fica só no cartão preto
     const dataFmt = p.data === hojeChave ? 'Hoje' : p.data.split('-').reverse().join('/');
     tip.innerHTML = '<div style="color:#C9CDD3; margin-bottom:2px;">'+dataFmt+'</div>' +
       '<div><span style="color:#C9CDD3;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
@@ -3147,7 +3178,15 @@ function renderEvolucaoPendencias(){
     let left = px + 14; if (left + tw > wr) left = px - tw - 14; if (left < 0) left = 0;
     tip.style.left = left + 'px'; tip.style.top = '8px';
   }
-  function esconder(){ cursor.style.display = 'none'; tip.style.display = 'none'; preencherTopo(ult); }
+  function esconder(){ cursor.style.display = 'none'; tip.style.display = 'none'; }
+  // no celular o cartão fica aberto depois do toque; some ao tocar fora do gráfico
+  if (!window.__evoFecharAoTocarFora){
+    window.__evoFecharAoTocarFora = true;
+    document.addEventListener('pointerdown', (e) => {
+      const w = document.getElementById('evo-wrap'), tp = document.getElementById('evo-tooltip'), cu = document.getElementById('evo-cursor');
+      if (w && tp && !w.contains(e.target)){ tp.style.display = 'none'; if (cu) cu.style.display = 'none'; }
+    });
+  }
   areaToque.addEventListener('pointermove', mostrar);
   areaToque.addEventListener('pointerdown', mostrar);
   areaToque.addEventListener('pointerleave', esconder);
@@ -4208,13 +4247,32 @@ async function executarSalvamento(grupos, btn, cont){
   }
   btn.textContent = 'Salvando…';
   mostrarBannerProgresso('Salvando…');
+  // estimativa de tempo: pelo ritmo real das fotos já processadas neste envio
+  // (foto reaproveitada é quase instantânea, então a estimativa se ajusta sozinha)
+  const feitasPorAndar = new Map();
+  let inicioFotos = null;
   const avisos = await salvarLote(grupos, (andar, feitas, total) => {
-    const texto = 'Salvando… (' + andar + 'º andar: ' + feitas + '/' + total + ' foto(s))';
+    if (!inicioFotos) inicioFotos = Date.now();
+    feitasPorAndar.set(andar, feitas);
+    const feitasGeral = Array.from(feitasPorAndar.values()).reduce((a, b) => a + b, 0);
+    const passou = (Date.now() - inicioFotos) / 1000;
+    let estimativa = '';
+    if (totalFotosNoLote > 0 && feitasGeral >= 10 && passou >= 5){
+      const seg = (totalFotosNoLote - feitasGeral) / (feitasGeral / passou);
+      const min = Math.ceil(seg / 60);
+      estimativa = seg < 60 ? ' · menos de 1 min' : (min >= 60 ? ' · ≈ ' + Math.floor(min/60) + 'h ' + (min%60) + 'min' : ' · ≈ ' + min + ' min') + ' restantes';
+      if (seg < 60) estimativa += ' restante';
+    }
+    const texto = 'Salvando… (' + andar + 'º andar: ' + feitas + '/' + total + ' foto(s)' + estimativa + ')';
     btn.textContent = texto;
     mostrarBannerProgresso(texto + ' — pode navegar em qualquer aba, não interrompe');
   });
   esconderBannerProgresso();
   await carregarRevisoes();
+  // se o envio trouxe uma revisão mais nova que a que está na tela, já mostra ela
+  // (antes o painel continuava na revisão antiga, e "Últimas variações" ficava vazio)
+  const maiorRevDoLote = Math.max(...Array.from(grupos.values()).map((g) => Number(g.revisao) || 0));
+  if (maiorRevDoLote > (Number(revisaoSelecionada) || 0)) revisaoSelecionada = String(maiorRevDoLote);
   renderSeletorRevisao();
   await selecionarRevisao(revisaoSelecionada);
   atualizarStatusEspacoFotos();
@@ -4375,7 +4433,8 @@ function renderPreviewEnvio(){
     gruposOrdenados.forEach((g) => {
       const c = contarVMAM(g.itens);
       const totalFotosAndar = g.itens.reduce((a,it) => a + (it.fotosBlob?it.fotosBlob.length:0), 0);
-      const chips = g.arquivos.slice().sort().map((nome) => '<span class="chip-arquivo">'+esc(nome)+'</span>').join('');
+      const chips = g.arquivos.slice().sort().map((nome) => '<span class="chip-arquivo removivel">'+esc(nome) +
+        '<button type="button" class="chip-remover" title="Tirar este arquivo do envio" aria-label="Tirar '+esc(nome)+' do envio" data-remover-arquivo="'+esc(nome)+'" data-rev="'+esc(g.revisao)+'" data-andar="'+g.andar+'">×</button></span>').join('');
       html += '<tr><td class="mono">R'+esc(g.revisao)+'</td><td class="mono">'+g.andar+'º</td>' +
         '<td><div class="contagem-chips">'+g.arquivos.length+' arquivo(s)</div><div class="chips-arquivos">'+chips+'</div></td>' +
         '<td class="num-col">'+g.itens.length+'</td><td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td><td class="num-col">'+totalFotosAndar+'</td></tr>';
@@ -4400,6 +4459,14 @@ function renderPreviewEnvio(){
       }
     });
   }
+  // "×" de cada arquivo: tira só aquele arquivo, sem precisar limpar a seleção inteira
+  cont.querySelectorAll('[data-remover-arquivo]').forEach((b) => b.addEventListener('click', () => {
+    const nome = b.dataset.removerArquivo, rev = b.dataset.rev, andar = b.dataset.andar;
+    const ok = window.confirm('Tirar "'+nome+'" do envio?\n\nO quarto/área desse arquivo NÃO será enviado. Se esta for uma revisão nova, ele vai ficar sem dados na R'+rev+' e vai aparecer como sem pendência.');
+    if (!ok) return;
+    resultadosAcumulados = resultadosAcumulados.filter((r) => !(r.arquivo === nome && String(r.revisao) === String(rev) && String(r.andar) === String(andar)));
+    renderPreviewEnvio();
+  }));
   const btnLimpar = document.getElementById('btn-limpar-envio');
   if (btnLimpar){
     btnLimpar.addEventListener('click', () => {
@@ -4493,8 +4560,9 @@ async function atualizarStatusEspacoFotos(){
     const lista = (r && r.assets) || [];
     const totalBytes = lista.reduce((soma, a) => soma + (a.bytes||0), 0);
     const paraMB = (b) => (b/1024/1024).toFixed(1)+' MB';
-    const LIMITE_GRATIS = 1024*1024*1024; // 1 GB — plano grátis do Supabase; ajuste se o seu for diferente
-    el.textContent = lista.length + ' foto(s) guardada(s) · ' + paraMB(totalBytes) + ' de ' + paraMB(LIMITE_GRATIS) +
+    const LIMITE_GRATIS = 100*1024*1024*1024; // 100 GB — espaço de arquivos incluído no plano Pro do Supabase
+    const fmtTam = (b) => b >= 1024*1024*1024 ? (b/1024/1024/1024).toFixed(1)+' GB' : paraMB(b);
+    el.textContent = lista.length + ' foto(s) guardada(s) · ' + fmtTam(totalBytes) + ' de ' + fmtTam(LIMITE_GRATIS) +
       ' usados (' + Math.round(totalBytes/LIMITE_GRATIS*100) + '%)';
   }catch(e){
     el.textContent = '';
