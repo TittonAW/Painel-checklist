@@ -39,6 +39,10 @@
   --vd:#39976A; --vd-soft:#E1F3E9; --vd-fill:rgba(57,151,106,.80);
   --semdados:#99A1AC; --semdados-soft:#EDEEF1; --aviso-cor:#C68934; --aviso-cor-soft:#FBEED9; --aviso-fill:rgba(198,137,52,.80);
   --lilas:#8B6FD1; --lilas-fill:rgba(139,111,209,.80); --cinza-grafico:#6B7685; --cinza-grafico-fill:rgba(107,118,133,.80);
+  /* PADRÃO DE CORES POR ETAPA (igual em todo o app e nos PDFs):
+     vermelho = VM em aberto · âmbar = AM em aberto · grafite = em aberto (total)
+     azul = Executado AW · verde = Vistoriado IAC / VD · lilás = Liberado c/ pendência */
+  --lib:#7C5CC9; --lib-soft:#EFEAFB; --lib-fill:rgba(124,92,201,.80); --grafite:#3A3F47;
   --surface:#FFFFFF; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 28px rgba(16,24,40,.07);
   --shadow-lg: 0 20px 55px rgba(16,24,40,.16);
   --r-sm:9px; --r-md:14px; --r-lg:20px;
@@ -53,6 +57,7 @@
   --vd:#5FB88B; --vd-soft:#133023; --vd-fill:rgba(95,184,139,.78);
   --semdados:#6E7680; --semdados-soft:#1C2027; --aviso-cor:#D9A95E; --aviso-cor-soft:#3A2D14; --aviso-fill:rgba(217,169,94,.78);
   --lilas:#A98FE8; --lilas-fill:rgba(169,143,232,.78); --cinza-grafico:#8B95A3; --cinza-grafico-fill:rgba(139,149,163,.78);
+  --lib:#A98FE8; --lib-soft:#262040; --lib-fill:rgba(169,143,232,.78); --grafite:#C9CDD3;
   --surface:#15181D; --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.4);
   --shadow-lg: 0 20px 55px rgba(0,0,0,.5);
 }
@@ -222,16 +227,21 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .andar-barra .barra > span{ position:absolute; inset:0; border-radius:5px; }
 .mini-stats{ display:flex; gap:7px; flex:none; }
 /* torre: o preenchimento da barra = % executado; o fundo clarinho mantém a cor do status */
-.andar-barra .barra.fundo-status-vm{ background:var(--vm-soft); }
-.andar-barra .barra.fundo-status-pendente{ background:var(--aviso-cor-soft); }
-.andar-barra .barra.fundo-status-liberado-pend{ background:var(--azul-soft); }
-.andar-barra .barra.fundo-status-vd{ background:var(--vd-soft); }
+.andar-barra .barra.fundo-status-vm{ background:color-mix(in srgb, var(--vm) 26%, var(--surface)); }
+.andar-barra .barra.fundo-status-pendente{ background:color-mix(in srgb, var(--aviso-cor) 28%, var(--surface)); }
+.andar-barra .barra.fundo-status-liberado-pend{ background:color-mix(in srgb, var(--lib) 26%, var(--surface)); }
+/* o trecho executado da barra fica na cor cheia do status (vermelho/âmbar sem transparência) */
+.andar-barra .barra > span.preenchido.status-vm{ background:var(--vm); }
+.andar-barra .barra > span.preenchido.status-pendente{ background:var(--aviso-cor); }
+.andar-barra .barra > span.preenchido.status-liberado-pend{ background:var(--lib); }
+.andar-barra .barra > span.preenchido.status-vd{ background:var(--vd); }
+.andar-barra .barra.fundo-status-vd{ background:color-mix(in srgb, var(--vd) 26%, var(--surface)); }
 .andar-barra .barra > span.preenchido{ right:auto; border-radius:5px 0 0 5px; }
 .andar-barra .barra > span.pct-barra{ position:absolute; inset:auto; left:auto; right:7px; top:50%; transform:translateY(-50%); border-radius:0; font-size:10.5px; color:var(--text-2); font-variant-numeric:tabular-nums; z-index:1; }
 /* % nas tabelas */
 .pct-cel{ display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
 .pct-trilho{ width:46px; height:5px; border-radius:3px; background:var(--line); overflow:hidden; display:inline-block; }
-.pct-feito{ display:block; height:100%; background:var(--accent); border-radius:3px; }
+.pct-feito{ display:block; height:100%; background:var(--azul); border-radius:3px; }
 .pct-num{ font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums; min-width:32px; text-align:right; }
 .destaque-pct{ display:flex; flex-wrap:wrap; gap:6px 22px; align-items:baseline; padding:2px 0 16px; }
 .destaque-pct .grande{ font-size:26px; color:var(--text); font-weight:300; }
@@ -249,12 +259,12 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .mini-stat.destaque .mini-rotulo{ color:var(--text); }
 .mini-stat.destaque .mini-valor{ color:var(--text); font-weight:500; font-size:13px; }
 .andar-barra .contagem{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:11.5px; color:var(--muted); width:64px; text-align:right; }
-.andar-barra.liberado-total{ border-color:var(--azul); background:var(--azul-soft); }
+.andar-barra.liberado-total{ border-color:var(--lib); background:var(--lib-soft); }
 .selo-liberado{
   display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
-  border-radius:50%; background:var(--azul); color:#fff; font-size:11px; font-weight:500; flex:none;
+  border-radius:50%; background:var(--lib); color:#fff; font-size:11px; font-weight:500; flex:none;
 }
-.status-vm{ background:var(--vm-fill); } .status-pendente{ background:var(--aviso-fill); } .status-liberado-pend{ background:var(--azul-fill); } .status-vd{ background:var(--vd-fill); } .status-sem{ background:var(--semdados); }
+.status-vm{ background:var(--vm-fill); } .status-pendente{ background:var(--aviso-fill); } .status-liberado-pend{ background:var(--lib-fill); } .status-vd{ background:var(--vd-fill); } .status-sem{ background:var(--semdados); }
 
 .resumo-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:14px; }
 .grupo-label{ font-size:12.5px; font-weight:400; color:var(--muted); margin:0 0 10px; }
@@ -264,8 +274,8 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 tbody tr.linha-clicavel{ cursor:pointer; }
 .stat .valor{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:28px; font-weight:400; line-height:1.1; }
 .stat .rotulo{ font-size:12px; color:var(--muted); margin-top:6px; }
-.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--accent); }
-.stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--azul); }
+.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--azul); }
+.stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--lib); } .stat.aw .valor{ color:var(--azul); }
 
 table{ width:100%; min-width:620px; border-collapse:collapse; font-size:14px; }
 th{ text-align:left; font-weight:400; color:var(--muted); font-size:11.5px; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
@@ -289,13 +299,16 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; font-size:11.5px; font-weight:500; white-space:nowrap; }
 .badge.bloqueado{ background:var(--vm-soft); color:var(--vm); }
 .badge.pendente{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
-.badge.liberado-pend{ background:var(--azul-soft); color:var(--azul); }
+.badge.liberado-pend{ background:var(--lib-soft); color:var(--lib); }
 .badge.concluido{ background:var(--vd-soft); color:var(--vd); }
 .badge.semdados{ background:var(--semdados-soft); color:var(--semdados); }
 .chip-acao{ font-size:11.5px; padding:4px 10px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; white-space:nowrap; transition:border-color .15s, color .15s, background .15s; }
 @media (hover:hover) and (pointer:fine){ .chip-acao:hover{ border-color:var(--accent); color:var(--accent-2); } }
-.chip-acao.marcado{ background:var(--vd-soft); color:var(--vd); border-color:var(--vd); }
-.chip-acao.marcado.iac{ background:var(--azul-soft); color:var(--azul); border-color:var(--azul); }
+.chip-acao.marcado{ background:var(--azul-soft); color:var(--azul); border-color:var(--azul); }
+.chip-acao.marcado.iac{ background:var(--vd-soft); color:var(--vd); border-color:var(--vd); }
+.chip-acao.marcado.lib{ background:var(--lib-soft); color:var(--lib); border-color:var(--lib); }
+.col-aw{ color:var(--azul); } .col-iac{ color:var(--vd); }
+.mini-stat.aw .mini-valor{ color:var(--azul); } .mini-stat.iac .mini-valor{ color:var(--vd); }
 .chip-acao:disabled{ opacity:.4; cursor:not-allowed; }
 @media (hover:hover) and (pointer:fine){ .chip-acao:disabled:hover{ border-color:var(--line); color:var(--muted); } }
 .tag-origem{ font-size:10px; padding:1px 7px; border-radius:99px; font-weight:400; vertical-align:middle; }
@@ -477,7 +490,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <div class="rodape-nota" style="margin-top:14px; text-align:left; display:flex; flex-wrap:wrap; gap:4px 14px;">
           <span style="white-space:nowrap;"><span class="badge bloqueado">●</span> <span class="col-vm">VM (vermelho)</span></span>
           <span style="white-space:nowrap;"><span class="badge pendente">●</span> <span class="col-am">AM (amarelo)</span></span>
-          <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--azul);">Liberado com pendência</span></span>
+          <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--lib);">Liberado com pendência</span></span>
           <span style="white-space:nowrap;"><span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span></span>
           <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
         </div>
@@ -543,7 +556,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col">AW</th><th class="num-col">IAC</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -845,7 +858,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.19';
+const VERSAO_APP = '2026-10-03.20';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -2561,8 +2574,8 @@ function renderTorreAndares(){
       pctAndar = percentualExecutado(itensDoAndar);
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
-        '<span class="mini-stat"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+awExecDoAndar+'</span></span>' +
-        '<span class="mini-stat"><span class="mini-rotulo">IAC</span><span class="mini-valor mono">'+iacOkDoAndar+'</span></span>' +
+        '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+awExecDoAndar+'</span></span>' +
+        '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono">'+iacOkDoAndar+'</span></span>' +
         '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono">'+itensDoAndar.length+'</span></span>' +
         '</span>';
     }
@@ -2626,16 +2639,16 @@ async function renderResumoGeral(recarregarHistorico){
   const sub = (n) => '<div class="pct-sub">'+Math.round(n/totalItens*100)+'% do total</div>';
   grid.innerHTML =
     '<div class="destaque-pct">' +
-      '<span><span class="grande">'+fmtPct(pctExec)+'</span> <span class="rot">executado pela AW</span></span>' +
-      '<span><span class="grande">'+fmtPct(pctVist)+'</span> <span class="rot">vistoriado pela IAC</span></span>' +
+      '<span><span class="grande" style="color:var(--azul);">'+fmtPct(pctExec)+'</span> <span class="rot">executado pela AW</span></span>' +
+      '<span><span class="grande" style="color:var(--vd);">'+fmtPct(pctVist)+'</span> <span class="rot">vistoriado pela IAC</span></span>' +
       (vmTotal ? '<span><span class="grande" style="color:var(--vm);">'+vmFeitos+' de '+vmTotal+'</span> <span class="rot">vermelhos executados ('+pctVm+'%)</span></span>' : '') +
     '</div>' +
     '<div class="grupo-label">Progresso dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (AW ainda não executou)</div>'+sub(emAberto)+'</div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div>'+sub(awExec)+'</div>' +
-      '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div>'+sub(iacOk)+'</div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div>'+sub(awExec)+'</div>' +
+      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div>'+sub(iacOk)+'</div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
       '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
@@ -2658,7 +2671,7 @@ async function renderResumoGeral(recarregarHistorico){
 
     '<div class="grupo-label" style="margin-top:22px;">Andares</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro — <span style="color:var(--vd);">liberado</span> (sem pendência) ou <span style="color:var(--azul);">liberado com pendência</span></div></div>' +
+      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro — <span style="color:var(--vd);">liberado</span> (sem pendência) ou <span style="color:var(--lib);">liberado com pendência</span></div></div>' +
     '</div>';
 
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
@@ -2837,9 +2850,9 @@ function numCurto(v){
 }
 
 const SERIES_EVOLUCAO = [
-  { chave:'aberto', rotulo:'Em aberto', cor:'#7C5CC9', largura:2.6 },
-  { chave:'aw', rotulo:'Executado AW', cor:'#39976A', largura:2 },
-  { chave:'iac', rotulo:'Vistoriado IAC', cor:'#4C73D9', largura:2 },
+  { chave:'aberto', rotulo:'Em aberto', cor:'#3A3F47', largura:2.6 },
+  { chave:'aw', rotulo:'Executado AW', cor:'#4C73D9', largura:2 },
+  { chave:'iac', rotulo:'Vistoriado IAC', cor:'#39976A', largura:2 },
   { chave:'total', rotulo:'Total', cor:'#99A1AC', largura:1.4 }
 ];
 let seriesOcultas = {}; // clique na legenda esconde/mostra a linha
@@ -2945,8 +2958,8 @@ function renderEvolucaoPendencias(){
   const todos = pontos.concat(futuro);
   const espacoMin = pequeno ? 40 : 46; // px mínimos entre um dia e outro pra os números não se encostarem
   const passoRot = Math.max(1, Math.ceil(espacoMin / Math.max(1, passoX)));
-  svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#39976A">AW</text>';
-  svg += '<text x="'+(padL-6)+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#4C73D9">IAC</text>';
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#4C73D9">AW</text>';
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#39976A">IAC</text>';
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+66)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#D1443F">Reinc.</text>';
   todos.forEach((p,i) => {
     const passado = i < n;
@@ -2954,7 +2967,7 @@ function renderEvolucaoPendencias(){
     const x = xAt(i).toFixed(1);
     svg += '<text x="'+x+'" y="'+(yBase+17)+'" font-size="'+fs+'" text-anchor="middle" style="fill:'+(p.data===hojeChave?'var(--text)':(passado?'var(--muted)':'#B4B9C1'))+'">'+rotuloDia(p.data)+'</text>';
     // passado: o que foi feito no dia | futuro (clarinho): quanto precisa ser feito por dia pra seguir a tendência
-    const corAw = passado ? '#39976A' : '#9FD3B8', corIac = passado ? '#4C73D9' : '#AFC1F2';
+    const corAw = passado ? '#4C73D9' : '#AFC1F2', corIac = passado ? '#39976A' : '#9FD3B8';
     const pre = passado ? '+' : '≈';
     svg += '<text x="'+x+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.awDia?corAw:'#C4C8CF')+'">'+(p.awDia?pre+pdfNum(p.awDia):'—')+'</text>';
     svg += '<text x="'+x+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.iacDia?corIac:'#C4C8CF')+'">'+(p.iacDia?pre+pdfNum(p.iacDia):'—')+'</text>';
@@ -3026,7 +3039,7 @@ function renderEvolucaoPendencias(){
   const cursor = cont.querySelector('#evo-cursor');
   function preencherTopo(p){
     cont.querySelector('#evo-dia-sel').textContent = p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().join('/');
-    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#39976A;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#4C73D9;">IAC +'+pdfNum(p.iacDia)+'</span>' +
+    cont.querySelector('#evo-feito-sel').innerHTML = 'feito no dia: <span style="color:#4C73D9;">AW +'+pdfNum(p.awDia)+'</span> · <span style="color:#39976A;">IAC +'+pdfNum(p.iacDia)+'</span>' +
       (p.reincDia ? ' · <span style="color:#D1443F;">'+pdfNum(p.reincDia)+' reincidência'+(p.reincDia>1?'s':'')+'</span>' : '');
     SERIES_EVOLUCAO.forEach((s) => {
       const el = cont.querySelector('[data-valor-de="'+s.chave+'"]');
@@ -3053,9 +3066,9 @@ function renderEvolucaoPendencias(){
     if (pequeno) return; // no celular os números do topo já mostram o dia tocado
     const dataFmt = p.data === hojeChave ? 'Hoje' : p.data.split('-').reverse().join('/');
     tip.innerHTML = '<div style="color:#C9CDD3; margin-bottom:2px;">'+dataFmt+'</div>' +
-      '<div><span style="color:#B9A6EC;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
-      '<div><span style="color:#7FD1A6;">●</span> Executado AW: '+pdfNum(p.aw)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.awDia)+' no dia)</span></div>' +
-      '<div><span style="color:#9CB4F2;">●</span> Vistoriado IAC: '+pdfNum(p.iac)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.iacDia)+' no dia)</span></div>' +
+      '<div><span style="color:#C9CDD3;">●</span> Em aberto: '+pdfNum(p.aberto)+'</div>' +
+      '<div><span style="color:#9CB4F2;">●</span> Executado AW: '+pdfNum(p.aw)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.awDia)+' no dia)</span></div>' +
+      '<div><span style="color:#7FD1A6;">●</span> Vistoriado IAC: '+pdfNum(p.iac)+' <span style="color:#C9CDD3;">(+'+pdfNum(p.iacDia)+' no dia)</span></div>' +
       '<div><span style="color:#C9CDD3;">●</span> Total: '+pdfNum(p.total)+'</div>' +
       (p.reincDia ? '<div><span style="color:#F09595;">●</span> Reincidências no dia: '+pdfNum(p.reincDia)+'</div>' : '');
     tip.style.display = 'block';
@@ -3142,8 +3155,9 @@ function renderRankings(){
     if (!todosForn.has(f)) todosForn.set(f, []); todosForn.get(f).push(it);
     if (!todosDisc.has(d)) todosDisc.set(d, []); todosDisc.get(d).push(it);
   });
-  const sufForn = new Map(Array.from(todosForn.entries()).map(([k,v]) => [k, percentualExecutado(v)+'% exec.']));
-  const sufDisc = new Map(Array.from(todosDisc.entries()).map(([k,v]) => [k, percentualExecutado(v)+'% exec.']));
+  // % que cada fornecedor / disciplina representa do total AINDA EM ABERTO
+  const totalAberto = itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).length || 1;
+  const pctDoTotal = (mapa) => new Map(Array.from(mapa.entries()).map(([k, v]) => [k, Math.round(v/totalAberto*100) + '% do total']));
   // conta só o que AINDA está em aberto (some do ranking assim que a AW executa)
   itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).forEach((it) => {
     const nomeForn = fornecedorEfetivo(it) || 'Sem fornecedor definido';
@@ -3151,8 +3165,8 @@ function renderRankings(){
     const disc = disciplinaEfetiva(it);
     porDisc.set(disc, (porDisc.get(disc)||0)+1);
   });
-  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--lilas-fill)', null, sufForn);
-  document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)', null, sufDisc);
+  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--cinza-grafico-fill)', null, pctDoTotal(porForn));
+  document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)', null, pctDoTotal(porDisc));
 }
 
 /* ===================== RENDER: QUARTOS ===================== */
@@ -3239,13 +3253,13 @@ function renderQuartos(){
     let acaoHtml = '<span class="sem-foto">—</span>';
     if (status === 'PENDENTE' || status === 'LIBERADO_PEND'){
       const texto = status === 'LIBERADO_PEND' ? 'Remover liberação' : 'Liberar c/ pendência';
-      acaoHtml = '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado iac':'')+'" data-acao-liberar="1">'+texto+'</button>';
+      acaoHtml = '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+texto+'</button>';
     }
     tr.innerHTML = '<td class="mono col-centro">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
-      '<td class="num-col col-fluxo">'+awExecDoLocal+'</td><td class="num-col col-fluxo">'+iacOkDoLocal+'</td>' +
+      '<td class="num-col col-aw">'+awExecDoLocal+'</td><td class="num-col col-iac">'+iacOkDoLocal+'</td>' +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
       '<td class="col-centro">'+barraPct(percentualExecutado(l.itens))+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>';
@@ -4114,12 +4128,12 @@ async function executarSalvamento(grupos, btn, cont){
       avisos.fotosNaoAssociadas.map(esc).join('; ') + '.</div>';
   }
   if (avisos.liberacaoRemovidaPorVM.length > 0){
-    html += '<div class="aviso">'+avisos.liberacaoRemovidaPorVM.length+' área(s) SAÍRAM do azul automaticamente (entrou item crítico): ' +
+    html += '<div class="aviso">'+avisos.liberacaoRemovidaPorVM.length+' área(s) deixaram de ser "liberado com pendência" automaticamente (entrou item crítico): ' +
       avisos.liberacaoRemovidaPorVM.map(esc).join(', ') + '.</div>';
   }
   let idRevisaoBtn = 0;
   if (avisos.revisarLiberacao.length > 0){
-    html += '<div class="aviso"><strong>Precisa sua confirmação — apareceu item amarelo novo em local já liberado (azul):</strong>' +
+    html += '<div class="aviso"><strong>Precisa sua confirmação — apareceu item amarelo novo em local já liberado com pendência:</strong>' +
       '<div id="lista-revisar-liberacao">' + avisos.revisarLiberacao.map((rv) => {
         idRevisaoBtn++;
         const label = rv.tipo === 'APTO' ? rv.quarto : rv.tipo;
@@ -4127,7 +4141,7 @@ async function executarSalvamento(grupos, btn, cont){
         return '<div class="insight-item" style="align-items:flex-start;" data-rv="'+idRevisaoBtn+'">' +
           '<div><div class="local">'+esc(label)+' · '+rv.andar+'º andar</div><div class="detalhe">Novo(s): '+novosTxt+'</div></div>' +
           '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
-          '<button class="chip-acao marcado iac" data-rv-manter="'+idRevisaoBtn+'">Manter azul</button>' +
+          '<button class="chip-acao marcado lib" data-rv-manter="'+idRevisaoBtn+'">Manter liberado</button>' +
           '<button class="chip-acao" data-rv-voltar="'+idRevisaoBtn+'">Voltar pendente</button>' +
           '</div></div>';
       }).join('') + '</div></div>';
@@ -4154,7 +4168,7 @@ async function executarSalvamento(grupos, btn, cont){
         if (!rv) return;
         btn.closest('[data-rv]').querySelectorAll('button').forEach((b) => b.disabled = true);
         await resolverRevisaoLiberacao(rv.revisao, rv.andar, rv.tipo, rv.quarto, !!btn.dataset.rvManter);
-        btn.closest('[data-rv]').innerHTML = '<div class="detalhe">Resolvido: ficou '+(btn.dataset.rvManter?'azul':'pendente (amarelo)')+'.</div>';
+        btn.closest('[data-rv]').innerHTML = '<div class="detalhe">Resolvido: ficou '+(btn.dataset.rvManter?'liberado com pendência':'pendente (amarelo)')+'.</div>';
         await selecionarRevisao(revisaoSelecionada);
       });
     });
@@ -4488,14 +4502,15 @@ const PDF_COR = {
   acc:[15,118,110], accs:[226,243,241],
   vm:[201,67,62], vms:[251,233,232], am:[185,126,46], ams:[251,240,222],
   az:[76,115,217], azs:[233,238,252], vd:[57,151,106], vds:[227,243,234],
+  lib:[124,92,201], libs:[239,234,251],
   heroLabel:[208,212,218], heroSub:[168,174,183], grafite:[58,63,71]
 };
 const PDF_PRIO = {
   BLOQUEADO:{ fg:PDF_COR.vm, bg:PDF_COR.vms, curto:'VM', longo:'VM (vermelho)' },
   PENDENTE:{ fg:PDF_COR.am, bg:PDF_COR.ams, curto:'AM', longo:'AM (amarelo)' },
-  LIBERADO_PEND:{ fg:PDF_COR.az, bg:PDF_COR.azs, curto:'Liberado c/ pend.', longo:'Liberado c/ pendência' },
+  LIBERADO_PEND:{ fg:PDF_COR.lib, bg:PDF_COR.libs, curto:'Liberado c/ pend.', longo:'Liberado c/ pendência' },
   CONCLUIDO:{ fg:PDF_COR.vd, bg:PDF_COR.vds, curto:'VD', longo:'VD (verde)' },
-  EXECUTADO:{ fg:PDF_COR.acc, bg:PDF_COR.accs, curto:'Executado AW', longo:'Executado AW (aguardando IAC)' }
+  EXECUTADO:{ fg:PDF_COR.az, bg:PDF_COR.azs, curto:'Executado AW', longo:'Executado AW (aguardando IAC)' }
 };
 const PDF_M = 36;
 
@@ -4595,7 +4610,7 @@ function pdfCabecalho(doc, ctx){
     pdfFill(doc, cd.destaque ? PDF_COR.grafite : PDF_COR.paper);
     doc.roundedRect(x, top, cw, 54, 8, 8, 'F');
     pdfTxt(doc, x+11, top+16, cd.rotulo, 7.5, cd.destaque ? PDF_COR.heroLabel : PDF_COR.muted);
-    pdfTxt(doc, x+11, top+37, pdfNum(cd.valor), 20, cd.destaque ? PDF_COR.white : PDF_COR.ink);
+    pdfTxt(doc, x+11, top+37, pdfNum(cd.valor), 20, cd.destaque ? PDF_COR.white : (cd.cor || PDF_COR.ink));
     pdfTxt(doc, x+11, top+47, cd.sub, 6.8, cd.destaque ? PDF_COR.heroSub : PDF_COR.faint);
   });
 
@@ -4605,7 +4620,7 @@ function pdfCabecalho(doc, ctx){
   pdfTxt(doc, PW-M, 166, pdfPct(a.aw, a.total)+'% executado pela AW  ·  '+pdfNum(a.aberto)+' em aberto', 7.5, PDF_COR.muted, 'right');
   pdfFill(doc, PDF_COR.line); doc.roundedRect(M, 172, bw, 6, 3, 3, 'F');
   const wAw = a.total ? bw*a.aw/a.total : 0;
-  if (wAw >= 6){ pdfFill(doc, PDF_COR.acc); doc.roundedRect(M, 172, wAw, 6, 3, 3, 'F'); }
+  if (wAw >= 6){ pdfFill(doc, PDF_COR.az); doc.roundedRect(M, 172, wAw, 6, 3, 3, 'F'); }
   const wIac = a.total ? bw*a.iac/a.total : 0;
   if (wIac >= 6){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(M, 172, wIac, 6, 3, 3, 'F'); }
 
@@ -4775,8 +4790,8 @@ async function exportarQuartosPdf(){
     contagem: dados.length + (dados.length === 1 ? ' local' : ' locais'),
     cartoes: [
       { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
-      { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,tot)+'% do total' },
-      { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,tot)+'% do total' },
+      { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,tot)+'% do total', cor:PDF_COR.az },
+      { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,tot)+'% do total', cor:PDF_COR.vd },
       { rotulo:'Total de itens', valor:tot, sub:'pendências na revisão' },
       { rotulo:'Locais', valor:dados.length, sub:'quartos e áreas' }
     ],
@@ -4793,8 +4808,8 @@ async function exportarQuartosPdf(){
   const colunas = [
     { rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:C.status, align:'center' },
     { rotulo:'VM', x:C.vm, align:'center', cor:PDF_COR.vm }, { rotulo:'AM', x:C.am, align:'center', cor:PDF_COR.am },
-    { rotulo:'Aberto', x:C.aberto, align:'center', cor:PDF_COR.ink }, { rotulo:'AW', x:C.aw, align:'center' },
-    { rotulo:'IAC', x:C.iac, align:'center' }, { rotulo:'Total', x:C.total, align:'center' },
+    { rotulo:'Aberto', x:C.aberto, align:'center', cor:PDF_COR.ink }, { rotulo:'AW', x:C.aw, align:'center', cor:PDF_COR.az },
+    { rotulo:'IAC', x:C.iac, align:'center', cor:PDF_COR.vd }, { rotulo:'Total', x:C.total, align:'center' },
     { rotulo:'% exec.', x:(C.pct + CW - P)/2, align:'center' }
   ];
   const linhas = dados.map((d) => ({
@@ -4808,13 +4823,13 @@ async function exportarQuartosPdf(){
       pdfTxt(doc, cx+C.vm, b, d.vm, 8.5, PDF_COR.vm, 'center');
       pdfTxt(doc, cx+C.am, b, d.am, 8.5, PDF_COR.am, 'center');
       pdfTxt(doc, cx+C.aberto, b, d.aberto, 9, PDF_COR.ink, 'center');
-      pdfTxt(doc, cx+C.aw, b, d.aw, 8.5, PDF_COR.muted, 'center');
-      pdfTxt(doc, cx+C.iac, b, d.iac, 8.5, PDF_COR.muted, 'center');
+      pdfTxt(doc, cx+C.aw, b, d.aw, 8.5, PDF_COR.az, 'center');
+      pdfTxt(doc, cx+C.iac, b, d.iac, 8.5, PDF_COR.vd, 'center');
       pdfTxt(doc, cx+C.total, b, d.total, 8.5, PDF_COR.muted, 'center');
       // % executado: barrinha + número (igual à coluna da tela)
       const pct = percentualExecutado(d.l.itens), bw = 24;
       pdfFill(doc, PDF_COR.line); doc.roundedRect(cx+C.pct, b-5, bw, 4, 2, 2, 'F');
-      if (pct > 0){ pdfFill(doc, PDF_COR.acc); doc.roundedRect(cx+C.pct, b-5, Math.max(4, bw*pct/100), 4, 2, 2, 'F'); }
+      if (pct > 0){ pdfFill(doc, PDF_COR.az); doc.roundedRect(cx+C.pct, b-5, Math.max(4, bw*pct/100), 4, 2, 2, 'F'); }
       pdfTxt(doc, cx+CW-P, b, pct+'%', 7.5, PDF_COR.muted, 'right');
     }
   }));
@@ -4862,8 +4877,8 @@ async function exportarItensPdf(){
     contagem: itens.length + (itens.length === 1 ? ' item' : ' itens'),
     cartoes: [
       { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
-      { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,itens.length)+'% dos itens' },
-      { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,itens.length)+'% dos itens' },
+      { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,itens.length)+'% dos itens', cor:PDF_COR.az },
+      { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,itens.length)+'% dos itens', cor:PDF_COR.vd },
       { rotulo:'Total de itens', valor:itens.length, sub:'no filtro aplicado' }
     ],
     tituloAndamento: document.getElementById('filtro-item-andar').value ? 'Andamento do andar' : 'Andamento',
@@ -4961,8 +4976,8 @@ async function exportarItensPdf(){
         }
         // fluxo: selo com a situação, nas cores do painel, e embaixo quem deu cada baixa
         let txt, fg, bg, bd;
-        if (ac.iacOkEm){ txt='Vistoriado IAC'; fg=PDF_COR.az; bg=PDF_COR.azs; bd=PDF_COR.az; }
-        else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
+        if (ac.iacOkEm){ txt='Vistoriado IAC'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
+        else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.az; bg=PDF_COR.azs; bd=PDF_COR.az; }
         else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
         const sy = mid - fluxH/2;
         pdfFill(doc, bg); pdfDraw(doc, bd); doc.setLineWidth(0.6);
