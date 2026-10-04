@@ -694,6 +694,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         </div>
       </div>
       <div id="status-espaco-fotos" style="font-size:.85rem; color:var(--muted); margin-top:2px;"></div>
+      <button type="button" class="btn fantasma" id="btn-desfazer-ultimo-envio" hidden style="margin-top:8px; color:var(--vm); border-color:var(--vm-soft);">Desfazer o último envio</button>
       <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
       <div class="dropzone" id="dropzone">
         <strong>Arraste os arquivos .xlsx, PDF ou um .zip aqui</strong><br>ou clique para escolher
@@ -881,7 +882,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.45';
+const VERSAO_APP = '2026-10-03.48';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1704,6 +1705,46 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
   return itens.map((it, i) => idsPorItem[i].length ? Object.assign({}, it, { fotoAssetIds: idsPorItem[i] }) : it);
 }
 
+/* volta tudo que um envio gravou: andares e registro da revisão como estavam antes, e tira os
+   "confirmados pela IAC" que ele acrescentou. Baixas, nomes e reincidências não são tocados
+   (ficam em outra coleção, que o envio não altera). Fotos ficam na pasta (limpeza remove depois). */
+let ultimoEnvioDesfazer = null;
+async function desfazerEnvio(d){
+  const falhas = [];
+  for (const [docId, antes] of d.snapshots){
+    const r = antes ? await store.setDoc('snapshots', docId, antes) : await store.deleteDoc('snapshots', docId);
+    if (r && r.ok === false) falhas.push(docId);
+  }
+  for (const [docId, antes] of d.revisoes){
+    const r = antes ? await store.setDoc('revisoes', docId, antes) : await store.deleteDoc('revisoes', docId);
+    if (r && r.ok === false) falhas.push(docId);
+  }
+  await comLimiteDeConcorrencia(d.resolvidosNovos || [], 4, async (id) => { await store.deleteDoc('resolvidos_historico', id); });
+  return falhas;
+}
+async function executarDesfazerEnvio(cont){
+  if (!ultimoEnvioDesfazer) return;
+  const ok = window.confirm('Desfazer o último envio?\n\nOs andares e a revisão voltam exatamente como estavam antes dele. Baixas, nomes e reincidências não são afetados.');
+  if (!ok) return;
+  mostrarBannerProgresso('Desfazendo o envio…');
+  const falhas = await desfazerEnvio(ultimoEnvioDesfazer);
+  esconderBannerProgresso();
+  ultimoEnvioDesfazer = null;
+  renderBotaoDesfazerEnvio();
+  await carregarRevisoes();
+  revisaoSelecionada = null; // volta a escolher a revisão mais nova que sobrou
+  renderSeletorRevisao();
+  await selecionarRevisao(revisaoSelecionada);
+  if (cont) cont.innerHTML = falhas.length
+    ? '<div class="aviso">Parte não foi desfeita (sem conexão?): '+falhas.map(esc).join(', ')+'. Tente de novo ou use a cópia de segurança.</div>'
+    : '<div class="dica">Envio desfeito — o painel voltou a como estava antes dele.</div>';
+  avisoFlutuante(falhas.length ? 'Envio desfeito em parte — veja o aviso' : 'Envio desfeito', falhas.length ? 'erro' : 'ok');
+}
+function renderBotaoDesfazerEnvio(){
+  const b = document.getElementById('btn-desfazer-ultimo-envio');
+  if (b) b.hidden = !ultimoEnvioDesfazer;
+}
+
 async function salvarLote(grupos, aoProgredir){
   const revisoesTocadas = new Map();
   const avisos = { fotosFalharam: [], fotosSemRecurso: 0, descricaoCortada: [], gravacaoFalhou: [], fotosNaoAssociadas: [], fotosEnviadas: 0, liberacaoRemovidaPorVM: [], revisarLiberacao: [] };
@@ -1711,6 +1752,12 @@ async function salvarLote(grupos, aoProgredir){
   // reenviados — a IAC não marca "resolvido" na planilha dela, só exclui a linha; pra nós,
   // isso é um VD de verdade. Não mexe em nada do fluxo normal de salvar, só observa.
   const recemResolvidosDoLote = [];
+  // DESFAZER: cópia do que este envio vai substituir (andares da revisão, registro da revisão)
+  // e quais "confirmados pela IAC" ele acrescentou — pra poder voltar tudo como estava
+  const desfazer = { snapshots: new Map(), revisoes: new Map(), resolvidosNovos: [] };
+  avisos.desfazer = desfazer;
+  let historicoAntes = null;
+  try{ historicoAntes = new Set((await store.listCollection('resolvidos_historico')).map((d) => d._id)); }catch(e){ historicoAntes = null; }
 
   for (const [key, g] of grupos){
     const docId = 'R' + g.revisao + '_' + g.andar;
@@ -1723,6 +1770,7 @@ async function salvarLote(grupos, aoProgredir){
     // Como cada item tem um número único, isto nunca duplica: o item ou vem preservado do que já
     // existia, ou vem atualizado no lote novo — nunca os dois ao mesmo tempo.
     const existente = await store.getDoc('snapshots', docId);
+    if (!desfazer.snapshots.has(docId)) desfazer.snapshots.set(docId, existente ? JSON.parse(JSON.stringify(existente)) : null);
     const preservados = (existente && Array.isArray(existente.itens))
       ? existente.itens.filter((it) => !locaisNovos.has(it.t + '|' + (it.q==null ? '' : it.q)))
       : [];
@@ -1837,6 +1885,7 @@ async function salvarLote(grupos, aoProgredir){
   // próprio id do item, então reenviar de novo não duplica, só confirma o que já estava lá
   if (recemResolvidosDoLote.length > 0){
     try{
+      desfazer.resolvidosNovos = recemResolvidosDoLote.map((r) => r.id).filter((id) => historicoAntes && !historicoAntes.has(id));
       await comLimiteDeConcorrencia(recemResolvidosDoLote, 4, async (res) => {
         await store.setDoc('resolvidos_historico', res.id, Object.assign({ resolvidoEm: new Date().toISOString() }, res));
       });
@@ -1846,6 +1895,7 @@ async function salvarLote(grupos, aoProgredir){
   for (const [revisao, andaresSet] of revisoesTocadas){
     const docId = 'R' + revisao;
     const atual = await store.getDoc('revisoes', docId);
+    if (!desfazer.revisoes.has(docId)) desfazer.revisoes.set(docId, atual ? JSON.parse(JSON.stringify(atual)) : null);
     const andaresAntigos = (atual && atual.andares) ? atual.andares : [];
     const andaresNovos = Array.from(new Set(andaresAntigos.concat(Array.from(andaresSet)))).sort((a,b)=>a-b);
     const r = await store.setDoc('revisoes', docId, {
@@ -2552,10 +2602,21 @@ function disciplinaEfetiva(it){
   const ac = acompanhamento[it.id];
   return (ac && ac.disciplinaOverride) || it.disciplina;
 }
+/* fornecedor padrão de uma disciplina: nome exato, ou o mesmo nome escrito com diferença de
+   maiúscula, acento ou espaço ("ELETRICA" usa o de "ELÉTRICA") */
+function fornecedorPadraoDaDisciplina(disc){
+  if (!disc) return '';
+  if (fornecedores[disc]) return fornecedores[disc];
+  const k = chaveComparacao(disc);
+  for (const nome in fornecedores){
+    if (fornecedores[nome] && chaveComparacao(nome) === k) return fornecedores[nome];
+  }
+  return '';
+}
 function fornecedorEfetivo(it){
   const ac = acompanhamento[it.id];
   if (ac && ac.fornecedorOverride) return ac.fornecedorOverride;
-  return fornecedores[disciplinaEfetiva(it)] || '';
+  return fornecedorPadraoDaDisciplina(disciplinaEfetiva(it));
 }
 
 function popularFiltroDisciplina(selectId){
@@ -2623,6 +2684,7 @@ function esc(s){
 
 /* ===================== RENDER: TOPO / SELETOR DE REVISÃO ===================== */
 function renderSeletorRevisao(){
+  try{ popularSeletoresComparacao(); }catch(e){}
   const sel = document.getElementById('seletor-revisao');
   sel.innerHTML = '';
   if (revisoesMeta.length === 0){
@@ -4054,7 +4116,7 @@ async function salvarClassificacaoItem(itemId, novaDisc, novoForn){
   const it = itensRevisaoAtual.find((x) => x.id === itemId);
   const atual = acompanhamento[itemId] || { awExecEm:null, iacOkEm:null };
   const disciplinaOverride = (novaDisc && it && novaDisc !== it.disciplina) ? novaDisc : null;
-  const fornecedorPadrao = fornecedores[disciplinaOverride || (it?it.disciplina:'')] || '';
+  const fornecedorPadrao = fornecedorPadraoDaDisciplina(disciplinaOverride || (it?it.disciplina:''));
   const fornecedorOverride = (novoForn && novoForn !== fornecedorPadrao) ? novoForn : null;
   const novo = Object.assign({}, atual, { disciplinaOverride, fornecedorOverride });
   const anterior = acompanhamento[itemId];
@@ -4079,7 +4141,7 @@ function renderDisciplinas(){
     const excecoes = itens.filter((it) => { const ac = acompanhamento[it.id]; return ac && (ac.disciplinaOverride || ac.fornecedorOverride); }).length;
     const reinc = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
     const tr = document.createElement('tr');
-    const nomeFornecedor = fornecedores[disc] || '';
+    const nomeFornecedor = fornecedorPadraoDaDisciplina(disc);
     tr.innerHTML = '<td data-label="Disciplina">'+esc(disc)+'</td>' +
       '<td data-label="Fornecedor padrão"><input type="text" class="fornecedor-input" data-disc="'+esc(disc)+'" value="'+esc(nomeFornecedor)+'" placeholder="Fornecedor padrão desta disciplina" autocomplete="off"></td>' +
       '<td class="num-col col-vm" data-label="VM">'+c.vm+'</td><td class="num-col col-am" data-label="AM">'+c.am+'</td>' +
@@ -4131,6 +4193,7 @@ function renderDisciplinas(){
 function popularSeletoresComparacao(){
   const de = document.getElementById('comp-de'), para = document.getElementById('comp-para');
   const ordenado = revisoesMeta.slice().sort((a,b) => b.numero-a.numero);
+  const deAntes = de.value, paraAntes = para.value; // mantém a escolha da pessoa, se ainda existir
   de.innerHTML = ''; para.innerHTML = '';
   ordenado.forEach((r) => {
     const o1 = document.createElement('option'); o1.value=String(r.numero); o1.textContent=r.label;
@@ -4139,6 +4202,10 @@ function popularSeletoresComparacao(){
   });
   if (ordenado.length>0) para.value = String(ordenado[0].numero);
   if (ordenado.length>1) de.value = String(ordenado[1].numero);
+  // se a pessoa já tinha escolhido um par que ainda existe e não é a revisão recém-chegada, mantém
+  const existe = (v) => ordenado.some((r) => String(r.numero) === v);
+  if (deAntes && paraAntes && existe(deAntes) && existe(paraAntes) && deAntes !== paraAntes &&
+      Number(paraAntes) >= Number(ordenado[0].numero)){ de.value = deAntes; para.value = paraAntes; }
 }
 
 async function executarComparacao(){
@@ -4510,6 +4577,8 @@ async function executarSalvamento(grupos, btn, cont){
   await selecionarRevisao(revisaoSelecionada);
   atualizarStatusEspacoFotos();
   resultadosAcumulados = []; errosAcumulados = []; locaisConfirmadosSobrepor = new Set(); pdfsIgnoradosPorXlsx = 0;
+  ultimoEnvioDesfazer = avisos.desfazer || null;
+  renderBotaoDesfazerEnvio();
 
   let html = '';
   if (avisos.gravacaoFalhou.length > 0){
@@ -4535,6 +4604,13 @@ async function executarSalvamento(grupos, btn, cont){
     html += '<div class="aviso">'+avisos.liberacaoRemovidaPorVM.length+' área(s) deixaram de ser "liberado com pendência" automaticamente (entrou item crítico): ' +
       avisos.liberacaoRemovidaPorVM.map(esc).join(', ') + '.</div>';
   }
+  // disciplinas deste envio que ainda não têm fornecedor padrão (os itens entram "sem fornecedor")
+  const discSemForn = Array.from(new Set(Array.from(grupos.values()).flatMap((g) => g.itens.map((it) => it.disciplina))
+    .filter((d) => d && !fornecedorPadraoDaDisciplina(d)))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+  if (discSemForn.length){
+    html += '<div class="aviso">'+discSemForn.length+' disciplina(s) sem fornecedor padrão — os itens delas entraram como "sem fornecedor": ' +
+      discSemForn.map(esc).join(', ') + '. <button type="button" class="btn fantasma" id="btn-definir-fornecedores" style="margin-left:6px; padding:4px 12px;">Definir fornecedores</button></div>';
+  }
   let idRevisaoBtn = 0;
   if (avisos.revisarLiberacao.length > 0){
     html += '<div class="aviso"><strong>Precisa sua confirmação — apareceu item amarelo novo em local já liberado com pendência:</strong>' +
@@ -4552,7 +4628,7 @@ async function executarSalvamento(grupos, btn, cont){
   }
   const tudoOk = avisos.gravacaoFalhou.length===0 && avisos.descricaoCortada.length===0 &&
     avisos.fotosFalharam.length===0 && avisos.fotosSemRecurso===0 && avisos.fotosNaoAssociadas.length===0 &&
-    avisos.revisarLiberacao.length===0;
+    avisos.revisarLiberacao.length===0 && discSemForn.length===0;
   const resumoFotos = (avisos.fotosEnviadas>0 ? ' '+avisos.fotosEnviadas+' foto(s) nova(s) salva(s).' : '') +
     (avisos.fotosReaproveitadas>0 ? ' '+avisos.fotosReaproveitadas+' foto(s) já existiam e foram reaproveitadas (sem duplicar).' : '');
   if (tudoOk){
@@ -4562,10 +4638,16 @@ async function executarSalvamento(grupos, btn, cont){
   } else {
     // NÃO navega embora sozinho quando tem aviso — fica na tela pra garantir que o aviso seja visto
     html += '<div class="dica">Os itens (texto) foram salvos.'+resumoFotos+' Confira os avisos ACIMA antes de continuar — o painel só muda de tela quando não sobrar nenhum aviso.</div>';
-    html += '<button class="btn fantasma" id="btn-ok-com-avisos" style="margin-top:6px;">Ciente, ir para a Visão geral mesmo assim</button>';
+    html += '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">' +
+      '<button class="btn fantasma" id="btn-ok-com-avisos">Ciente, ir para a Visão geral mesmo assim</button>' +
+      '<button class="btn fantasma" id="btn-desfazer-este-envio" style="color:var(--vm); border-color:var(--vm-soft);">Desfazer este envio</button></div>';
     cont.innerHTML = html;
     const btnOk = document.getElementById('btn-ok-com-avisos');
     if (btnOk) btnOk.addEventListener('click', () => irParaAba('visao-geral'));
+    const btnDesf = document.getElementById('btn-desfazer-este-envio');
+    if (btnDesf) btnDesf.addEventListener('click', () => executarDesfazerEnvio(cont));
+    const btnForn = document.getElementById('btn-definir-fornecedores');
+    if (btnForn) btnForn.addEventListener('click', () => irParaAba('disciplinas'));
     cont.querySelectorAll('[data-rv-manter], [data-rv-voltar]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const idx = parseInt(btn.dataset.rvManter || btn.dataset.rvVoltar, 10) - 1;
@@ -5466,6 +5548,7 @@ async function iniciar(){
   iniciarSincronizacaoAutomatica();
   document.getElementById('btn-ir-enviar').addEventListener('click', () => irParaAba('enviar'));
   document.getElementById('btn-apagar-tudo').addEventListener('click', apagarTudo);
+  document.getElementById('btn-desfazer-ultimo-envio').addEventListener('click', () => executarDesfazerEnvio(document.getElementById('preview-envio')));
   document.getElementById('btn-limpar-fotos-orfas').addEventListener('click', async () => {
     const cont = document.getElementById('preview-envio');
     irParaAba('enviar');
