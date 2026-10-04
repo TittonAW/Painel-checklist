@@ -232,7 +232,8 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 tbody tr.linha-clicavel{ cursor:pointer; }
 .stat .valor{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:28px; font-weight:400; line-height:1.1; }
 .stat .rotulo{ font-size:12px; color:var(--muted); margin-top:6px; }
-.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--azul); }
+.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--accent); }
+.stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--azul); }
 
 table{ width:100%; min-width:620px; border-collapse:collapse; font-size:14px; }
 th{ text-align:left; font-weight:400; color:var(--muted); font-size:11.5px; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
@@ -468,11 +469,11 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
     <div class="grid-metade" style="margin-top:18px;">
       <div class="card card-pad">
-        <h2>Pendências por fornecedor</h2>
+        <h2>Em aberto por fornecedor</h2>
         <div id="ranking-fornecedor"></div>
       </div>
       <div class="card card-pad">
-        <h2>Pendências por disciplina</h2>
+        <h2>Em aberto por disciplina</h2>
         <div id="ranking-disciplina"></div>
       </div>
     </div>
@@ -500,7 +501,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="iacOk">Vistoriado IAC</option>
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
-        <option value="emAberto">Em aberto (sem nenhuma ação ainda)</option>
+        <option value="emAberto">Em aberto (AW ainda não executou)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-quartos">Gerar PDF</button>
@@ -516,7 +517,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </table>
       <div class="vazio oculto" id="vazio-quartos">Nenhum dado para esta revisão ainda. Envie as planilhas na aba "Enviar planilhas".</div>
     </div>
-    <p class="rodape-nota" style="margin-top:10px;">Clique numa linha para ver os itens daquele local. "Liberado com pendência" só pode ser marcado quando não sobra nenhum item crítico (VM).</p>
+    <p class="rodape-nota" style="margin-top:10px;">VM e AM = itens ainda em aberto (a AW ainda não executou); Total pend. = todos os itens da planilha. Clique numa linha para ver os itens daquele local. "Liberado com pendência" só pode ser marcado quando não sobra nenhum item crítico (VM).</p>
   </section>
 
   <!-- ITENS (detalhe) -->
@@ -540,7 +541,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="iacOk">Vistoriado IAC</option>
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
-        <option value="emAberto">Em aberto (sem nenhuma ação ainda)</option>
+        <option value="emAberto">Em aberto (AW ainda não executou)</option>
         <option value="comReinc">Com reincidência</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
@@ -793,7 +794,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.11';
+const VERSAO_APP = '2026-10-03.13';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -1965,9 +1966,16 @@ function renderUsuarioTopo(){
 }
 let resolverPedidoNome = null;
 /* lista da equipe na janela de identificação (um toque, sem risco de digitar errado) */
+let equipeCarregada = false;
 function renderListaEquipe(){
   const bloco = document.getElementById('bloco-equipe'), box = document.getElementById('lista-equipe');
   if (!bloco || !box) return;
+  if (!equipeCarregada){
+    bloco.classList.remove('oculto');
+    box.innerHTML = '<span style="font-size:13px; color:var(--muted);">Carregando nomes da equipe…</span>';
+    document.getElementById('rotulo-nome-usuario').textContent = 'Não está na lista? Digite nome e sobrenome';
+    return;
+  }
   // um nome por pessoa (se houver variações parecidas, fica a primeira que apareceu)
   const unicos = [];
   pessoasConhecidas().forEach((n) => { if (!unicos.some((u) => chaveComparacao(u) === chaveComparacao(n))) unicos.push(n); });
@@ -2220,6 +2228,19 @@ function estaEmAberto(it){
   return !a || (!a.awExecEm && !a.iacOkEm);
 }
 function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
+/* VM e AM AINDA EM ABERTO (a AW não executou) — é isso que as colunas VM/AM, os cartões e
+   os PDFs mostram: o que falta, e não a cor com que o item veio na planilha.
+   total = todos os itens da planilha (não muda com a execução). */
+function contarVMAMAbertos(itens){
+  let vm=0, am=0, total=0;
+  itens.forEach((i) => {
+    if (i.status !== 'VM' && i.status !== 'AM') return;
+    total++;
+    if (!estaEmAberto(i)) return;
+    if (i.status === 'VM') vm++; else am++;
+  });
+  return { vm, am, total };
+}
 function contarVMAM(itens){
   let vm=0, am=0;
   itens.forEach((i) => { if (i.status==='VM') vm++; else if (i.status==='AM') am++; });
@@ -2231,6 +2252,7 @@ function contarVMAM(itens){
 function classificarItemComContexto(it){
   const ac = acompanhamento[it.id];
   if (ac && ac.iacOkEm) return 'CONCLUIDO'; // verde manual (Vistoriado IAC)
+  if (ac && ac.awExecEm) return 'EXECUTADO'; // executado pela AW, aguardando a IAC — já não é mais VM/AM em aberto
   if (it.status === 'VM') return 'BLOQUEADO';
   if (it.status === 'AM'){
     const liberado = !!areasLiberadasRevisaoAtual[chaveAreaGlobal(it.andar, it.tipo, it.quarto)];
@@ -2473,7 +2495,7 @@ async function renderResumoGeral(recarregarHistorico){
     catch(e){ console.warn('não consegui carregar o histórico de resolvidos', e); }
   }
   vdHistorico = vdHistoricoCache || 0;
-  const c = contarVMAM(itensRevisaoAtual);
+  const c = contarVMAMAbertos(itensRevisaoAtual);
   const locais = agruparPorLocal(itensRevisaoAtual);
   let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0;
   locais.forEach((l) => {
@@ -2502,18 +2524,19 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label">Progresso dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (sem nenhuma ação)</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto (AW ainda não executou)</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div></div>' +
       '<div class="stat liberadopend clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div></div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência (voltaram pra aberto)</div></div>' +
       '<div class="stat"><div class="valor col-vd">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC excluiu da planilha dela (ela não marca resolvido, só tira a linha) — contamos isso como resolvido de verdade, desde a R20">VD acumulado (histórico, desde R20)</div></div>' +
     '</div>' +
 
-    '<div class="grupo-label" style="margin-top:22px;">Itens por status</div>' +
+    '<div class="grupo-label" style="margin-top:22px;">Itens por situação atual</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat vm clicavel" data-ir="itens" data-status="BLOQUEADO"><div class="valor">'+c.vm+'</div><div class="rotulo">VM (vermelho)</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM"><div class="valor">'+c.am+'</div><div class="rotulo">AM (amarelo)</div></div>' +
-      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (verde)</div></div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div></div>' +
+      '<div class="stat executado clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+(awExec - itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && acompanhamento[it.id].iacOkEm).length)+'</div><div class="rotulo">Executado AW (aguardando IAC)</div></div>' +
+      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">VD (vistoriado IAC)</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
@@ -2997,7 +3020,8 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens){
 function renderRankings(){
   const porForn = new Map();
   const porDisc = new Map();
-  itensRevisaoAtual.forEach((it) => {
+  // conta só o que AINDA está em aberto (some do ranking assim que a AW executa)
+  itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).forEach((it) => {
     const nomeForn = fornecedorEfetivo(it) || 'Sem fornecedor definido';
     porForn.set(nomeForn, (porForn.get(nomeForn)||0)+1);
     const disc = disciplinaEfetiva(it);
@@ -3061,14 +3085,10 @@ function obterLocaisFiltrados(){
         if (!todosPassam) return false;
       }
       if (filtroProgressoSelect === 'emAberto'){
-        // "em aberto" = ainda tem pendência de verdade (não é liberado nem concluído) E
-        // nenhum item desse quarto teve qualquer ação (nem AW nem IAC) registrada ainda
-        const temPendenciaAtiva = (status === 'BLOQUEADO' || status === 'PENDENTE');
-        const nenhumaAcao = l.itens.every((it) => {
-          const a = acompanhamento[it.id];
-          return !(a && (a.awExecEm || a.iacOkEm));
-        });
-        if (!(temPendenciaAtiva && nenhumaAcao)) return false;
+        // "em aberto" = o local ainda tem pelo menos 1 item que a AW não executou
+        // (antes exigia que NENHUM item do local tivesse baixa — um corredor com parte já
+        // executada e VM ainda aberto sumia do filtro)
+        if (!l.itens.some((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it))) return false;
       }
     }
     return true;
@@ -3082,7 +3102,7 @@ function renderQuartos(){
   let linhas = 0;
   locais.forEach((l) => {
     const status = classificarComLiberacao(l.itens, l.liberado);
-    const c = contarVMAM(l.itens);
+    const c = contarVMAMAbertos(l.itens);
     const awExecDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
     const iacOkDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
     const b = BADGE_MAP_STATUS[status];
@@ -3327,11 +3347,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'iacOk') return a && a.iacOkEm;
       if (filtroProgressoSelect === 'liberadoPend') return classificarItemComContexto(it) === 'LIBERADO_PEND';
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
-      if (filtroProgressoSelect === 'emAberto'){
-        const statusAtual = classificarItemComContexto(it);
-        const semNenhumaAcao = !(a && (a.awExecEm || a.iacOkEm));
-        return (statusAtual === 'BLOQUEADO' || statusAtual === 'PENDENTE') && semNenhumaAcao;
-      }
+      if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       return true;
     });
@@ -3342,6 +3358,7 @@ function obterItensFiltrados(){
       if (filtroProgresso === 'reinc') return !!(a && a.reincidencias);
       if (filtroProgresso === 'aberto') return !a || (!a.awExecEm && !a.iacOkEm);
       if (filtroProgresso === 'awExec') return a && a.awExecEm;
+      if (filtroProgresso === 'awSemIac') return a && a.awExecEm && !a.iacOkEm;
       if (filtroProgresso === 'iacOk') return a && a.iacOkEm;
       return true;
     });
@@ -3595,7 +3612,7 @@ function renderDisciplinas(){
   const chaves = Array.from(map.keys()).sort((a,b) => map.get(b).length - map.get(a).length);
   chaves.forEach((disc) => {
     const itens = map.get(disc);
-    const c = contarVMAM(itens);
+    const c = contarVMAMAbertos(itens);
     const excecoes = itens.filter((it) => { const ac = acompanhamento[it.id]; return ac && (ac.disciplinaOverride || ac.fornecedorOverride); }).length;
     const reinc = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
     const tr = document.createElement('tr');
@@ -4336,7 +4353,8 @@ const PDF_PRIO = {
   BLOQUEADO:{ fg:PDF_COR.vm, bg:PDF_COR.vms, curto:'VM', longo:'VM (vermelho)' },
   PENDENTE:{ fg:PDF_COR.am, bg:PDF_COR.ams, curto:'AM', longo:'AM (amarelo)' },
   LIBERADO_PEND:{ fg:PDF_COR.az, bg:PDF_COR.azs, curto:'Liberado c/ pend.', longo:'Liberado c/ pendência' },
-  CONCLUIDO:{ fg:PDF_COR.vd, bg:PDF_COR.vds, curto:'VD', longo:'VD (verde)' }
+  CONCLUIDO:{ fg:PDF_COR.vd, bg:PDF_COR.vds, curto:'VD', longo:'VD (verde)' },
+  EXECUTADO:{ fg:PDF_COR.acc, bg:PDF_COR.accs, curto:'Executado AW', longo:'Executado AW (aguardando IAC)' }
 };
 const PDF_M = 36;
 
@@ -4453,7 +4471,8 @@ function pdfCabecalho(doc, ctx){
   // prioridades
   pdfTxt(doc, M, 198, 'Prioridades', 7.5, PDF_COR.muted);
   let x = M + 50;
-  ['BLOQUEADO','PENDENTE','LIBERADO_PEND','CONCLUIDO'].forEach((k) => {
+  ['BLOQUEADO','PENDENTE','LIBERADO_PEND','EXECUTADO','CONCLUIDO'].forEach((k) => {
+    if (k === 'EXECUTADO' && ctx.prioridades[k] === undefined) return; // só no PDF de Itens
     const p = PDF_PRIO[k];
     x += pdfPill(doc, x, 198, p.curto+'  '+pdfNum(ctx.prioridades[k]||0), p.fg, p.bg) + 6;
   });
@@ -4596,7 +4615,7 @@ async function exportarQuartosPdf(){
   statusEl.textContent = 'Gerando PDF…';
 
   const dados = locais.map((l) => {
-    const c = contarVMAM(l.itens);
+    const c = contarVMAMAbertos(l.itens);
     return {
       l, status: classificarComLiberacao(l.itens, l.liberado), vm: c.vm, am: c.am, total: c.total,
       aberto: contarEmAberto(l.itens),
@@ -4681,7 +4700,7 @@ async function exportarItensPdf(){
   const ab = contarEmAberto(itens);
   const aw = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
   const iac = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
-  const prioridades = {};
+  const prioridades = { EXECUTADO: 0 };
   itens.forEach((it) => { const s = classificarItemComContexto(it); prioridades[s] = (prioridades[s]||0) + 1; });
   const extras = [];
   if (filtroItemLocal){
@@ -4822,14 +4841,17 @@ async function iniciar(){
   document.getElementById('btn-semelhante-cancelar').addEventListener('click', () => fecharSemelhante(null));
   document.getElementById('btn-cancelar-usuario').addEventListener('click', cancelarNomeUsuario);
   document.getElementById('input-nome-usuario').addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarNomeUsuario(); });
-  if (!usuarioAtual) pedirNomeUsuario(false); // não trava o carregamento — só aparece por cima
   await store.init();
   await initAssets();
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
   await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas()]);
+  equipeCarregada = true;
   renderListaEquipe();
+  // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
+  // e quem já tinha nome achava que não estava lá e criava de novo)
+  if (!usuarioAtual) pedirNomeUsuario(false);
   ultimaSincronizacao = marcaCarga;
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
