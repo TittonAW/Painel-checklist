@@ -881,7 +881,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.40';
+const VERSAO_APP = '2026-10-03.41';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2813,6 +2813,9 @@ function mapaPorId(itens){
 function compararRevisoes(itensDe, itensPara){
   const andDe = new Set(itensDe.map((i) => i.andar)), andPara = new Set(itensPara.map((i) => i.andar));
   const diff = compararItens(itensDe.filter((i) => andPara.has(i.andar)), itensPara.filter((i) => andDe.has(i.andar)));
+  // mudança de prioridade entre as duas planilhas (só AM ↔ VM; virar VD já conta como resolvido)
+  diff.subiu = diff.mudaram.filter((m) => m.de === 'AM' && m.para === 'VM').map((m) => m.item);
+  diff.desceu = diff.mudaram.filter((m) => m.de === 'VM' && m.para === 'AM').map((m) => m.item);
   diff.semDadosNoPara = Array.from(andDe).filter((a) => !andPara.has(a)).sort((a,b) => a-b);
   diff.andaresNovos = Array.from(andPara).filter((a) => !andDe.has(a)).sort((a,b) => a-b);
   return diff;
@@ -2821,14 +2824,16 @@ function compararRevisoes(itensDe, itensPara){
 function agruparDiferencas(diff){
   const andares = new Map();
   const add = (it, tipo) => {
-    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, locais: new Map() });
+    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, subiu:0, desceu:0, locais: new Map() });
     const a = andares.get(it.andar); a[tipo]++;
     const k = localKey(it);
-    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[] });
+    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[], subiu:[], desceu:[] });
     a.locais.get(k)[tipo].push(it);
   };
   diff.novos.forEach((it) => add(it, 'novos'));
   diff.resolvidos.forEach((it) => add(it, 'resolvidos'));
+  (diff.subiu || []).forEach((it) => add(it, 'subiu'));
+  (diff.desceu || []).forEach((it) => add(it, 'desceu'));
   return Array.from(andares.values()).sort((a,b) => b.andar - a.andar);
 }
 function abrirComparacao(de, para, andar){
@@ -2885,6 +2890,12 @@ function renderInsightsResumo(){
         '<span><span class="grande" style="color:var(--vd);">−'+pdfNum(diff.resolvidos.length)+'</span> <span class="rot">saíram / resolvidas</span></span>' +
         '<span><span class="grande" style="color:'+corSaldo+';">'+(saldo>0?'+':'')+pdfNum(saldo)+'</span> <span class="rot">saldo da lista</span></span>' +
       '</div>';
+    if (diff.subiu.length || diff.desceu.length){
+      html += '<div class="detalhe" style="margin:-4px 0 10px;">Prioridade: ' +
+        (diff.subiu.length ? '<span style="color:var(--vm);">↑ '+pdfNum(diff.subiu.length)+' subiram de AM para VM</span>' : '') +
+        (diff.subiu.length && diff.desceu.length ? ' · ' : '') +
+        (diff.desceu.length ? '<span style="color:var(--aviso-cor);">↓ '+pdfNum(diff.desceu.length)+' desceram de VM para AM</span>' : '') + '</div>';
+    }
     if (diff.semDadosNoPara.length){
       html += '<div class="aviso" style="margin:0 0 10px;">Sem dados na '+esc(atualMeta.label)+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ') +
         ' — esses andares não vieram nesta revisão e <b>não</b> foram contados como resolvidos.</div>';
@@ -2934,12 +2945,14 @@ function renderInsightsResumo(){
       html += '<div class="vazio">Nenhuma diferença entre as duas revisões.</div>';
     }
     // pendências novas que já chegam CRÍTICAS (VM)
-    const novasCriticas = diff.novos.filter((it) => it.status==='VM').slice(0,6);
+    const novasCriticas = diff.novos.filter((it) => it.status==='VM').map((it) => Object.assign({ _como:'nova' }, it))
+      .concat(diff.subiu.map((it) => Object.assign({ _como:'subiu' }, it))).slice(0,6);
     if (novasCriticas.length>0){
-      html += '<div style="margin-top:12px;"><div class="detalhe" style="margin-bottom:6px;">Novas críticas (VM) que pedem atenção:</div>' +
+      html += '<div style="margin-top:12px;"><div class="detalhe" style="margin-bottom:6px;">Críticas (VM) que pedem atenção — novas ou que subiram de AM:</div>' +
         novasCriticas.map((it) => {
           const label = it.tipo==='APTO' ? String(it.quarto) : labelTipo(it.tipo);
-          return '<div class="insight-item" style="padding:7px 0;"><div><div class="local" style="font-size:12.5px;">'+esc(it.id)+' · '+it.andar+'º · '+esc(label)+'</div>' +
+          return '<div class="insight-item" style="padding:7px 0;"><div><div class="local" style="font-size:12.5px;">'+esc(it.id)+' · '+it.andar+'º · '+esc(label) +
+            (it._como === 'subiu' ? ' <span class="badge bloqueado" style="font-size:10.5px;">subiu AM → VM</span>' : ' <span class="badge bloqueado" style="font-size:10.5px;">nova</span>')+'</div>' +
             '<div class="detalhe">'+esc((it.desc||'').slice(0,70))+'</div></div></div>';
         }).join('') + '</div>';
     }
@@ -4108,7 +4121,8 @@ async function executarComparacao(){
     '<div class="stat vm"><div class="valor">'+diff.novos.length+'</div><div class="rotulo">Pendências novas</div></div>' +
     '<div class="stat vd"><div class="valor">'+diff.resolvidos.length+'</div><div class="rotulo">Resolvidas</div></div>' +
     '<div class="stat"><div class="valor saldo '+saldoClasse+'">'+(saldo>0?'+':'')+saldo+'</div><div class="rotulo">Saldo</div></div>' +
-    '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas críticas (VM)</div></div>' +
+    '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas que já chegaram VM</div></div>' +
+    '<div class="stat"><div class="valor"><span style="color:var(--vm);">↑'+diff.subiu.length+'</span> <span style="color:var(--aviso-cor);">↓'+diff.desceu.length+'</span></div><div class="rotulo">Mudaram de prioridade (↑ AM→VM · ↓ VM→AM)</div></div>' +
     '</div>';
 
   // TABELA no mesmo formato da aba Quartos & áreas: uma linha por quarto/área;
@@ -4119,10 +4133,13 @@ async function executarComparacao(){
     .sort((x,y) => x.andar - y.andar || ordemLocal(x) - ordemLocal(y) || String(x.label).localeCompare(String(y.label), 'pt-BR', { numeric:true }));
   const linhaItem = (it, tipo) => {
     const pill = it.status === 'VM' ? '<span class="badge bloqueado">VM (vermelho)</span>' : '<span class="badge pendente">AM (amarelo)</span>';
-    const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>' : '<span class="badge vd" style="background:var(--vd-soft); color:var(--vd);">Saiu / resolvido</span>';
+    const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>'
+      : tipo === 'subiu' ? '<span class="badge bloqueado">Subiu AM → VM</span>'
+      : tipo === 'desceu' ? '<span class="badge pendente">Desceu VM → AM</span>'
+      : '<span class="badge vd" style="background:var(--vd-soft); color:var(--vd);">Saiu / resolvido</span>';
     return '<tr><td class="mono col-centro">'+esc(it.id)+'</td><td class="col-centro">'+pill+'</td><td>'+esc(it.disciplina||'—')+'</td>' +
       '<td style="color:var(--text);">'+esc(it.desc||'—')+'</td><td class="col-centro">'+mov+'</td>' +
-      '<td class="col-centro">'+(tipo === 'novo' && podeAbrirNosItens ? '<button type="button" class="chip-acao" data-abrir-item="'+esc(it.id)+'" data-andar="'+it.andar+'" data-local="'+esc(localKey(it))+'">Abrir nos Itens</button>' : '—')+'</td></tr>';
+      '<td class="col-centro">'+(tipo !== 'resolvido' && podeAbrirNosItens ? '<button type="button" class="chip-acao" data-abrir-item="'+esc(it.id)+'" data-andar="'+it.andar+'" data-local="'+esc(localKey(it))+'">Abrir nos Itens</button>' : '—')+'</td></tr>';
   };
   let htmlDet = '';
   if (diff.semDadosNoPara.length){
@@ -4136,15 +4153,20 @@ async function executarComparacao(){
   } else {
     const porAndar = new Map();
     locais.forEach((l) => { if (!porAndar.has(l.andar)) porAndar.set(l.andar, []); porAndar.get(l.andar).push(l); });
+    const celNovas = (n, vm) => (n ? '+'+pdfNum(n) : '0') + (vm ? '<div style="font-size:11px; color:var(--vm);">('+vm+' VM)</div>' : '');
+    const celPrioridade = (sub, des) => (sub || des)
+      ? (sub ? '<span style="color:var(--vm);">↑'+sub+'</span>' : '') + (sub && des ? ' &nbsp;' : '') + (des ? '<span style="color:var(--aviso-cor);">↓'+des+'</span>' : '')
+      : '<span style="color:var(--faint);">—</span>';
     const linhaLocal = (l) => {
       const s = l.novos.length - l.resolvidos.length;
       const novasVm = l.novos.filter((it) => it.status === 'VM').length;
-      const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
+      const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.subiu.map((it) => linhaItem(it, 'subiu')).join('') +
+        l.desceu.map((it) => linhaItem(it, 'desceu')).join('') + l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
       return '<tr class="comp-local-row oculto clicavel" data-andar-pai="'+l.andar+'" data-toggle-local>' +
           '<td class="col-centro" style="color:var(--faint);">↳</td><td style="padding-left:18px;">'+esc(l.label)+'</td>' +
-          '<td class="num-col col-vm">'+(l.novos.length ? '+'+l.novos.length : '0')+'</td>' +
-          '<td class="num-col col-vm">'+novasVm+'</td>' +
+          '<td class="num-col col-vm">'+celNovas(l.novos.length, novasVm)+'</td>' +
           '<td class="num-col col-vd">'+(l.resolvidos.length ? '−'+l.resolvidos.length : '0')+'</td>' +
+          '<td class="num-col">'+celPrioridade(l.subiu.length, l.desceu.length)+'</td>' +
           '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
           '<td class="col-centro"><button type="button" class="chip-acao" data-seta>Ver itens ▾</button></td></tr>' +
         '<tr class="comp-itens oculto" data-andar-pai="'+l.andar+'"><td colspan="7" style="background:var(--paper); padding:10px 12px 14px;">' +
@@ -4153,22 +4175,23 @@ async function executarComparacao(){
     };
     htmlDet += '<div style="overflow-x:auto;"><table><thead><tr>' +
       '<th class="col-centro">Andar</th><th>Ambiente</th>' +
-      '<th class="num-col col-vm">Novas</th><th class="num-col col-vm">Novas VM</th><th class="num-col col-vd">Resolvidas</th>' +
+      '<th class="num-col col-vm">Novas</th><th class="num-col col-vd">Resolvidas</th><th class="num-col">Prioridade</th>' +
       '<th class="num-col">Saldo</th><th class="col-centro">Detalhe</th></tr></thead><tbody>' +
       Array.from(porAndar.entries()).sort((x,y) => x[0] - y[0]).map(([andar, ls]) => {
         const nov = ls.reduce((a, l) => a + l.novos.length, 0), res = ls.reduce((a, l) => a + l.resolvidos.length, 0);
         const vm = ls.reduce((a, l) => a + l.novos.filter((it) => it.status === 'VM').length, 0), s = nov - res;
+        const sub = ls.reduce((a, l) => a + l.subiu.length, 0), des = ls.reduce((a, l) => a + l.desceu.length, 0);
         return '<tr class="clicavel" data-toggle-andar="'+andar+'" id="comp-andar-'+andar+'" style="scroll-margin-top:140px;">' +
             '<td class="mono col-centro" style="color:var(--text);">'+andar+'º</td>' +
             '<td style="color:var(--muted);">'+ls.length+' ambiente(s) com mudança</td>' +
-            '<td class="num-col col-vm">'+(nov ? '+'+pdfNum(nov) : '0')+'</td>' +
-            '<td class="num-col col-vm">'+vm+'</td>' +
+            '<td class="num-col col-vm">'+celNovas(nov, vm)+'</td>' +
             '<td class="num-col col-vd">'+(res ? '−'+pdfNum(res) : '0')+'</td>' +
+            '<td class="num-col">'+celPrioridade(sub, des)+'</td>' +
             '<td class="num-col"><span class="saldo '+(s>0?'pos':(s<0?'neg':'zero'))+'">'+(s>0?'+':'')+s+'</span></td>' +
             '<td class="col-centro"><button type="button" class="chip-acao" data-seta-andar>Ver ambientes ▾</button></td></tr>' +
           ls.map(linhaLocal).join('');
       }).join('') + '</tbody></table></div>' +
-      '<p class="rodape-nota" style="margin-top:10px;">Toque num andar para ver os ambientes; toque num ambiente para ver os itens que entraram e saíram.</p>';
+      '<p class="rodape-nota" style="margin-top:10px;">Toque num andar para ver os ambientes; toque num ambiente para ver os itens que entraram, saíram ou mudaram de prioridade.</p>';
   }
   detalhe.innerHTML = htmlDet;
   detalhe.querySelectorAll('[data-toggle-andar]').forEach((tr) => tr.addEventListener('click', () => {
