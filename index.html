@@ -858,7 +858,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.20';
+const VERSAO_APP = '2026-10-03.21';
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -3019,8 +3019,8 @@ function renderEvolucaoPendencias(){
   SERIES_EVOLUCAO.forEach((s) => {
     const off = !!seriesOcultas[s.chave];
     topo += '<button type="button" data-serie="'+s.chave+'" style="all:unset; cursor:pointer; opacity:'+(off?0.35:1)+';" title="Mostrar/ocultar linha">' +
-      '<div style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:'+s.cor+'; display:inline-block;"></span>'+s.rotulo+'</div>' +
-      '<div data-valor-de="'+s.chave+'" style="font-size:'+(pequeno?20:24)+'px; color:var(--text); line-height:1.25;"></div></button>';
+      '<div style="font-size:12px; color:'+(s.chave==='total' ? 'var(--muted)' : (s.chave==='aberto' ? 'var(--text)' : s.cor))+'; display:flex; align-items:center; gap:6px;"><span style="width:8px; height:8px; border-radius:50%; background:'+s.cor+'; display:inline-block;"></span>'+s.rotulo+'</div>' +
+      '<div data-valor-de="'+s.chave+'" style="font-size:'+(pequeno?20:24)+'px; color:'+(s.chave==='total' ? 'var(--muted)' : (s.chave==='aberto' ? 'var(--text)' : s.cor))+'; line-height:1.25;"></div></button>';
   });
   topo += '</div>';
 
@@ -3115,7 +3115,7 @@ function construirRankingHorizontal(mapaContagens, corBarra, maxItens, sufixos){
   // ALTURA_BARRA é fixa sempre — só o espaço da LINHA (pra caber o rótulo em 2 linhas) varia.
   // a barra nunca fica "gorda" ou "fina" por causa do texto, só o espaço ao redor dela.
   const ALTURA_BARRA = 26;
-  const padL=172, padR=sufixos ? 150 : 52, padT=8, gap=16, alturaUmaLinha=34, alturaDuasLinhas=50;
+  const padL=172, padR=sufixos ? 200 : 52, padT=8, gap=16, alturaUmaLinha=34, alturaDuasLinhas=50;
   const W = 660;
   const itens = lista.map(([nome,valor]) => {
     const linhas = envolverTextoEm2Linhas(nome, 20);
@@ -3157,7 +3157,7 @@ function renderRankings(){
   });
   // % que cada fornecedor / disciplina representa do total AINDA EM ABERTO
   const totalAberto = itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).length || 1;
-  const pctDoTotal = (mapa) => new Map(Array.from(mapa.entries()).map(([k, v]) => [k, Math.round(v/totalAberto*100) + '% do total']));
+  const pctDoTotal = (mapa) => new Map(Array.from(mapa.entries()).map(([k, v]) => [k, Math.round(v/totalAberto*100) + '% do em aberto']));
   // conta só o que AINDA está em aberto (some do ranking assim que a AW executa)
   itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)).forEach((it) => {
     const nomeForn = fornecedorEfetivo(it) || 'Sem fornecedor definido';
@@ -3165,7 +3165,7 @@ function renderRankings(){
     const disc = disciplinaEfetiva(it);
     porDisc.set(disc, (porDisc.get(disc)||0)+1);
   });
-  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--cinza-grafico-fill)', null, pctDoTotal(porForn));
+  document.getElementById('ranking-fornecedor').innerHTML = construirRankingHorizontal(porForn, 'var(--lilas-fill)', null, pctDoTotal(porForn));
   document.getElementById('ranking-disciplina').innerHTML = construirRankingHorizontal(porDisc, 'var(--cinza-grafico-fill)', null, pctDoTotal(porDisc));
 }
 
