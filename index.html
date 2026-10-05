@@ -820,6 +820,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     </div>
     <div id="modal-plano-lista" style="overflow-y:auto; margin:12px 0; flex:1;"></div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+      <button type="button" class="btn fantasma" id="modal-plano-texto">Copiar texto</button>
       <button type="button" class="btn fantasma" id="modal-plano-pdf">Gerar PDF</button>
       <button type="button" class="btn primario" id="modal-plano-enviar">Enviar no WhatsApp</button>
     </div>
@@ -925,7 +926,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.65';
+const VERSAO_APP = '2026-10-03.66';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4530,7 +4531,11 @@ async function renderTendencia(){
     });
     document.getElementById('modal-plano-fechar').addEventListener('click', fecharModalPlano);
     document.getElementById('modal-plano-pdf').addEventListener('click', () => { if (modalPlanoChave) exportarPlanoPdf(modalPlanoChave); });
-    document.getElementById('modal-plano-enviar').addEventListener('click', () => { const c = planoCartoes[modalPlanoChave]; if (c) enviarTextoPlano(c.titulo, c.texto()); });
+    document.getElementById('modal-plano-enviar').addEventListener('click', () => { if (modalPlanoChave) enviarCartaoComoImagem(modalPlanoChave); });
+    document.getElementById('modal-plano-texto').addEventListener('click', async () => {
+      const c = planoCartoes[modalPlanoChave]; if (!c) return;
+      try{ await navigator.clipboard.writeText(c.texto()); avisoFlutuante('Texto copiado', 'ok'); }catch(e){ avisoFlutuante('Não consegui copiar', 'erro'); }
+    });
 
   }
   if (inpMeta) inpMeta.value = planoMeta;
@@ -4691,7 +4696,7 @@ async function renderTendencia(){
   ligarLinhasPlano(blocos);
   blocos.querySelectorAll('[data-plano-ver]').forEach((b) => b.addEventListener('click', () => abrirModalPlano(b.dataset.planoVer)));
   blocos.querySelectorAll('[data-plano-pdf]').forEach((b) => b.addEventListener('click', () => exportarPlanoPdf(b.dataset.planoPdf)));
-  blocos.querySelectorAll('[data-plano-enviar]').forEach((b) => b.addEventListener('click', () => { const c = planoCartoes[b.dataset.planoEnviar]; enviarTextoPlano(c.titulo, c.texto()); }));
+  blocos.querySelectorAll('[data-plano-enviar]').forEach((b) => b.addEventListener('click', () => enviarCartaoComoImagem(b.dataset.planoEnviar)));
 
   // ---------- RESUMO PRA DIRETORIA: cartão na grade, com ícones (os mesmos vão no WhatsApp) ----------
   const totalPend = pend.length;
@@ -4726,7 +4731,15 @@ async function renderTendencia(){
       '<button type="button" class="chip-acao" id="btn-resumo-whatsapp" style="flex:none;">WhatsApp</button></div>' +
     linhasResumo.map((l) => '<div class="resumo-linha"><span class="ico">'+l.ico+'</span><span>'+l.html+'</span></div>').join('');
   blocos.appendChild(cartaoResumo);
-  document.getElementById('btn-resumo-whatsapp').addEventListener('click', () => enviarTextoPlano('Resumo do checklist', textoResumo));
+  document.getElementById('btn-resumo-whatsapp').addEventListener('click', async () => {
+    const agora = new Date();
+    const blob = await gerarImagemCartao({
+      titulo: 'Resumo pra diretoria', sub: 'Os números do momento', temIcone: true,
+      linhas: linhasResumo.map((l) => ({ ico: l.ico, esq: htmlParaSegmentos(l.html), det: [], dir: [] })),
+      rodape: (rev ? 'Revisão ' + rev + ' · ' : '') + agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })
+    });
+    await enviarImagemWhatsapp(blob, NOME_APP_ARQUIVO + ' - Resumo');
+  });
 }
 
 /* ---------- apoio do Plano: linhas, janela, envio e PDF ---------- */
@@ -4765,6 +4778,133 @@ function abrirModalPlano(k){
   document.getElementById('modal-plano').classList.remove('oculto');
 }
 function fecharModalPlano(){ document.getElementById('modal-plano').classList.add('oculto'); modalPlanoChave = null; }
+/* ===================== IMAGEM DO CARTÃO PRO WHATSAPP =====================
+   Desenha o cartão como na tela (título, linhas com divisória, negrito, cores, ícones) num PNG.
+   Celular: abre a tela de compartilhar com a imagem (toca no WhatsApp e escolhe o grupo).
+   Computador: copia a imagem — é só colar no WhatsApp (Ctrl+V). */
+function corDaVar(nome){ const v = getComputedStyle(document.documentElement).getPropertyValue(nome).trim(); return v || '#3F444D'; }
+function htmlParaSegmentos(html){
+  const raiz = new DOMParser().parseFromString('<div>'+String(html||'')+'</div>', 'text/html').body.firstChild;
+  const segs = [];
+  const andar = (no, estilo) => {
+    if (no.nodeType === 3){ if (no.textContent) segs.push(Object.assign({ t: no.textContent.replace(/\u00A0/g,' ') }, estilo)); return; }
+    if (no.nodeType !== 1) return;
+    const e = Object.assign({}, estilo);
+    if (no.tagName === 'B' || no.tagName === 'STRONG') e.bold = true;
+    const st = no.getAttribute && no.getAttribute('style');
+    const m = st && st.match(/color:\s*var\((--[a-z0-9-]+)\)/i);
+    if (m) e.cor = corDaVar(m[1]);
+    if (no.classList && no.classList.contains('bloqueado')) e.cor = corDaVar('--vm');
+    no.childNodes.forEach((f) => andar(f, e));
+  };
+  andar(raiz, {});
+  return segs;
+}
+function quebrarSegmentos(ctx, segs, larg, fonte){
+  const linhas = [[]]; let w = 0;
+  segs.forEach((s) => {
+    s.t.split(/(\s+)/).forEach((pal) => {
+      if (!pal) return;
+      ctx.font = fonte(s.bold);
+      const pw = ctx.measureText(pal).width;
+      if (w + pw > larg && w > 0 && pal.trim()){ linhas.push([]); w = 0; }
+      if (!pal.trim() && w === 0) return;
+      linhas[linhas.length-1].push(Object.assign({}, s, { t: pal, w: pw })); w += pw;
+    });
+  });
+  return linhas;
+}
+async function gerarImagemCartao(o){
+  try{ await document.fonts.ready; }catch(e){}
+  const K = 2, W = 560, P = 22, CW = W - 2*P;
+  const FAM = "'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif";
+  const fonte = (tam, bold) => (bold ? '600 ' : '400 ') + tam + 'px ' + FAM;
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  const corTexto = corDaVar('--text'), corTexto2 = corDaVar('--text-2'), corMuted = corDaVar('--muted'), corLinha = corDaVar('--line');
+  // mede tudo primeiro pra saber a altura
+  const larguraTexto = CW - 32 - (o.temIcone ? 28 : 0) - 120;
+  const medidas = o.linhas.map((l) => {
+    const esq = quebrarSegmentos(ctx, l.esq, o.temIcone ? CW - 32 - 28 : larguraTexto, (b) => fonte(14.5, b || l.esqBold));
+    const det = l.det && l.det.length ? quebrarSegmentos(ctx, l.det, larguraTexto, (b) => fonte(12, b)) : [];
+    return { esq, det, h: 14 + esq.length*20 + det.length*17 + 10 };
+  });
+  const hTopo = 64, hTit = 30 + (o.sub ? 18 : 0) + 14;
+  const hLinhas = medidas.reduce((s, m) => s + m.h, 0);
+  const hExtra = o.extra ? 34 : 0;
+  const H = P + hTopo + hTit + hLinhas + hExtra + 18 + P;
+  cv.width = W*K; cv.height = H*K; ctx.scale(K, K);
+  ctx.fillStyle = '#F3F4F6'; ctx.fillRect(0, 0, W, H);
+  // topo: logos + obra + revisão/data
+  const logos = pdfLogos();
+  const carregar = (src) => new Promise((r) => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = src; });
+  let x = P;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = corLinha; ctx.lineWidth = 1;
+  const rr = (x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); };
+  if (logos.sofitel){ const im = await carregar(logos.sofitel.src); rr(x, P, 84, 34, 8); ctx.fill(); ctx.stroke(); if (im){ let lh = 24, lw = lh*logos.sofitel.ratio; if (lw > 70){ lw = 70; lh = lw/logos.sofitel.ratio; } ctx.drawImage(im, x+42-lw/2, P+17-lh/2, lw, lh); } x += 92; }
+  if (logos.aw){ const im = await carregar(logos.aw.src); if (im){ ctx.save(); rr(x, P, 34, 34, 8); ctx.clip(); ctx.drawImage(im, x, P, 34, 34); ctx.restore(); } x += 42; }
+  ctx.fillStyle = corTexto; ctx.font = fonte(14, true); ctx.fillText('Checklist · Sofitel Ipanema', x, P+15);
+  ctx.fillStyle = corMuted; ctx.font = fonte(11.5); ctx.fillText(o.rodape, x, P+31);
+  // cartão branco
+  let y = P + hTopo;
+  const hCard = hTit + hLinhas + hExtra + 18;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = corLinha; rr(P, y, CW, hCard, 16); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = corTexto; ctx.font = fonte(17, true); ctx.fillText(o.titulo, P+16, y+28);
+  if (o.sub){ ctx.fillStyle = corMuted; ctx.font = fonte(12); ctx.fillText(o.sub.length > 80 ? o.sub.slice(0, 78)+'…' : o.sub, P+16, y+46); }
+  y += hTit;
+  // linhas
+  const pintar = (linhas, x0, y0, tam, corPadrao, altura) => {
+    linhas.forEach((ln, i) => { let xx = x0; ln.forEach((s) => { ctx.font = fonte(tam, s.bold); ctx.fillStyle = s.cor || corPadrao; ctx.fillText(s.t, xx, y0 + i*altura); xx += s.w; }); });
+  };
+  o.linhas.forEach((l, i) => {
+    const m = medidas[i];
+    if (i > 0){ ctx.strokeStyle = corLinha; ctx.beginPath(); ctx.moveTo(P+16, y); ctx.lineTo(P+CW-16, y); ctx.stroke(); }
+    let xTexto = P+16;
+    if (o.temIcone){ ctx.font = '16px ' + FAM; ctx.fillStyle = corTexto; ctx.fillText(l.ico || '', P+16, y+30); xTexto += 28; }
+    pintar(m.esq, xTexto, y+28, 14.5, corTexto, 20);
+    if (m.det.length) pintar(m.det, xTexto, y+28 + m.esq.length*20 - 2, 12, corMuted, 17);
+    if (l.dir && l.dir.length){
+      const txt = l.dir.map((s) => s.t).join('').trim(), cor = (l.dir.find((s) => s.cor) || {}).cor || corTexto;
+      ctx.font = fonte(14); ctx.fillStyle = cor; ctx.textAlign = 'right'; ctx.fillText(txt, P+CW-16, y+28); ctx.textAlign = 'left';
+    }
+    y += m.h;
+  });
+  if (o.extra){ ctx.strokeStyle = corLinha; ctx.beginPath(); ctx.moveTo(P+16, y); ctx.lineTo(P+CW-16, y); ctx.stroke(); ctx.fillStyle = corMuted; ctx.font = fonte(12.5); ctx.fillText(o.extra, P+16, y+24); }
+  return await new Promise((r) => cv.toBlob(r, 'image/png'));
+}
+async function enviarImagemWhatsapp(blob, nome){
+  if (!blob){ avisoFlutuante('Não consegui gerar a imagem', 'erro'); return; }
+  const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+  const arquivo = new File([blob], nome + '.png', { type: 'image/png' });
+  if (celular && navigator.canShare && navigator.canShare({ files: [arquivo] })){
+    try{ await navigator.share({ files: [arquivo] }); return; }catch(e){ if (e && e.name === 'AbortError') return; }
+  }
+  try{
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    avisoFlutuante('Imagem copiada — é só colar no WhatsApp (Ctrl+V)', 'ok');
+    return;
+  }catch(e){}
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = nome + '.png';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 15000);
+  avisoFlutuante('Imagem baixada — anexe no WhatsApp', 'ok');
+}
+const LIMITE_LINHAS_IMAGEM = 15;
+async function enviarCartaoComoImagem(k){
+  const c = planoCartoes[k]; if (!c) return;
+  const rev = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '';
+  const agora = new Date();
+  const linhas = c.itens.slice(0, LIMITE_LINHAS_IMAGEM).map((x) => {
+    const l = c.linha(x);
+    return { esq: htmlParaSegmentos(l.esq), esqBold: false, det: htmlParaSegmentos(l.det), dir: htmlParaSegmentos(l.dir) };
+  });
+  const resto = c.itens.length - linhas.length;
+  const blob = await gerarImagemCartao({
+    titulo: c.titulo + ' (' + c.itens.length + ')', sub: c.sub, linhas,
+    extra: resto > 0 ? '+ ' + resto + ' outro(s) — lista completa no PDF' : '',
+    rodape: (rev ? 'Revisão ' + rev + ' · ' : '') + agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })
+  });
+  await enviarImagemWhatsapp(blob, NOME_APP_ARQUIVO + ' - ' + c.titulo);
+}
+
 async function enviarTextoPlano(titulo, texto){
   // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
