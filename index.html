@@ -701,7 +701,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card card-pad" style="margin-top:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
         <h2 style="margin:0;">Resumo pra diretoria</h2>
-        <button type="button" class="btn fantasma" id="btn-copiar-resumo-plano">Enviar</button>
+        <button type="button" class="btn fantasma" id="btn-copiar-resumo-plano">Enviar no WhatsApp</button>
       </div>
       <div id="plano-resumo" style="margin-top:10px; font-size:14px; line-height:1.6; color:var(--text-2); white-space:pre-line;"></div>
     </div>
@@ -817,7 +817,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div id="modal-plano-lista" style="overflow-y:auto; margin:12px 0; flex:1;"></div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
       <button type="button" class="btn fantasma" id="modal-plano-pdf">Gerar PDF</button>
-      <button type="button" class="btn primario" id="modal-plano-enviar">Enviar</button>
+      <button type="button" class="btn primario" id="modal-plano-enviar">Enviar no WhatsApp</button>
     </div>
   </div>
 </div>
@@ -921,7 +921,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.54';
+const VERSAO_APP = '2026-10-03.59';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4570,6 +4570,19 @@ async function renderTendencia(){
   const vms = pend.filter((it) => it.status === 'VM' && estaEmAberto(it)).sort((a,b) => a.andar - b.andar || String(a.id).localeCompare(String(b.id), 'pt-BR', { numeric:true }));
   const locais = agruparPorLocal(pend).map((l) => ({ l, aberto: l.itens.filter(estaEmAberto).length, pct: percentualExecutado(l.itens) }))
     .filter((x) => x.pct >= 90 && x.aberto > 0).sort((a,b) => a.aberto - b.aberto || b.pct - a.pct);
+  // o lado oposto: ambientes mais atrasados (menor % executado, mais itens em aberto)
+  const disciplinaQueMaisPesa = (l) => {
+    const m = new Map();
+    l.itens.filter(estaEmAberto).forEach((it) => { const d = disciplinaEfetiva(it); m.set(d, (m.get(d)||0) + 1); });
+    const top = Array.from(m.entries()).sort((a,b) => b[1] - a[1])[0];
+    return top ? { nome: top[0], n: top[1] } : null;
+  };
+  const atrasados = agruparPorLocal(pend).map((l) => ({ l, aberto: l.itens.filter(estaEmAberto).length, pct: percentualExecutado(l.itens) }))
+    .filter((x) => x.aberto > 0 && x.pct < 90)
+    // "mais difícil" = muitos itens em aberto E pouco andamento (um hall com 4 itens a 0% pesa menos que um quarto com 53 em aberto a 27%)
+    .map((x) => Object.assign(x, { peso: x.aberto * (1 - x.pct/100) }))
+    .sort((a,b) => b.peso - a.peso || a.pct - b.pct)
+    .map((x) => Object.assign(x, { pesa: disciplinaQueMaisPesa(x.l) }));
   const desde = agora - 7*DIA;
   const porDisc = new Map();
   pend.forEach((it) => {
@@ -4599,6 +4612,7 @@ async function renderTendencia(){
   const semBaixa = (x) => x.dias === null ? 'nunca deu baixa' : 'sem baixa há '+x.dias+' dia(s)';
   const ondeEstao = (x) => Array.from(x.porAndar.entries()).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([a,n]) => a+'º ('+n+')').join(', ');
   const itensAbertosDoLocal = (l) => l.itens.filter(estaEmAberto);
+  const nomeAmb = (l) => /º/.test(String(l.label)) ? String(l.label).replace(/\u00A0/g, ' ') : l.label + ' · ' + l.andar + 'º';
 
   // ---------- definição de cada cartão: linhas da tela, mensagem e PDF ----------
   planoCartoes = {
@@ -4608,16 +4622,30 @@ async function renderTendencia(){
       linha: (it) => ({ esq: esc(it.id)+' · '+it.andar+'º · '+esc(localLabel(it)), det: esc(disciplinaEfetiva(it))+' — '+esc((it.desc||'').slice(0,80)), dir: '<span class="badge bloqueado">VM</span>',
         abrir: () => abrirItens({ andar: it.andar, ambiente: 'local:'+localKey(it), busca: it.id }) }),
       texto: () => '*Vermelhos em aberto — '+vms.length+' item(ns)* ('+rev+')\n' + agruparTexto(vms, (it) => it.andar+'º andar', (it) => '• '+localLabel(it)+' — '+it.id+' '+disciplinaEfetiva(it)+': '+(it.desc||'')),
+      pdfItens: () => ({ itens: vms, titulo: 'Plano - Vermelhos em aberto', filtro: 'Vermelhos em aberto (VM sem execução da AW)' }),
       pdf: { colunas: ['Item','Andar','Local','Disciplina','Descrição'], linhas: () => vms.map((it) => [it.id, it.andar+'º', localLabel(it), disciplinaEfetiva(it), it.desc||'']) }
     },
     locais: {
       titulo: 'Quase prontos', sub: 'Ambientes com 90% ou mais executados — poucos itens fecham o ambiente.', vazio: 'Nenhum ambiente acima de 90% com itens em aberto.',
       itens: locais,
-      linha: (x) => ({ esq: esc(x.l.label)+' · '+x.l.andar+'º', det: x.pct+'% executado', dir: '<span style="color:var(--text);">faltam '+x.aberto+'</span>',
+      linha: (x) => ({ esq: esc(nomeAmb(x.l)), det: x.pct+'% executado', dir: '<span style="color:var(--text);">faltam '+x.aberto+'</span>',
         abrir: () => abrirItens({ andar: x.l.andar, ambiente: 'local:'+x.l.key, fluxo: 'emAberto' }) }),
       texto: () => '*Ambientes que fecham com poucos itens — '+locais.length+'* ('+rev+')\n' + agruparTexto(locais, (x) => x.l.andar+'º andar', (x) =>
         '• '+x.l.label+' — falta(m) '+x.aberto+':\n' + itensAbertosDoLocal(x.l).slice(0, 5).map((it) => '   - '+disciplinaEfetiva(it)+': '+(it.desc||'')).join('\n') + (x.aberto > 5 ? '\n   - + '+(x.aberto-5)+' outro(s)' : '')),
-      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Itens que faltam'], linhas: () => locais.map((x) => [x.l.andar+'º', x.l.label, x.pct+'%', String(x.aberto), itensAbertosDoLocal(x.l).slice(0,3).map((it) => disciplinaEfetiva(it)+': '+(it.desc||'')).join(' | ') + (x.aberto > 3 ? ' (+'+(x.aberto-3)+')' : '')]) }
+      // todos os itens EM ABERTO dos ambientes quase prontos, no padrão do PDF de Itens
+      pdfItens: () => ({ itens: locais.flatMap((x) => itensAbertosDoLocal(x.l)), titulo: 'Plano - Quase prontos', filtro: 'Quase prontos: '+locais.length+' ambiente(s) com 90% ou mais executados — itens que faltam' }),
+      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Itens que faltam'], linhas: () => locais.map((x) => [x.l.andar+'º', x.l.label, x.pct+'%', String(x.aberto), itensAbertosDoLocal(x.l).map((it) => disciplinaEfetiva(it)+': '+(it.desc||'')).join(' | ')]) }
+    },
+    atrasados: {
+      titulo: 'Mais atrasados', sub: 'Ambientes com menor % executado e mais itens em aberto — onde está o problema.', vazio: 'Nenhum ambiente abaixo de 90% executado.',
+      itens: atrasados,
+      linha: (x) => ({ esq: esc(nomeAmb(x.l)), det: x.pct+'% executado · faltam '+x.aberto + (x.pesa ? ' · maior parte '+esc(x.pesa.nome)+' ('+x.pesa.n+')' : ''),
+        dir: '<span style="color:var(--vm);">'+x.pct+'%</span>',
+        abrir: () => abrirItens({ andar: x.l.andar, ambiente: 'local:'+x.l.key, fluxo: 'emAberto' }) }),
+      texto: () => '*Ambientes mais atrasados* ('+rev+')\n' + atrasados.slice(0, 20).map((x) =>
+        '• '+nomeAmb(x.l)+' — '+x.pct+'% executado, faltam '+x.aberto + (x.pesa ? ' (maior parte '+x.pesa.nome+': '+x.pesa.n+')' : '')).join('\n') +
+        (atrasados.length > 20 ? '\n+ '+(atrasados.length-20)+' outro(s)' : ''),
+      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Disciplina que mais pesa'], linhas: () => atrasados.map((x) => [x.l.andar+'º', x.l.label, x.pct+'%', String(x.aberto), x.pesa ? x.pesa.nome+' ('+x.pesa.n+')' : '—']) }
     },
     rapidas: {
       titulo: 'Disciplinas que mais andam', sub: 'Mais itens executados nos últimos 7 dias — onde investir equipe rende volume.', vazio: 'Nenhuma execução registrada nos últimos 7 dias.',
@@ -4647,7 +4675,7 @@ async function renderTendencia(){
   };
 
   const MOSTRA = 6;
-  blocos.innerHTML = ['vms','locais','rapidas','parados','fila'].map((k) => {
+  blocos.innerHTML = ['vms','locais','atrasados','rapidas','parados','fila'].map((k) => {
     const c = planoCartoes[k];
     const corpo = c.itens.length
       ? c.itens.slice(0, MOSTRA).map((x, i) => linhaPlanoHtml(k, i, c.linha(x))).join('') +
@@ -4655,7 +4683,7 @@ async function renderTendencia(){
       : '<div class="vazio">'+c.vazio+'</div>';
     return '<div class="card card-pad"><div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">' +
       '<div><h2 style="margin-bottom:2px;">'+c.titulo+'</h2><div class="rodape-nota" style="text-align:left; margin:0 0 10px;">'+c.sub+'</div></div>' +
-      (c.itens.length ? '<div style="display:flex; gap:6px; flex:none;"><button type="button" class="chip-acao" data-plano-pdf="'+k+'">PDF</button><button type="button" class="chip-acao" data-plano-enviar="'+k+'">Enviar</button></div>' : '') +
+      (c.itens.length ? '<div style="display:flex; gap:6px; flex:none;"><button type="button" class="chip-acao" data-plano-pdf="'+k+'">PDF</button><button type="button" class="chip-acao" data-plano-enviar="'+k+'">WhatsApp</button></div>' : '') +
       '</div>'+corpo+'</div>';
   }).join('');
   ligarLinhasPlano(blocos);
@@ -4683,7 +4711,7 @@ function agruparTexto(lista, chaveGrupo, linhaTexto){
 function linhaPlanoHtml(k, i, l){
   return '<div class="insight-item clicavel" data-plano-abrir="'+k+'" data-idx="'+i+'" style="cursor:pointer;"><div><div class="local">'+l.esq+'</div><div class="detalhe">'+l.det+'</div></div>' +
     '<div style="text-align:right; white-space:nowrap; display:flex; gap:8px; align-items:center;">'+l.dir +
-    (l.enviar ? '<button type="button" class="chip-acao" data-plano-enviar-linha="'+k+'" data-idx="'+i+'">Enviar</button>' : '') + '</div></div>';
+    (l.enviar ? '<button type="button" class="chip-acao" data-plano-enviar-linha="'+k+'" data-idx="'+i+'">WhatsApp</button>' : '') + '</div></div>';
 }
 function ligarLinhasPlano(raiz){
   raiz.querySelectorAll('[data-plano-abrir]').forEach((el) => el.addEventListener('click', (e) => {
@@ -4710,14 +4738,16 @@ function abrirModalPlano(k){
 }
 function fecharModalPlano(){ document.getElementById('modal-plano').classList.add('oculto'); modalPlanoChave = null; }
 async function enviarTextoPlano(titulo, texto){
-  try{
-    if (navigator.share){ await navigator.share({ title: titulo, text: texto }); return; }
-  }catch(e){ if (e && e.name === 'AbortError') return; }
-  try{ await navigator.clipboard.writeText(texto); avisoFlutuante('Mensagem copiada — é só colar no WhatsApp', 'ok'); }
-  catch(e){ avisoFlutuante('Não consegui copiar automaticamente', 'erro'); }
+  // abre o WhatsApp com a mensagem pronta — lá a pessoa escolhe o grupo ou o contato.
+  // Também copia o texto, pra garantir (mensagens muito longas às vezes chegam cortadas pelo link).
+  try{ await navigator.clipboard.writeText(texto); }catch(e){}
+  const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
+  const janela = window.open(url, '_blank');
+  if (!janela) location.href = url;
 }
 async function exportarPlanoPdf(k){
   const c = planoCartoes[k]; if (!c || !window.jspdf) return;
+  if (c.pdfItens) return exportarItensPdf(c.pdfItens()); // itens: mesmo padrão do PDF da aba Itens (foto, resumo, fluxo)
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
   const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M, CW = PW - 2*M;
@@ -4729,30 +4759,58 @@ async function exportarPlanoPdf(k){
   const somaP = pesos.reduce((a,b) => a+b, 0);
   const larg = pesos.map((p) => (CW - 20) * p / somaP);
   const xs = []; larg.reduce((acc, w, i) => { xs[i] = acc; return acc + w; }, 10);
-  let pagina = 1, y = 0;
-  const cabecalho = () => {
+  // mesmo visual do app: fundo cinza, logos, cartão branco com a tabela, cores de cada informação
+  const corDaColuna = { 'Zera em': PDF_COR.az, 'Por dia': PDF_COR.az, 'Última baixa': PDF_COR.am, 'Aguardando vistoria': PDF_COR.vd, '% exec.': PDF_COR.vm, 'Faltam': PDF_COR.ink, 'Em aberto': PDF_COR.ink };
+  let pagina = 1, y = 0, topoCartao = 0;
+  const fecharCartao = () => { pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.7); doc.roundedRect(M, topoCartao, CW, y - topoCartao + 4, 12, 12, 'S'); };
+  const cabecalho = (primeira) => {
+    pdfFill(doc, [243,244,246]); doc.rect(0, 0, PW, PH, 'F');
     pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
-    pdfTxt(doc, M, 34, base.titulo, 15, PDF_COR.ink);
-    pdfTxt(doc, M, 48, c.sub, 8, PDF_COR.muted);
-    pdfTxt(doc, PW-M, 34, (base.revisao ? 'Revisão '+base.revisao+' · ' : '') + base.dataHora, 7.5, PDF_COR.muted, 'right');
-    pdfTxt(doc, PW-M, 48, linhas.length+' linha(s)', 7.5, PDF_COR.muted, 'right');
-    y = 66;
-    pdfFill(doc, PDF_COR.paper); doc.roundedRect(M, y, CW, 20, 6, 6, 'F');
-    c.pdf.colunas.forEach((col, i) => pdfTxt(doc, M + xs[i], y + 13, col, 7.5, PDF_COR.muted));
+    if (primeira){
+      const logos = pdfLogos();
+      pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(M, 26, 78, 30, 6, 6, 'FD');
+      if (logos.sofitel){ let lh = 22, lw = lh*logos.sofitel.ratio; if (lw > 64){ lw = 64; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+39-lw/2, 41-lh/2, lw, lh); }catch(e){} }
+      if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+86, 26, 30, 30); }catch(e){} }
+      pdfTxt(doc, M+128, 41, base.titulo, 16, PDF_COR.ink);
+      pdfTxt(doc, M+128, 53, pdfCaber(doc, c.sub, 7.8, PW - M - 128 - M - 120), 7.8, PDF_COR.muted);
+      if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 26, w, 16, 8, 8, 'F'); pdfTxt(doc, PW-M-w/2, 37, tt, 7.5, PDF_COR.acc, 'center'); }
+      pdfTxt(doc, PW-M, 54, base.dataHora + ' · ' + linhas.length + ' linha(s)', 7.5, PDF_COR.muted, 'right');
+      y = 72;
+    } else {
+      pdfTxt(doc, M, 26, base.titulo + (base.revisao ? '  ·  Revisão '+base.revisao : ''), 9, PDF_COR.ink2);
+      pdfTxt(doc, PW-M, 26, base.dataHora, 7.5, PDF_COR.muted, 'right');
+      y = 40;
+    }
+    // cartão branco + cabeçalho da tabela
+    topoCartao = y;
+    pdfFill(doc, PDF_COR.white); doc.roundedRect(M, y, CW, PH - 52 - y, 12, 12, 'F');
+    y += 10;
+    pdfFill(doc, [236,238,241]); doc.roundedRect(M+8, y, CW-16, 20, 6, 6, 'F');
+    c.pdf.colunas.forEach((col, i) => pdfTxt(doc, M + xs[i], y + 13, col, 7.5, corDaColuna[col] && corDaColuna[col] !== PDF_COR.ink ? corDaColuna[col] : PDF_COR.muted));
     y += 26;
   };
-  cabecalho();
+  cabecalho(true);
   linhas.forEach((ln) => {
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
     const partes = ln.map((v, i) => doc.splitTextToSize(String(v || '—'), larg[i] - 8));
-    const h = Math.max(...partes.map((p) => p.length)) * 11 + 8;
-    if (y + h > PH - 52){ pdfRodape(doc, pagina, 0); doc.addPage(); pagina++; cabecalho(); }
-    partes.forEach((p, i) => { doc.setTextColor.apply(doc, i === 0 ? PDF_COR.ink : PDF_COR.ink2); doc.text(p, M + xs[i], y + 10); });
-    pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.line(M, y + h - 2, M + CW, y + h - 2);
+    const h = Math.max(...partes.map((p) => p.length)) * 11 + 9;
+    if (y + h > PH - 56){
+      // apaga a sobra do cartão e fecha a borda no fim da última linha
+      pdfFill(doc, [243,244,246]); doc.rect(M-1, y + 4, CW+2, PH - 52 - y, 'F'); fecharCartao();
+      doc.addPage(); pagina++; cabecalho(false);
+    }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); // o cabeçalho da página nova muda o tamanho da letra
+    partes.forEach((p, i) => {
+      const col = c.pdf.colunas[i];
+      const cor = i === 0 ? PDF_COR.ink : (corDaColuna[col] || PDF_COR.ink2);
+      doc.setTextColor.apply(doc, cor); doc.text(p, M + xs[i], y + 10);
+    });
+    pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.line(M+8, y + h - 2, M + CW - 8, y + h - 2);
     y += h;
   });
+  pdfFill(doc, [243,244,246]); doc.rect(M-1, y + 4, CW+2, PH - 52 - y, 'F'); fecharCartao();
   const total = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= total; i++){ doc.setPage(i); pdfFill(doc, PDF_COR.white); doc.rect(0, PH-46, PW, 46, 'F'); pdfRodape(doc, i, total); }
+  for (let i = 1; i <= total; i++){ doc.setPage(i); pdfRodape(doc, i, total); }
   await compartilharOuBaixarPdf(doc.output('blob'), NOME_APP_ARQUIVO + ' - Plano - ' + c.titulo + '.pdf', null);
 }
 
@@ -5613,6 +5671,7 @@ async function exportarVisaoGeralPdf(){
       return PDF_COR.ink;
     };
     const cabecalho = (primeira) => {
+      pdfFill(doc, [243,244,246]); doc.rect(0, 0, PW, PH, 'F'); // fundo da tela do app
       pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
       if (primeira){
         const logos = pdfLogos();
@@ -5640,162 +5699,282 @@ async function exportarVisaoGeralPdf(){
       const g = s.querySelector('.grande'), r = s.querySelector('.rot');
       return { valor: g ? g.textContent.trim() : '', rot: r ? r.textContent.trim() : '', cor: g && g.style.color.indexOf('--vm') !== -1 ? PDF_COR.vm : (g && g.style.color.indexOf('--vd') !== -1 ? PDF_COR.vd : PDF_COR.az) };
     }).filter((d) => d.valor);
-    if (destaque.length){
-      garantir(44);
-      const w = CW / destaque.length;
-      destaque.forEach((d, i) => {
-        pdfTxt(doc, M + i*w, y + 18, d.valor, 18, d.cor);
-        pdfTxt(doc, M + i*w, y + 32, pdfCaber(doc, d.rot, 7.5, w - 8), 7.5, PDF_COR.muted);
-      });
-      y += 46;
-    }
 
-    // 2) grupos de cartões, exatamente como na tela
+    // ---------- utilitários de desenho no estilo do app ----------
+    const PAPER2 = [236,238,241];
+    const cartao = (h) => { pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.7); doc.roundedRect(M, y, CW, h, 12, 12, 'FD'); };
+    const comOpacidade = (op, fn) => { try{ doc.setGState(new doc.GState({ opacity: op })); }catch(e){} fn(); try{ doc.setGState(new doc.GState({ opacity: 1 })); }catch(e){} };
+    const bloco = (h, desenhar) => { garantir(h); cartao(h); desenhar(y); y += h + 12; };
+    const poligono = (pts, cor, op) => {
+      if (pts.length < 3) return;
+      const rel = []; for (let i = 1; i < pts.length; i++) rel.push([pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]]);
+      doc.setFillColor(cor[0], cor[1], cor[2]);
+      comOpacidade(op, () => { try{ doc.lines(rel, pts[0][0], pts[0][1], [1,1], 'F', true); }catch(e){} });
+    };
+    const tracejar = (on) => { try{ doc.setLineDashPattern(on ? [3,3] : [], 0); }catch(e){} };
+
+    // 2) RESUMO: título + destaque num cartão; cada grupo de cartões no seu cartão
     const grid = document.getElementById('grid-resumo');
-    Array.from(grid.querySelectorAll('.grupo-label')).forEach((lab) => {
+    const grupos = Array.from(grid.querySelectorAll('.grupo-label')).map((lab) => {
       const caixa = lab.nextElementSibling;
-      if (!caixa || !caixa.classList.contains('resumo-grid')) return;
+      if (!caixa || !caixa.classList.contains('resumo-grid')) return null;
       const stats = Array.from(caixa.querySelectorAll('.stat')).map((s) => {
         const v = s.querySelector('.valor'), r = s.querySelector('.rotulo'), sub = s.querySelector('.pct-sub, .detalhe');
-        const corInline = v && v.style.color ? (v.style.color.indexOf('vd') !== -1 ? PDF_COR.vd : null) : null;
+        const corInline = v && v.style.color ? (v.style.color.indexOf('vd') !== -1 ? [31,107,69] : null) : null;
         return { valor: v ? v.textContent.trim() : '', rotulo: r ? r.textContent.trim() : '', sub: sub ? sub.textContent.trim() : '', cor: corInline || (v && v.classList.contains('col-vd') ? PDF_COR.vd : corClasse(s)) };
       });
-      if (!stats.length) return;
-      const cols = 3, gap = 8, cw = (CW - (cols-1)*gap) / cols, ch = 58;
-      const linhasGrid = Math.ceil(stats.length / cols);
-      garantir(20 + linhasGrid*(ch+gap));
-      tituloBloco(lab.textContent.trim());
-      stats.forEach((st, i) => {
-        const x = M + (i % cols)*(cw+gap), yy = y + Math.floor(i/cols)*(ch+gap);
-        pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, yy, cw, ch, 8, 8, 'F');
-        pdfTxt(doc, x+11, yy+24, st.valor, 18, st.cor);
-        pdfTxt(doc, x+11, yy+38, pdfCaber(doc, st.rotulo, 7.5, cw-20), 7.5, PDF_COR.ink2);
-        if (st.sub) pdfTxt(doc, x+11, yy+49, pdfCaber(doc, st.sub, 6.8, cw-20), 6.8, PDF_COR.faint);
+      return stats.length ? { titulo: lab.textContent.trim(), stats } : null;
+    }).filter(Boolean);
+    bloco(30 + (destaque.length ? 44 : 0), (top) => {
+      pdfTxt(doc, M+16, top+20, 'Resumo da revisão selecionada', 11, PDF_COR.ink);
+      const w = (CW - 32) / Math.max(1, destaque.length);
+      destaque.forEach((d, i) => {
+        pdfTxt(doc, M+16 + i*w, top+46, d.valor, 17, d.cor);
+        pdfTxt(doc, M+16 + i*w, top+59, pdfCaber(doc, d.rot, 7.5, w - 8), 7.5, PDF_COR.muted);
       });
-      y += linhasGrid*(ch+gap) + 8;
+    });
+    grupos.forEach((g) => {
+      const cols = 3, gap = 8, cw = (CW - 32 - (cols-1)*gap) / cols, ch = 60;
+      const nLin = Math.ceil(g.stats.length / cols);
+      bloco(34 + nLin*(ch+gap), (top) => {
+        pdfTxt(doc, M+16, top+20, g.titulo, 9.5, PDF_COR.muted);
+        g.stats.forEach((st, i) => {
+          const x = M+16 + (i % cols)*(cw+gap), yy = top + 30 + Math.floor(i/cols)*(ch+gap);
+          pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(x, yy, cw, ch, 8, 8, 'FD');
+          pdfTxt(doc, x+12, yy+25, st.valor, 18, st.cor);
+          if (st.sub){
+            pdfTxt(doc, x+12, yy+39, pdfCaber(doc, st.rotulo, 7.8, cw-22), 7.8, PDF_COR.ink2);
+            pdfTxt(doc, x+12, yy+50, pdfCaber(doc, st.sub, 6.8, cw-22), 6.8, PDF_COR.faint);
+          } else {
+            doc.setFont('helvetica','normal'); doc.setFontSize(7.8);
+            const ls = doc.splitTextToSize(st.rotulo, cw-22).slice(0, 2);
+            ls.forEach((l, k) => pdfTxt(doc, x+12, yy+39 + k*10, k === 1 && ls.length === 2 && doc.splitTextToSize(st.rotulo, cw-22).length > 2 ? pdfCaber(doc, l, 7.8, cw-30)+'…' : l, 7.8, PDF_COR.ink2));
+          }
+        });
+      });
     });
 
-    // 3) torre de andares (lida da tela)
+    // 3) TORRE — igual à tela: faixa por andar, barra (fundo na cor do status, parte cheia = executado), % e Aberto/AW/IAC/Total
     const andares = Array.from(document.querySelectorAll('#torre-andares .andar-barra')).map((el) => {
       const sp = el.querySelector('.barra > span');
       const cls = sp ? sp.className : '';
       const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.am : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
       const pctEl = el.querySelector('.pct-barra');
       const nums = Array.from(el.querySelectorAll('.mini-valor')).map((n) => n.textContent.trim());
-      return { andar: (el.querySelector('.num') || {}).textContent || el.dataset.andar+'º', pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor, nums };
-    });
-    andares.sort((x, z) => parseInt(z.andar, 10) - parseInt(x.andar, 10)); // de cima pra baixo, como o prédio
+      return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor, nums, liberadoTotal: el.classList.contains('liberado-total') };
+    }).sort((x, z) => parseInt(z.andar, 10) - parseInt(x.andar, 10));
     if (andares.length){
-      const rowH = 22;
-      garantir(36 + andares.length*rowH);
-      tituloBloco('Andares');
-      const xBar = M + 40, wBar = CW - 40 - 220;
-      ['Aberto','AW','IAC','Total'].forEach((r, i) => pdfTxt(doc, xBar + wBar + 30 + i*50, y + 2, r, 7, i === 0 ? PDF_COR.ink : (i === 1 ? PDF_COR.az : (i === 2 ? PDF_COR.vd : PDF_COR.muted)), 'center'));
-      y += 8;
-      andares.forEach((a) => {
-        pdfTxt(doc, M, y + 14, String(a.andar).trim(), 9, PDF_COR.ink2);
-        doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); doc.setGState && doc.setGState(new doc.GState({ opacity: 0.25 }));
-        doc.roundedRect(xBar, y + 5, wBar, 12, 4, 4, 'F');
-        doc.setGState && doc.setGState(new doc.GState({ opacity: 1 }));
-        if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); doc.roundedRect(xBar, y + 5, Math.max(6, wBar * a.pct / 100), 12, 4, 4, 'F'); }
-        pdfTxt(doc, xBar + wBar - 5, y + 14, a.pct+'%', 7.5, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
-        a.nums.slice(0, 4).forEach((n, i) => pdfTxt(doc, xBar + wBar + 30 + i*50, y + 14, n, 9, i === 0 ? PDF_COR.ink : (i === 1 ? PDF_COR.az : (i === 2 ? PDF_COR.vd : PDF_COR.muted)), 'center'));
-        y += rowH;
+      const rowH = 30;
+      const tituloTorre = (document.getElementById('titulo-torre-andares') || {}).textContent || 'Andares';
+      bloco(44 + andares.length*rowH + 30, (top) => {
+        pdfTxt(doc, M+16, top+22, tituloTorre, 11, PDF_COR.ink);
+        let yy = top + 34;
+        const xBar = M + 58, wBar = CW - 58 - 16 - 210, xNums = xBar + wBar + 22;
+        const rot = ['Aberto','AW','IAC','Total'], corNum = [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
+        andares.forEach((a) => {
+          pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+12, yy, CW-24, rowH-4, 8, 8, 'F');
+          pdfTxt(doc, M+24, yy+16, a.andar, 9.5, PDF_COR.muted);
+          doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]);
+          comOpacidade(0.26, () => doc.roundedRect(xBar, yy+8, wBar, 11, 5, 5, 'F'));
+          if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); doc.roundedRect(xBar, yy+8, Math.max(8, wBar*a.pct/100), 11, 5, 5, 'F'); }
+          pdfTxt(doc, xBar + wBar - 6, yy+16.5, a.pct+'%', 7.2, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
+          a.nums.slice(0,4).forEach((n, i) => {
+            pdfTxt(doc, xNums + i*50, yy+10, rot[i], 6.2, i === 0 ? PDF_COR.ink : PDF_COR.muted, 'center');
+            pdfTxt(doc, xNums + i*50, yy+20.5, n, 9.5, corNum[i], 'center');
+          });
+          yy += rowH;
+        });
+        yy += 8;
+        let lx = M+16;
+        [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['AM (amarelo)', PDF_COR.am, PDF_COR.ams], ['Liberado com pendência', PDF_COR.lib, PDF_COR.libs], ['VD (verde)', PDF_COR.vd, PDF_COR.vds]].forEach(([r, c, cs]) => {
+          const w = pdfLarg(doc, r, 7.5) + 24;
+          pdfFill(doc, cs); doc.roundedRect(lx, yy, w, 15, 7.5, 7.5, 'F');
+          pdfFill(doc, c); doc.circle(lx+8, yy+7.5, 2.6, 'F');
+          pdfTxt(doc, lx+15, yy+10.5, r, 7.5, c);
+          lx += w + 6;
+        });
       });
-      y += 4;
-      let lx = M;
-      [['VM (vermelho)', PDF_COR.vm], ['AM (amarelo)', PDF_COR.am], ['Liberado c/ pendência', PDF_COR.lib], ['VD (verde)', PDF_COR.vd]].forEach(([r, c]) => {
-        pdfFill(doc, c); doc.circle(lx + 3, y + 6, 3, 'F'); pdfTxt(doc, lx + 10, y + 9, r, 7.5, PDF_COR.muted); lx += pdfLarg(doc, r, 7.5) + 26;
-      });
-      pdfTxt(doc, PW - M, y + 9, 'parte cheia da barra e % = executado pela AW', 7, PDF_COR.faint, 'right');
-      y += 24;
     }
 
-    // 4) evolução (mesmos dados do gráfico da tela)
+    // 4) EVOLUÇÃO — mesmas linhas, áreas, projeção tracejada e produção de cada dia
     const pontos = calcularEvolucaoPendencias(30);
     if (pontos.length >= 1){
-      const hG = 190;
-      garantir(40 + hG + 40);
-      tituloBloco('Evolução das pendências');
-      const ult = pontos[pontos.length-1];
-      [['Em aberto', ult.aberto, PDF_COR.grafite], ['Executado AW', ult.aw, PDF_COR.az], ['Vistoriado IAC', ult.iac, PDF_COR.vd], ['Total', ult.total, PDF_COR.muted]].forEach(([r, v, c], i) => {
-        pdfTxt(doc, M + i*130, y + 8, r, 7.5, c); pdfTxt(doc, M + i*130, y + 24, pdfNum(v), 15, c);
+      const n = pontos.length, ult = pontos[n-1];
+      const incl = (k) => { if (n < 2) return 0; let sx=0, sy=0, sxy=0, sxx=0; pontos.forEach((p,i) => { sx+=i; sy+=p[k]; sxy+=i*p[k]; sxx+=i*i; }); return (n*sxy - sx*sy) / (n*sxx - sx*sx); };
+      const incAb = Math.min(0, incl('aberto')), incIac = Math.max(0, incl('iac'));
+      let diasProj = n >= 2 ? (incAb < 0 ? Math.ceil(ult.aberto / -incAb) : 7) : 0;
+      diasProj = Math.min(30, Math.max(n >= 2 ? 3 : 0, diasProj));
+      const proj = [];
+      for (let d = 1; d <= diasProj; d++){
+        const ab = Math.max(0, ult.aberto + incAb*d), aw = ult.total - ab, iac = Math.min(aw, ult.iac + incIac*d);
+        const dt = new Date(); dt.setDate(dt.getDate() + d);
+        proj.push({ data: chaveDiaLocal(dt), aberto: ab, aw, iac, total: ult.total, meta: d === 1 ? 0 : 0 });
+      }
+      const todos = pontos.concat(proj), N = todos.length;
+      const zeraEm = incAb < 0 ? Math.ceil(ult.aberto / -incAb) : null;
+      const hChart = 170, hRows = 48;
+      bloco(118 + hChart + hRows, (top) => {
+        pdfTxt(doc, M+16, top+22, 'Evolução das pendências', 11, PDF_COR.ink);
+        pdfTxt(doc, M+16, top+38, 'Valores de hoje · feito no dia: ', 7.5, PDF_COR.muted);
+        const wv = pdfLarg(doc, 'Valores de hoje · feito no dia: ', 7.5);
+        pdfTxt(doc, M+16+wv, top+38, 'AW +'+pdfNum(ult.awDia), 7.5, PDF_COR.az);
+        pdfTxt(doc, M+16+wv+pdfLarg(doc, 'AW +'+pdfNum(ult.awDia)+'  ', 7.5), top+38, 'IAC +'+pdfNum(ult.iacDia), 7.5, PDF_COR.vd);
+        if (zeraEm){ const dz = new Date(); dz.setDate(dz.getDate() + zeraEm); pdfTxt(doc, PW-M-16, top+38, 'No ritmo atual, o em aberto zera por volta de '+dz.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' ('+zeraEm+' dias)', 7.5, PDF_COR.muted, 'right'); }
+        [['Em aberto', ult.aberto, PDF_COR.grafite, pdfPct(ult.aberto, ult.total)], ['Executado AW', ult.aw, PDF_COR.az, pdfPct(ult.aw, ult.total)], ['Vistoriado IAC', ult.iac, PDF_COR.vd, pdfPct(ult.iac, ult.total)], ['Total', ult.total, PDF_COR.muted, null]].forEach(([r, v, c, pc], i) => {
+          const x = M+16 + i*125;
+          pdfFill(doc, c); doc.circle(x+3, top+53, 2.6, 'F');
+          pdfTxt(doc, x+10, top+56, r, 7.8, c === PDF_COR.grafite ? PDF_COR.ink2 : c);
+          pdfTxt(doc, x, top+76, pdfNum(v), 16, c === PDF_COR.grafite ? PDF_COR.ink : c);
+          if (pc !== null) pdfTxt(doc, x + pdfLarg(doc, pdfNum(v), 16) + 4, top+76, pc+'%', 8, PDF_COR.muted);
+        });
+        const gx = M+52, gw = CW-52-24, gy = top + 92, gh = hChart;
+        const maxV = Math.max(1, ...todos.map((p) => p.total));
+        const xDe = (i) => N === 1 ? gx + gw/2 : gx + gw * i / (N - 1);
+        const yDe = (v) => gy + gh - gh * v / maxV;
+        // fundo da projeção
+        if (proj.length){ pdfFill(doc, [246,247,249]); doc.rect(xDe(n-1), gy, gx+gw - xDe(n-1), gh, 'F'); pdfTxt(doc, xDe(n-1)+6, gy+9, 'projeção · números embaixo = meta por dia pra seguir o ritmo', 6.5, PDF_COR.muted); }
+        pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); tracejar(true);
+        for (let k = 0; k <= 3; k++){ const yy = gy + gh - gh*k/3; doc.line(gx, yy, gx+gw, yy); pdfTxt(doc, gx-6, yy+3, (Math.round(maxV*k/3/1000*10)/10)+'k', 6.5, PDF_COR.faint, 'right'); }
+        tracejar(false);
+        // áreas (como o degradê da tela)
+        const area = (k, cor, op) => poligono([[xDe(0), gy+gh]].concat(pontos.map((p,i) => [xDe(i), yDe(p[k])])).concat([[xDe(n-1), gy+gh]]), cor, op);
+        area('total', PDF_COR.faint, 0.10); area('aberto', PDF_COR.grafite, 0.16); area('aw', PDF_COR.az, 0.14); area('iac', PDF_COR.vd, 0.12);
+        const linha = (k, cor, lw, de, ate, tracej) => {
+          doc.setDrawColor(cor[0], cor[1], cor[2]); doc.setLineWidth(lw); tracejar(tracej);
+          for (let i = de+1; i <= ate; i++) doc.line(xDe(i-1), yDe(todos[i-1][k]), xDe(i), yDe(todos[i][k]));
+          tracejar(false);
+        };
+        [['total', PDF_COR.faint, 1.2], ['aberto', PDF_COR.grafite, 2], ['aw', PDF_COR.az, 1.6], ['iac', PDF_COR.vd, 1.6]].forEach(([k, c, lw]) => {
+          linha(k, c, lw, 0, n-1, false);
+          if (proj.length) linha(k, c.map((v) => Math.round(v + (255-v)*0.45)), 1, n-1, N-1, true);
+          doc.setFillColor(c[0], c[1], c[2]); doc.circle(xDe(n-1), yDe(ult[k]), 2.4, 'F');
+        });
+        // datas e produção do dia (passado) / meta por dia (futuro)
+        const hojeChave = chaveDiaLocal(new Date());
+        const passo = Math.max(1, Math.ceil(N / 10));
+        const yd = gy + gh + 12;
+        pdfTxt(doc, gx-20, yd+12, 'AW', 6.5, PDF_COR.az, 'right'); pdfTxt(doc, gx-20, yd+23, 'IAC', 6.5, PDF_COR.vd, 'right'); pdfTxt(doc, gx-20, yd+34, 'Reinc.', 6.5, PDF_COR.vm, 'right');
+        const metaDia = zeraEm ? Math.ceil(ult.aberto / Math.max(1, zeraEm)) : 0;
+        todos.forEach((p, i) => {
+          if (!(i % passo === 0 || i === n-1 || i === N-1)) return;
+          const fut = i >= n, cx = xDe(i);
+          pdfTxt(doc, cx, yd, p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().slice(0,2).join('/'), 6.5, fut ? PDF_COR.faint : (p.data === hojeChave ? PDF_COR.ink : PDF_COR.muted), 'center');
+          pdfTxt(doc, cx, yd+12, fut ? (metaDia ? '≈'+pdfNum(metaDia) : '—') : (p.awDia ? '+'+pdfNum(p.awDia) : '—'), 6.5, fut ? [189,176,232] : (p.awDia ? PDF_COR.az : PDF_COR.faint), 'center');
+          pdfTxt(doc, cx, yd+23, fut ? '—' : (p.iacDia ? '+'+pdfNum(p.iacDia) : '—'), 6.5, fut ? PDF_COR.faint : (p.iacDia ? PDF_COR.vd : PDF_COR.faint), 'center');
+          pdfTxt(doc, cx, yd+34, fut ? '—' : (p.reincDia ? String(p.reincDia) : '—'), 6.5, fut ? PDF_COR.faint : (p.reincDia ? PDF_COR.vm : PDF_COR.faint), 'center');
+        });
       });
-      y += 36;
-      const gx = M + 30, gw = CW - 40, gy = y, gh = hG - 30;
-      const maxV = Math.max(1, ...pontos.map((p) => p.total));
-      pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5);
-      for (let k = 0; k <= 4; k++){ const yy = gy + gh - gh*k/4; doc.line(gx, yy, gx+gw, yy); pdfTxt(doc, gx - 6, yy + 3, pdfNum(Math.round(maxV*k/4)), 6.5, PDF_COR.faint, 'right'); }
-      const xDe = (i) => pontos.length === 1 ? gx + gw/2 : gx + gw * i / (pontos.length - 1);
-      const yDe = (v) => gy + gh - gh * v / maxV;
-      [['total', PDF_COR.faint], ['aberto', PDF_COR.grafite], ['aw', PDF_COR.az], ['iac', PDF_COR.vd]].forEach(([k, c]) => {
-        doc.setDrawColor(c[0], c[1], c[2]); doc.setLineWidth(k === 'aberto' ? 2 : 1.5);
-        for (let i = 1; i < pontos.length; i++) doc.line(xDe(i-1), yDe(pontos[i-1][k]), xDe(i), yDe(pontos[i][k]));
-        doc.setFillColor(c[0], c[1], c[2]); doc.circle(xDe(pontos.length-1), yDe(ult[k]), 2.2, 'F');
-      });
-      const passo = Math.max(1, Math.ceil(pontos.length / 8));
-      pontos.forEach((pt, i) => { if (i % passo === 0 || i === pontos.length-1) pdfTxt(doc, xDe(i), gy + gh + 12, pt.data.split('-').reverse().slice(0,2).join('/'), 6.5, PDF_COR.muted, 'center'); });
-      y = gy + gh + 30;
     }
 
-    // 5) pendências por fornecedor e por disciplina (mesma regra dos rankings da tela)
+    // 5) PENDÊNCIAS POR FORNECEDOR / DISCIPLINA — mesma regra e mesma leitura da tela
     const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
     const ranking = (chave) => {
       const m = new Map();
       pend.forEach((it) => { const k = chave(it) || 'Sem fornecedor definido'; if (!m.has(k)) m.set(k, []); m.get(k).push(it); });
       return Array.from(m.entries()).map(([nome, l]) => ({ nome, total: l.length, aberto: l.filter(estaEmAberto).length }))
-        .sort((a,b) => b.aberto - a.aberto || b.total - a.total).slice(0, 14);
+        .sort((a,b) => b.aberto - a.aberto || b.total - a.total);
     };
     [['Pendências por fornecedor', ranking(fornecedorEfetivo), PDF_COR.acc], ['Pendências por disciplina', ranking(disciplinaEfetiva), [107,118,133]]].forEach(([titulo, lista, cor]) => {
       if (!lista.length) return;
-      const rowH = 20;
-      garantir(30 + lista.length*rowH);
-      tituloBloco(titulo);
-      const xBar = M + 150, wMax = CW - 150 - 190, maxT = Math.max(1, ...lista.map((x) => x.total));
-      lista.forEach((x) => {
-        pdfTxt(doc, xBar - 8, y + 12, pdfCaber(doc, x.nome, 8, 140), 8, PDF_COR.ink2, 'right');
-        const wT = Math.max(4, wMax * x.total / maxT), wF = x.total ? wT * (x.total - x.aberto) / x.total : 0;
-        doc.setFillColor(cor[0], cor[1], cor[2]); doc.setGState && doc.setGState(new doc.GState({ opacity: 0.25 }));
-        doc.roundedRect(xBar, y + 3, wT, 12, 4, 4, 'F');
-        doc.setGState && doc.setGState(new doc.GState({ opacity: 1 }));
-        if (wF > 0){ doc.setFillColor(cor[0], cor[1], cor[2]); doc.roundedRect(xBar, y + 3, Math.max(5, wF), 12, 4, 4, 'F'); }
-        const pct = x.total ? Math.round((x.total - x.aberto) / x.total * 100) : 0;
-        if (wT >= 36) pdfTxt(doc, xBar + wT - 4, y + 12, pct+'%', 7, pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
-        pdfTxt(doc, xBar + wT + 8, y + 12, pdfNum(x.aberto)+' em aberto · '+pdfNum(x.total - x.aberto)+' exec. · '+pdfNum(x.total)+' total', 7.5, PDF_COR.muted);
-        y += rowH;
+      const rowH = 22;
+      bloco(52 + lista.length*rowH, (top) => {
+        pdfTxt(doc, M+16, top+22, titulo, 11, PDF_COR.ink);
+        pdfTxt(doc, M+16, top+35, 'Ordem: mais itens em aberto · barra inteira = total · parte forte e % = executado', 7, PDF_COR.muted);
+        const xBar = M + 172, wMax = CW - 172 - 210, maxT = Math.max(1, ...lista.map((x) => x.total));
+        let yy = top + 44;
+        lista.forEach((x) => {
+          pdfTxt(doc, xBar - 10, yy+13, pdfCaber(doc, x.nome, 8.2, 140), 8.2, PDF_COR.ink, 'right');
+          const wT = Math.max(6, wMax * x.total / maxT), wF = x.total ? wT * (x.total - x.aberto) / x.total : 0;
+          doc.setFillColor(cor[0], cor[1], cor[2]);
+          comOpacidade(0.25, () => doc.roundedRect(xBar, yy+3, wT, 15, 5, 5, 'F'));
+          if (wF > 0){ doc.setFillColor(cor[0], cor[1], cor[2]); doc.roundedRect(xBar, yy+3, Math.max(6, wF), 15, 5, 5, 'F'); }
+          const pct = x.total ? Math.round((x.total - x.aberto) / x.total * 100) : 0;
+          if (wT >= 34) pdfTxt(doc, xBar + wT - 5, yy+13.5, pct+'%', 7, pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
+          const tx = xBar + wT + 8;
+          const t1 = pdfNum(x.aberto)+' em aberto', t2 = '  ·  '+pdfNum(x.total - x.aberto)+' exec.', t3 = '  ·  '+pdfNum(x.total)+' total';
+          pdfTxt(doc, tx, yy+13.5, t1, 7.6, PDF_COR.ink);
+          pdfTxt(doc, tx + pdfLarg(doc, t1, 7.6), yy+13.5, t2, 7.6, PDF_COR.az);
+          pdfTxt(doc, tx + pdfLarg(doc, t1+t2, 7.6), yy+13.5, t3, 7.6, PDF_COR.faint);
+          yy += rowH;
+        });
       });
-      y += 10;
     });
 
-    // 6) últimas variações entre revisões
+    // 6) ÚLTIMAS VARIAÇÕES — números, prioridade, barras divergentes, onde mais entraram e críticas
     const ordenado = revisoesMeta.slice().sort((a,b) => a.numero - b.numero);
     const idx = ordenado.findIndex((r) => String(r.numero) === revisaoSelecionada);
     if (idx > 0){
       const anterior = await carregarItensDaRevisao(String(ordenado[idx-1].numero));
       const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
       const porAndar = agruparDiferencas(diff).sort((a,b) => b.andar - a.andar);
-      const rowH = 18;
-      garantir(80 + porAndar.length*rowH);
-      tituloBloco('Últimas variações — de '+ordenado[idx-1].label+' para '+ordenado[idx].label);
-      const saldo = diff.novos.length - diff.resolvidos.length;
-      [['+'+pdfNum(diff.novos.length), 'entraram', PDF_COR.vm], ['−'+pdfNum(diff.resolvidos.length), 'saíram / resolvidas', PDF_COR.vd], [(saldo>0?'+':'')+pdfNum(saldo), 'saldo da lista', saldo > 0 ? PDF_COR.vm : PDF_COR.vd]].forEach(([v, r, c], i) => {
-        pdfTxt(doc, M + i*150, y + 16, v, 16, c); pdfTxt(doc, M + i*150, y + 28, r, 7.5, PDF_COR.muted);
+      const locaisNovos = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,z) => z.novos.length - x.novos.length).slice(0, 6);
+      const criticas = diff.novos.filter((it) => it.status === 'VM').map((it) => Object.assign({ _como:'nova' }, it)).concat((diff.subiu||[]).map((it) => Object.assign({ _como:'subiu' }, it))).slice(0, 6);
+      const rowH = 20;
+      const hBase = 96 + (diff.semDadosNoPara.length ? 18 : 0) + ((diff.subiu.length || diff.desceu.length) ? 14 : 0);
+      const hGraf = 20 + porAndar.length*rowH;
+      const hChips = locaisNovos.length ? 40 : 0;
+      const hCrit = criticas.length ? 20 + criticas.length*26 : 0;
+      bloco(hBase + hGraf + hChips + hCrit, (top) => {
+        pdfTxt(doc, M+16, top+22, 'Últimas variações (vs. revisão anterior)', 11, PDF_COR.ink);
+        pdfTxt(doc, M+16, top+36, 'De '+ordenado[idx-1].label+' para '+ordenado[idx].label, 7.5, PDF_COR.muted);
+        const saldo = diff.novos.length - diff.resolvidos.length;
+        [['+'+pdfNum(diff.novos.length), 'entraram', PDF_COR.vm], ['−'+pdfNum(diff.resolvidos.length), 'saíram / resolvidas', PDF_COR.vd], [(saldo>0?'+':'')+pdfNum(saldo), 'saldo da lista', saldo > 0 ? PDF_COR.vm : (saldo < 0 ? PDF_COR.vd : PDF_COR.muted)]].forEach(([v, r, c], i) => {
+          const x = M+16 + i*160;
+          pdfTxt(doc, x, top+64, v, 20, c); pdfTxt(doc, x + pdfLarg(doc, v, 20) + 5, top+64, r, 7.5, PDF_COR.muted);
+        });
+        let yy = top + 80;
+        if (diff.subiu.length || diff.desceu.length){
+          pdfTxt(doc, M+16, yy+6, 'Prioridade: ', 7.5, PDF_COR.muted);
+          let xx = M+16 + pdfLarg(doc, 'Prioridade: ', 7.5);
+          if (diff.subiu.length){ const s = '↑ '+diff.subiu.length+' subiram de AM para VM'; pdfTxt(doc, xx, yy+6, s, 7.5, PDF_COR.vm); xx += pdfLarg(doc, s+'  ·  ', 7.5); }
+          if (diff.desceu.length) pdfTxt(doc, xx, yy+6, '↓ '+diff.desceu.length+' desceram de VM para AM', 7.5, PDF_COR.am);
+          yy += 14;
+        }
+        if (diff.semDadosNoPara.length){
+          pdfFill(doc, PDF_COR.vms); doc.roundedRect(M+16, yy, CW-32, 15, 6, 6, 'F');
+          pdfTxt(doc, M+24, yy+10, 'Sem dados na '+ordenado[idx].label+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — esses andares não vieram nesta revisão e não foram contados como resolvidos.', 7, PDF_COR.vm);
+          yy += 18;
+        }
+        yy += 6;
+        const centro = M + 16 + 40 + (CW - 32 - 40 - 50)/2, meia = (CW - 32 - 40 - 50)/2 - 40;
+        pdfTxt(doc, centro - 8, yy+6, '← saíram', 7, PDF_COR.vd, 'right'); pdfTxt(doc, centro + 8, yy+6, 'entraram →', 7, PDF_COR.vm); pdfTxt(doc, PW-M-16, yy+6, 'saldo', 7, PDF_COR.muted, 'right');
+        yy += 12;
+        const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
+        const yIni = yy;
+        porAndar.forEach((a) => {
+          pdfTxt(doc, M+50, yy+12, a.andar+'º', 8.5, PDF_COR.ink, 'right');
+          const wR = a.resolvidos ? Math.max(3, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(3, a.novos/maxV*meia) : 0;
+          if (wR){ doc.setFillColor(PDF_COR.vd[0], PDF_COR.vd[1], PDF_COR.vd[2]); comOpacidade(0.85, () => doc.roundedRect(centro - wR, yy+4, wR, 12, 3, 3, 'F')); }
+          if (wN){ doc.setFillColor(PDF_COR.vm[0], PDF_COR.vm[1], PDF_COR.vm[2]); comOpacidade(0.85, () => doc.roundedRect(centro, yy+4, wN, 12, 3, 3, 'F')); }
+          pdfTxt(doc, centro - wR - 4, yy+13, a.resolvidos ? '−'+pdfNum(a.resolvidos) : '0', 7.2, PDF_COR.vd, 'right');
+          pdfTxt(doc, centro + wN + 4, yy+13, a.novos ? '+'+pdfNum(a.novos) : '0', 7.2, PDF_COR.vm);
+          const s = a.novos - a.resolvidos;
+          pdfTxt(doc, PW-M-16, yy+13, (s>0?'+':'')+pdfNum(s), 8.5, s > 0 ? PDF_COR.vm : (s < 0 ? PDF_COR.vd : PDF_COR.muted), 'right');
+          yy += rowH;
+        });
+        pdfDraw(doc, PDF_COR.line); doc.setLineWidth(1); doc.line(centro, yIni, centro, yy);
+        if (locaisNovos.length){
+          yy += 10; pdfTxt(doc, M+16, yy+6, 'Onde mais entraram pendências', 8, PDF_COR.ink2); yy += 12;
+          let xx = M+16;
+          locaisNovos.forEach((l) => {
+            const s = l.label.replace(/\u00A0/g,' ')+' · '+l.andar+'º  +'+l.novos.length, w = pdfLarg(doc, s, 7.2) + 16;
+            if (xx + w > PW-M-16){ return; }
+            pdfFill(doc, PDF_COR.vms); doc.roundedRect(xx, yy, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, xx+8, yy+10.5, s, 7.2, PDF_COR.vm); xx += w + 6;
+          });
+          yy += 20;
+        }
+        if (criticas.length){
+          yy += 4; pdfTxt(doc, M+16, yy+6, 'Críticas (VM) que pedem atenção — novas ou que subiram de AM:', 8, PDF_COR.ink2); yy += 14;
+          criticas.forEach((it) => {
+            const lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo);
+            pdfTxt(doc, M+16, yy+8, it.id+' · '+it.andar+'º · '+lab, 8, PDF_COR.ink);
+            const bx = M+16 + pdfLarg(doc, it.id+' · '+it.andar+'º · '+lab, 8) + 6;
+            pdfPill(doc, bx, yy+8, it._como === 'subiu' ? 'subiu AM → VM' : 'nova', PDF_COR.vm, PDF_COR.vms, 6.5);
+            pdfTxt(doc, M+16, yy+19, pdfCaber(doc, it.desc || '', 7, CW-40), 7, PDF_COR.muted);
+            yy += 26;
+          });
+        }
       });
-      y += 38;
-      if (diff.semDadosNoPara.length){ pdfTxt(doc, M, y + 8, 'Sem dados na revisão nova: '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — não contados como resolvidos.', 7.5, PDF_COR.vm); y += 16; }
-      const centro = M + CW/2, meia = CW/2 - 60, maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
-      porAndar.forEach((a) => {
-        pdfTxt(doc, M, y + 11, a.andar+'º', 8.5, PDF_COR.ink2);
-        const wR = a.resolvidos ? Math.max(3, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(3, a.novos/maxV*meia) : 0;
-        if (wR){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(centro - wR, y + 4, wR, 10, 3, 3, 'F'); }
-        if (wN){ pdfFill(doc, PDF_COR.vm); doc.roundedRect(centro, y + 4, wN, 10, 3, 3, 'F'); }
-        pdfTxt(doc, centro - wR - 4, y + 12, a.resolvidos ? '−'+pdfNum(a.resolvidos) : '0', 7, PDF_COR.vd, 'right');
-        pdfTxt(doc, centro + wN + 4, y + 12, a.novos ? '+'+pdfNum(a.novos) : '0', 7, PDF_COR.vm);
-        const s = a.novos - a.resolvidos;
-        pdfTxt(doc, PW - M, y + 12, (s>0?'+':'')+pdfNum(s), 8, s > 0 ? PDF_COR.vm : (s < 0 ? PDF_COR.vd : PDF_COR.muted), 'right');
-        y += rowH;
-      });
-      pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.8); doc.line(centro, y - porAndar.length*rowH, centro, y);
     }
 
     const total = doc.internal.getNumberOfPages();
@@ -5898,10 +6077,12 @@ async function exportarQuartosPdf(){
   await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('Quartos e áreas', ctx.filtro), statusEl);
 }
 
-async function exportarItensPdf(){
-  const statusEl = document.getElementById('status-pdf-itens');
+async function exportarItensPdf(listaPronta){
+  // listaPronta = { itens, filtro, titulo } quando vem de outra aba (ex.: Plano) — mesmo padrão do PDF de Itens
+  const externo = listaPronta && Array.isArray(listaPronta.itens);
+  const statusEl = externo ? { set textContent(v){ if (v) avisoFlutuante(v, 'ok'); } } : document.getElementById('status-pdf-itens');
   if (!jsPdfDisponivel()){ statusEl.textContent = 'PDF indisponível no momento (biblioteca não carregou) — tente recarregar a página.'; return; }
-  const itens = obterItensFiltrados();
+  const itens = externo ? listaPronta.itens : obterItensFiltrados();
   if (itens.length === 0){ statusEl.textContent = 'Nada para exportar com esses filtros.'; return; }
 
   const FW = 72, FH = 54;
@@ -5911,14 +6092,14 @@ async function exportarItensPdf(){
   const comFoto = [];
   itens.forEach((it, i) => { if (it.fotos && it.fotos.length) comFoto.push(i); });
   let feitas = 0;
-  statusEl.textContent = 'Buscando fotos… 0/'+comFoto.length;
+  if (!externo) statusEl.textContent = 'Buscando fotos… 0/'+comFoto.length; else avisoFlutuante('Preparando o PDF com as fotos…', 'ok');
   await comLimiteDeConcorrencia(comFoto, 4, async (i) => {
     const bruto = await buscarImagemComoDataURL(itens[i].fotos[0]);
     if (bruto) miniaturas[i] = await prepararMiniatura(bruto, FW, FH, 6);
     feitas++;
-    statusEl.textContent = 'Buscando fotos… '+feitas+'/'+comFoto.length;
+    if (!externo) statusEl.textContent = 'Buscando fotos… '+feitas+'/'+comFoto.length;
   });
-  statusEl.textContent = 'Gerando PDF…';
+  if (!externo) statusEl.textContent = 'Gerando PDF…';
 
   const ab = contarEmAberto(itens);
   const aw = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
@@ -5933,8 +6114,8 @@ async function exportarItensPdf(){
   if (filtroProgresso) extras.push({ aberto:'Em aberto', awExec:'Executado AW', iacOk:'Vistoriado IAC' }[filtroProgresso] || '');
   if (filtroStatusBrutoAdHoc) extras.push(filtroStatusBrutoAdHoc);
 
-  const ctx = Object.assign(pdfContextoBase('Itens'), {
-    filtro: descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso'], 'busca-item', extras),
+  const ctx = Object.assign(pdfContextoBase(externo ? (listaPronta.titulo || 'Itens') : 'Itens'), {
+    filtro: externo ? listaPronta.filtro : descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso'], 'busca-item', extras),
     contagem: itens.length + (itens.length === 1 ? ' item' : ' itens'),
     cartoes: [
       { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
@@ -5942,7 +6123,7 @@ async function exportarItensPdf(){
       { rotulo:'Vistoriado IAC', valor:iac, sub:pdfPct(iac,itens.length)+'% dos itens', cor:PDF_COR.vd },
       { rotulo:'Total de itens', valor:itens.length, sub:'no filtro aplicado' }
     ],
-    tituloAndamento: document.getElementById('filtro-item-andar').value ? 'Andamento do andar' : 'Andamento',
+    tituloAndamento: (!externo && document.getElementById('filtro-item-andar').value) ? 'Andamento do andar' : 'Andamento',
     andamento: { aw, iac, total: itens.length, aberto: ab },
     prioridades
   });
@@ -6050,7 +6231,7 @@ async function exportarItensPdf(){
     };
   });
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
-  await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('Itens', ctx.filtro), statusEl);
+  await compartilharOuBaixarPdf(doc.output('blob'), externo ? (NOME_APP_ARQUIVO + ' - ' + (listaPronta.titulo || 'Itens') + '.pdf') : nomeArquivoPdf('Itens', ctx.filtro), externo ? null : statusEl);
 }
 
 async function iniciar(){
