@@ -637,12 +637,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div id="status-pdf-itens" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto" id="barra-selecao-itens" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
       <strong id="contagem-selecao-itens">0 selecionado(s)</strong>
-      <input type="text" id="bulk-disciplina" placeholder="Disciplina (opcional)" autocomplete="off" list="lista-disciplinas-lote">
-      <datalist id="lista-disciplinas-lote"></datalist>
-      <input type="text" id="bulk-fornecedor" placeholder="Fornecedor (opcional)" autocomplete="off">
-      <button class="btn" id="btn-aplicar-fornecedor-lote">Aplicar aos selecionados</button>
+      <button class="btn primario" id="btn-editar-agrupamento">Editar agrupamento</button>
       <button class="btn fantasma" id="btn-limpar-selecao-itens">Limpar seleção</button>
-      <button class="btn fantasma ambar oculto" id="btn-tirar-obra-lote" style="margin-left:auto;">🗑 Tirar da obra (outra diretoria)</button>
     </div>
     <div class="resumo-filtro" id="resumo-filtro-itens"></div>
     <div class="card">
@@ -673,6 +669,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </table>
       <div class="vazio oculto" id="vazio-disciplinas">Nenhum dado para esta revisão ainda.</div>
     </div>
+    <div class="card card-pad oculto" id="cadastro-nomes" style="margin-top:16px;"></div>
   </section>
 
   <!-- COMPARAÇÃO -->
@@ -962,7 +959,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.71';
+const VERSAO_APP = '2026-10-03.73';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2072,10 +2069,11 @@ async function sincronizarDados(manual){
       const novo = normalizarAcompanhamento(d);
       if (JSON.stringify(acompanhamento[d._id]) !== JSON.stringify(novo)){ acompanhamento[d._id] = novo; mudou++; }
     });
+    let recarregarPorExclusao = false;
     if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
     if (cfg.some((d) => d._id === 'pessoas')) await carregarPessoas();
+    if (cfg.some((d) => d._id === 'disciplinas')){ await carregarApelidosDisc(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'pins')){ await carregarPins(); renderListaPins(); if (usuarioAtual && !pinVerificadoNesteAparelho(usuarioAtual)) exigirPinDoUsuarioAtual(); }
-    let recarregarPorExclusao = false;
     if (cfg.some((d) => d._id === 'excluidos')){ await carregarExcluidos(); recarregarPorExclusao = true; renderListaExcluidos(); }
     let recarregarRevisao = snaps.length > 0 || recarregarPorExclusao;
     if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
@@ -2719,6 +2717,94 @@ function renderListaExcluidos(){
   }));
 }
 
+/* ===================== NOMES DE FORNECEDORES E DISCIPLINAS =====================
+   Fornecedor: renomear troca o nome em TODO lugar (padrões das disciplinas e itens); escolher
+   um nome que já existe = juntar os dois. Disciplina: "nome de exibição" — o nome da IAC
+   continua chegando nas revisões, mas o painel mostra o nome escolhido. Só Guilherme/Marcel. */
+let apelidosDisc = {};
+async function carregarApelidosDisc(){
+  try{ const d = await store.getDoc('config', 'disciplinas'); apelidosDisc = (d && d.apelidos) ? d.apelidos : {}; }catch(e){ apelidosDisc = {}; }
+}
+function apelidoDisciplina(nome){ return (nome && apelidosDisc[nome]) || nome; }
+async function renomearFornecedor(antigo, novo){
+  if (!antigo || !novo || antigo === novo) return true;
+  let falhas = 0;
+  // padrões das disciplinas
+  const doc = await store.getDoc('config', 'fornecedores');
+  const mapa = (doc && doc.mapping) ? Object.assign({}, doc.mapping) : {};
+  let mudouMapa = false;
+  Object.keys(mapa).forEach((d) => { if (mapa[d] === antigo){ mapa[d] = novo; mudouMapa = true; } });
+  if (mudouMapa){ const r = await store.setDoc('config', 'fornecedores', { mapping: mapa }); if (r.ok) fornecedores = mapa; else falhas++; }
+  // itens com o fornecedor trocado manualmente (em qualquer revisão — vale pelo número do item)
+  const ids = Object.keys(acompanhamento).filter((id) => acompanhamento[id] && acompanhamento[id].fornecedorOverride === antigo);
+  await comLimiteDeConcorrencia(ids, 4, async (id) => {
+    const novoAc = Object.assign({}, acompanhamento[id], { fornecedorOverride: novo });
+    const r = await salvarAcompanhamentoComRetry(id, novoAc);
+    if (r.ok) acompanhamento[id] = novoAc; else falhas++;
+  });
+  return falhas === 0;
+}
+async function definirNomeDisciplina(original, exibicao){
+  const doc = await store.getDoc('config', 'disciplinas');
+  const ap = (doc && doc.apelidos) ? Object.assign({}, doc.apelidos) : {};
+  const antes = ap[original] || original;
+  if (exibicao && exibicao !== original) ap[original] = exibicao; else delete ap[original];
+  const r = await store.setDoc('config', 'disciplinas', { apelidos: ap });
+  if (!r.ok) return false;
+  apelidosDisc = ap;
+  // o fornecedor padrão acompanha o nome novo
+  const depois = ap[original] || original;
+  if (fornecedores[antes] && !fornecedores[depois]){
+    const mapa = Object.assign({}, fornecedores); mapa[depois] = mapa[antes]; delete mapa[antes];
+    const r2 = await store.setDoc('config', 'fornecedores', { mapping: mapa }); if (r2.ok) fornecedores = mapa;
+  }
+  return true;
+}
+function renderCadastroNomes(){
+  const cont = document.getElementById('cadastro-nomes');
+  if (!cont) return;
+  if (!podeTirarDaObra()){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
+  cont.classList.remove('oculto');
+  const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
+  const contF = new Map(); pend.forEach((it) => { const f = fornecedorEfetivo(it); if (f) contF.set(f, (contF.get(f)||0) + 1); });
+  const forns = listaFornecedoresConhecidos();
+  const origs = Array.from(new Set(itensRevisaoAtual.map((it) => it.disciplinaOriginal).filter(Boolean))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+  const contD = new Map(); pend.forEach((it) => contD.set(it.disciplinaOriginal, (contD.get(it.disciplinaOriginal)||0) + 1));
+  cont.innerHTML = '<h2 style="margin-bottom:4px;">Nomes de fornecedores e disciplinas</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 12px;">Só Guilherme e Marcel. Renomear um fornecedor troca o nome em todo o painel; escolher um nome que já existe junta os dois. O nome de exibição da disciplina vale em todas as revisões (a planilha da IAC continua com o nome original).</p>' +
+    '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px;">' +
+      '<div><div class="grupo-label" style="margin-top:0;">Fornecedores</div>' +
+        forns.map((f) => '<div class="insight-item"><div><div class="local">'+esc(f)+'</div><div class="detalhe">'+(contF.get(f)||0)+' item(ns) nesta revisão</div></div>' +
+          '<button type="button" class="chip-acao" data-renomear-forn="'+esc(f)+'">Renomear / juntar</button></div>').join('') +
+      '</div>' +
+      '<div><div class="grupo-label" style="margin-top:0;">Disciplinas</div>' +
+        origs.map((d) => '<div class="insight-item"><div><div class="local">'+esc(apelidoDisciplina(d))+'</div><div class="detalhe">'+(apelidosDisc[d] ? 'na planilha: '+esc(d)+' · ' : '')+(contD.get(d)||0)+' item(ns)</div></div>' +
+          '<button type="button" class="chip-acao" data-nome-disc="'+esc(d)+'">Nome de exibição</button></div>').join('') +
+      '</div>' +
+    '</div>';
+  cont.querySelectorAll('[data-renomear-forn]').forEach((b) => b.addEventListener('click', async () => {
+    const antigo = b.dataset.renomearForn;
+    const digitado = window.prompt('Novo nome para o fornecedor "'+antigo+'":\n(se escolher um nome que já existe, os dois viram um só)', antigo);
+    if (digitado === null || !digitado.trim() || digitado.trim() === antigo) return;
+    const outros = listaFornecedoresConhecidos().filter((n) => n !== antigo);
+    const novo = await resolverNomeSemelhante(digitado.trim(), outros, 'fornecedor');
+    if (!novo) return;
+    if (!window.confirm('Trocar "'+antigo+'" por "'+novo+'" em todo o painel?' + (outros.indexOf(novo) !== -1 ? '\n\n"'+novo+'" já existe: os dois fornecedores viram um só.' : ''))) return;
+    b.disabled = true; b.textContent = 'Salvando…';
+    const ok = await renomearFornecedor(antigo, novo);
+    avisoFlutuante(ok ? 'Fornecedor atualizado em todo o painel' : 'Parte não foi salva (sem conexão?). Tente de novo.', ok ? 'ok' : 'erro');
+    atualizarTelasAposAcompanhamento(); popularFiltroFornecedor('filtro-item-fornecedor'); popularFiltroFornecedor('filtro-fornecedor'); renderCadastroNomes();
+  }));
+  cont.querySelectorAll('[data-nome-disc]').forEach((b) => b.addEventListener('click', async () => {
+    const original = b.dataset.nomeDisc;
+    const digitado = window.prompt('Nome de exibição para a disciplina:\n"'+original+'"\n\n(deixe vazio pra voltar ao nome da planilha)', apelidosDisc[original] || original);
+    if (digitado === null) return;
+    const ok = await definirNomeDisciplina(original, digitado.trim());
+    avisoFlutuante(ok ? 'Nome da disciplina atualizado' : 'Não consegui salvar (sem conexão?)', ok ? 'ok' : 'erro');
+    if (ok) await selecionarRevisao(revisaoSelecionada);
+  }));
+}
+
 async function carregarItensDaRevisao(numeroStr){
   const snaps = await store.queryRevisao('snapshots', numeroStr);
   const itens = [];
@@ -2727,7 +2813,7 @@ async function carregarItensDaRevisao(numeroStr){
     (snap.itens || []).forEach((it) => {
       itens.push({
         id: it.id, andar: snap.andar, quarto: it.q, tipo: it.t,
-        disciplina: it.d, status: it.s, desc: it.x || '',
+        disciplina: apelidoDisciplina(it.d), disciplinaOriginal: it.d, status: it.s, desc: it.x || '',
         fotos: it.fs || (it.f ? [it.f] : []), // "fs" é o formato novo; "f" é de itens salvos antes (1 foto só)
         atualizadoEmAndar: snap.atualizadoEm || null // quando ESSE andar (não a revisão toda) foi salvo
       });
@@ -2889,7 +2975,7 @@ function passaFiltroAmbiente(tipo, key, valor){
    senão cai no padrão (disciplina original da planilha / fornecedor da disciplina) */
 function disciplinaEfetiva(it){
   const ac = acompanhamento[it.id];
-  return (ac && ac.disciplinaOverride) || it.disciplina;
+  return (ac && ac.disciplinaOverride) ? apelidoDisciplina(ac.disciplinaOverride) : it.disciplina; // o nome de exibição vale também pra item reclassificado
 }
 /* fornecedor padrão de uma disciplina: nome exato, ou o mesmo nome escrito com diferença de
    maiúscula, acento ou espaço ("ELETRICA" usa o de "ELÉTRICA") */
@@ -3961,10 +4047,7 @@ let filtroItemLocal = null; // { tipo, quarto } quando veio de um drill-down esp
 let filtroProgresso = null; // 'aberto' | 'awExec' | 'iacOk' | null — cliques que não têm um select próprio
 let filtroStatusBrutoAdHoc = null; // 'VM' | 'AM' | null — pra cliques em contagens que não mapeiam 1:1 no dropdown de status
 let itensSelecionados = new Set(); // ids selecionados pra classificação em lote (Disciplina/Fornecedor)
-function atualizarBotaoTirarLote(){
-  const b = document.getElementById('btn-tirar-obra-lote');
-  if (b) b.classList.toggle('oculto', !podeTirarDaObra());
-}
+function atualizarBotaoTirarLote(){ /* o "tirar da obra" em lote agora fica na janela Editar agrupamento */ }
 
 /* ===================== VOLTAR INTELIGENTE =====================
    Ao "mergulhar" (torre → andar, quarto → itens, cartões, Ver itens…) guarda a tela de onde
@@ -4295,12 +4378,6 @@ function renderItens(){
 function atualizarBarraSelecao(){
   const barra = document.getElementById('barra-selecao-itens');
   const n = itensSelecionados.size;
-  const dl = document.getElementById('lista-disciplinas-lote');
-  if (dl && n > 0 && !dl.dataset.preenchida){
-    const ds = Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva).filter(Boolean))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
-    dl.innerHTML = ds.map((d) => '<option value="'+esc(d)+'"></option>').join('');
-    dl.dataset.preenchida = '1';
-  }
   barra.classList.toggle('oculto', n===0);
   if (n>0) document.getElementById('contagem-selecao-itens').textContent = n+' selecionado(s)';
 }
@@ -4426,6 +4503,100 @@ function listaFornecedoresConhecidos(){
     .sort((a,b) => a.localeCompare(b,'pt-BR'));
 }
 
+/* ===================== EDITAR AGRUPAMENTO =====================
+   Mesma janela do "Editar" do item, para vários itens de uma vez: disciplina e fornecedor
+   (e "tirar da obra", pra quem pode). Campo deixado em "manter" não mexe nos itens. */
+function fecharEdicaoAgrupamento(){ const o = document.getElementById('modal-editar-grupo'); if (o) o.remove(); }
+function abrirEdicaoAgrupamento(){
+  fecharEdicaoAgrupamento();
+  const ids = Array.from(itensSelecionados);
+  if (!ids.length) return;
+  const itens = ids.map((id) => itensRevisaoAtual.find((x) => x.id === id)).filter(Boolean);
+  const unicos = (arr) => Array.from(new Set(arr.filter(Boolean)));
+  const andares = unicos(itens.map((it) => it.andar)).sort((a,b) => a-b);
+  const discs = unicos(itens.map(disciplinaEfetiva)), forns = unicos(itens.map((it) => fornecedorEfetivo(it) || 'sem fornecedor'));
+  const resumo = (lista, n) => lista.length <= n ? lista.join(', ') : lista.slice(0, n).join(', ') + ' + ' + (lista.length - n);
+  const discsConhecidas = unicos(itensRevisaoAtual.map(disciplinaEfetiva)).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+  const fornecedoresConhecidos = listaFornecedoresConhecidos();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-editar-grupo';
+  overlay.innerHTML =
+    '<div class="modal-card" role="dialog" aria-modal="true">' +
+      '<h3>Editar agrupamento</h3>' +
+      '<div class="modal-sub">'+itens.length+' item(ns) selecionado(s). Campo deixado em "manter" não muda nada nos itens.</div>' +
+      '<div class="modal-info-grid">' +
+        '<div><div class="rotulo">Itens</div><div class="valor">'+itens.length+'</div></div>' +
+        '<div><div class="rotulo">Andares</div><div class="valor">'+esc(resumo(andares.map((a) => a+'º'), 6))+'</div></div>' +
+        '<div><div class="rotulo">Disciplina(s) hoje</div><div class="valor">'+esc(resumo(discs, 2))+'</div></div>' +
+        '<div><div class="rotulo">Fornecedor(es) hoje</div><div class="valor">'+esc(resumo(forns, 2))+'</div></div>' +
+      '</div>' +
+      '<div class="modal-campo">' +
+        '<label for="grupo-disc">Disciplina <span style="font-weight:400; color:var(--muted);">(reclassifica entre as existentes)</span></label>' +
+        '<select id="grupo-disc"><option value="">— manter a de cada item —</option>' + discsConhecidas.map((d) => '<option value="'+esc(d)+'">'+esc(d)+'</option>').join('') + '</select>' +
+      '</div>' +
+      '<div class="modal-campo">' +
+        '<label for="grupo-forn">Fornecedor</label>' +
+        '<select id="grupo-forn"><option value="__manter__">— manter o de cada item —</option><option value="">— usar o padrão da disciplina —</option>' +
+          fornecedoresConhecidos.map((n) => '<option value="'+esc(n)+'">'+esc(n)+'</option>').join('') +
+          '<option value="__novo__">+ Adicionar novo fornecedor…</option></select>' +
+        '<input type="text" id="grupo-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px; display:none;">' +
+      '</div>' +
+      (podeTirarDaObra() ? '<div class="modal-campo"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
+      '<div class="modal-acoes">' +
+        '<button class="btn fantasma" id="grupo-cancelar">Cancelar</button>' +
+        '<button class="btn primario" id="grupo-salvar">Salvar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('grupo-forn').addEventListener('change', (e) => {
+    const inp = document.getElementById('grupo-forn-novo');
+    inp.style.display = e.target.value === '__novo__' ? 'block' : 'none';
+    if (e.target.value === '__novo__') inp.focus();
+  });
+  document.getElementById('grupo-cancelar').addEventListener('click', fecharEdicaoAgrupamento);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharEdicaoAgrupamento(); });
+  const bTirar = document.getElementById('grupo-tirar-obra');
+  if (bTirar) bTirar.addEventListener('click', async () => {
+    if (!window.confirm('Tirar '+itens.length+' item(ns) da obra?\n\nSão de outra diretoria: somem de todas as telas e das próximas revisões. Dá pra restaurar depois na aba Enviar planilhas.')) return;
+    fecharEdicaoAgrupamento();
+    const ok = await tirarDaObra(ids);
+    avisoFlutuante(ok ? ids.length+' item(ns) tirados da obra' : 'Não consegui tirar (sem conexão?)', ok ? 'ok' : 'erro');
+    if (ok){ itensSelecionados.clear(); await recarregarAposExclusao(); }
+  });
+  document.getElementById('grupo-salvar').addEventListener('click', async () => {
+    const novaDisc = document.getElementById('grupo-disc').value;
+    let selForn = document.getElementById('grupo-forn').value;
+    let novoForn = null; // null = manter
+    if (selForn === '__novo__'){
+      const nome = await resolverNomeSemelhante(document.getElementById('grupo-forn-novo').value, todosFornecedoresConhecidos(), 'fornecedor');
+      if (!nome){ document.getElementById('grupo-forn-novo').focus(); return; }
+      novoForn = nome;
+    } else if (selForn !== '__manter__') novoForn = selForn; // '' = padrão da disciplina
+    if (!novaDisc && novoForn === null){ fecharEdicaoAgrupamento(); return; }
+    const btn = document.getElementById('grupo-salvar');
+    btn.disabled = true; btn.textContent = 'Salvando… 0/'+ids.length;
+    let feitos = 0, falhas = 0;
+    await comLimiteDeConcorrencia(ids, 4, async (id) => {
+      const it = itensRevisaoAtual.find((x) => x.id === id);
+      const ac = acompanhamento[id] || {};
+      const disc = novaDisc || (it ? disciplinaEfetiva(it) : '');
+      // fornecedor em "manter": se trocou a disciplina, mantém a exceção do item ou segue o padrão da disciplina nova
+      const forn = novoForn !== null ? novoForn : (novaDisc ? (ac.fornecedorOverride || fornecedorPadraoDaDisciplina(novaDisc)) : (it ? fornecedorEfetivo(it) : ''));
+      if (!(await salvarClassificacaoItem(id, disc, forn))) falhas++;
+      feitos++; btn.textContent = 'Salvando… '+feitos+'/'+ids.length;
+    });
+    fecharEdicaoAgrupamento();
+    itensSelecionados.clear();
+    atualizarTelasAposAcompanhamento();
+    const oque = (novaDisc && novoForn !== null) ? 'Disciplina e fornecedor salvos' : (novaDisc ? 'Disciplina salva' : 'Fornecedor salvo');
+    if (falhas) avisoFlutuante(falhas+' de '+ids.length+' item(ns) não foram salvos (sem conexão?). Tente de novo.', 'erro');
+    else avisoFlutuante(oque+' em '+ids.length+' item(ns)', 'ok');
+    popularFiltroDisciplina('filtro-item-disciplina'); popularFiltroDisciplina('filtro-disciplina');
+    popularFiltroFornecedor('filtro-item-fornecedor'); popularFiltroFornecedor('filtro-fornecedor');
+  });
+}
+
 /* grava a exceção de disciplina/fornecedor de UM item — só guarda override se for
    diferente do padrão (senão volta a seguir a disciplina da planilha / o fornecedor dela) */
 async function salvarClassificacaoItem(itemId, novaDisc, novoForn){
@@ -4447,6 +4618,7 @@ async function salvarClassificacaoItem(itemId, novaDisc, novoForn){
 
 /* ===================== RENDER: DISCIPLINAS ===================== */
 function renderDisciplinas(){
+  try{ renderCadastroNomes(); }catch(e){}
   const map = agruparPorDisciplina(itensRevisaoAtual);
   const tbody = document.getElementById('tbody-disciplinas');
   tbody.innerHTML = '';
@@ -6678,7 +6850,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
@@ -6792,66 +6964,11 @@ async function iniciar(){
     itensPaginaAtual++;
     renderItens();
   });
-  document.getElementById('btn-tirar-obra-lote').addEventListener('click', async () => {
-    const ids = Array.from(itensSelecionados);
-    if (!ids.length) return;
-    if (!window.confirm('Tirar '+ids.length+' item(ns) da obra?\n\nSão de outra diretoria: somem de todas as telas e das próximas revisões. Dá pra restaurar depois na aba Enviar planilhas.')) return;
-    const ok = await tirarDaObra(ids);
-    avisoFlutuante(ok ? ids.length+' item(ns) tirados da obra' : 'Não consegui tirar (sem conexão?)', ok ? 'ok' : 'erro');
-    if (ok){ itensSelecionados.clear(); await recarregarAposExclusao(); }
-  });
   document.getElementById('btn-limpar-selecao-itens').addEventListener('click', () => {
     itensSelecionados.clear();
     renderItens();
   });
-  document.getElementById('btn-aplicar-fornecedor-lote').addEventListener('click', async () => {
-    // aplica DISCIPLINA e/ou FORNECEDOR aos itens selecionados (preencha um dos dois, ou os dois)
-    const discDig = document.getElementById('bulk-disciplina').value.trim();
-    const fornDig = document.getElementById('bulk-fornecedor').value.trim();
-    if (!discDig && !fornDig){ document.getElementById('bulk-disciplina').focus(); avisoFlutuante('Preencha a disciplina, o fornecedor ou os dois', 'erro'); return; }
-    let novaDisc = '', novoForn = '';
-    if (discDig){
-      const conhecidas = Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva).filter(Boolean)));
-      novaDisc = await resolverNomeSemelhante(discDig, conhecidas, 'disciplina');
-      if (!novaDisc) return;
-      if (conhecidas.indexOf(novaDisc) === -1) novaDisc = novaDisc.toUpperCase(); // disciplina nova no mesmo padrão da planilha (maiúsculas)
-      document.getElementById('bulk-disciplina').value = novaDisc;
-    }
-    if (fornDig){
-      novoForn = await resolverNomeSemelhante(fornDig, todosFornecedoresConhecidos(), 'fornecedor');
-      if (!novoForn) return;
-      document.getElementById('bulk-fornecedor').value = novoForn;
-    }
-    const ids = Array.from(itensSelecionados);
-    const btn = document.getElementById('btn-aplicar-fornecedor-lote');
-    btn.disabled = true; btn.textContent = 'Aplicando… 0/'+ids.length;
-    let feitos = 0, falhas = 0;
-    await comLimiteDeConcorrencia(ids, 4, async (id) => {
-      const it = itensRevisaoAtual.find((x) => x.id === id);
-      const ac = acompanhamento[id] || {};
-      const disc = novaDisc || (it ? disciplinaEfetiva(it) : '');
-      // fornecedor: o digitado; senão, se trocou a disciplina, mantém a exceção que o item já tinha
-      // ou passa a seguir o fornecedor padrão da disciplina nova; senão mantém o atual
-      const forn = novoForn || (novaDisc ? (ac.fornecedorOverride || fornecedorPadraoDaDisciplina(novaDisc)) : (it ? fornecedorEfetivo(it) : ''));
-      const ok = await salvarClassificacaoItem(id, disc, forn);
-      if (!ok) falhas++;
-      feitos++;
-      btn.textContent = 'Aplicando… '+feitos+'/'+ids.length;
-    });
-    btn.disabled = false; btn.textContent = 'Aplicar aos selecionados';
-    document.getElementById('bulk-disciplina').value = '';
-    document.getElementById('bulk-fornecedor').value = '';
-    document.getElementById('lista-disciplinas-lote').dataset.preenchida = '';
-    itensSelecionados.clear();
-    atualizarTelasAposAcompanhamento();
-    const oque = (novaDisc && novoForn) ? 'Disciplina e fornecedor aplicados' : (novaDisc ? 'Disciplina aplicada' : 'Fornecedor aplicado');
-    if (falhas) avisoFlutuante(falhas+' de '+ids.length+' item(ns) não foram salvos (sem conexão?). Tente de novo.', 'erro');
-    else avisoFlutuante(oque+' a '+ids.length+' item(ns)', 'ok');
-    popularFiltroDisciplina('filtro-item-disciplina');
-    popularFiltroDisciplina('filtro-disciplina');
-    popularFiltroFornecedor('filtro-item-fornecedor');
-    popularFiltroFornecedor('filtro-fornecedor');
-  });
+  document.getElementById('btn-editar-agrupamento').addEventListener('click', abrirEdicaoAgrupamento);
 
   document.getElementById('btn-comparar').addEventListener('click', executarComparacao);
   // itens vistoriados que a IAC não tirou da lista: abre a aba Itens já filtrada (e gera o PDF, se pedido)
