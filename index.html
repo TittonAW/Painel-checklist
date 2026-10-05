@@ -590,6 +590,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-quartos">Gerar PDF</button>
+      <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados com pendência, itens em aberto e previsão de conclusão">PDF liberados c/ pendência</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card">
@@ -959,7 +960,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.73';
+const VERSAO_APP = '2026-10-03.76';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4317,7 +4318,7 @@ function renderItens(){
     // pra não deixar uma coluna/campo em branco pros ambientes que não estão nessa situação
     const chaveLocalItem = it.andar + '|' + chaveAreaDoc(it.tipo, it.quarto);
     const localLiberadoPend = !!areasLiberadasRevisaoAtual[chaveLocalItem];
-    const dataHtml = (localLiberadoPend && !ac.iacOkEm)
+    const dataHtml = (localLiberadoPend && estaEmAberto(it)) // executado pela AW: não há mais o que prever do nosso lado
       ? '<label style="display:flex; flex-direction:column; gap:2px; font-size:10.5px; color:var(--muted);">Previsão' +
         '<input type="date" class="input-data-prevista" data-id="'+esc(it.id)+'" value="'+esc(ac.dataPrevista||'')+'" style="font-size:12.5px; padding:4px 6px;"></label>'
       : '';
@@ -6573,6 +6574,208 @@ async function exportarVisaoGeralPdf(){
   }
 }
 
+/* ===================== RELATÓRIO: LIBERADOS COM PENDÊNCIA — PREVISÃO DE CONCLUSÃO =====================
+   Pro cliente: ambientes liberados com pendência e os itens AINDA EM ABERTO de cada um, com a
+   data prevista. Pág. 1 = resumo e quadro por andar (com a previsão mais longa); depois cada
+   ambiente com os itens (foto, descrição, previsão). Folha deitada, no padrão dos outros PDFs. */
+async function exportarRelatorioLiberados(){
+  if (!jsPdfDisponivel()){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
+  const btn = document.getElementById('btn-pdf-liberados');
+  const textoBtn = btn ? btn.textContent : '';
+  if (btn){ btn.disabled = true; btn.textContent = 'Preparando…'; }
+  try{
+    const hoje = chaveDiaLocal(new Date());
+    const fmt = (iso) => iso ? iso.split('-').reverse().slice(0,2).join('/') : '';
+    // ambientes liberados com pendência e seus itens em aberto
+    const locais = agruparPorLocal(itensRevisaoAtual).filter((l) => l.liberado)
+      .map((l) => {
+        const abertos = l.itens.filter((it) => (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it))
+          .sort((a,b) => String((acompanhamento[a.id]||{}).dataPrevista||'9999').localeCompare(String((acompanhamento[b.id]||{}).dataPrevista||'9999')) || String(a.id).localeCompare(String(b.id), 'pt-BR', { numeric:true }));
+        const aguardando = l.itens.filter((it) => { const a = acompanhamento[it.id]; return a && a.awExecEm && !a.iacOkEm; }).length;
+        const datas = abertos.map((it) => (acompanhamento[it.id]||{}).dataPrevista).filter(Boolean).sort();
+        return { l, abertos, aguardando, maisLonga: datas.length ? datas[datas.length-1] : '', semData: abertos.filter((it) => !(acompanhamento[it.id]||{}).dataPrevista).length,
+          vencidos: abertos.filter((it) => { const d = (acompanhamento[it.id]||{}).dataPrevista; return d && d < hoje; }).length };
+      })
+      .sort((a,b) => a.l.andar - b.l.andar || String(a.l.label).localeCompare(String(b.l.label), 'pt-BR', { numeric:true }));
+    if (!locais.length){ avisoFlutuante('Nenhum ambiente liberado com pendência nesta revisão', 'erro'); return; }
+    const todosAbertos = locais.flatMap((x) => x.abertos);
+    // fotos (1 por item, como no PDF de Itens)
+    const FW = 64, FH = 48;
+    const mini = new Map();
+    if (btn) btn.textContent = 'Buscando fotos…';
+    await comLimiteDeConcorrencia(todosAbertos.filter((it) => it.fotos && it.fotos.length), 4, async (it) => {
+      const bruto = await buscarImagemComoDataURL(it.fotos[0]);
+      if (bruto) mini.set(it.id, await prepararMiniatura(bruto, FW, FH, 6));
+    });
+    if (btn) btn.textContent = 'Gerando PDF…';
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+    const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M, CW = PW - 2*M;
+    const LIMITE = PH - 48, FUNDO = [243,244,246], PAPER2 = [236,238,241];
+    const base = pdfContextoBase('Liberados com pendência');
+    const titulo = 'Ambientes liberados com pendência — previsão de conclusão';
+    const pagina = (primeira) => {
+      if (!primeira) doc.addPage();
+      pdfFill(doc, FUNDO); doc.rect(0, 0, PW, PH, 'F');
+      pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
+      if (primeira){
+        const logos = pdfLogos();
+        pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(M, 18, 70, 27, 6, 6, 'FD');
+        if (logos.sofitel){ let lh = 19, lw = lh*logos.sofitel.ratio; if (lw > 58){ lw = 58; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+35-lw/2, 31.5-lh/2, lw, lh); }catch(e){} }
+        if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+78, 18, 27, 27); }catch(e){} }
+        pdfTxt(doc, M+116, 31, titulo, 14, PDF_COR.ink);
+        pdfTxt(doc, M+116, 42, 'Hotel Sofitel Ipanema · itens ainda em aberto em cada ambiente, com a data prevista', 7.5, PDF_COR.muted);
+        if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 18, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, PW-M-w/2, 28.5, tt, 7.5, PDF_COR.acc, 'center'); }
+        pdfTxt(doc, PW-M, 43, base.dataHora, 7.5, PDF_COR.muted, 'right');
+        return 56;
+      }
+      pdfTxt(doc, M, 22, titulo + (base.revisao ? '  ·  Revisão '+base.revisao : ''), 8.5, PDF_COR.ink2);
+      pdfTxt(doc, PW-M, 22, base.dataHora, 7.5, PDF_COR.muted, 'right');
+      return 32;
+    };
+
+    // ---------- PÁGINA 1: resumo + quadro por andar ----------
+    let y = pagina(true);
+    const maisLongaGeral = locais.map((x) => x.maisLonga).filter(Boolean).sort().pop() || '';
+    const localMaisLongo = maisLongaGeral ? locais.find((x) => x.maisLonga === maisLongaGeral) : null;
+    const semDataTot = locais.reduce((s, x) => s + x.semData, 0), vencTot = locais.reduce((s, x) => s + x.vencidos, 0);
+    const cards = [
+      { r:'Ambientes liberados c/ pendência', v: String(locais.length), c: PDF_COR.lib },
+      { r:'Itens em aberto nesses ambientes', v: pdfNum(todosAbertos.length), c: PDF_COR.ink },
+      { r:'Conclusão prevista de tudo', v: maisLongaGeral ? fmt(maisLongaGeral) : '—', c: PDF_COR.acc, sub: localMaisLongo ? 'item mais longo: '+localMaisLongo.l.label.replace(/\u00A0/g,' ')+' ('+localMaisLongo.l.andar+'º)' : 'nenhuma data preenchida' },
+      { r:'Sem previsão', v: String(semDataTot), c: semDataTot ? PDF_COR.am : PDF_COR.vd, sub: semDataTot ? 'itens sem data' : 'todos com data' },
+      { r:'Previsões vencidas', v: String(vencTot), c: vencTot ? PDF_COR.vm : PDF_COR.vd, sub: vencTot ? 'data já passou, item ainda aberto' : 'nenhuma vencida' }
+    ];
+    const cw5 = (CW - 4*8) / 5;
+    cards.forEach((k, i) => {
+      const x = M + i*(cw5+8);
+      pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(x, y, cw5, 58, 9, 9, 'FD');
+      pdfTxt(doc, x+12, y+16, pdfCaber(doc, k.r, 7, cw5-20), 7, PDF_COR.muted);
+      pdfTxt(doc, x+12, y+38, k.v, 18, k.c);
+      if (k.sub) pdfTxt(doc, x+12, y+50, pdfCaber(doc, k.sub, 6.3, cw5-20), 6.3, PDF_COR.faint);
+    });
+    y += 70;
+    // quadro por andar
+    const porAndar = new Map();
+    locais.forEach((x) => { if (!porAndar.has(x.l.andar)) porAndar.set(x.l.andar, []); porAndar.get(x.l.andar).push(x); });
+    const linhasAndar = Array.from(porAndar.entries()).sort((a,b) => a[0] - b[0]);
+    // por andar: data de conclusão (a previsão mais longa), linha do tempo e o MOTIVO (item que segura a data)
+    const infoAndar = linhasAndar.map(([andar, xs]) => {
+      const itensA = xs.flatMap((x) => x.abertos.map((it) => ({ it, x })));
+      const comData = itensA.filter((o) => (acompanhamento[o.it.id]||{}).dataPrevista)
+        .sort((p, q) => String(acompanhamento[q.it.id].dataPrevista).localeCompare(String(acompanhamento[p.it.id].dataPrevista)));
+      const ult = comData[0] || null;
+      return { andar, xs, itens: itensA.length, sem: xs.reduce((s, x) => s + x.semData, 0), venc: xs.reduce((s, x) => s + x.vencidos, 0),
+        data: ult ? acompanhamento[ult.it.id].dataPrevista : '', motivo: ult };
+    });
+    const rowA = Math.max(24, Math.min(30, (LIMITE - y - 64) / Math.max(1, infoAndar.length)));
+    const hQ = 58 + infoAndar.length*rowA;
+    pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(M, y, CW, hQ, 11, 11, 'FD');
+    pdfTxt(doc, M+16, y+19, 'Quando cada andar fica 100% concluído', 10, PDF_COR.ink);
+    pdfTxt(doc, PW-M-16, y+19, 'ambientes já liberados com ressalva · data = última previsão entre os itens que ainda faltam', 6.8, PDF_COR.muted, 'right');
+    const CQ = { andar: M+34, amb: M+82, itens: M+130, sem: M+182, data: M+222, bar: M+300, barW: 210, motivo: M+528 };
+    const yh = y + 38;
+    [['Andar', CQ.andar, 'center'], ['Ambientes', CQ.amb, 'center'], ['Em aberto', CQ.itens, 'center'], ['Sem data', CQ.sem, 'center'], ['100% em', CQ.data, 'left'], ['Último item (principal motivo)', CQ.motivo, 'left']]
+      .forEach(([r, x, a]) => pdfTxt(doc, x, yh, r, 7, PDF_COR.muted, a));
+    // escala da linha do tempo: de hoje até a conclusão mais longa
+    const fimEscala = infoAndar.map((i) => i.data).filter(Boolean).sort().pop() || hoje;
+    const dHoje = new Date(hoje + 'T12:00:00'), dFim = new Date(fimEscala + 'T12:00:00');
+    const totalDias = Math.max(1, Math.round((dFim - dHoje) / 86400000));
+    pdfTxt(doc, CQ.bar, yh, 'hoje', 6.5, PDF_COR.muted);
+    pdfTxt(doc, CQ.bar + CQ.barW, yh, fmt(fimEscala), 6.5, PDF_COR.muted, 'right');
+    let ya = yh + 8;
+    infoAndar.forEach((ia, i) => {
+      if (i % 2 === 0){ pdfFill(doc, PAPER2); doc.roundedRect(M+10, ya, CW-20, rowA-3, 6, 6, 'F'); }
+      const cy = ya + rowA/2 + 1;
+      pdfTxt(doc, CQ.andar, cy+2, ia.andar+'º', 9, PDF_COR.ink, 'center');
+      pdfTxt(doc, CQ.amb, cy+2, String(ia.xs.length), 8.5, PDF_COR.lib, 'center');
+      pdfTxt(doc, CQ.itens, cy+2, String(ia.itens), 8.5, PDF_COR.ink, 'center');
+      pdfTxt(doc, CQ.sem, cy+2, ia.sem ? String(ia.sem) : '—', 8.5, ia.sem ? PDF_COR.am : PDF_COR.faint, 'center');
+      const situ = ia.venc ? ia.venc+' vencida(s)' : (ia.sem ? 'faltam datas' : 'no prazo');
+      const corSitu = ia.venc ? PDF_COR.vm : (ia.sem ? PDF_COR.am : PDF_COR.vd);
+      if (ia.data){
+        pdfTxt(doc, CQ.data, cy-1, ia.data.split('-').reverse().join('/'), 10, ia.data < hoje ? PDF_COR.vm : PDF_COR.ink);
+        pdfTxt(doc, CQ.data, cy+8, situ, 6.3, corSitu);
+        // linha do tempo: trilho até o fim da escala + barra até a conclusão deste andar
+        const dias = Math.round((new Date(ia.data + 'T12:00:00') - dHoje) / 86400000);
+        pdfFill(doc, PDF_COR.line); doc.roundedRect(CQ.bar, cy-3, CQ.barW, 6, 3, 3, 'F');
+        if (dias < 0){ pdfFill(doc, PDF_COR.vm); doc.roundedRect(CQ.bar, cy-3, 8, 6, 3, 3, 'F'); }
+        else { pdfFill(doc, ia.venc ? PDF_COR.vm : (ia.sem ? PDF_COR.am : PDF_COR.acc)); doc.roundedRect(CQ.bar, cy-3, Math.max(6, CQ.barW * Math.min(1, dias / totalDias)), 6, 3, 3, 'F'); }
+        const mo = ia.motivo, lab = mo.x.l.label.replace(/\u00A0/g,' ');
+        pdfTxt(doc, CQ.motivo, cy-1, pdfCaber(doc, lab + ' · ' + disciplinaEfetiva(mo.it), 7.5, PW - M - 12 - CQ.motivo), 7.5, PDF_COR.ink);
+        pdfTxt(doc, CQ.motivo, cy+8, pdfCaber(doc, mo.it.id + ' — ' + (mo.it.desc || ''), 6.5, PW - M - 12 - CQ.motivo), 6.5, PDF_COR.muted);
+      } else {
+        pdfTxt(doc, CQ.data, cy+2, 'sem datas', 8.5, PDF_COR.am);
+        pdfFill(doc, PDF_COR.line); doc.roundedRect(CQ.bar, cy-3, CQ.barW, 6, 3, 3, 'F');
+        pdfTxt(doc, CQ.motivo, cy+2, 'preencha a previsão dos itens deste andar', 7, PDF_COR.faint);
+      }
+      ya += rowA;
+    });
+    // ---------- PÁGINAS SEGUINTES: cada ambiente com os itens ----------
+    const X = { item: 12, disc: 64, forn: 190, prio: 280, desc: 330, foto: 590, prev: 676 };
+    const DESC_W = X.foto - X.desc - 14;
+    const cabTabela = (top) => {
+      pdfFill(doc, PAPER2); doc.roundedRect(M+8, top, CW-16, 18, 5, 5, 'F');
+      [['Item', X.item], ['Disciplina', X.disc], ['Fornecedor', X.forn], ['Prioridade', X.prio], ['Descrição', X.desc], ['Foto', X.foto], ['Previsão', X.prev]]
+        .forEach(([r, x]) => pdfTxt(doc, M+8+x, top+12, r, 7, PDF_COR.muted));
+      return top + 22;
+    };
+    // os ambientes começam logo abaixo do quadro, se sobrar espaço (sem página meio vazia)
+    y = y + hQ + 14;
+    if (y + 22 + 30 + 70 > LIMITE) y = pagina(false);
+    y = cabTabela(y);
+    const grupoH = 30;
+    locais.forEach((x) => {
+      doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      const alturas = x.abertos.map((it) => Math.max(FH + 10, doc.splitTextToSize(it.desc || '—', DESC_W).slice(0, 6).length*10 + 14));
+      // o título do ambiente nunca fica sozinho no fim da página
+      if (y + grupoH + (alturas[0] || 20) > LIMITE){ y = pagina(false); y = cabTabela(y); }
+      pdfFill(doc, PDF_COR.libs); doc.roundedRect(M, y, CW, grupoH - 4, 7, 7, 'F');
+      pdfTxt(doc, M+12, y+16, x.l.label.replace(/\u00A0/g,' ') + (/º/.test(x.l.label) ? '' : '  ·  '+x.l.andar+'º andar'), 10, PDF_COR.ink);
+      const det = x.abertos.length+' item(ns) em aberto' + (x.maisLonga ? '  ·  conclusão prevista '+fmt(x.maisLonga) : '') + (x.semData ? '  ·  '+x.semData+' sem previsão' : '') + (x.aguardando ? '  ·  '+x.aguardando+' executado(s) aguardando vistoria IAC' : '');
+      pdfTxt(doc, PW-M-12, y+16, det, 7.5, PDF_COR.lib, 'right');
+      y += grupoH;
+      if (!x.abertos.length){ pdfTxt(doc, M+20, y+8, 'Nenhum item em aberto — só aguardando vistoria da IAC.', 7.5, PDF_COR.muted); y += 18; return; }
+      x.abertos.forEach((it, i) => {
+        const h = alturas[i];
+        if (y + h > LIMITE){ y = pagina(false); y = cabTabela(y); }
+        pdfFill(doc, PDF_COR.white); doc.rect(M, y, CW, h, 'F');
+        pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.line(M+8, y+h, M+CW-8, y+h);
+        const mid = y + h/2, ac = acompanhamento[it.id] || {};
+        pdfTxt(doc, M+8+X.item, mid+3, it.id, 8, PDF_COR.ink2);
+        doc.setFontSize(8);
+        doc.splitTextToSize(disciplinaEfetiva(it) || '—', X.forn - X.disc - 8).slice(0, 3).forEach((l, k, arr) => pdfTxt(doc, M+8+X.disc, mid + 3 - (arr.length-1)*5 + k*10, l, 7.8, PDF_COR.ink2));
+        doc.splitTextToSize(fornecedorEfetivo(it) || '—', X.prio - X.forn - 8).slice(0, 3).forEach((l, k, arr) => pdfTxt(doc, M+8+X.forn, mid + 3 - (arr.length-1)*5 + k*10, l, 7.8, PDF_COR.ink2));
+        const pr = it.status === 'VM' ? PDF_PRIO.BLOQUEADO : PDF_PRIO.PENDENTE;
+        pdfPill(doc, M+8+X.prio, mid+3, pr.curto, pr.fg, pr.bg, 7);
+        doc.setFontSize(8);
+        const ds = doc.splitTextToSize(it.desc || '—', DESC_W).slice(0, 6);
+        ds.forEach((l, k) => pdfTxt(doc, M+8+X.desc, mid + 3 - (ds.length-1)*5 + k*10, l, 8, PDF_COR.ink));
+        const fx = M+8+X.foto, fy = mid - FH/2;
+        if (mini.get(it.id)){ try{ doc.addImage(mini.get(it.id), 'JPEG', fx, fy, FW, FH); }catch(e){} pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(fx, fy, FW, FH, 6, 6, 'S'); }
+        else { pdfFill(doc, PAPER2); doc.roundedRect(fx, fy, FW, FH, 6, 6, 'F'); pdfTxt(doc, fx+FW/2, fy+FH/2+2, 'sem foto', 6.5, PDF_COR.faint, 'center'); }
+        const d = ac.dataPrevista;
+        if (d){
+          const vencida = d < hoje;
+          pdfTxt(doc, M+8+X.prev, mid+1, d.split('-').reverse().join('/'), 10, vencida ? PDF_COR.vm : PDF_COR.ink);
+          if (vencida) pdfTxt(doc, M+8+X.prev, mid+11, 'vencida', 6.5, PDF_COR.vm);
+        } else pdfPill(doc, M+8+X.prev, mid+3, 'sem previsão', PDF_COR.am, PDF_COR.ams, 6.8);
+        y += h;
+      });
+      y += 8;
+    });
+    const total = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= total; i++){ doc.setPage(i); pdfRodape(doc, i, total); }
+    await compartilharOuBaixarPdf(doc.output('blob'), NOME_APP_ARQUIVO + ' - Liberados com pendência - previsão' + (base.revisao ? ' - ' + base.revisao : '') + '.pdf', null);
+  }catch(e){
+    console.error('relatório de liberados', e);
+    avisoFlutuante('Não consegui gerar o relatório', 'erro');
+  }finally{
+    if (btn){ btn.disabled = false; btn.textContent = textoBtn; }
+  }
+}
+
 /* nome do arquivo = nome do app + aba + filtro aplicado, ex.:
    "Painel da Obra Sofitel - Itens - 18º andar - Executado AW.pdf" */
 const NOME_APP_ARQUIVO = 'Checklist';
@@ -6758,7 +6961,7 @@ async function exportarItensPdf(listaPronta){
       fluxLinhas.push({ t:'IAC · '+(ac.iacOkPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
       fluxLinhas.push({ t:dataHoraCurta(ac.iacOkEm), cor:PDF_COR.muted, s:6.8 });
     }
-    if (ac.dataPrevista && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
+    if (ac.dataPrevista && !ac.awExecEm && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
     const fluxH = 18 + (fluxLinhas.length ? 5 + fluxLinhas.length*LH2 : 0);
     const prioH = 13 + prioNotas.length*LH2 + (prioNotas.length ? 3 : 0);
     const altura = Math.max(FH + 14, desc.length*LH + 20, loc.length*LH + 20,
@@ -6978,6 +7181,7 @@ async function iniciar(){
     setTimeout(() => document.getElementById('btn-pdf-itens').click(), 400);
   });
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
+  document.getElementById('btn-pdf-liberados').addEventListener('click', exportarRelatorioLiberados);
   document.getElementById('btn-pdf-itens').addEventListener('click', exportarItensPdf);
   document.getElementById('btn-pdf-visao-geral').addEventListener('click', exportarVisaoGeralPdf);
   document.getElementById('btn-pdf-visao-geral-nav').addEventListener('click', exportarVisaoGeralPdf);
