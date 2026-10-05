@@ -926,7 +926,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.62';
+const VERSAO_APP = '2026-10-03.63';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4752,6 +4752,7 @@ async function enviarTextoPlano(titulo, texto){
 }
 async function exportarPlanoPdf(k){
   const c = planoCartoes[k]; if (!c || !window.jspdf) return;
+  protegerTextoPdf();
   if (c.pdfItens) return exportarItensPdf(c.pdfItens()); // itens: mesmo padrão do PDF da aba Itens (foto, resumo, fluxo)
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
@@ -5390,6 +5391,7 @@ async function selecionarRevisao(numeroStr){
    compartilhamento nativo não for permitido aqui dentro (mesma categoria de limitação que já
    vimos com caixinhas do navegador), cai automaticamente para baixar o arquivo normalmente. */
 function jsPdfDisponivel(){
+  protegerTextoPdf();
   return !!(window.jspdf && window.jspdf.jsPDF);
 }
 
@@ -5421,7 +5423,29 @@ const PDF_M = 36;
 function pdfNum(n){ return Number(n||0).toLocaleString('pt-BR'); }
 function pdfPct(a, b){ return b ? Math.round(a/b*100) : 0; }
 
+/* a fonte padrão do PDF (Helvetica, Windows-1252) não tem setas, "≈", "−" etc. — eles saíam
+   como lixo ("H1.232", "!•"). Troca pelos equivalentes e remove o que não tem como desenhar. */
+const CP1252_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+function textoSeguroPdf(s){
+  if (Array.isArray(s)) return s.map(textoSeguroPdf);
+  return String(s == null ? '' : s)
+    .replace(/[−]/g, '-').replace(/[←]/g, '<').replace(/[→]/g, '>').replace(/[↑]/g, '+').replace(/[↓]/g, '-')
+    .replace(/[≈]/g, '~').replace(/[✓✔]/g, '').replace(/[▾▴]/g, '').replace(/\u00A0/g, ' ')
+    .replace(/[^\u0000-\u00FF]/g, (c) => CP1252_EXTRA.indexOf(c) !== -1 ? c : '');
+}
+function protegerTextoPdf(){
+  try{
+    const API = window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API;
+    if (!API || API.__textoSeguro || typeof API.text !== 'function') return;
+    const original = API.text;
+    API.text = function(texto){ const args = Array.prototype.slice.call(arguments); args[0] = textoSeguroPdf(texto); return original.apply(this, args); };
+    const largOriginal = API.getTextWidth;
+    if (typeof largOriginal === 'function') API.getTextWidth = function(texto){ return largOriginal.call(this, textoSeguroPdf(texto)); };
+    API.__textoSeguro = true;
+  }catch(e){}
+}
 function pdfTxt(doc, x, y, s, size, cor, align){
+  s = textoSeguroPdf(s);
   doc.setFont('helvetica','normal');
   doc.setFontSize(size || 9);
   doc.setTextColor.apply(doc, cor || PDF_COR.ink);
@@ -5661,6 +5685,7 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
    própria tela (espelho) ou calculados com as mesmas funções dela. */
 async function exportarVisaoGeralPdf(){
   if (!window.jspdf){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
+  protegerTextoPdf();
   const btn = (document.activeElement && /btn-pdf-visao-geral/.test(document.activeElement.id)) ? document.activeElement : document.getElementById('btn-pdf-visao-geral');
   const textoBtn = btn.textContent; btn.disabled = true; btn.textContent = 'Gerando PDF…';
   try{
@@ -5722,18 +5747,28 @@ async function exportarVisaoGeralPdf(){
 
     /* bloco com LINHAS (torre, rankings, variações): se não couber numa página, continua na
        próxima num novo cartão "(continuação)" — nunca invade o rodapé nem corta uma linha ao meio */
+    /* ASSUNTO com linhas (torre, resumo, variações, rankings): se cabe numa página, nunca é
+       dividido — começa inteiro na página seguinte se não couber no que sobra. Só o assunto maior
+       que uma página inteira continua na próxima ("continuação"), e começando no topo. */
+    const UTIL = LIMITE - 42;
     const blocoLinhas = (o) => {
+      const alt = (i) => typeof o.altura === 'function' ? o.altura(i) : o.rowH;
+      let soma = 0; for (let i = 0; i < o.n; i++) soma += alt(i);
+      const total = o.hCab + soma + 14;
+      if (total <= UTIL){ if (y + total > LIMITE){ doc.addPage(); cabecalho(false); } }
+      else if (y > 50 && y + o.hCab + 120 > LIMITE / 2){ doc.addPage(); cabecalho(false); }
       let ini = 0;
       while (ini < o.n){
         const hCab = ini === 0 ? o.hCab : o.hCabCont;
-        if (y + hCab + o.rowH + 14 > LIMITE){ doc.addPage(); cabecalho(false); }
-        const cabem = Math.max(1, Math.floor((LIMITE - y - hCab - 14) / o.rowH));
-        const k = Math.min(cabem, o.n - ini);
-        const h = hCab + k*o.rowH + 14;
+        if (y + hCab + alt(ini) + 14 > LIMITE){ doc.addPage(); cabecalho(false); }
+        let k = 0, h = hCab + 14;
+        while (ini + k < o.n && y + h + alt(ini + k) <= LIMITE){ h += alt(ini + k); k++; }
+        if (k === 0){ k = 1; h += alt(ini); }
         cartao(h);
         (ini === 0 ? o.cab : o.cabCont)(y);
-        for (let i = 0; i < k; i++) o.linha(ini + i, y + hCab + i*o.rowH);
-        if (o.depoisDasLinhas) o.depoisDasLinhas(y + hCab, y + hCab + k*o.rowH);
+        let yy = y + hCab;
+        for (let i = 0; i < k; i++){ o.linha(ini + i, yy); yy += alt(ini + i); }
+        if (o.depoisDasLinhas) o.depoisDasLinhas(y + hCab, yy, ini, ini + k);
         y += h + 12;
         ini += k;
       }
@@ -5753,35 +5788,36 @@ async function exportarVisaoGeralPdf(){
       const tituloTorre = (document.getElementById('titulo-torre-andares') || {}).textContent || 'Andares';
       const xBar = M + 58, wBar = CW - 58 - 16 - 210, xNums = xBar + wBar + 22;
       const rot = ['Aberto','AW','IAC','Total'], corNum = [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
+      const nT = andares.length + 1; // + linha da legenda, no mesmo cartão
       blocoLinhas({
-        n: andares.length, rowH, hCab: 34, hCabCont: 34,
+        n: nT, altura: (i) => i < andares.length ? rowH : 30, hCab: 34, hCabCont: 34,
         cab: (top) => pdfTxt(doc, M+16, top+22, tituloTorre, 11, PDF_COR.ink),
         cabCont: (top) => pdfTxt(doc, M+16, top+22, tituloTorre + ' (continuação)', 11, PDF_COR.ink),
         linha: (i, yy) => {
+          if (i >= andares.length){
+            let lx = M+16;
+            [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['AM (amarelo)', PDF_COR.am, PDF_COR.ams], ['Liberado com pendência', PDF_COR.lib, PDF_COR.libs], ['VD (verde)', PDF_COR.vd, PDF_COR.vds]].forEach(([r, c, cs]) => {
+              const w = pdfLarg(doc, r, 7.5) + 24;
+              pdfFill(doc, cs); doc.roundedRect(lx, yy+8, w, 15, 7.5, 7.5, 'F');
+              pdfFill(doc, c); doc.circle(lx+8, yy+15.5, 2.6, 'F');
+              pdfTxt(doc, lx+15, yy+18.5, r, 7.5, c);
+              lx += w + 6;
+            });
+            return;
+          }
           const a = andares[i];
-          pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+12, yy, CW-24, rowH-4, 8, 8, 'F');
+          pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+12, yy, CW-24, rowH-4, 7, 7, 'F');
           pdfTxt(doc, M+24, yy+16, a.andar, 9.5, PDF_COR.muted);
+          // como na tela: fundo bem claro na cor do status + parte executada na cor do status, levemente transparente
           doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]);
-          comOpacidade(0.26, () => doc.roundedRect(xBar, yy+8, wBar, 11, 5, 5, 'F'));
-          if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); doc.roundedRect(xBar, yy+8, Math.max(8, wBar*a.pct/100), 11, 5, 5, 'F'); }
-          pdfTxt(doc, xBar + wBar - 6, yy+16.5, a.pct+'%', 7.2, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
+          comOpacidade(0.18, () => doc.roundedRect(xBar, yy+8.5, wBar, 10, 3.5, 3.5, 'F'));
+          if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); comOpacidade(0.82, () => doc.roundedRect(xBar, yy+8.5, Math.max(6, wBar*a.pct/100), 10, 3.5, 3.5, 'F')); }
+          pdfTxt(doc, xBar + wBar - 6, yy+16.3, a.pct+'%', 7, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
           a.nums.slice(0,4).forEach((nn, j) => {
             pdfTxt(doc, xNums + j*50, yy+10, rot[j], 6.2, j === 0 ? PDF_COR.ink : PDF_COR.muted, 'center');
             pdfTxt(doc, xNums + j*50, yy+20.5, nn, 9.5, corNum[j], 'center');
           });
         }
-      });
-      // legenda (cartão pequeno logo abaixo)
-      y -= 8;
-      bloco(30, (top) => {
-        let lx = M+16;
-        [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['AM (amarelo)', PDF_COR.am, PDF_COR.ams], ['Liberado com pendência', PDF_COR.lib, PDF_COR.libs], ['VD (verde)', PDF_COR.vd, PDF_COR.vds]].forEach(([r, c, cs]) => {
-          const w = pdfLarg(doc, r, 7.5) + 24;
-          pdfFill(doc, cs); doc.roundedRect(lx, top+8, w, 15, 7.5, 7.5, 'F');
-          pdfFill(doc, c); doc.circle(lx+8, top+15.5, 2.6, 'F');
-          pdfTxt(doc, lx+15, top+18.5, r, 7.5, c);
-          lx += w + 6;
-        });
       });
     }
 
@@ -5797,34 +5833,45 @@ async function exportarVisaoGeralPdf(){
       });
       return stats.length ? { titulo: lab.textContent.trim(), stats } : null;
     }).filter(Boolean);
-    bloco(30 + (destaque.length ? 44 : 0), (top) => {
-      pdfTxt(doc, M+16, top+20, 'Resumo da revisão selecionada', 11, PDF_COR.ink);
-      const w = (CW - 32) / Math.max(1, destaque.length);
-      destaque.forEach((d, i) => {
-        pdfTxt(doc, M+16 + i*w, top+46, d.valor, 17, d.cor);
-        pdfTxt(doc, M+16 + i*w, top+59, pdfCaber(doc, d.rot, 7.5, w - 8), 7.5, PDF_COR.muted);
-      });
-    });
-    grupos.forEach((g) => {
+    {
       const cols = 3, gap = 8, cw = (CW - 32 - (cols-1)*gap) / cols, ch = 60;
-      const nLin = Math.ceil(g.stats.length / cols);
-      bloco(34 + nLin*(ch+gap), (top) => {
-        pdfTxt(doc, M+16, top+20, g.titulo, 9.5, PDF_COR.muted);
-        g.stats.forEach((st, i) => {
-          const x = M+16 + (i % cols)*(cw+gap), yy = top + 30 + Math.floor(i/cols)*(ch+gap);
-          pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(x, yy, cw, ch, 8, 8, 'FD');
-          pdfTxt(doc, x+12, yy+25, st.valor, 18, st.cor);
-          if (st.sub){
-            pdfTxt(doc, x+12, yy+39, pdfCaber(doc, st.rotulo, 7.8, cw-22), 7.8, PDF_COR.ink2);
-            pdfTxt(doc, x+12, yy+50, pdfCaber(doc, st.sub, 6.8, cw-22), 6.8, PDF_COR.faint);
-          } else {
-            doc.setFont('helvetica','normal'); doc.setFontSize(7.8);
-            const ls = doc.splitTextToSize(st.rotulo, cw-22).slice(0, 2);
-            ls.forEach((l, k) => pdfTxt(doc, x+12, yy+39 + k*10, k === 1 && ls.length === 2 && doc.splitTextToSize(st.rotulo, cw-22).length > 2 ? pdfCaber(doc, l, 7.8, cw-30)+'…' : l, 7.8, PDF_COR.ink2));
-          }
-        });
+      const linhasResumo = [];
+      if (destaque.length) linhasResumo.push({ tipo:'destaque', h: 46 });
+      grupos.forEach((g) => {
+        linhasResumo.push({ tipo:'titulo', g, h: 22 });
+        for (let r = 0; r < Math.ceil(g.stats.length / cols); r++) linhasResumo.push({ tipo:'cards', stats: g.stats.slice(r*cols, r*cols+cols), h: ch + gap });
+        linhasResumo.push({ tipo:'espaco', h: 6 });
       });
-    });
+      blocoLinhas({
+        n: linhasResumo.length, altura: (i) => linhasResumo[i].h, hCab: 30, hCabCont: 30,
+        cab: (top) => pdfTxt(doc, M+16, top+20, 'Resumo da revisão selecionada', 11, PDF_COR.ink),
+        cabCont: (top) => pdfTxt(doc, M+16, top+20, 'Resumo da revisão selecionada (continuação)', 11, PDF_COR.ink),
+        linha: (i, yy) => {
+          const L = linhasResumo[i];
+          if (L.tipo === 'destaque'){
+            const w = (CW - 32) / destaque.length;
+            destaque.forEach((d, j) => { pdfTxt(doc, M+16 + j*w, yy+18, d.valor, 17, d.cor); pdfTxt(doc, M+16 + j*w, yy+31, pdfCaber(doc, d.rot, 7.5, w - 8), 7.5, PDF_COR.muted); });
+          } else if (L.tipo === 'titulo'){
+            pdfTxt(doc, M+16, yy+14, L.g.titulo, 9.5, PDF_COR.muted);
+          } else if (L.tipo === 'cards'){
+            L.stats.forEach((st, j) => {
+              const x = M+16 + j*(cw+gap);
+              pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(x, yy, cw, ch, 8, 8, 'FD');
+              pdfTxt(doc, x+12, yy+25, st.valor, 18, st.cor);
+              if (st.sub){
+                pdfTxt(doc, x+12, yy+39, pdfCaber(doc, st.rotulo, 7.8, cw-22), 7.8, PDF_COR.ink2);
+                pdfTxt(doc, x+12, yy+50, pdfCaber(doc, st.sub, 6.8, cw-22), 6.8, PDF_COR.faint);
+              } else {
+                doc.setFont('helvetica','normal'); doc.setFontSize(7.8);
+                const todas = doc.splitTextToSize(st.rotulo, cw-22), ls = todas.slice(0, 2);
+                ls.forEach((l, k) => pdfTxt(doc, x+12, yy+39 + k*10, (k === 1 && todas.length > 2) ? pdfCaber(doc, l, 7.8, cw-30)+'…' : l, 7.8, PDF_COR.ink2));
+              }
+            });
+          }
+        }
+      });
+    }
+
 
     // 4) EVOLUÇÃO — mesmas linhas, áreas, projeção tracejada e produção de cada dia
     const pontos = calcularEvolucaoPendencias(30);
@@ -5889,7 +5936,7 @@ async function exportarVisaoGeralPdf(){
           if (!(i % passo === 0 || i === n-1 || i === N-1)) return;
           const fut = i >= n, cx = xDe(i);
           pdfTxt(doc, cx, yd, p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().slice(0,2).join('/'), 6.5, fut ? PDF_COR.faint : (p.data === hojeChave ? PDF_COR.ink : PDF_COR.muted), 'center');
-          pdfTxt(doc, cx, yd+12, fut ? (metaDia ? '≈'+pdfNum(metaDia) : '—') : (p.awDia ? '+'+pdfNum(p.awDia) : '—'), 6.5, fut ? [189,176,232] : (p.awDia ? PDF_COR.az : PDF_COR.faint), 'center');
+          pdfTxt(doc, cx, yd+12, fut ? (metaDia ? '~'+pdfNum(metaDia) : '—') : (p.awDia ? '+'+pdfNum(p.awDia) : '—'), 6.5, fut ? [189,176,232] : (p.awDia ? PDF_COR.az : PDF_COR.faint), 'center');
           pdfTxt(doc, cx, yd+23, fut ? '—' : (p.iacDia ? '+'+pdfNum(p.iacDia) : '—'), 6.5, fut ? PDF_COR.faint : (p.iacDia ? PDF_COR.vd : PDF_COR.faint), 'center');
           pdfTxt(doc, cx, yd+34, fut ? '—' : (p.reincDia ? String(p.reincDia) : '—'), 6.5, fut ? PDF_COR.faint : (p.reincDia ? PDF_COR.vm : PDF_COR.faint), 'center');
         });
@@ -5946,14 +5993,19 @@ async function exportarVisaoGeralPdf(){
       const hCab1 = 96 + (diff.semDadosNoPara.length ? 18 : 0) + (temPrio ? 14 : 0);
       const centro = M + 16 + 40 + (CW - 32 - 40 - 50)/2, meia = (CW - 32 - 40 - 50)/2 - 40;
       const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
-      const eixo = (yy) => { pdfTxt(doc, centro - 8, yy, '← saíram', 7, PDF_COR.vd, 'right'); pdfTxt(doc, centro + 8, yy, 'entraram →', 7, PDF_COR.vm); pdfTxt(doc, PW-M-16, yy, 'saldo', 7, PDF_COR.muted, 'right'); };
+      const eixo = (yy) => { pdfTxt(doc, centro - 8, yy, 'saíram', 7, PDF_COR.vd, 'right'); pdfTxt(doc, centro + 8, yy, 'entraram', 7, PDF_COR.vm); pdfTxt(doc, PW-M-16, yy, 'saldo', 7, PDF_COR.muted, 'right'); };
       const tituloVar = 'Últimas variações (vs. revisão anterior)';
+      // linhas: andares + (título e etiquetas de "onde mais entraram") + críticas — tudo no MESMO assunto
+      const extrasV = [];
+      if (locaisNovos.length){ extrasV.push({ tipo:'tit', txt:'Onde mais entraram pendências', h: 20 }); extrasV.push({ tipo:'chips', h: 24 }); }
+      if (criticas.length){ extrasV.push({ tipo:'tit', txt:'Críticas (VM) que pedem atenção — novas ou que subiram de AM', h: 20 }); criticas.forEach((it) => extrasV.push({ tipo:'crit', it, h: 26 })); }
+      const nV = porAndar.length + extrasV.length;
       blocoLinhas({
-        n: porAndar.length, rowH, hCab: hCab1, hCabCont: 42,
+        n: nV, altura: (i) => i < porAndar.length ? rowH : extrasV[i - porAndar.length].h, hCab: hCab1, hCabCont: 42,
         cab: (top) => {
           pdfTxt(doc, M+16, top+22, tituloVar, 11, PDF_COR.ink);
           pdfTxt(doc, M+16, top+36, 'De '+ordenado[idx-1].label+' para '+ordenado[idx].label, 7.5, PDF_COR.muted);
-          [['+'+pdfNum(diff.novos.length), 'entraram', PDF_COR.vm], ['−'+pdfNum(diff.resolvidos.length), 'saíram / resolvidas', PDF_COR.vd], [(saldo>0?'+':'')+pdfNum(saldo), 'saldo da lista', saldo > 0 ? PDF_COR.vm : (saldo < 0 ? PDF_COR.vd : PDF_COR.muted)]].forEach(([v, r, c], i) => {
+          [['+'+pdfNum(diff.novos.length), 'entraram', PDF_COR.vm], ['-'+pdfNum(diff.resolvidos.length), 'saíram / resolvidas', PDF_COR.vd], [(saldo>0?'+':'')+pdfNum(saldo), 'saldo da lista', saldo > 0 ? PDF_COR.vm : (saldo < 0 ? PDF_COR.vd : PDF_COR.muted)]].forEach(([v, r, c], i) => {
             const x = M+16 + i*160;
             pdfTxt(doc, x, top+64, v, 20, c); pdfTxt(doc, x + pdfLarg(doc, v, 20) + 5, top+64, r, 7.5, PDF_COR.muted);
           });
@@ -5961,8 +6013,8 @@ async function exportarVisaoGeralPdf(){
           if (temPrio){
             pdfTxt(doc, M+16, yy+6, 'Prioridade: ', 7.5, PDF_COR.muted);
             let xx = M+16 + pdfLarg(doc, 'Prioridade: ', 7.5);
-            if (diff.subiu.length){ const s = '↑ '+diff.subiu.length+' subiram de AM para VM'; pdfTxt(doc, xx, yy+6, s, 7.5, PDF_COR.vm); xx += pdfLarg(doc, s+'  ·  ', 7.5); }
-            if (diff.desceu.length) pdfTxt(doc, xx, yy+6, '↓ '+diff.desceu.length+' desceram de VM para AM', 7.5, PDF_COR.am);
+            if (diff.subiu.length){ const s = diff.subiu.length+' subiram de AM para VM'; pdfTxt(doc, xx, yy+6, s, 7.5, PDF_COR.vm); xx += pdfLarg(doc, s+'  ·  ', 7.5); }
+            if (diff.desceu.length) pdfTxt(doc, xx, yy+6, diff.desceu.length+' desceram de VM para AM', 7.5, PDF_COR.am);
             yy += 14;
           }
           if (diff.semDadosNoPara.length){
@@ -5974,45 +6026,39 @@ async function exportarVisaoGeralPdf(){
         },
         cabCont: (top) => { pdfTxt(doc, M+16, top+22, tituloVar + ' (continuação)', 11, PDF_COR.ink); eixo(top + 36); },
         linha: (i, yy) => {
-          const a = porAndar[i];
-          pdfTxt(doc, M+50, yy+12, a.andar+'º', 8.5, PDF_COR.ink, 'right');
-          const wR = a.resolvidos ? Math.max(3, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(3, a.novos/maxV*meia) : 0;
-          if (wR){ doc.setFillColor(PDF_COR.vd[0], PDF_COR.vd[1], PDF_COR.vd[2]); comOpacidade(0.85, () => doc.roundedRect(centro - wR, yy+4, wR, 12, 3, 3, 'F')); }
-          if (wN){ doc.setFillColor(PDF_COR.vm[0], PDF_COR.vm[1], PDF_COR.vm[2]); comOpacidade(0.85, () => doc.roundedRect(centro, yy+4, wN, 12, 3, 3, 'F')); }
-          pdfTxt(doc, centro - wR - 4, yy+13, a.resolvidos ? '−'+pdfNum(a.resolvidos) : '0', 7.2, PDF_COR.vd, 'right');
-          pdfTxt(doc, centro + wN + 4, yy+13, a.novos ? '+'+pdfNum(a.novos) : '0', 7.2, PDF_COR.vm);
-          const s = a.novos - a.resolvidos;
-          pdfTxt(doc, PW-M-16, yy+13, (s>0?'+':'')+pdfNum(s), 8.5, s > 0 ? PDF_COR.vm : (s < 0 ? PDF_COR.vd : PDF_COR.muted), 'right');
-        },
-        depoisDasLinhas: (y0, y1) => { pdfDraw(doc, PDF_COR.line); doc.setLineWidth(1); doc.line(centro, y0, centro, y1); }
-      });
-      // onde mais entraram + críticas (cartão à parte, também quebra se precisar)
-      const extras = [];
-      if (locaisNovos.length) extras.push({ tipo:'chips' });
-      criticas.forEach((it) => extras.push({ tipo:'crit', it }));
-      if (extras.length){
-        blocoLinhas({
-          n: extras.length, rowH: 26, hCab: 30, hCabCont: 30,
-          cab: (top) => pdfTxt(doc, M+16, top+20, locaisNovos.length ? 'Onde mais entraram pendências · críticas (VM)' : 'Críticas (VM) que pedem atenção — novas ou que subiram de AM', 9, PDF_COR.ink2),
-          cabCont: (top) => pdfTxt(doc, M+16, top+20, 'Críticas (VM) — continuação', 9, PDF_COR.ink2),
-          linha: (i, yy) => {
-            const e = extras[i];
+          if (i >= porAndar.length){
+            const e = extrasV[i - porAndar.length];
+            if (e.tipo === 'tit'){ pdfTxt(doc, M+16, yy+14, e.txt, 8.5, PDF_COR.ink2); return; }
             if (e.tipo === 'chips'){
               let xx = M+16;
               locaisNovos.forEach((l) => {
                 const s = l.label.replace(/\u00A0/g,' ')+' · '+l.andar+'º  +'+l.novos.length, w = pdfLarg(doc, s, 7.2) + 16;
                 if (xx + w > PW-M-16) return;
-                pdfFill(doc, PDF_COR.vms); doc.roundedRect(xx, yy+4, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, xx+8, yy+14.5, s, 7.2, PDF_COR.vm); xx += w + 6;
+                pdfFill(doc, PDF_COR.vms); doc.roundedRect(xx, yy+3, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, xx+8, yy+13.5, s, 7.2, PDF_COR.vm); xx += w + 6;
               });
-            } else {
-              const it = e.it, lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo);
-              pdfTxt(doc, M+16, yy+9, it.id+' · '+it.andar+'º · '+lab, 8, PDF_COR.ink);
-              pdfPill(doc, M+16 + pdfLarg(doc, it.id+' · '+it.andar+'º · '+lab, 8) + 6, yy+9, it._como === 'subiu' ? 'subiu AM → VM' : 'nova', PDF_COR.vm, PDF_COR.vms, 6.5);
-              pdfTxt(doc, M+16, yy+20, pdfCaber(doc, it.desc || '', 7, CW-40), 7, PDF_COR.muted);
+              return;
             }
+            const it = e.it, lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo);
+            pdfTxt(doc, M+16, yy+9, it.id+' · '+it.andar+'º · '+lab, 8, PDF_COR.ink);
+            pdfPill(doc, M+16 + pdfLarg(doc, it.id+' · '+it.andar+'º · '+lab, 8) + 6, yy+9, it._como === 'subiu' ? 'subiu de AM para VM' : 'nova', PDF_COR.vm, PDF_COR.vms, 6.5);
+            pdfTxt(doc, M+16, yy+20, pdfCaber(doc, it.desc || '', 7, CW-40), 7, PDF_COR.muted);
+            return;
           }
-        });
-      }
+          const a = porAndar[i];
+          pdfTxt(doc, M+50, yy+12, a.andar+'º', 8.5, PDF_COR.ink, 'right');
+          const wR = a.resolvidos ? Math.max(3, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(3, a.novos/maxV*meia) : 0;
+          if (wR){ doc.setFillColor(PDF_COR.vd[0], PDF_COR.vd[1], PDF_COR.vd[2]); comOpacidade(0.85, () => doc.roundedRect(centro - wR, yy+4, wR, 12, 3, 3, 'F')); }
+          if (wN){ doc.setFillColor(PDF_COR.vm[0], PDF_COR.vm[1], PDF_COR.vm[2]); comOpacidade(0.85, () => doc.roundedRect(centro, yy+4, wN, 12, 3, 3, 'F')); }
+          pdfTxt(doc, centro - wR - 4, yy+13, a.resolvidos ? '-'+pdfNum(a.resolvidos) : '0', 7.2, PDF_COR.vd, 'right');
+          pdfTxt(doc, centro + wN + 4, yy+13, a.novos ? '+'+pdfNum(a.novos) : '0', 7.2, PDF_COR.vm);
+          const s = a.novos - a.resolvidos;
+          pdfTxt(doc, PW-M-16, yy+13, (s>0?'+':'')+pdfNum(s), 8.5, s > 0 ? PDF_COR.vm : (s < 0 ? PDF_COR.vd : PDF_COR.muted), 'right');
+        },
+        depoisDasLinhas: (y0, y1, de, ate) => {
+          const nBarras = Math.max(0, Math.min(ate, porAndar.length) - de);
+          if (nBarras > 0){ pdfDraw(doc, PDF_COR.line); doc.setLineWidth(1); doc.line(centro, y0, centro, y0 + nBarras*rowH); }
+        }
+      });
     }
 
     desenharRanking('Pendências por fornecedor', ranking(fornecedorEfetivo), PDF_COR.acc);
