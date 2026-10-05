@@ -637,7 +637,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div id="status-pdf-itens" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto" id="barra-selecao-itens" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
       <strong id="contagem-selecao-itens">0 selecionado(s)</strong>
-      <input type="text" id="bulk-fornecedor" placeholder="Nome do fornecedor" autocomplete="off">
+      <input type="text" id="bulk-disciplina" placeholder="Disciplina (opcional)" autocomplete="off" list="lista-disciplinas-lote">
+      <datalist id="lista-disciplinas-lote"></datalist>
+      <input type="text" id="bulk-fornecedor" placeholder="Fornecedor (opcional)" autocomplete="off">
       <button class="btn" id="btn-aplicar-fornecedor-lote">Aplicar aos selecionados</button>
       <button class="btn fantasma" id="btn-limpar-selecao-itens">Limpar seleção</button>
       <button class="btn fantasma ambar oculto" id="btn-tirar-obra-lote" style="margin-left:auto;">🗑 Tirar da obra (outra diretoria)</button>
@@ -960,7 +962,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.70';
+const VERSAO_APP = '2026-10-03.71';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2248,6 +2250,11 @@ async function resolverNomeSemelhante(digitado, lista, tipo){
     return await perguntarSemelhante('Você é uma destas pessoas?',
       'Já existe um nome parecido registrado no painel. Se for você, toque no seu nome — assim todas as suas baixas ficam juntas.',
       r.parecidos, 'Não, sou outra pessoa — usar “'+nome+'”').then((v) => v === '__novo__' ? nome : v);
+  }
+  if (tipo === 'disciplina'){
+    return await perguntarSemelhante('Essa disciplina já existe?',
+      'Encontrei disciplina com nome parecido. Use a existente pra não separar as pendências em dois nomes.',
+      r.parecidos, 'Não, é uma disciplina nova — criar “'+nome+'”').then((v) => v === '__novo__' ? nome : v);
   }
   return await perguntarSemelhante('Esse fornecedor já existe?',
     'Encontrei fornecedor com nome parecido. Use o existente pra não separar as pendências em dois nomes.',
@@ -4288,6 +4295,12 @@ function renderItens(){
 function atualizarBarraSelecao(){
   const barra = document.getElementById('barra-selecao-itens');
   const n = itensSelecionados.size;
+  const dl = document.getElementById('lista-disciplinas-lote');
+  if (dl && n > 0 && !dl.dataset.preenchida){
+    const ds = Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva).filter(Boolean))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+    dl.innerHTML = ds.map((d) => '<option value="'+esc(d)+'"></option>').join('');
+    dl.dataset.preenchida = '1';
+  }
   barra.classList.toggle('oculto', n===0);
   if (n>0) document.getElementById('contagem-selecao-itens').textContent = n+' selecionado(s)';
 }
@@ -6792,29 +6805,50 @@ async function iniciar(){
     renderItens();
   });
   document.getElementById('btn-aplicar-fornecedor-lote').addEventListener('click', async () => {
-    const digitado = document.getElementById('bulk-fornecedor').value.trim();
-    if (!digitado){ document.getElementById('bulk-fornecedor').focus(); return; }
-    const nome = await resolverNomeSemelhante(digitado, todosFornecedoresConhecidos(), 'fornecedor');
-    if (!nome) return; // cancelou
-    document.getElementById('bulk-fornecedor').value = nome;
+    // aplica DISCIPLINA e/ou FORNECEDOR aos itens selecionados (preencha um dos dois, ou os dois)
+    const discDig = document.getElementById('bulk-disciplina').value.trim();
+    const fornDig = document.getElementById('bulk-fornecedor').value.trim();
+    if (!discDig && !fornDig){ document.getElementById('bulk-disciplina').focus(); avisoFlutuante('Preencha a disciplina, o fornecedor ou os dois', 'erro'); return; }
+    let novaDisc = '', novoForn = '';
+    if (discDig){
+      const conhecidas = Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva).filter(Boolean)));
+      novaDisc = await resolverNomeSemelhante(discDig, conhecidas, 'disciplina');
+      if (!novaDisc) return;
+      if (conhecidas.indexOf(novaDisc) === -1) novaDisc = novaDisc.toUpperCase(); // disciplina nova no mesmo padrão da planilha (maiúsculas)
+      document.getElementById('bulk-disciplina').value = novaDisc;
+    }
+    if (fornDig){
+      novoForn = await resolverNomeSemelhante(fornDig, todosFornecedoresConhecidos(), 'fornecedor');
+      if (!novoForn) return;
+      document.getElementById('bulk-fornecedor').value = novoForn;
+    }
     const ids = Array.from(itensSelecionados);
     const btn = document.getElementById('btn-aplicar-fornecedor-lote');
     btn.disabled = true; btn.textContent = 'Aplicando… 0/'+ids.length;
     let feitos = 0, falhas = 0;
     await comLimiteDeConcorrencia(ids, 4, async (id) => {
       const it = itensRevisaoAtual.find((x) => x.id === id);
-      const discAtual = it ? disciplinaEfetiva(it) : '';
-      const ok = await salvarClassificacaoItem(id, discAtual, nome); // mantém a disciplina de cada item, só troca o fornecedor
+      const ac = acompanhamento[id] || {};
+      const disc = novaDisc || (it ? disciplinaEfetiva(it) : '');
+      // fornecedor: o digitado; senão, se trocou a disciplina, mantém a exceção que o item já tinha
+      // ou passa a seguir o fornecedor padrão da disciplina nova; senão mantém o atual
+      const forn = novoForn || (novaDisc ? (ac.fornecedorOverride || fornecedorPadraoDaDisciplina(novaDisc)) : (it ? fornecedorEfetivo(it) : ''));
+      const ok = await salvarClassificacaoItem(id, disc, forn);
       if (!ok) falhas++;
       feitos++;
       btn.textContent = 'Aplicando… '+feitos+'/'+ids.length;
     });
     btn.disabled = false; btn.textContent = 'Aplicar aos selecionados';
+    document.getElementById('bulk-disciplina').value = '';
     document.getElementById('bulk-fornecedor').value = '';
+    document.getElementById('lista-disciplinas-lote').dataset.preenchida = '';
     itensSelecionados.clear();
     atualizarTelasAposAcompanhamento();
+    const oque = (novaDisc && novoForn) ? 'Disciplina e fornecedor aplicados' : (novaDisc ? 'Disciplina aplicada' : 'Fornecedor aplicado');
     if (falhas) avisoFlutuante(falhas+' de '+ids.length+' item(ns) não foram salvos (sem conexão?). Tente de novo.', 'erro');
-    else avisoFlutuante('Fornecedor aplicado a '+ids.length+' item(ns)', 'ok');
+    else avisoFlutuante(oque+' a '+ids.length+' item(ns)', 'ok');
+    popularFiltroDisciplina('filtro-item-disciplina');
+    popularFiltroDisciplina('filtro-disciplina');
     popularFiltroFornecedor('filtro-item-fornecedor');
     popularFiltroFornecedor('filtro-fornecedor');
   });
