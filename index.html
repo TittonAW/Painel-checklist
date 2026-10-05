@@ -234,6 +234,12 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .andar-barra .barra > span{ position:absolute; inset:0; border-radius:5px; }
 .mini-stats{ display:flex; gap:7px; flex:none; }
 /* torre: o preenchimento da barra = % executado; o fundo clarinho mantém a cor do status */
+.resumo-diretoria{ grid-column: span 2; }
+@media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
+.resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
+.resumo-linha:first-child{ border-top:0; }
+.resumo-linha .ico{ width:22px; flex:none; text-align:center; font-size:15px; line-height:1.3; }
+.resumo-linha b{ font-weight:500; color:var(--text); }
 .andar-barra .barra.fundo-status-vm{ background:color-mix(in srgb, var(--vm) 26%, var(--surface)); }
 .andar-barra .barra.fundo-status-pendente{ background:color-mix(in srgb, var(--aviso-cor) 28%, var(--surface)); }
 .andar-barra .barra.fundo-status-liberado-pend{ background:color-mix(in srgb, var(--lib) 26%, var(--surface)); }
@@ -703,13 +709,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <div id="plano-ritmo" style="margin-top:14px;"></div>
     </div>
     <div class="grid-2" id="plano-blocos" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;"></div>
-    <div class="card card-pad" style="margin-top:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-        <h2 style="margin:0;">Resumo pra diretoria</h2>
-        <button type="button" class="btn fantasma" id="btn-copiar-resumo-plano">Enviar no WhatsApp</button>
-      </div>
-      <div id="plano-resumo" style="margin-top:10px; font-size:14px; line-height:1.6; color:var(--text-2); white-space:pre-line;"></div>
-    </div>
   </section>
 
   <!-- ENVIAR -->
@@ -926,7 +925,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.63';
+const VERSAO_APP = '2026-10-03.64';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4532,14 +4531,12 @@ async function renderTendencia(){
     document.getElementById('modal-plano-fechar').addEventListener('click', fecharModalPlano);
     document.getElementById('modal-plano-pdf').addEventListener('click', () => { if (modalPlanoChave) exportarPlanoPdf(modalPlanoChave); });
     document.getElementById('modal-plano-enviar').addEventListener('click', () => { const c = planoCartoes[modalPlanoChave]; if (c) enviarTextoPlano(c.titulo, c.texto()); });
-    document.getElementById('btn-copiar-resumo-plano').addEventListener('click', async () => {
-      enviarTextoPlano('Resumo do checklist', document.getElementById('plano-resumo').innerText);
-    });
+
   }
   if (inpMeta) inpMeta.value = planoMeta;
-  const ritmoEl = document.getElementById('plano-ritmo'), blocos = document.getElementById('plano-blocos'), resumoEl = document.getElementById('plano-resumo');
+  const ritmoEl = document.getElementById('plano-ritmo'), blocos = document.getElementById('plano-blocos'), resumoEl = null;
   const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
-  if (!pend.length){ ritmoEl.innerHTML = '<div class="vazio">Sem pendências nesta revisão.</div>'; blocos.innerHTML = ''; resumoEl.textContent = ''; return; }
+  if (!pend.length){ ritmoEl.innerHTML = '<div class="vazio">Sem pendências nesta revisão.</div>'; blocos.innerHTML = ''; return; }
   const DIA = 86400000, agora = Date.now();
   const fmtData = (d) => d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
   const emAberto = pend.filter(estaEmAberto).length;
@@ -4696,14 +4693,40 @@ async function renderTendencia(){
   blocos.querySelectorAll('[data-plano-pdf]').forEach((b) => b.addEventListener('click', () => exportarPlanoPdf(b.dataset.planoPdf)));
   blocos.querySelectorAll('[data-plano-enviar]').forEach((b) => b.addEventListener('click', () => { const c = planoCartoes[b.dataset.planoEnviar]; enviarTextoPlano(c.titulo, c.texto()); }));
 
-  // resumo curto, só números — pra diretoria
-  const linhasTxt = [];
-  linhasTxt.push('*Checklist '+rev+'* — faltam '+pdfNum(emAberto)+' itens em aberto.');
-  linhasTxt.push('Ritmo (7 dias): '+pdfNum(Math.round(ritmoAw))+'/dia executados pela AW · '+pdfNum(Math.round(ritmoIac))+'/dia vistoriados pela IAC.');
-  linhasTxt.push(previsao ? 'Previsão no ritmo atual: '+fmtData(previsao)+'.' : 'Sem execuções nos últimos 7 dias.');
-  if (metaTxt) linhasTxt.push(metaTxt);
-  linhasTxt.push('Vermelhos em aberto: '+vms.length+' · Aguardando vistoria IAC: '+pdfNum(aguardando)+'.');
-  resumoEl.textContent = linhasTxt.join('\n');
+  // ---------- RESUMO PRA DIRETORIA: cartão na grade, com ícones (os mesmos vão no WhatsApp) ----------
+  const totalPend = pend.length;
+  const exec = totalPend - emAberto;
+  const vist = pend.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
+  const linhasResumo = [];
+  const add = (ico, html, txt) => linhasResumo.push({ ico, html, txt });
+  add('📋', '<b>Checklist '+esc(rev)+'</b> · faltam <b>'+pdfNum(emAberto)+'</b> itens em aberto ('+pdfPct(emAberto, totalPend)+'% do total)',
+      '*Checklist '+rev+'* · faltam *'+pdfNum(emAberto)+'* itens em aberto ('+pdfPct(emAberto, totalPend)+'% do total)');
+  add('🟣', 'Executado AW: <b>'+pdfNum(exec)+'</b> ('+pdfPct(exec, totalPend)+'%) · Vistoriado IAC: <b>'+pdfNum(vist)+'</b> ('+pdfPct(vist, totalPend)+'%)',
+      'Executado AW: '+pdfNum(exec)+' ('+pdfPct(exec, totalPend)+'%) · Vistoriado IAC: '+pdfNum(vist)+' ('+pdfPct(vist, totalPend)+'%)');
+  add('⚡', 'Ritmo (7 dias): <b>'+pdfNum(Math.round(ritmoAw))+'/dia</b> AW · <b>'+pdfNum(Math.round(ritmoIac))+'/dia</b> IAC',
+      'Ritmo (7 dias): '+pdfNum(Math.round(ritmoAw))+'/dia AW · '+pdfNum(Math.round(ritmoIac))+'/dia IAC');
+  add('📅', previsao ? 'Previsão no ritmo atual: <b>'+fmtData(previsao)+'</b>' : 'Sem execuções nos últimos 7 dias — sem previsão',
+      previsao ? 'Previsão no ritmo atual: '+fmtData(previsao) : 'Sem execuções nos últimos 7 dias — sem previsão');
+  if (metaTxt) add('🎯', esc(metaTxt), metaTxt);
+  add(vms.length ? '🔴' : '✅', vms.length ? '<b>'+vms.length+'</b> vermelho(s) em aberto — prioridade 1' : 'Nenhum vermelho em aberto',
+      vms.length ? vms.length+' vermelho(s) em aberto — prioridade 1' : 'Nenhum vermelho em aberto');
+  if (locais.length) add('🏁', '<b>'+locais.length+'</b> ambiente(s) quase prontos (90%+) — ex.: '+locais.slice(0,3).map((x) => esc(nomeAmb(x.l))+' (faltam '+x.aberto+')').join(', '),
+      locais.length+' ambiente(s) quase prontos (90%+) — ex.: '+locais.slice(0,3).map((x) => nomeAmb(x.l)+' (faltam '+x.aberto+')').join(', '));
+  if (atrasados.length) add('⚠️', 'Mais atrasados: '+atrasados.slice(0,3).map((x) => esc(nomeAmb(x.l))+' ('+x.pct+'%, faltam '+x.aberto+')').join(', '),
+      'Mais atrasados: '+atrasados.slice(0,3).map((x) => nomeAmb(x.l)+' ('+x.pct+'%, faltam '+x.aberto+')').join(', '));
+  if (parados.length) add('🧱', 'Fornecedores parados: '+parados.slice(0,4).map((x) => '<b>'+esc(x.nome)+'</b> ('+pdfNum(x.aberto)+')').join(', '),
+      'Fornecedores parados: '+parados.slice(0,4).map((x) => x.nome+' ('+pdfNum(x.aberto)+')').join(', '));
+  if (aguardando) add('🟢', 'Aguardando vistoria IAC: <b>'+pdfNum(aguardando)+'</b>'+(fila.length ? ' — mais no '+fila.slice(0,3).map(([a, n]) => a+'º ('+pdfNum(n)+')').join(', ') : ''),
+      'Aguardando vistoria IAC: '+pdfNum(aguardando)+(fila.length ? ' — mais no '+fila.slice(0,3).map(([a, n]) => a+'º ('+pdfNum(n)+')').join(', ') : ''));
+  const textoResumo = linhasResumo.map((l) => l.ico+' '+l.txt).join('\n');
+  const cartaoResumo = document.createElement('div');
+  cartaoResumo.className = 'card card-pad resumo-diretoria';
+  cartaoResumo.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">' +
+      '<div><h2 style="margin-bottom:2px;">Resumo pra diretoria</h2><div class="rodape-nota" style="text-align:left; margin:0 0 10px;">Os números do momento, prontos pra mandar.</div></div>' +
+      '<button type="button" class="chip-acao" id="btn-resumo-whatsapp" style="flex:none;">WhatsApp</button></div>' +
+    linhasResumo.map((l) => '<div class="resumo-linha"><span class="ico">'+l.ico+'</span><span>'+l.html+'</span></div>').join('');
+  blocos.appendChild(cartaoResumo);
+  document.getElementById('btn-resumo-whatsapp').addEventListener('click', () => enviarTextoPlano('Resumo do checklist', textoResumo));
 }
 
 /* ---------- apoio do Plano: linhas, janela, envio e PDF ---------- */
