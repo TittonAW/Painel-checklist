@@ -939,7 +939,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.68';
+const VERSAO_APP = '2026-10-03.69';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5893,12 +5893,24 @@ async function exportarVisaoGeralPdf(){
   const btn = (document.activeElement && /btn-pdf-visao-geral/.test(document.activeElement.id)) ? document.activeElement : document.getElementById('btn-pdf-visao-geral');
   const textoBtn = btn.textContent; btn.disabled = true; btn.textContent = 'Gerando PDF…';
   try{
+    /* FOLHA DEITADA (A4 paisagem), no formato da tela do computador:
+       pág. 1 = torre (coluna estreita) + resumo · pág. 2 = evolução + variações ·
+       pág. 3 = fornecedor e disciplina lado a lado (a disciplina continua se for longa). */
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit:'pt', format:'a4' });
+    const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
     const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M, CW = PW - 2*M;
-    const LIMITE = PH - 52;
+    const LIMITE = PH - 48;
     const base = pdfContextoBase('Visão geral');
-    let y = 0;
+    const FUNDO = [243,244,246], PAPER2 = [236,238,241], GAP = 12;
+    const comOpacidade = (op, fn) => { try{ doc.setGState(new doc.GState({ opacity: op })); }catch(e){} fn(); try{ doc.setGState(new doc.GState({ opacity: 1 })); }catch(e){} };
+    const cartao = (x, y, w, h) => { pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(x, y, w, h, 11, 11, 'FD'); };
+    const tracejar = (on) => { try{ doc.setLineDashPattern(on ? [3,3] : [], 0); }catch(e){} };
+    const poligono = (pts, cor, op) => {
+      if (pts.length < 3) return;
+      const rel = []; for (let i = 1; i < pts.length; i++) rel.push([pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]]);
+      doc.setFillColor(cor[0], cor[1], cor[2]);
+      comOpacidade(op, () => { try{ doc.lines(rel, pts[0][0], pts[0][1], [1,1], 'F', true); }catch(e){} });
+    };
     const corClasse = (el) => {
       const c = el.classList;
       if (c.contains('vm')) return PDF_COR.vm; if (c.contains('am')) return PDF_COR.am;
@@ -5906,128 +5918,35 @@ async function exportarVisaoGeralPdf(){
       if (c.contains('vd')) return PDF_COR.vd; if (c.contains('liberadopend')) return PDF_COR.lib;
       return PDF_COR.ink;
     };
-    const cabecalho = (primeira) => {
-      pdfFill(doc, [243,244,246]); doc.rect(0, 0, PW, PH, 'F'); // fundo da tela do app
+    // cabeçalho: completo na 1ª página, discreto nas outras
+    let topo = 0;
+    const pagina = (primeira) => {
+      if (!primeira) doc.addPage();
+      pdfFill(doc, FUNDO); doc.rect(0, 0, PW, PH, 'F');
       pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
       if (primeira){
         const logos = pdfLogos();
-        pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6);
-        doc.roundedRect(M, 26, 78, 30, 6, 6, 'FD');
-        if (logos.sofitel){ let lh = 22, lw = lh*logos.sofitel.ratio; if (lw > 64){ lw = 64; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+39-lw/2, 41-lh/2, lw, lh); }catch(e){} }
-        if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+86, 26, 30, 30); }catch(e){} }
-        pdfTxt(doc, M+128, 41, 'Visão geral da obra', 17, PDF_COR.ink);
-        pdfTxt(doc, M+128, 53, 'Relatório de pendências · Hotel Sofitel Ipanema', 8, PDF_COR.muted);
-        if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 26, w, 16, 8, 8, 'F'); pdfTxt(doc, PW-M-w/2, 37, tt, 7.5, PDF_COR.acc, 'center'); }
-        pdfTxt(doc, PW-M, 54, base.dataHora, 7.5, PDF_COR.muted, 'right');
-        y = 76;
+        pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(M, 18, 70, 27, 6, 6, 'FD');
+        if (logos.sofitel){ let lh = 19, lw = lh*logos.sofitel.ratio; if (lw > 58){ lw = 58; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+35-lw/2, 31.5-lh/2, lw, lh); }catch(e){} }
+        if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+78, 18, 27, 27); }catch(e){} }
+        pdfTxt(doc, M+116, 31, 'Visão geral da obra', 15, PDF_COR.ink);
+        pdfTxt(doc, M+116, 42, 'Relatório de pendências · Hotel Sofitel Ipanema', 7.5, PDF_COR.muted);
+        if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 18, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, PW-M-w/2, 28.5, tt, 7.5, PDF_COR.acc, 'center'); }
+        pdfTxt(doc, PW-M, 43, base.dataHora, 7.5, PDF_COR.muted, 'right');
+        topo = 56;
       } else {
-        pdfTxt(doc, M, 26, 'Visão geral da obra'+(base.revisao ? '  ·  Revisão '+base.revisao : ''), 9, PDF_COR.ink2);
-        pdfTxt(doc, PW-M, 26, base.dataHora, 7.5, PDF_COR.muted, 'right');
-        y = 42;
+        pdfTxt(doc, M, 22, 'Visão geral da obra'+(base.revisao ? '  ·  Revisão '+base.revisao : ''), 8.5, PDF_COR.ink2);
+        pdfTxt(doc, PW-M, 22, base.dataHora, 7.5, PDF_COR.muted, 'right');
+        topo = 32;
       }
     };
-    const garantir = (h) => { if (y + h > LIMITE){ doc.addPage(); cabecalho(false); } };
-    const tituloBloco = (txt) => { pdfTxt(doc, M, y + 10, txt, 10.5, PDF_COR.ink); y += 20; };
-    cabecalho(true);
 
-    // 1) linha de destaque (lida da tela)
+    // ---------- dados (lidos da tela, ou com as mesmas funções dela) ----------
     const destaque = Array.from(document.querySelectorAll('#grid-resumo .destaque-pct > span')).map((s) => {
       const g = s.querySelector('.grande'), r = s.querySelector('.rot');
       return { valor: g ? g.textContent.trim() : '', rot: r ? r.textContent.trim() : '', cor: g && g.style.color.indexOf('--vm') !== -1 ? PDF_COR.vm : (g && g.style.color.indexOf('--vd') !== -1 ? PDF_COR.vd : PDF_COR.az) };
     }).filter((d) => d.valor);
-
-    // ---------- utilitários de desenho no estilo do app ----------
-    const PAPER2 = [236,238,241];
-    const cartao = (h) => { pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.7); doc.roundedRect(M, y, CW, h, 12, 12, 'FD'); };
-    const comOpacidade = (op, fn) => { try{ doc.setGState(new doc.GState({ opacity: op })); }catch(e){} fn(); try{ doc.setGState(new doc.GState({ opacity: 1 })); }catch(e){} };
-    const bloco = (h, desenhar) => { garantir(h); cartao(h); desenhar(y); y += h + 12; };
-    const poligono = (pts, cor, op) => {
-      if (pts.length < 3) return;
-      const rel = []; for (let i = 1; i < pts.length; i++) rel.push([pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]]);
-      doc.setFillColor(cor[0], cor[1], cor[2]);
-      comOpacidade(op, () => { try{ doc.lines(rel, pts[0][0], pts[0][1], [1,1], 'F', true); }catch(e){} });
-    };
-    const tracejar = (on) => { try{ doc.setLineDashPattern(on ? [3,3] : [], 0); }catch(e){} };
-
-    /* bloco com LINHAS (torre, rankings, variações): se não couber numa página, continua na
-       próxima num novo cartão "(continuação)" — nunca invade o rodapé nem corta uma linha ao meio */
-    /* ASSUNTO com linhas (torre, resumo, variações, rankings): se cabe numa página, nunca é
-       dividido — começa inteiro na página seguinte se não couber no que sobra. Só o assunto maior
-       que uma página inteira continua na próxima ("continuação"), e começando no topo. */
-    const UTIL = LIMITE - 42;
-    const blocoLinhas = (o) => {
-      const alt = (i) => typeof o.altura === 'function' ? o.altura(i) : o.rowH;
-      let soma = 0; for (let i = 0; i < o.n; i++) soma += alt(i);
-      const total = o.hCab + soma + 14;
-      if (total <= UTIL){ if (y + total > LIMITE){ doc.addPage(); cabecalho(false); } }
-      else if (y > 50 && y + o.hCab + 120 > LIMITE / 2){ doc.addPage(); cabecalho(false); }
-      let ini = 0;
-      while (ini < o.n){
-        const hCab = ini === 0 ? o.hCab : o.hCabCont;
-        if (y + hCab + alt(ini) + 14 > LIMITE){ doc.addPage(); cabecalho(false); }
-        let k = 0, h = hCab + 14;
-        while (ini + k < o.n && y + h + alt(ini + k) <= LIMITE){ h += alt(ini + k); k++; }
-        if (k === 0){ k = 1; h += alt(ini); }
-        cartao(h);
-        (ini === 0 ? o.cab : o.cabCont)(y);
-        let yy = y + hCab;
-        for (let i = 0; i < k; i++){ o.linha(ini + i, yy); yy += alt(ini + i); }
-        if (o.depoisDasLinhas) o.depoisDasLinhas(y + hCab, yy, ini, ini + k);
-        y += h + 12;
-        ini += k;
-      }
-    };
-
-    // 3) TORRE — igual à tela: faixa por andar, barra (fundo na cor do status, parte cheia = executado), % e Aberto/AW/IAC/Total
-    const andares = Array.from(document.querySelectorAll('#torre-andares .andar-barra')).map((el) => {
-      const sp = el.querySelector('.barra > span');
-      const cls = sp ? sp.className : '';
-      const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.am : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
-      const pctEl = el.querySelector('.pct-barra');
-      const nums = Array.from(el.querySelectorAll('.mini-valor')).map((n) => n.textContent.trim());
-      return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor, nums, liberadoTotal: el.classList.contains('liberado-total') };
-    }).sort((x, z) => parseInt(z.andar, 10) - parseInt(x.andar, 10));
-    if (andares.length){
-      const rowH = 30;
-      const tituloTorre = (document.getElementById('titulo-torre-andares') || {}).textContent || 'Andares';
-      const xBar = M + 58, wBar = CW - 58 - 16 - 210, xNums = xBar + wBar + 22;
-      const rot = ['Aberto','AW','IAC','Total'], corNum = [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
-      const nT = andares.length + 1; // + linha da legenda, no mesmo cartão
-      blocoLinhas({
-        n: nT, altura: (i) => i < andares.length ? rowH : 30, hCab: 34, hCabCont: 34,
-        cab: (top) => pdfTxt(doc, M+16, top+22, tituloTorre, 11, PDF_COR.ink),
-        cabCont: (top) => pdfTxt(doc, M+16, top+22, tituloTorre + ' (continuação)', 11, PDF_COR.ink),
-        linha: (i, yy) => {
-          if (i >= andares.length){
-            let lx = M+16;
-            [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['AM (amarelo)', PDF_COR.am, PDF_COR.ams], ['Liberado com pendência', PDF_COR.lib, PDF_COR.libs], ['VD (verde)', PDF_COR.vd, PDF_COR.vds]].forEach(([r, c, cs]) => {
-              const w = pdfLarg(doc, r, 7.5) + 24;
-              pdfFill(doc, cs); doc.roundedRect(lx, yy+8, w, 15, 7.5, 7.5, 'F');
-              pdfFill(doc, c); doc.circle(lx+8, yy+15.5, 2.6, 'F');
-              pdfTxt(doc, lx+15, yy+18.5, r, 7.5, c);
-              lx += w + 6;
-            });
-            return;
-          }
-          const a = andares[i];
-          pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+12, yy, CW-24, rowH-4, 7, 7, 'F');
-          pdfTxt(doc, M+24, yy+16, a.andar, 9.5, PDF_COR.muted);
-          // como na tela: fundo bem claro na cor do status + parte executada na cor do status, levemente transparente
-          doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]);
-          comOpacidade(0.18, () => doc.roundedRect(xBar, yy+8.5, wBar, 10, 3.5, 3.5, 'F'));
-          if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); comOpacidade(0.82, () => doc.roundedRect(xBar, yy+8.5, Math.max(6, wBar*a.pct/100), 10, 3.5, 3.5, 'F')); }
-          pdfTxt(doc, xBar + wBar - 6, yy+16.3, a.pct+'%', 7, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
-          a.nums.slice(0,4).forEach((nn, j) => {
-            pdfTxt(doc, xNums + j*50, yy+10, rot[j], 6.2, j === 0 ? PDF_COR.ink : PDF_COR.muted, 'center');
-            pdfTxt(doc, xNums + j*50, yy+20.5, nn, 9.5, corNum[j], 'center');
-          });
-        }
-      });
-    }
-
-    // 2) RESUMO: título + destaque num cartão; cada grupo de cartões no seu cartão
-    const grid = document.getElementById('grid-resumo');
-    const grupos = Array.from(grid.querySelectorAll('.grupo-label')).map((lab) => {
+    const grupos = Array.from(document.querySelectorAll('#grid-resumo .grupo-label')).map((lab) => {
       const caixa = lab.nextElementSibling;
       if (!caixa || !caixa.classList.contains('resumo-grid')) return null;
       const stats = Array.from(caixa.querySelectorAll('.stat')).map((s) => {
@@ -6037,236 +5956,285 @@ async function exportarVisaoGeralPdf(){
       });
       return stats.length ? { titulo: lab.textContent.trim(), stats } : null;
     }).filter(Boolean);
-    {
-      const cols = 3, gap = 8, cw = (CW - 32 - (cols-1)*gap) / cols, ch = 60;
-      const linhasResumo = [];
-      if (destaque.length) linhasResumo.push({ tipo:'destaque', h: 46 });
-      grupos.forEach((g) => {
-        linhasResumo.push({ tipo:'titulo', g, h: 22 });
-        for (let r = 0; r < Math.ceil(g.stats.length / cols); r++) linhasResumo.push({ tipo:'cards', stats: g.stats.slice(r*cols, r*cols+cols), h: ch + gap });
-        linhasResumo.push({ tipo:'espaco', h: 6 });
+    const andares = Array.from(document.querySelectorAll('#torre-andares .andar-barra')).map((el) => {
+      const sp = el.querySelector('.barra > span'), cls = sp ? sp.className : '';
+      const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.am : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
+      const pctEl = el.querySelector('.pct-barra');
+      return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
+        nums: Array.from(el.querySelectorAll('.mini-valor')).map((n) => n.textContent.trim()), liberadoTotal: el.classList.contains('liberado-total') };
+    }).sort((x, z) => parseInt(z.andar, 10) - parseInt(x.andar, 10));
+
+    // ================= PÁGINA 1: torre (coluna estreita) + resumo =================
+    pagina(true);
+    const hP1 = LIMITE - topo;
+    const wT = 262, xR = M + wT + GAP, wR = CW - wT - GAP;
+    // --- torre
+    cartao(M, topo, wT, hP1);
+    const tituloTorre = (document.getElementById('titulo-torre-andares') || {}).textContent || 'Andares';
+    pdfTxt(doc, M+14, topo+20, tituloTorre, 10, PDF_COR.ink);
+    const hLeg = 40;
+    const rowT = Math.min(26, (hP1 - 32 - hLeg) / Math.max(1, andares.length));
+    let yy = topo + 28;
+    const xBar = M + 40, wBar = 78, xN = xBar + wBar + 18;
+    const rotN = ['Aberto','AW','IAC','Total'], corN = [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
+    andares.forEach((a) => {
+      const hRow = rowT - 3;
+      pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+10, yy, wT-20, hRow, 5, 5, 'F');
+      const cy = yy + hRow/2;
+      pdfTxt(doc, M+18, cy+3, a.andar, 7.8, PDF_COR.muted);
+      doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]);
+      comOpacidade(0.18, () => doc.roundedRect(xBar, cy-4, wBar, 8, 3, 3, 'F'));
+      if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); comOpacidade(0.82, () => doc.roundedRect(xBar, cy-4, Math.max(5, wBar*a.pct/100), 8, 3, 3, 'F')); }
+      pdfTxt(doc, xBar + wBar - 3, cy+2.2, a.pct+'%', 5.8, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
+      a.nums.slice(0,4).forEach((nn, j) => {
+        pdfTxt(doc, xN + j*31, cy-2, rotN[j], 4.8, j === 0 ? PDF_COR.ink : PDF_COR.muted, 'center');
+        pdfTxt(doc, xN + j*31, cy+6, nn, 7.2, corN[j], 'center');
       });
-      blocoLinhas({
-        n: linhasResumo.length, altura: (i) => linhasResumo[i].h, hCab: 30, hCabCont: 30,
-        cab: (top) => pdfTxt(doc, M+16, top+20, 'Resumo da revisão selecionada', 11, PDF_COR.ink),
-        cabCont: (top) => pdfTxt(doc, M+16, top+20, 'Resumo da revisão selecionada (continuação)', 11, PDF_COR.ink),
-        linha: (i, yy) => {
-          const L = linhasResumo[i];
-          if (L.tipo === 'destaque'){
-            const w = (CW - 32) / destaque.length;
-            destaque.forEach((d, j) => { pdfTxt(doc, M+16 + j*w, yy+18, d.valor, 17, d.cor); pdfTxt(doc, M+16 + j*w, yy+31, pdfCaber(doc, d.rot, 7.5, w - 8), 7.5, PDF_COR.muted); });
-          } else if (L.tipo === 'titulo'){
-            pdfTxt(doc, M+16, yy+14, L.g.titulo, 9.5, PDF_COR.muted);
-          } else if (L.tipo === 'cards'){
-            L.stats.forEach((st, j) => {
-              const x = M+16 + j*(cw+gap);
-              pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(x, yy, cw, ch, 8, 8, 'FD');
-              pdfTxt(doc, x+12, yy+25, st.valor, 18, st.cor);
-              if (st.sub){
-                pdfTxt(doc, x+12, yy+39, pdfCaber(doc, st.rotulo, 7.8, cw-22), 7.8, PDF_COR.ink2);
-                pdfTxt(doc, x+12, yy+50, pdfCaber(doc, st.sub, 6.8, cw-22), 6.8, PDF_COR.faint);
-              } else {
-                doc.setFont('helvetica','normal'); doc.setFontSize(7.8);
-                const todas = doc.splitTextToSize(st.rotulo, cw-22), ls = todas.slice(0, 2);
-                ls.forEach((l, k) => pdfTxt(doc, x+12, yy+39 + k*10, (k === 1 && todas.length > 2) ? pdfCaber(doc, l, 7.8, cw-30)+'…' : l, 7.8, PDF_COR.ink2));
-              }
-            });
-          }
-        }
+      yy += rowT;
+    });
+    // legenda
+    let lx = M+12, ly = yy + 6;
+    [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['AM (amarelo)', PDF_COR.am, PDF_COR.ams], ['Liberado com pendência', PDF_COR.lib, PDF_COR.libs], ['VD (verde)', PDF_COR.vd, PDF_COR.vds]].forEach(([r, c, cs]) => {
+      const w = pdfLarg(doc, r, 6.5) + 20;
+      if (lx + w > M + wT - 10){ lx = M+12; ly += 16; }
+      pdfFill(doc, cs); doc.roundedRect(lx, ly, w, 13, 6.5, 6.5, 'F');
+      pdfFill(doc, c); doc.circle(lx+7, ly+6.5, 2.2, 'F');
+      pdfTxt(doc, lx+12.5, ly+9.2, r, 6.5, c);
+      lx += w + 5;
+    });
+    // --- resumo
+    cartao(xR, topo, wR, hP1);
+    pdfTxt(doc, xR+16, topo+20, 'Resumo da revisão selecionada', 10, PDF_COR.ink);
+    let yR = topo + 30;
+    if (destaque.length){
+      let dx = xR + 16;
+      destaque.forEach((d) => {
+        pdfTxt(doc, dx, yR+16, d.valor, 15, d.cor);
+        const wv = pdfLarg(doc, d.valor, 15);
+        pdfTxt(doc, dx + wv + 4, yR+16, d.rot, 7, PDF_COR.muted);
+        dx += wv + pdfLarg(doc, d.rot, 7) + 22;
       });
+      yR += 28;
     }
+    // altura de cada grupo ajustada pra caber tudo
+    const hLab = 15, gapG = 7;
+    const hCardG = Math.max(40, Math.min(54, (topo + hP1 - 12 - yR - grupos.length*(hLab + gapG)) / Math.max(1, grupos.length)));
+    grupos.forEach((g) => {
+      pdfTxt(doc, xR+16, yR+10, g.titulo, 7.8, PDF_COR.muted);
+      yR += hLab;
+      const n = g.stats.length, gp = 7, cw = (wR - 32 - (n-1)*gp) / n;
+      g.stats.forEach((st, j) => {
+        const x = xR + 16 + j*(cw+gp);
+        pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(x, yR, cw, hCardG, 7, 7, 'FD');
+        pdfTxt(doc, x+9, yR+19, st.valor, 14, st.cor);
+        pdfTxt(doc, x+9, yR+30, pdfCaber(doc, st.rotulo, 6.6, cw-16), 6.6, PDF_COR.ink2);
+        if (st.sub && hCardG >= 44) pdfTxt(doc, x+9, yR+39, pdfCaber(doc, st.sub, 5.6, cw-16), 5.6, PDF_COR.faint);
+      });
+      yR += hCardG + gapG;
+    });
 
-
-    // 4) EVOLUÇÃO — mesmas linhas, áreas, projeção tracejada e produção de cada dia
+    // ================= PÁGINA 2: evolução + variações =================
     const pontos = calcularEvolucaoPendencias(30);
-    if (pontos.length >= 1){
-      const n = pontos.length, ult = pontos[n-1];
-      const incl = (k) => { if (n < 2) return 0; let sx=0, sy=0, sxy=0, sxx=0; pontos.forEach((p,i) => { sx+=i; sy+=p[k]; sxy+=i*p[k]; sxx+=i*i; }); return (n*sxy - sx*sy) / (n*sxx - sx*sx); };
-      const incAb = Math.min(0, incl('aberto')), incIac = Math.max(0, incl('iac'));
-      let diasProj = n >= 2 ? (incAb < 0 ? Math.ceil(ult.aberto / -incAb) : 7) : 0;
-      diasProj = Math.min(30, Math.max(n >= 2 ? 3 : 0, diasProj));
-      const proj = [];
-      for (let d = 1; d <= diasProj; d++){
-        const ab = Math.max(0, ult.aberto + incAb*d), aw = ult.total - ab, iac = Math.min(aw, ult.iac + incIac*d);
-        const dt = new Date(); dt.setDate(dt.getDate() + d);
-        proj.push({ data: chaveDiaLocal(dt), aberto: ab, aw, iac, total: ult.total, meta: d === 1 ? 0 : 0 });
-      }
-      const todos = pontos.concat(proj), N = todos.length;
-      const zeraEm = incAb < 0 ? Math.ceil(ult.aberto / -incAb) : null;
-      const hChart = 170, hRows = 48;
-      bloco(118 + hChart + hRows, (top) => {
-        pdfTxt(doc, M+16, top+22, 'Evolução das pendências', 11, PDF_COR.ink);
-        pdfTxt(doc, M+16, top+38, 'Valores de hoje · feito no dia: ', 7.5, PDF_COR.muted);
-        const wv = pdfLarg(doc, 'Valores de hoje · feito no dia: ', 7.5);
-        pdfTxt(doc, M+16+wv, top+38, 'AW +'+pdfNum(ult.awDia), 7.5, PDF_COR.az);
-        pdfTxt(doc, M+16+wv+pdfLarg(doc, 'AW +'+pdfNum(ult.awDia)+'  ', 7.5), top+38, 'IAC +'+pdfNum(ult.iacDia), 7.5, PDF_COR.vd);
-        if (zeraEm){ const dz = new Date(); dz.setDate(dz.getDate() + zeraEm); pdfTxt(doc, PW-M-16, top+38, 'No ritmo atual, o em aberto zera por volta de '+dz.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' ('+zeraEm+' dias)', 7.5, PDF_COR.muted, 'right'); }
+    const ordenado = revisoesMeta.slice().sort((a,b) => a.numero - b.numero);
+    const idx = ordenado.findIndex((r) => String(r.numero) === revisaoSelecionada);
+    let diff = null, porAndar = [], locaisNovos = [], criticas = [];
+    if (idx > 0){
+      const anterior = await carregarItensDaRevisao(String(ordenado[idx-1].numero));
+      diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
+      porAndar = agruparDiferencas(diff).sort((a,b) => b.andar - a.andar);
+      locaisNovos = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,z) => z.novos.length - x.novos.length).slice(0, 6);
+      criticas = diff.novos.filter((it) => it.status === 'VM').map((it) => Object.assign({ _como:'nova' }, it)).concat((diff.subiu||[]).map((it) => Object.assign({ _como:'subiu' }, it))).slice(0, 5);
+    }
+    if (pontos.length || diff){
+      pagina(false);
+      const hDisp = LIMITE - topo;
+      const hVarCab = diff ? 64 + (diff.semDadosNoPara.length ? 14 : 0) : 0;
+      const rowV = diff ? Math.max(9, Math.min(14, (hDisp - 205 - GAP - hVarCab - 20) / Math.max(1, porAndar.length))) : 0;
+      const hVar = diff ? hVarCab + porAndar.length*rowV + 20 : 0;
+      const hEvo = diff ? Math.max(170, hDisp - GAP - hVar) : hDisp;
+      let y = topo;
+      if (pontos.length){
+        cartao(M, y, CW, hEvo);
+        const n = pontos.length, ult = pontos[n-1];
+        const incl = (k) => { if (n < 2) return 0; let sx=0, sy=0, sxy=0, sxx=0; pontos.forEach((p,i) => { sx+=i; sy+=p[k]; sxy+=i*p[k]; sxx+=i*i; }); return (n*sxy - sx*sy) / (n*sxx - sx*sx); };
+        const incAb = Math.min(0, incl('aberto')), incIac = Math.max(0, incl('iac'));
+        let diasProj = n >= 2 ? (incAb < 0 ? Math.ceil(ult.aberto / -incAb) : 7) : 0;
+        diasProj = Math.min(30, Math.max(n >= 2 ? 3 : 0, diasProj));
+        const proj = [];
+        for (let d = 1; d <= diasProj; d++){
+          const ab = Math.max(0, ult.aberto + incAb*d), aw = ult.total - ab, iac = Math.min(aw, ult.iac + incIac*d);
+          const dt = new Date(); dt.setDate(dt.getDate() + d);
+          proj.push({ data: chaveDiaLocal(dt), aberto: ab, aw, iac, total: ult.total });
+        }
+        const todos = pontos.concat(proj), N = todos.length;
+        const zeraEm = incAb < 0 ? Math.ceil(ult.aberto / -incAb) : null;
+        pdfTxt(doc, M+16, y+19, 'Evolução das pendências', 10, PDF_COR.ink);
+        const t0 = 'Valores de hoje · feito no dia: ';
+        pdfTxt(doc, M+16, y+32, t0, 7, PDF_COR.muted);
+        pdfTxt(doc, M+16+pdfLarg(doc, t0, 7), y+32, 'AW +'+pdfNum(ult.awDia), 7, PDF_COR.az);
+        pdfTxt(doc, M+16+pdfLarg(doc, t0+'AW +'+pdfNum(ult.awDia)+'  ', 7), y+32, 'IAC +'+pdfNum(ult.iacDia), 7, PDF_COR.vd);
+        if (zeraEm){ const dz = new Date(); dz.setDate(dz.getDate() + zeraEm); pdfTxt(doc, PW-M-16, y+32, 'No ritmo atual, o em aberto zera por volta de '+dz.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' ('+zeraEm+' dias)', 7, PDF_COR.muted, 'right'); }
         [['Em aberto', ult.aberto, PDF_COR.grafite, pdfPct(ult.aberto, ult.total)], ['Executado AW', ult.aw, PDF_COR.az, pdfPct(ult.aw, ult.total)], ['Vistoriado IAC', ult.iac, PDF_COR.vd, pdfPct(ult.iac, ult.total)], ['Total', ult.total, PDF_COR.muted, null]].forEach(([r, v, c, pc], i) => {
-          const x = M+16 + i*125;
-          pdfFill(doc, c); doc.circle(x+3, top+53, 2.6, 'F');
-          pdfTxt(doc, x+10, top+56, r, 7.8, c === PDF_COR.grafite ? PDF_COR.ink2 : c);
-          pdfTxt(doc, x, top+76, pdfNum(v), 16, c === PDF_COR.grafite ? PDF_COR.ink : c);
-          if (pc !== null) pdfTxt(doc, x + pdfLarg(doc, pdfNum(v), 16) + 4, top+76, pc+'%', 8, PDF_COR.muted);
+          const x = M+16 + i*120;
+          pdfFill(doc, c); doc.circle(x+3, y+44, 2.3, 'F');
+          pdfTxt(doc, x+9, y+46.5, r, 7, c === PDF_COR.grafite ? PDF_COR.ink2 : c);
+          pdfTxt(doc, x, y+62, pdfNum(v), 13, c === PDF_COR.grafite ? PDF_COR.ink : c);
+          if (pc !== null) pdfTxt(doc, x + pdfLarg(doc, pdfNum(v), 13) + 3, y+62, pc+'%', 7, PDF_COR.muted);
         });
-        const gx = M+52, gw = CW-52-24, gy = top + 92, gh = hChart;
+        const gx = M+52, gw = CW-52-20, gy = y + 72, gh = hEvo - 72 - 44;
         const maxV = Math.max(1, ...todos.map((p) => p.total));
         const xDe = (i) => N === 1 ? gx + gw/2 : gx + gw * i / (N - 1);
         const yDe = (v) => gy + gh - gh * v / maxV;
-        // fundo da projeção
-        if (proj.length){ pdfFill(doc, [246,247,249]); doc.rect(xDe(n-1), gy, gx+gw - xDe(n-1), gh, 'F'); pdfTxt(doc, xDe(n-1)+6, gy+9, 'projeção · números embaixo = meta por dia pra seguir o ritmo', 6.5, PDF_COR.muted); }
+        if (proj.length){ pdfFill(doc, [246,247,249]); doc.rect(xDe(n-1), gy, gx+gw - xDe(n-1), gh, 'F'); pdfTxt(doc, xDe(n-1)+5, gy+8, 'projeção · números embaixo = meta por dia pra seguir o ritmo', 6, PDF_COR.muted); }
         pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); tracejar(true);
-        for (let k = 0; k <= 3; k++){ const yy = gy + gh - gh*k/3; doc.line(gx, yy, gx+gw, yy); pdfTxt(doc, gx-6, yy+3, (Math.round(maxV*k/3/1000*10)/10)+'k', 6.5, PDF_COR.faint, 'right'); }
+        for (let k = 0; k <= 3; k++){ const yk = gy + gh - gh*k/3; doc.line(gx, yk, gx+gw, yk); pdfTxt(doc, gx-6, yk+2.5, (Math.round(maxV*k/3/1000*10)/10)+'k', 6, PDF_COR.faint, 'right'); }
         tracejar(false);
-        // áreas (como o degradê da tela)
         const area = (k, cor, op) => poligono([[xDe(0), gy+gh]].concat(pontos.map((p,i) => [xDe(i), yDe(p[k])])).concat([[xDe(n-1), gy+gh]]), cor, op);
         area('total', PDF_COR.faint, 0.10); area('aberto', PDF_COR.grafite, 0.16); area('aw', PDF_COR.az, 0.14); area('iac', PDF_COR.vd, 0.12);
-        const linha = (k, cor, lw, de, ate, tracej) => {
-          doc.setDrawColor(cor[0], cor[1], cor[2]); doc.setLineWidth(lw); tracejar(tracej);
-          for (let i = de+1; i <= ate; i++) doc.line(xDe(i-1), yDe(todos[i-1][k]), xDe(i), yDe(todos[i][k]));
-          tracejar(false);
-        };
-        [['total', PDF_COR.faint, 1.2], ['aberto', PDF_COR.grafite, 2], ['aw', PDF_COR.az, 1.6], ['iac', PDF_COR.vd, 1.6]].forEach(([k, c, lw]) => {
+        const linha = (k, cor, lw, de, ate, tr) => { doc.setDrawColor(cor[0], cor[1], cor[2]); doc.setLineWidth(lw); tracejar(tr); for (let i = de+1; i <= ate; i++) doc.line(xDe(i-1), yDe(todos[i-1][k]), xDe(i), yDe(todos[i][k])); tracejar(false); };
+        [['total', PDF_COR.faint, 1.1], ['aberto', PDF_COR.grafite, 1.8], ['aw', PDF_COR.az, 1.5], ['iac', PDF_COR.vd, 1.5]].forEach(([k, c, lw]) => {
           linha(k, c, lw, 0, n-1, false);
-          if (proj.length) linha(k, c.map((v) => Math.round(v + (255-v)*0.45)), 1, n-1, N-1, true);
-          doc.setFillColor(c[0], c[1], c[2]); doc.circle(xDe(n-1), yDe(ult[k]), 2.4, 'F');
+          if (proj.length) linha(k, c.map((v) => Math.round(v + (255-v)*0.45)), 0.9, n-1, N-1, true);
+          doc.setFillColor(c[0], c[1], c[2]); doc.circle(xDe(n-1), yDe(ult[k]), 2.1, 'F');
         });
-        // datas e produção do dia (passado) / meta por dia (futuro)
-        const hojeChave = chaveDiaLocal(new Date());
-        const passo = Math.max(1, Math.ceil(N / 10));
-        const yd = gy + gh + 12;
-        pdfTxt(doc, gx-20, yd+12, 'AW', 6.5, PDF_COR.az, 'right'); pdfTxt(doc, gx-20, yd+23, 'IAC', 6.5, PDF_COR.vd, 'right'); pdfTxt(doc, gx-20, yd+34, 'Reinc.', 6.5, PDF_COR.vm, 'right');
+        const hojeChave = chaveDiaLocal(new Date()), passo = Math.max(1, Math.ceil(N / 14)), yd = gy + gh + 10;
+        pdfTxt(doc, gx-18, yd+10, 'AW', 6, PDF_COR.az, 'right'); pdfTxt(doc, gx-18, yd+19, 'IAC', 6, PDF_COR.vd, 'right'); pdfTxt(doc, gx-18, yd+28, 'Reinc.', 6, PDF_COR.vm, 'right');
         const metaDia = zeraEm ? Math.ceil(ult.aberto / Math.max(1, zeraEm)) : 0;
         todos.forEach((p, i) => {
           if (!(i % passo === 0 || i === n-1 || i === N-1)) return;
           const fut = i >= n, cx = xDe(i);
-          pdfTxt(doc, cx, yd, p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().slice(0,2).join('/'), 6.5, fut ? PDF_COR.faint : (p.data === hojeChave ? PDF_COR.ink : PDF_COR.muted), 'center');
-          pdfTxt(doc, cx, yd+12, fut ? (metaDia ? '~'+pdfNum(metaDia) : '—') : (p.awDia ? '+'+pdfNum(p.awDia) : '—'), 6.5, fut ? [189,176,232] : (p.awDia ? PDF_COR.az : PDF_COR.faint), 'center');
-          pdfTxt(doc, cx, yd+23, fut ? '—' : (p.iacDia ? '+'+pdfNum(p.iacDia) : '—'), 6.5, fut ? PDF_COR.faint : (p.iacDia ? PDF_COR.vd : PDF_COR.faint), 'center');
-          pdfTxt(doc, cx, yd+34, fut ? '—' : (p.reincDia ? String(p.reincDia) : '—'), 6.5, fut ? PDF_COR.faint : (p.reincDia ? PDF_COR.vm : PDF_COR.faint), 'center');
+          pdfTxt(doc, cx, yd, p.data === hojeChave ? 'hoje' : p.data.split('-').reverse().slice(0,2).join('/'), 6, fut ? PDF_COR.faint : (p.data === hojeChave ? PDF_COR.ink : PDF_COR.muted), 'center');
+          pdfTxt(doc, cx, yd+10, fut ? (metaDia ? '~'+pdfNum(metaDia) : '—') : (p.awDia ? '+'+pdfNum(p.awDia) : '—'), 6, fut ? [189,176,232] : (p.awDia ? PDF_COR.az : PDF_COR.faint), 'center');
+          pdfTxt(doc, cx, yd+19, fut ? '—' : (p.iacDia ? '+'+pdfNum(p.iacDia) : '—'), 6, fut ? PDF_COR.faint : (p.iacDia ? PDF_COR.vd : PDF_COR.faint), 'center');
+          pdfTxt(doc, cx, yd+28, fut ? '—' : (p.reincDia ? String(p.reincDia) : '—'), 6, fut ? PDF_COR.faint : (p.reincDia ? PDF_COR.vm : PDF_COR.faint), 'center');
         });
-      });
+        y += hEvo + GAP;
+      }
+      if (diff){
+        cartao(M, y, CW, hVar);
+        pdfTxt(doc, M+16, y+19, 'Últimas variações (vs. revisão anterior)', 10, PDF_COR.ink);
+        pdfTxt(doc, M+16, y+31, 'De '+ordenado[idx-1].label+' para '+ordenado[idx].label, 7, PDF_COR.muted);
+        const saldo = diff.novos.length - diff.resolvidos.length;
+        let xx = M+16;
+        [['+'+pdfNum(diff.novos.length), 'entraram', PDF_COR.vm], ['-'+pdfNum(diff.resolvidos.length), 'saíram / resolvidas', PDF_COR.vd], [(saldo>0?'+':'')+pdfNum(saldo), 'saldo da lista', saldo > 0 ? PDF_COR.vm : (saldo < 0 ? PDF_COR.vd : PDF_COR.muted)]].forEach(([v, r, c]) => {
+          pdfTxt(doc, xx, y+52, v, 16, c); const wv = pdfLarg(doc, v, 16); pdfTxt(doc, xx + wv + 4, y+52, r, 7, PDF_COR.muted); xx += wv + pdfLarg(doc, r, 7) + 26;
+        });
+        if (diff.subiu.length || diff.desceu.length){
+          let xp = xx + 10;
+          pdfTxt(doc, xp, y+52, 'Prioridade: ', 7, PDF_COR.muted); xp += pdfLarg(doc, 'Prioridade: ', 7);
+          if (diff.subiu.length){ const s = diff.subiu.length+' subiram de AM para VM'; pdfTxt(doc, xp, y+52, s, 7, PDF_COR.vm); xp += pdfLarg(doc, s+'  ·  ', 7); }
+          if (diff.desceu.length) pdfTxt(doc, xp, y+52, diff.desceu.length+' desceram de VM para AM', 7, PDF_COR.am);
+        }
+        let yb = y + 64;
+        if (diff.semDadosNoPara.length){
+          pdfFill(doc, PDF_COR.vms); doc.roundedRect(M+16, yb-4, CW-32, 13, 5, 5, 'F');
+          pdfTxt(doc, M+22, yb+5, pdfCaber(doc, 'Sem dados na '+ordenado[idx].label+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — esses andares não vieram nesta revisão e não foram contados como resolvidos.', 6.5, CW-44), 6.5, PDF_COR.vm);
+          yb += 14;
+        }
+        // barras à esquerda (60%), etiquetas e críticas à direita
+        const wBarras = CW*0.58, centro = M + 16 + 34 + (wBarras - 34 - 60)/2, meia = (wBarras - 34 - 60)/2 - 30;
+        const xSaldo = M + 16 + wBarras;
+        pdfTxt(doc, centro - 6, yb+4, 'saíram', 6.5, PDF_COR.vd, 'right'); pdfTxt(doc, centro + 6, yb+4, 'entraram', 6.5, PDF_COR.vm); pdfTxt(doc, xSaldo, yb+4, 'saldo', 6.5, PDF_COR.muted, 'right');
+        yb += 9;
+        const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
+        const yIni = yb;
+        porAndar.forEach((a) => {
+          const cy = yb + rowV/2;
+          pdfTxt(doc, M+44, cy+2.5, a.andar+'º', 7, PDF_COR.ink, 'right');
+          const hb = Math.max(5, rowV - 4);
+          const wR2 = a.resolvidos ? Math.max(2, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(2, a.novos/maxV*meia) : 0;
+          if (wR2){ doc.setFillColor(PDF_COR.vd[0], PDF_COR.vd[1], PDF_COR.vd[2]); comOpacidade(0.8, () => doc.roundedRect(centro - wR2, cy - hb/2, wR2, hb, 2, 2, 'F')); }
+          if (wN){ doc.setFillColor(PDF_COR.vm[0], PDF_COR.vm[1], PDF_COR.vm[2]); comOpacidade(0.8, () => doc.roundedRect(centro, cy - hb/2, wN, hb, 2, 2, 'F')); }
+          pdfTxt(doc, centro - wR2 - 3, cy+2.3, a.resolvidos ? '-'+pdfNum(a.resolvidos) : '0', 6.2, PDF_COR.vd, 'right');
+          pdfTxt(doc, centro + wN + 3, cy+2.3, a.novos ? '+'+pdfNum(a.novos) : '0', 6.2, PDF_COR.vm);
+          const s = a.novos - a.resolvidos;
+          pdfTxt(doc, xSaldo, cy+2.5, (s>0?'+':'')+pdfNum(s), 7, s > 0 ? PDF_COR.vm : (s < 0 ? PDF_COR.vd : PDF_COR.muted), 'right');
+          yb += rowV;
+        });
+        pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.8); doc.line(centro, yIni, centro, yb);
+        // coluna da direita
+        const xD = M + 16 + wBarras + 28, wD = CW - 32 - wBarras - 28;
+        let yd2 = y + 70 + (diff.semDadosNoPara.length ? 14 : 0);
+        if (locaisNovos.length){
+          pdfTxt(doc, xD, yd2, 'Onde mais entraram pendências', 7.5, PDF_COR.ink2); yd2 += 6;
+          let xc = xD;
+          locaisNovos.forEach((l) => {
+            const s = l.label.replace(/\u00A0/g,' ')+' · '+l.andar+'º  +'+l.novos.length, w = pdfLarg(doc, s, 6.5) + 14;
+            if (xc + w > xD + wD){ xc = xD; yd2 += 16; }
+            pdfFill(doc, PDF_COR.vms); doc.roundedRect(xc, yd2, w, 13, 6.5, 6.5, 'F'); pdfTxt(doc, xc+7, yd2+9, s, 6.5, PDF_COR.vm); xc += w + 5;
+          });
+          yd2 += 26;
+        }
+        if (criticas.length){
+          pdfTxt(doc, xD, yd2, 'Críticas (VM) que pedem atenção — novas ou que subiram de AM', 7.5, PDF_COR.ink2); yd2 += 12;
+          criticas.forEach((it) => {
+            if (yd2 + 18 > y + hVar - 6) return;
+            const lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo), tt = it.id+' · '+it.andar+'º · '+lab;
+            pdfTxt(doc, xD, yd2, tt, 7, PDF_COR.ink);
+            pdfPill(doc, xD + pdfLarg(doc, tt, 7) + 5, yd2, it._como === 'subiu' ? 'subiu de AM para VM' : 'nova', PDF_COR.vm, PDF_COR.vms, 6);
+            pdfTxt(doc, xD, yd2+9, pdfCaber(doc, it.desc || '', 6.2, wD), 6.2, PDF_COR.muted);
+            yd2 += 21;
+          });
+        }
+      }
     }
 
-    // 5) PENDÊNCIAS POR FORNECEDOR / DISCIPLINA — mesma regra e mesma leitura da tela
+    // ================= PÁGINA 3+: fornecedor e disciplina lado a lado =================
     const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
     const ranking = (chave) => {
       const m = new Map();
       pend.forEach((it) => { const k = chave(it) || 'Sem fornecedor definido'; if (!m.has(k)) m.set(k, []); m.get(k).push(it); });
-      return Array.from(m.entries()).map(([nome, l]) => ({ nome, total: l.length, aberto: l.filter(estaEmAberto).length }))
-        .sort((a,b) => b.aberto - a.aberto || b.total - a.total);
+      return Array.from(m.entries()).map(([nome, l]) => ({ nome, total: l.length, aberto: l.filter(estaEmAberto).length })).sort((a,b) => b.aberto - a.aberto || b.total - a.total);
     };
-    const desenharRanking = (titulo, lista, cor) => {
-      if (!lista.length) return;
-      const rowH = 22;
-      const xBar = M + 172, wMax = CW - 172 - 210, maxT = Math.max(1, ...lista.map((x) => x.total));
-      const nota = 'Ordem: mais itens em aberto · barra inteira = total · parte forte e % = executado';
-      blocoLinhas({
-        n: lista.length, rowH, hCab: 46, hCabCont: 34,
-        cab: (top) => { pdfTxt(doc, M+16, top+22, titulo, 11, PDF_COR.ink); pdfTxt(doc, M+16, top+35, nota, 7, PDF_COR.muted); },
-        cabCont: (top) => pdfTxt(doc, M+16, top+22, titulo + ' (continuação)', 11, PDF_COR.ink),
-        linha: (i, yy) => {
-          const x = lista[i];
-          pdfTxt(doc, xBar - 10, yy+13, pdfCaber(doc, x.nome, 8.2, 140), 8.2, PDF_COR.ink, 'right');
-          const wT = Math.max(6, wMax * x.total / maxT), wF = x.total ? wT * (x.total - x.aberto) / x.total : 0;
-          doc.setFillColor(cor[0], cor[1], cor[2]);
-          comOpacidade(0.25, () => doc.roundedRect(xBar, yy+3, wT, 15, 5, 5, 'F'));
-          if (wF > 0){ doc.setFillColor(cor[0], cor[1], cor[2]); doc.roundedRect(xBar, yy+3, Math.max(6, wF), 15, 5, 5, 'F'); }
-          const pct = x.total ? Math.round((x.total - x.aberto) / x.total * 100) : 0;
-          if (wT >= 34) pdfTxt(doc, xBar + wT - 5, yy+13.5, pct+'%', 7, pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
-          const tx = xBar + wT + 8;
-          const t1 = pdfNum(x.aberto)+' em aberto', t2 = '  ·  '+pdfNum(x.total - x.aberto)+' exec.', t3 = '  ·  '+pdfNum(x.total)+' total';
-          pdfTxt(doc, tx, yy+13.5, t1, 7.6, PDF_COR.ink);
-          pdfTxt(doc, tx + pdfLarg(doc, t1, 7.6), yy+13.5, t2, 7.6, PDF_COR.az);
-          pdfTxt(doc, tx + pdfLarg(doc, t1+t2, 7.6), yy+13.5, t3, 7.6, PDF_COR.faint);
-        }
-      });
+    const forn = ranking(fornecedorEfetivo), disc = ranking(disciplinaEfetiva);
+    const wCol = (CW - GAP) / 2, rowK = 17, hCabK = 40;
+    const desenharColuna = (x, yTopo, h, titulo, lista, de, ate, cor, maxT, comNota) => {
+      cartao(x, yTopo, wCol, h);
+      pdfTxt(doc, x+14, yTopo+19, titulo, 10, PDF_COR.ink);
+      if (comNota) pdfTxt(doc, x+14, yTopo+30, 'Ordem: mais itens em aberto · barra inteira = total · parte forte e % = executado', 6.3, PDF_COR.muted);
+      const xB = x + 128, wMax = wCol - 128 - 150;
+      let yk = yTopo + hCabK;
+      for (let i = de; i < ate; i++){
+        const it = lista[i];
+        pdfTxt(doc, xB - 7, yk+11, pdfCaber(doc, it.nome, 7, 112), 7, PDF_COR.ink, 'right');
+        const wT2 = Math.max(5, wMax * it.total / maxT), wF = it.total ? wT2 * (it.total - it.aberto) / it.total : 0;
+        doc.setFillColor(cor[0], cor[1], cor[2]);
+        comOpacidade(0.25, () => doc.roundedRect(xB, yk+4, wT2, 10, 3.5, 3.5, 'F'));
+        if (wF > 0){ doc.setFillColor(cor[0], cor[1], cor[2]); doc.roundedRect(xB, yk+4, Math.max(4, wF), 10, 3.5, 3.5, 'F'); }
+        const pct = it.total ? Math.round((it.total - it.aberto) / it.total * 100) : 0;
+        if (wT2 >= 28) pdfTxt(doc, xB + wT2 - 3, yk+11, pct+'%', 5.8, pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
+        const tx = xB + wT2 + 6, t1 = pdfNum(it.aberto)+' em aberto', t2 = ' · '+pdfNum(it.total - it.aberto)+' exec.', t3 = ' · '+pdfNum(it.total)+' total';
+        pdfTxt(doc, tx, yk+11, t1, 6.5, PDF_COR.ink);
+        pdfTxt(doc, tx + pdfLarg(doc, t1, 6.5), yk+11, t2, 6.5, PDF_COR.az);
+        pdfTxt(doc, tx + pdfLarg(doc, t1+t2, 6.5), yk+11, t3, 6.5, PDF_COR.faint);
+        yk += rowK;
+      }
     };
-
-    // 6) ÚLTIMAS VARIAÇÕES — números, prioridade, barras divergentes, onde mais entraram e críticas
-    const ordenado = revisoesMeta.slice().sort((a,b) => a.numero - b.numero);
-    const idx = ordenado.findIndex((r) => String(r.numero) === revisaoSelecionada);
-    if (idx > 0){
-      const anterior = await carregarItensDaRevisao(String(ordenado[idx-1].numero));
-      const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
-      const porAndar = agruparDiferencas(diff).sort((a,b) => b.andar - a.andar);
-      const locaisNovos = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,z) => z.novos.length - x.novos.length).slice(0, 6);
-      const criticas = diff.novos.filter((it) => it.status === 'VM').map((it) => Object.assign({ _como:'nova' }, it)).concat((diff.subiu||[]).map((it) => Object.assign({ _como:'subiu' }, it))).slice(0, 6);
-      const rowH = 20;
-      const saldo = diff.novos.length - diff.resolvidos.length;
-      const temPrio = (diff.subiu.length || diff.desceu.length);
-      const hCab1 = 96 + (diff.semDadosNoPara.length ? 18 : 0) + (temPrio ? 14 : 0);
-      const centro = M + 16 + 40 + (CW - 32 - 40 - 50)/2, meia = (CW - 32 - 40 - 50)/2 - 40;
-      const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
-      const eixo = (yy) => { pdfTxt(doc, centro - 8, yy, 'saíram', 7, PDF_COR.vd, 'right'); pdfTxt(doc, centro + 8, yy, 'entraram', 7, PDF_COR.vm); pdfTxt(doc, PW-M-16, yy, 'saldo', 7, PDF_COR.muted, 'right'); };
-      const tituloVar = 'Últimas variações (vs. revisão anterior)';
-      // linhas: andares + (título e etiquetas de "onde mais entraram") + críticas — tudo no MESMO assunto
-      const extrasV = [];
-      if (locaisNovos.length){ extrasV.push({ tipo:'tit', txt:'Onde mais entraram pendências', h: 20 }); extrasV.push({ tipo:'chips', h: 24 }); }
-      if (criticas.length){ extrasV.push({ tipo:'tit', txt:'Críticas (VM) que pedem atenção — novas ou que subiram de AM', h: 20 }); criticas.forEach((it) => extrasV.push({ tipo:'crit', it, h: 26 })); }
-      const nV = porAndar.length + extrasV.length;
-      blocoLinhas({
-        n: nV, altura: (i) => i < porAndar.length ? rowH : extrasV[i - porAndar.length].h, hCab: hCab1, hCabCont: 42,
-        cab: (top) => {
-          pdfTxt(doc, M+16, top+22, tituloVar, 11, PDF_COR.ink);
-          pdfTxt(doc, M+16, top+36, 'De '+ordenado[idx-1].label+' para '+ordenado[idx].label, 7.5, PDF_COR.muted);
-          [['+'+pdfNum(diff.novos.length), 'entraram', PDF_COR.vm], ['-'+pdfNum(diff.resolvidos.length), 'saíram / resolvidas', PDF_COR.vd], [(saldo>0?'+':'')+pdfNum(saldo), 'saldo da lista', saldo > 0 ? PDF_COR.vm : (saldo < 0 ? PDF_COR.vd : PDF_COR.muted)]].forEach(([v, r, c], i) => {
-            const x = M+16 + i*160;
-            pdfTxt(doc, x, top+64, v, 20, c); pdfTxt(doc, x + pdfLarg(doc, v, 20) + 5, top+64, r, 7.5, PDF_COR.muted);
-          });
-          let yy = top + 80;
-          if (temPrio){
-            pdfTxt(doc, M+16, yy+6, 'Prioridade: ', 7.5, PDF_COR.muted);
-            let xx = M+16 + pdfLarg(doc, 'Prioridade: ', 7.5);
-            if (diff.subiu.length){ const s = diff.subiu.length+' subiram de AM para VM'; pdfTxt(doc, xx, yy+6, s, 7.5, PDF_COR.vm); xx += pdfLarg(doc, s+'  ·  ', 7.5); }
-            if (diff.desceu.length) pdfTxt(doc, xx, yy+6, diff.desceu.length+' desceram de VM para AM', 7.5, PDF_COR.am);
-            yy += 14;
-          }
-          if (diff.semDadosNoPara.length){
-            pdfFill(doc, PDF_COR.vms); doc.roundedRect(M+16, yy, CW-32, 15, 6, 6, 'F');
-            pdfTxt(doc, M+24, yy+10, pdfCaber(doc, 'Sem dados na '+ordenado[idx].label+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — esses andares não vieram nesta revisão e não foram contados como resolvidos.', 7, CW-48), 7, PDF_COR.vm);
-            yy += 18;
-          }
-          eixo(yy + 10);
-        },
-        cabCont: (top) => { pdfTxt(doc, M+16, top+22, tituloVar + ' (continuação)', 11, PDF_COR.ink); eixo(top + 36); },
-        linha: (i, yy) => {
-          if (i >= porAndar.length){
-            const e = extrasV[i - porAndar.length];
-            if (e.tipo === 'tit'){ pdfTxt(doc, M+16, yy+14, e.txt, 8.5, PDF_COR.ink2); return; }
-            if (e.tipo === 'chips'){
-              let xx = M+16;
-              locaisNovos.forEach((l) => {
-                const s = l.label.replace(/\u00A0/g,' ')+' · '+l.andar+'º  +'+l.novos.length, w = pdfLarg(doc, s, 7.2) + 16;
-                if (xx + w > PW-M-16) return;
-                pdfFill(doc, PDF_COR.vms); doc.roundedRect(xx, yy+3, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, xx+8, yy+13.5, s, 7.2, PDF_COR.vm); xx += w + 6;
-              });
-              return;
-            }
-            const it = e.it, lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo);
-            pdfTxt(doc, M+16, yy+9, it.id+' · '+it.andar+'º · '+lab, 8, PDF_COR.ink);
-            pdfPill(doc, M+16 + pdfLarg(doc, it.id+' · '+it.andar+'º · '+lab, 8) + 6, yy+9, it._como === 'subiu' ? 'subiu de AM para VM' : 'nova', PDF_COR.vm, PDF_COR.vms, 6.5);
-            pdfTxt(doc, M+16, yy+20, pdfCaber(doc, it.desc || '', 7, CW-40), 7, PDF_COR.muted);
-            return;
-          }
-          const a = porAndar[i];
-          pdfTxt(doc, M+50, yy+12, a.andar+'º', 8.5, PDF_COR.ink, 'right');
-          const wR = a.resolvidos ? Math.max(3, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(3, a.novos/maxV*meia) : 0;
-          if (wR){ doc.setFillColor(PDF_COR.vd[0], PDF_COR.vd[1], PDF_COR.vd[2]); comOpacidade(0.85, () => doc.roundedRect(centro - wR, yy+4, wR, 12, 3, 3, 'F')); }
-          if (wN){ doc.setFillColor(PDF_COR.vm[0], PDF_COR.vm[1], PDF_COR.vm[2]); comOpacidade(0.85, () => doc.roundedRect(centro, yy+4, wN, 12, 3, 3, 'F')); }
-          pdfTxt(doc, centro - wR - 4, yy+13, a.resolvidos ? '-'+pdfNum(a.resolvidos) : '0', 7.2, PDF_COR.vd, 'right');
-          pdfTxt(doc, centro + wN + 4, yy+13, a.novos ? '+'+pdfNum(a.novos) : '0', 7.2, PDF_COR.vm);
-          const s = a.novos - a.resolvidos;
-          pdfTxt(doc, PW-M-16, yy+13, (s>0?'+':'')+pdfNum(s), 8.5, s > 0 ? PDF_COR.vm : (s < 0 ? PDF_COR.vd : PDF_COR.muted), 'right');
-        },
-        depoisDasLinhas: (y0, y1, de, ate) => {
-          const nBarras = Math.max(0, Math.min(ate, porAndar.length) - de);
-          if (nBarras > 0){ pdfDraw(doc, PDF_COR.line); doc.setLineWidth(1); doc.line(centro, y0, centro, y0 + nBarras*rowH); }
+    if (forn.length || disc.length){
+      pagina(false);
+      const cabem = Math.floor((LIMITE - topo - hCabK - 10) / rowK);
+      const maxF = Math.max(1, ...forn.map((x) => x.total)), maxD = Math.max(1, ...disc.map((x) => x.total));
+      const nF = Math.min(forn.length, cabem), nD = Math.min(disc.length, cabem);
+      // cada cartão com a altura do próprio conteúdo
+      if (forn.length) desenharColuna(M, topo, hCabK + nF*rowK + 10, 'Pendências por fornecedor', forn, 0, nF, PDF_COR.acc, maxF, true);
+      if (disc.length) desenharColuna(M + wCol + GAP, topo, hCabK + nD*rowK + 10, 'Pendências por disciplina', disc, 0, nD, [107,118,133], maxD, true);
+      // o que sobrou (normalmente disciplinas) continua em duas colunas nas páginas seguintes
+      const restos = [];
+      if (forn.length > nF) restos.push({ titulo:'Pendências por fornecedor (continuação)', lista: forn, de: nF, cor: PDF_COR.acc, max: maxF });
+      if (disc.length > nD) restos.push({ titulo:'Pendências por disciplina (continuação)', lista: disc, de: nD, cor: [107,118,133], max: maxD });
+      restos.forEach((r) => {
+        let i = r.de;
+        while (i < r.lista.length){
+          pagina(false);
+          const cab = Math.floor((LIMITE - topo - hCabK - 10) / rowK);
+          const a1 = Math.min(r.lista.length, i + cab), a2 = Math.min(r.lista.length, a1 + cab);
+          desenharColuna(M, topo, hCabK + (a1 - i)*rowK + 10, r.titulo, r.lista, i, a1, r.cor, r.max, false);
+          if (a2 > a1) desenharColuna(M + wCol + GAP, topo, hCabK + (a2 - a1)*rowK + 10, r.titulo, r.lista, a1, a2, r.cor, r.max, false);
+          i = a2;
         }
       });
     }
 
-    desenharRanking('Pendências por fornecedor', ranking(fornecedorEfetivo), PDF_COR.acc);
-    desenharRanking('Pendências por disciplina', ranking(disciplinaEfetiva), [107,118,133]);
     const total = doc.internal.getNumberOfPages();
     for (let i = 1; i <= total; i++){ doc.setPage(i); pdfRodape(doc, i, total); }
     await compartilharOuBaixarPdf(doc.output('blob'), NOME_APP_ARQUIVO + ' - Visão geral' + (base.revisao ? ' - ' + base.revisao : '') + '.pdf', null);
