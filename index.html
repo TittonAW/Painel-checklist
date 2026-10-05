@@ -742,6 +742,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <input type="file" id="input-arquivos" accept=".xlsx,.pdf,.zip" multiple class="oculto">
       <div id="preview-envio" style="margin-top:16px;"></div>
     </div>
+    <div class="card card-pad oculto" id="lista-pins" style="margin-top:16px;"></div>
     <div class="card card-pad oculto" id="lista-excluidos" style="margin-top:16px;">
     </div>
   </section>
@@ -779,6 +780,26 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 <div id="puxar-atualizar" class="puxar-atualizar">Puxe para atualizar</div>
 <div id="barra-voltar-fixa" class="barra-voltar-fixa" hidden><button type="button" id="btn-voltar-fixo" class="btn-voltar-nav"></button></div>
 
+
+<div class="modal-overlay oculto" id="modal-pin" style="z-index:160;">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-pin" style="max-width:380px;">
+    <h3 id="titulo-modal-pin">Digite seu PIN</h3>
+    <div class="modal-sub" id="sub-modal-pin"></div>
+    <div class="modal-campo">
+      <label for="input-pin-1" id="rotulo-pin-1">PIN de 4 dígitos</label>
+      <input type="password" id="input-pin-1" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" style="font-size:22px; letter-spacing:10px; text-align:center;">
+    </div>
+    <div class="modal-campo oculto" id="campo-pin-2">
+      <label for="input-pin-2">Repita o PIN</label>
+      <input type="password" id="input-pin-2" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" style="font-size:22px; letter-spacing:10px; text-align:center;">
+    </div>
+    <div id="erro-pin" style="font-size:12.5px; color:var(--vm); min-height:18px;"></div>
+    <div class="modal-acoes">
+      <button class="btn fantasma" id="btn-pin-voltar">Voltar</button>
+      <button class="btn primario" id="btn-pin-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay oculto" id="modal-usuario">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-usuario">
@@ -939,7 +960,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.69';
+const VERSAO_APP = '2026-10-03.70';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2051,6 +2072,7 @@ async function sincronizarDados(manual){
     });
     if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
     if (cfg.some((d) => d._id === 'pessoas')) await carregarPessoas();
+    if (cfg.some((d) => d._id === 'pins')){ await carregarPins(); renderListaPins(); if (usuarioAtual && !pinVerificadoNesteAparelho(usuarioAtual)) exigirPinDoUsuarioAtual(); }
     let recarregarPorExclusao = false;
     if (cfg.some((d) => d._id === 'excluidos')){ await carregarExcluidos(); recarregarPorExclusao = true; renderListaExcluidos(); }
     let recarregarRevisao = snaps.length > 0 || recarregarPorExclusao;
@@ -2278,7 +2300,7 @@ function nomeValido(s){
   return partes.length >= 2;
 }
 function renderUsuarioTopo(){
-  try{ atualizarBotaoTirarLote(); renderListaExcluidos(); }catch(e){}
+  try{ atualizarBotaoTirarLote(); renderListaExcluidos(); renderListaPins(); }catch(e){}
   const b = document.getElementById('btn-usuario');
   if (!b) return;
   b.textContent = usuarioAtual ? usuarioAtual : 'Identificar-se';
@@ -2304,12 +2326,132 @@ function renderListaEquipe(){
   box.innerHTML = unicos.map((n) => '<button type="button" class="btn" data-pessoa="'+esc(n)+'" style="padding:8px 14px;'+(n===usuarioAtual?' border-color:var(--accent); color:var(--accent);':'')+'">'+esc(n)+'</button>').join('');
   box.querySelectorAll('[data-pessoa]').forEach((b) => b.addEventListener('click', () => definirUsuario(b.dataset.pessoa)));
 }
-function definirUsuario(nome){
+/* ===================== PIN PESSOAL =====================
+   Cada pessoa cria o próprio PIN de 4 dígitos no primeiro acesso. Tocar num nome pede o PIN
+   daquele nome — ninguém dá baixa com o nome de outro. O banco guarda só uma versão
+   embaralhada do PIN (PBKDF2), nunca o PIN. Cada aparelho pergunta uma vez e lembra.
+   Guilherme e Marcel podem APAGAR o PIN de alguém que esqueceu (nunca ver ou definir). */
+let pinsEquipe = {}, pinsCarregados = false;
+const CHAVE_PIN_OK = 'obra_pin_ok';
+async function carregarPins(){
+  try{ const d = await store.getDoc('config', 'pins'); pinsEquipe = (d && d.nomes) ? d.nomes : {}; }catch(e){ pinsEquipe = {}; }
+  pinsCarregados = true;
+}
+async function embaralharPin(nome, pin, salt){
+  const enc = new TextEncoder();
+  const chave = await crypto.subtle.importKey('raw', enc.encode('checklist-pin:' + chaveComparacao(nome) + ':' + pin), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt: enc.encode(salt), iterations: 120000, hash:'SHA-256' }, chave, 256);
+  return Array.from(new Uint8Array(bits)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function marcaPin(nome){ const p = pinsEquipe[chaveComparacao(nome)]; return p ? chaveComparacao(nome) + ':' + p.hash.slice(0, 16) : ''; }
+function pinVerificadoNesteAparelho(nome){
+  if (!nome || !pinsEquipe[chaveComparacao(nome)]) return false;
+  try{ return localStorage.getItem(CHAVE_PIN_OK) === marcaPin(nome); }catch(e){ return false; }
+}
+let resolverPin = null;
+function pedirPin(nome){
+  return new Promise((resolve) => {
+    resolverPin = resolve;
+    const existe = !!pinsEquipe[chaveComparacao(nome)];
+    document.getElementById('titulo-modal-pin').textContent = existe ? 'Digite seu PIN' : 'Crie seu PIN';
+    document.getElementById('sub-modal-pin').textContent = existe
+      ? nome + ' — digite o seu PIN de 4 dígitos.'
+      : nome + ' — é o seu primeiro acesso com PIN. Crie 4 dígitos que só você saiba; ele vai ser pedido quando você entrar com seu nome.';
+    document.getElementById('rotulo-pin-1').textContent = existe ? 'PIN de 4 dígitos' : 'Novo PIN (4 dígitos)';
+    document.getElementById('campo-pin-2').classList.toggle('oculto', existe);
+    document.getElementById('input-pin-1').value = ''; document.getElementById('input-pin-2').value = '';
+    document.getElementById('erro-pin').textContent = '';
+    const ov = document.getElementById('modal-pin');
+    ov.dataset.nome = nome; ov.dataset.modo = existe ? 'entrar' : 'criar';
+    ov.classList.remove('oculto');
+    setTimeout(() => document.getElementById('input-pin-1').focus(), 50);
+  });
+}
+function fecharPin(ok){
+  document.getElementById('modal-pin').classList.add('oculto');
+  if (resolverPin){ resolverPin(ok); resolverPin = null; }
+}
+async function confirmarPin(){
+  const ov = document.getElementById('modal-pin'), nome = ov.dataset.nome, modo = ov.dataset.modo;
+  const p1 = document.getElementById('input-pin-1').value.trim(), p2 = document.getElementById('input-pin-2').value.trim();
+  const erro = document.getElementById('erro-pin');
+  if (!/^\d{4}$/.test(p1)){ erro.textContent = 'O PIN tem 4 números.'; return; }
+  const k = chaveComparacao(nome);
+  const chaveTent = 'obra_pin_tentativas_' + k;
+  if (modo === 'criar'){
+    if (p1 !== p2){ erro.textContent = 'Os dois PINs não são iguais.'; return; }
+    const doc = await store.getDoc('config', 'pins');           // lê na hora: alguém pode ter criado agora
+    const nomes = (doc && doc.nomes) ? Object.assign({}, doc.nomes) : {};
+    if (nomes[k]){ pinsEquipe = nomes; erro.textContent = 'Já existe um PIN pra esse nome. Digite o PIN.'; ov.dataset.modo = 'entrar'; document.getElementById('campo-pin-2').classList.add('oculto'); document.getElementById('titulo-modal-pin').textContent = 'Digite seu PIN'; return; }
+    const salt = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+    nomes[k] = { nome, salt, hash: await embaralharPin(nome, p1, salt), em: new Date().toISOString() };
+    const r = await store.setDoc('config', 'pins', { nomes });
+    if (!r.ok){ erro.textContent = 'Não consegui salvar (sem conexão?). Tente de novo.'; return; }
+    pinsEquipe = nomes;
+  } else {
+    let tent = {}; try{ tent = JSON.parse(localStorage.getItem(chaveTent) || '{}'); }catch(e){}
+    if (tent.bloqueadoAte && Date.now() < tent.bloqueadoAte){ erro.textContent = 'Muitas tentativas. Espere '+Math.ceil((tent.bloqueadoAte - Date.now())/1000)+' segundos.'; return; }
+    const reg = pinsEquipe[k];
+    if (!reg || await embaralharPin(nome, p1, reg.salt) !== reg.hash){
+      tent.n = (tent.n || 0) + 1;
+      if (tent.n >= 5){ tent = { n: 0, bloqueadoAte: Date.now() + 60000 }; erro.textContent = 'PIN errado 5 vezes. Espere 1 minuto.'; }
+      else erro.textContent = 'PIN errado. Tente de novo ('+(5 - tent.n)+' tentativa(s) antes de esperar 1 minuto).';
+      try{ localStorage.setItem(chaveTent, JSON.stringify(tent)); }catch(e){}
+      document.getElementById('input-pin-1').value = '';
+      return;
+    }
+    try{ localStorage.removeItem(chaveTent); }catch(e){}
+  }
+  try{ localStorage.setItem(CHAVE_PIN_OK, marcaPin(nome)); }catch(e){}
+  fecharPin(true);
+}
+async function definirUsuario(nome){
+  if (!pinsCarregados) await carregarPins();
+  if (!pinVerificadoNesteAparelho(nome)){
+    const ok = await pedirPin(nome);
+    if (!ok) return; // voltou: continua na escolha de nome
+  }
   usuarioAtual = nome;
   try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); }catch(e){}
   document.getElementById('modal-usuario').classList.add('oculto');
   renderUsuarioTopo();
   if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
+}
+/* quem já estava identificado sem PIN (ou teve o PIN apagado): pede antes de liberar */
+async function exigirPinDoUsuarioAtual(){
+  if (!usuarioAtual || pinVerificadoNesteAparelho(usuarioAtual)) return true;
+  const ok = await pedirPin(usuarioAtual);
+  if (ok) return true;
+  usuarioAtual = '';
+  try{ localStorage.removeItem(CHAVE_USUARIO); }catch(e){}
+  renderUsuarioTopo();
+  await pedirNomeUsuario(false);
+  return !!usuarioAtual;
+}
+/* cartão de equipe (só Guilherme/Marcel): ver quem tem PIN e apagar o PIN de quem esqueceu */
+function renderListaPins(){
+  const cont = document.getElementById('lista-pins');
+  if (!cont) return;
+  if (!podeTirarDaObra()){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
+  cont.classList.remove('oculto');
+  const nomes = [];
+  pessoasConhecidas().forEach((n) => { if (!nomes.some((x) => chaveComparacao(x) === chaveComparacao(n))) nomes.push(n); });
+  Object.values(pinsEquipe).forEach((p) => { if (!nomes.some((x) => chaveComparacao(x) === chaveComparacao(p.nome))) nomes.push(p.nome); });
+  nomes.sort((a,b) => a.localeCompare(b, 'pt-BR'));
+  cont.innerHTML = '<h2 style="margin-bottom:4px;">Equipe e PINs</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
+    nomes.map((n) => { const p = pinsEquipe[chaveComparacao(n)];
+      return '<div class="insight-item"><div><div class="local">'+esc(n)+'</div><div class="detalhe">'+(p ? 'PIN criado em '+dataHoraCurta(p.em) : 'ainda sem PIN (cria no próximo acesso)')+'</div></div>' +
+        (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div>'; }).join('');
+  cont.querySelectorAll('[data-apagar-pin]').forEach((b) => b.addEventListener('click', async () => {
+    if (!window.confirm('Apagar o PIN de '+b.dataset.nome+'?\\n\\nNo próximo acesso, ela vai criar um PIN novo.')) return;
+    const doc = await store.getDoc('config', 'pins');
+    const nomesPins = (doc && doc.nomes) ? Object.assign({}, doc.nomes) : {};
+    delete nomesPins[b.dataset.apagarPin];
+    const r = await store.setDoc('config', 'pins', { nomes: nomesPins });
+    if (r.ok){ pinsEquipe = nomesPins; avisoFlutuante('PIN apagado', 'ok'); renderListaPins(); }
+    else avisoFlutuante('Não consegui apagar (sem conexão?)', 'erro');
+  }));
 }
 function pedirNomeUsuario(podeCancelar){
   return new Promise((resolve) => {
@@ -2345,7 +2487,7 @@ function cancelarNomeUsuario(){
 }
 /* garante um nome antes de qualquer baixa (se alguém pulou a janela, ela volta) */
 async function garantirUsuario(){
-  if (usuarioAtual) return true;
+  if (usuarioAtual) return await exigirPinDoUsuarioAtual();
   await pedirNomeUsuario(true);
   return !!usuarioAtual;
 }
@@ -4936,7 +5078,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
@@ -6509,6 +6651,9 @@ async function iniciar(){
   document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
   document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
   document.getElementById('btn-semelhante-novo').addEventListener('click', () => fecharSemelhante('__novo__'));
+  document.getElementById('btn-pin-ok').addEventListener('click', confirmarPin);
+  document.getElementById('btn-pin-voltar').addEventListener('click', () => fecharPin(false));
+  ['input-pin-1','input-pin-2'].forEach((id) => document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarPin(); }));
   document.getElementById('btn-reprovado-sim').addEventListener('click', () => fecharReprovado('reinc'));
   document.getElementById('btn-reprovado-engano').addEventListener('click', () => fecharReprovado('engano'));
   document.getElementById('btn-reprovado-cancelar').addEventListener('click', () => fecharReprovado(null));
@@ -6520,12 +6665,14 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
   // e quem já tinha nome achava que não estava lá e criava de novo)
   if (!usuarioAtual) pedirNomeUsuario(false);
+  else exigirPinDoUsuarioAtual();
+  renderListaPins();
   ultimaSincronizacao = marcaCarga;
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
