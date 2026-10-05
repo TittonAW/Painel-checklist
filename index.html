@@ -107,6 +107,10 @@ select, .btn, input[type=text]{
 .pill.cloud{ background:var(--vd-soft); color:var(--vd); }
 .pill.local{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
 
+nav.abas button.pdf-nav{ margin-left:auto; align-self:center; padding:7px 14px; color:var(--text-2); border:1px solid var(--line); border-radius:99px; background:var(--surface); }
+nav.abas button.pdf-nav[hidden]{ display:none; }
+@media (max-width:900px){ nav.abas button.pdf-nav{ display:none !important; } }
+@media (min-width:901px){ #btn-pdf-visao-geral{ display:none; } }
 nav.abas{
   display:flex; gap:4px; padding:10px 32px; background:var(--surface); border-bottom:1px solid var(--line);
   overflow-x:auto;
@@ -487,6 +491,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="comparacao">Comparação</button>
   <button data-aba="tendencia">Plano</button>
   <button data-aba="enviar">Enviar planilhas</button>
+  <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
 </nav>
 <div id="barra-voltar" class="barra-voltar" hidden>
   <button type="button" id="btn-voltar-nav" class="btn-voltar-nav"></button>
@@ -921,7 +926,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.60';
+const VERSAO_APP = '2026-10-03.61';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5327,7 +5332,9 @@ async function apagarTudo(){
 
 /* ===================== NAVEGAÇÃO ===================== */
 function irParaAba(nome){
-  document.querySelectorAll('nav.abas button').forEach((b) => b.classList.toggle('ativa', b.dataset.aba===nome));
+  document.querySelectorAll('nav.abas button[data-aba]').forEach((b) => b.classList.toggle('ativa', b.dataset.aba===nome));
+  const bPdf = document.getElementById('btn-pdf-visao-geral-nav');
+  if (bPdf) bPdf.hidden = nome !== 'visao-geral'; // só aparece na Visão geral
   document.querySelectorAll('main .secao').forEach((s) => s.classList.toggle('ativa', s.id==='secao-'+nome));
   if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
   window.scrollTo({top:0, behavior:'instant'});
@@ -5654,7 +5661,7 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
    própria tela (espelho) ou calculados com as mesmas funções dela. */
 async function exportarVisaoGeralPdf(){
   if (!window.jspdf){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
-  const btn = document.getElementById('btn-pdf-visao-geral');
+  const btn = (document.activeElement && /btn-pdf-visao-geral/.test(document.activeElement.id)) ? document.activeElement : document.getElementById('btn-pdf-visao-geral');
   const textoBtn = btn.textContent; btn.disabled = true; btn.textContent = 'Gerando PDF…';
   try{
     const { jsPDF } = window.jspdf;
@@ -6279,7 +6286,7 @@ async function iniciar(){
     irParaAba('enviar');
   }
 
-  document.querySelectorAll('nav.abas button').forEach((b) => {
+  document.querySelectorAll('nav.abas button[data-aba]').forEach((b) => {
     b.addEventListener('click', () => { limparNavegacao(); irParaAba(b.dataset.aba); });
   });
   const aoVoltar = () => { if (history.state && history.state.nav) history.back(); else voltarNavegacao(); };
@@ -6424,6 +6431,7 @@ async function iniciar(){
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
   document.getElementById('btn-pdf-itens').addEventListener('click', exportarItensPdf);
   document.getElementById('btn-pdf-visao-geral').addEventListener('click', exportarVisaoGeralPdf);
+  document.getElementById('btn-pdf-visao-geral-nav').addEventListener('click', exportarVisaoGeralPdf);
 
   const navTendencia = document.querySelector('nav.abas button[data-aba="tendencia"]');
   navTendencia.addEventListener('click', renderTendencia);
