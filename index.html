@@ -234,6 +234,14 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .andar-barra .barra > span{ position:absolute; inset:0; border-radius:5px; }
 .mini-stats{ display:flex; gap:7px; flex:none; }
 /* torre: o preenchimento da barra = % executado; o fundo clarinho mantém a cor do status */
+.meta-plano{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.meta-alvo{ position:relative; display:inline-block; }
+/* o seletor de data fica invisível POR CIMA do botão: tocar no botão abre o calendário do aparelho */
+.meta-alvo input[type=date]{ position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; margin:0; }
+#btn-meta-plano.definida{ background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); }
+.link-remover-meta{ all:unset; font-size:12.5px; color:var(--muted); text-decoration:underline; cursor:pointer; }
+.link-remover-meta[hidden]{ display:none; }
+@media (max-width:640px){ .meta-plano, .meta-alvo, #btn-meta-plano{ width:100%; } #btn-meta-plano{ justify-content:center; padding:12px 16px; font-size:15px; } }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -703,8 +711,13 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
           <h2 style="margin-bottom:4px;">Plano para zerar as pendências</h2>
           <p class="rodape-nota" style="text-align:left; margin:0;">Calculado com os dados do painel (sem palpite): ritmo dos últimos 7 dias, o que falta e onde atacar primeiro.</p>
         </div>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);">Quero zerar até
-          <input type="date" id="plano-meta" style="width:auto;"></label>
+        <div class="meta-plano">
+          <span class="meta-alvo">
+            <button type="button" class="btn primario" id="btn-meta-plano" tabindex="-1">🎯 Definir até quando quero zerar</button>
+            <input type="date" id="plano-meta" aria-label="Data em que quero zerar as pendências">
+          </span>
+          <button type="button" class="link-remover-meta" id="btn-remover-meta" hidden>remover meta</button>
+        </div>
       </div>
       <div id="plano-ritmo" style="margin-top:14px;"></div>
     </div>
@@ -926,7 +939,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.66';
+const VERSAO_APP = '2026-10-03.68';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4539,6 +4552,22 @@ async function renderTendencia(){
 
   }
   if (inpMeta) inpMeta.value = planoMeta;
+  // botão da meta: chamativo enquanto não há data; com data, vira "Meta: dd/mm · alterar"
+  const bMeta = document.getElementById('btn-meta-plano'), bRem = document.getElementById('btn-remover-meta');
+  if (bMeta){
+    if (planoMeta){
+      const d = new Date(planoMeta + 'T12:00:00');
+      bMeta.textContent = '🎯 Meta: ' + d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' · alterar';
+      bMeta.classList.add('definida');
+    } else { bMeta.textContent = '🎯 Definir até quando quero zerar'; bMeta.classList.remove('definida'); }
+  }
+  if (bRem) bRem.hidden = !planoMeta;
+  if (inpMeta && !inpMeta.dataset.picker){
+    inpMeta.dataset.picker = '1';
+    // no computador, clicar no botão abre o calendário (no celular o toque já abre)
+    inpMeta.addEventListener('click', () => { try{ inpMeta.showPicker(); }catch(e){} });
+    bRem.addEventListener('click', async () => { planoMeta = ''; inpMeta.value = ''; await store.setDoc('config', 'plano', { meta: '' }); renderTendencia(); });
+  }
   const ritmoEl = document.getElementById('plano-ritmo'), blocos = document.getElementById('plano-blocos'), resumoEl = null;
   const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
   if (!pend.length){ ritmoEl.innerHTML = '<div class="vazio">Sem pendências nesta revisão.</div>'; blocos.innerHTML = ''; return; }
@@ -4563,7 +4592,7 @@ async function renderTendencia(){
     metaHtml = '<span><span class="grande" style="color:'+(falta ? 'var(--vm)' : 'var(--vd)')+';">'+pdfNum(precisa)+'/dia</span> <span class="rot">necessário até '+fmtData(fim)+' ('+dias+' dia(s))'+(falta ? ' · faltam '+pdfNum(falta)+'/dia no ritmo atual' : ' · o ritmo atual dá conta')+'</span></span>';
     metaTxt = 'Para zerar até '+fmtData(fim)+', precisamos de '+pdfNum(precisa)+' itens por dia' + (falta ? ' (hoje fazemos '+pdfNum(Math.round(ritmoAw))+'; faltam '+pdfNum(falta)+' por dia).' : ' — o ritmo atual dá conta.');
   } else {
-    metaHtml = '<span class="rot">Escolha a data em "Quero zerar até" para ver quantos itens por dia são necessários.</span>';
+    metaHtml = '<span class="rot">Toque em <b style="font-weight:500; color:var(--accent);">🎯 Definir até quando quero zerar</b> e escolha a data: o painel mostra quantos itens por dia são necessários e se o ritmo atual dá conta.</span>';
   }
   ritmoEl.innerHTML = '<div class="destaque-pct" style="padding-bottom:4px;">' +
     '<span><span class="grande">'+pdfNum(emAberto)+'</span> <span class="rot">em aberto</span></span>' +
@@ -4873,9 +4902,10 @@ async function gerarImagemCartao(o){
 }
 async function enviarImagemWhatsapp(blob, nome){
   if (!blob){ avisoFlutuante('Não consegui gerar a imagem', 'erro'); return; }
-  const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+  // igual ao PDF: abre a tela de compartilhar do aparelho (celular ou computador) já com a
+  // imagem — lá aparece o WhatsApp. Só copia se o aparelho não oferecer compartilhamento.
   const arquivo = new File([blob], nome + '.png', { type: 'image/png' });
-  if (celular && navigator.canShare && navigator.canShare({ files: [arquivo] })){
+  if (navigator.canShare && navigator.canShare({ files: [arquivo] })){
     try{ await navigator.share({ files: [arquivo] }); return; }catch(e){ if (e && e.name === 'AbortError') return; }
   }
   try{
