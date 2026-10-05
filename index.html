@@ -498,12 +498,12 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
   <!-- VISÃO GERAL -->
   <section class="secao ativa" id="secao-visao-geral">
-    <div style="display:flex; justify-content:flex-end; margin:-4px 0 12px;">
-      <button type="button" class="btn fantasma" id="btn-pdf-visao-geral">📄 PDF da Visão geral</button>
-    </div>
     <div class="grid-hero">
       <div class="card card-pad">
-        <h2 id="titulo-torre-andares">Andares</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:4px;">
+          <h2 id="titulo-torre-andares" style="margin:0;">Andares</h2>
+          <button type="button" class="chip-acao" id="btn-pdf-visao-geral" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
+        </div>
         <div class="torre" id="torre-andares"></div>
         <div class="vazio oculto" id="vazio-torre-andares">Nenhum andar enviado ainda — suba a primeira planilha na aba "Enviar planilhas" pra começar.</div>
         <div class="rodape-nota" style="margin-top:14px; text-align:left; display:flex; flex-wrap:wrap; gap:4px 14px;">
@@ -921,7 +921,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.59';
+const VERSAO_APP = '2026-10-03.60';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
