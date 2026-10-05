@@ -925,7 +925,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.64';
+const VERSAO_APP = '2026-10-03.65';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4766,9 +4766,20 @@ function abrirModalPlano(k){
 }
 function fecharModalPlano(){ document.getElementById('modal-plano').classList.add('oculto'); modalPlanoChave = null; }
 async function enviarTextoPlano(titulo, texto){
-  // abre o WhatsApp com a mensagem pronta — lá a pessoa escolhe o grupo ou o contato.
-  // Também copia o texto, pra garantir (mensagens muito longas às vezes chegam cortadas pelo link).
-  try{ await navigator.clipboard.writeText(texto); }catch(e){}
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
+  // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
+  // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
+  const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+  if (celular && navigator.share){
+    try{ await navigator.share({ text: texto }); return; }
+    catch(e){ if (e && e.name === 'AbortError') return; }
+  }
+  try{
+    await navigator.clipboard.writeText(texto);
+    avisoFlutuante('Mensagem copiada — é só colar no WhatsApp (Ctrl+V)', 'ok');
+    return;
+  }catch(e){}
+  // último recurso: abre o WhatsApp pelo link (pode perder os emojis no computador)
   const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
   const janela = window.open(url, '_blank');
   if (!janela) location.href = url;
