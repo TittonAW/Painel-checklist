@@ -899,14 +899,36 @@ function urlDaFoto(id){
   return SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + id;
 }
 
+const MODO_TESTE = new URLSearchParams(location.search).get('teste') === '1';
+/* OBRA: cada diretoria usa o MESMO endereço com ?obra=nome (ex.: ?obra=areas-comuns) e tem
+   dados, revisões, fotos, equipe, PINs e administradores próprios — nada se mistura.
+   Sem ?obra = a obra Quartos (a de sempre). O aparelho lembra a obra escolhida, então o app
+   instalado abre direto na obra certa. ?obra=quartos volta pra obra Quartos. */
+const OBRA = (() => {
+  const CH = 'obra_painel_atual';
+  const param = new URLSearchParams(location.search).get('obra');
+  let slug = '';
+  if (param !== null){
+    slug = String(param).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    if (slug === 'quartos') slug = '';
+    try{ localStorage.setItem(CH, slug); }catch(e){}
+  } else { try{ slug = localStorage.getItem(CH) || ''; }catch(e){} }
+  return slug;
+})();
+function colReal(col){ return (MODO_TESTE ? 'teste_' : '') + (OBRA ? OBRA + '__' : '') + col; }
+
+/* FOTOS POR OBRA: a obra Quartos continua na raiz do bucket (onde já estão as fotos);
+   cada obra nova guarda as fotos na própria pasta "obras/<obra>/". A listagem e a limpeza de
+   fotos de uma obra olham SÓ a pasta dela — não tem como encostar nas fotos da outra. */
+const PASTA_FOTOS = OBRA ? 'obras/' + OBRA + '/' : '';
 let assetsCap = null;
 async function initAssets(){
   if (!supa){ assetsCap = null; return; }
   assetsCap = {
     async upload(blob, nomeFixo){
       const ext = (blob.type && blob.type.indexOf('png')!==-1) ? 'png' : 'jpg';
-      const nome = nomeFixo ? (nomeFixo + '.' + ext)
-        : (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+'-'+Math.random().toString(36).slice(2))) + '.' + ext;
+      const nome = PASTA_FOTOS + (nomeFixo ? (nomeFixo + '.' + ext)
+        : (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+'-'+Math.random().toString(36).slice(2))) + '.' + ext);
       const { error } = await supa.storage.from(SUPABASE_BUCKET).upload(nome, blob, { contentType: blob.type || 'image/jpeg', cacheControl: '31536000', upsert: false });
       if (error){
         // nome tirado do conteúdo: se já existe, é a MESMA foto — só reaproveita
@@ -925,14 +947,15 @@ async function initAssets(){
       // o Storage do Supabase lista no máximo 1000 por chamada — pagina até acabar
       let todos = [], offset = 0;
       while (true){
-        const { data, error } = await supa.storage.from(SUPABASE_BUCKET).list('', { limit:1000, offset });
+        const { data, error } = await supa.storage.from(SUPABASE_BUCKET).list(PASTA_FOTOS.replace(/\/$/, ''), { limit:1000, offset });
         if (error || !data || data.length===0) break;
         todos = todos.concat(data);
         if (data.length < 1000) break;
         offset += 1000;
       }
       // metadata.size vem pronto do Supabase — não precisa mais baixar foto por foto pra medir
-      return { assets: todos.map((f) => ({ id: f.name, bytes: (f.metadata && f.metadata.size) || null })) };
+      // pastas (ex.: "obras", na raiz) vêm na listagem sem "id" — não são fotos e nunca podem ser apagadas
+      return { assets: todos.filter((f) => f && f.id && f.metadata).map((f) => ({ id: PASTA_FOTOS + f.name, bytes: (f.metadata && f.metadata.size) || null })) };
     }
   };
 }
@@ -960,12 +983,10 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.76';
+const VERSAO_APP = '2026-10-03.80';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
-const MODO_TESTE = new URLSearchParams(location.search).get('teste') === '1';
-function colReal(col){ return MODO_TESTE ? 'teste_' + col : col; }
 let gravacoesEmAndamento = 0;
 let versaoNovaEncontrada = null;
 function momentoSeguroParaRecarregar(){
@@ -982,7 +1003,10 @@ function recarregarQuandoSeguro(){
   avisoFlutuante('Atualizando para a versão nova…', 'info');
   // endereço com a versão no final: garante que o navegador busca o arquivo novo, não o guardado
   setTimeout(() => {
-    location.replace(location.pathname + '?v=' + encodeURIComponent(versaoNovaEncontrada) + (MODO_TESTE ? '&teste=1' : '') + location.hash);
+    // mantém o endereço inteiro (?obra=, ?teste=…) — antes a recarga descartava o ?obra= e caía em Quartos
+    const q = new URLSearchParams(location.search); q.set('v', versaoNovaEncontrada);
+    if (OBRA) q.set('obra', OBRA);
+    location.replace(location.pathname + '?' + q.toString() + location.hash);
   }, 1200);
 }
 let ultimaVerificacaoVersao = 0;
@@ -1000,7 +1024,12 @@ async function verificarNovaVersao(){
 function iniciarVerificacaoDeVersao(){
   // tira o "?v=..." do endereço depois de atualizar (fica mais limpo; não afeta nada)
   if (/[?&]v=/.test(location.search)){
-    try{ history.replaceState(null, '', location.pathname + (MODO_TESTE ? '?teste=1' : '') + location.hash); }catch(e){}
+    try{
+      const q = new URLSearchParams(location.search); q.delete('v');
+      if (OBRA) q.set('obra', OBRA); // o endereço continua mostrando a obra (bom pra copiar e compartilhar)
+      const s = q.toString();
+      history.replaceState(null, '', location.pathname + (s ? '?' + s : '') + location.hash);
+    }catch(e){}
   }
   const el = document.getElementById('versao-app');
   if (el) el.textContent = 'versão ' + VERSAO_APP;
@@ -1689,6 +1718,7 @@ async function carregarArquivosNaPasta(){
   }catch(e){ arquivosNaPasta = null; } // se falhar, cai na checagem uma a uma
 }
 async function fotoJaExiste(nomeBase){
+  nomeBase = PASTA_FOTOS + nomeBase; // fotos desta obra ficam na pasta dela
   if (arquivosNaPasta){
     if (arquivosNaPasta.has(nomeBase + '.jpg')) return nomeBase + '.jpg';
     if (arquivosNaPasta.has(nomeBase + '.png')) return nomeBase + '.png';
@@ -2073,6 +2103,7 @@ async function sincronizarDados(manual){
     let recarregarPorExclusao = false;
     if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
     if (cfg.some((d) => d._id === 'pessoas')) await carregarPessoas();
+    if (cfg.some((d) => d._id === 'obra')){ await carregarConfigObra(); renderListaPins(); }
     if (cfg.some((d) => d._id === 'disciplinas')){ await carregarApelidosDisc(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'pins')){ await carregarPins(); renderListaPins(); if (usuarioAtual && !pinVerificadoNesteAparelho(usuarioAtual)) exigirPinDoUsuarioAtual(); }
     if (cfg.some((d) => d._id === 'excluidos')){ await carregarExcluidos(); recarregarPorExclusao = true; renderListaExcluidos(); }
@@ -2162,7 +2193,7 @@ function atualizarTelasAposAcompanhamento(){
 /* ===================== QUEM ESTÁ USANDO =====================
    Nome e sobrenome guardados neste aparelho (não é login com senha — serve pra registrar
    quem deu cada baixa). Pedido uma vez; dá pra trocar clicando no nome, no topo. */
-const CHAVE_USUARIO = 'obra_usuario_nome';
+const CHAVE_USUARIO = 'obra_usuario_nome' + (OBRA ? '__' + OBRA : ''); // cada obra lembra o próprio usuário
 let usuarioAtual = '';
 function lerUsuarioSalvo(){
   try{ return (localStorage.getItem(CHAVE_USUARIO) || '').trim(); }catch(e){ return usuarioAtual; }
@@ -2263,7 +2294,7 @@ async function resolverNomeSemelhante(digitado, lista, tipo){
 /* equipe: nomes guardados no banco (config/pessoas) assim que alguém se identifica — não
    depende de a pessoa já ter dado baixa. Assim a checagem de nome parecido funciona desde o
    primeiro acesso, e a janela de identificação mostra a lista pra tocar em vez de digitar. */
-const PESSOAS_INICIAIS = ['Guilherme Titton', 'Marcel Camilo', 'Elizeu Ribeiro', 'Leonardo Borba', 'Hiro Arima'];
+const PESSOAS_INICIAIS = OBRA ? ['Guilherme Titton', 'Marcel Camilo'] : ['Guilherme Titton', 'Marcel Camilo', 'Elizeu Ribeiro', 'Leonardo Borba', 'Hiro Arima'];
 let pessoasRegistradas = [];
 async function carregarPessoas(){
   try{
@@ -2338,7 +2369,7 @@ function renderListaEquipe(){
    embaralhada do PIN (PBKDF2), nunca o PIN. Cada aparelho pergunta uma vez e lembra.
    Guilherme e Marcel podem APAGAR o PIN de alguém que esqueceu (nunca ver ou definir). */
 let pinsEquipe = {}, pinsCarregados = false;
-const CHAVE_PIN_OK = 'obra_pin_ok';
+const CHAVE_PIN_OK = 'obra_pin_ok' + (OBRA ? '__' + OBRA : '');
 async function carregarPins(){
   try{ const d = await store.getDoc('config', 'pins'); pinsEquipe = (d && d.nomes) ? d.nomes : {}; }catch(e){ pinsEquipe = {}; }
   pinsCarregados = true;
@@ -2383,7 +2414,7 @@ async function confirmarPin(){
   const erro = document.getElementById('erro-pin');
   if (!/^\d{4}$/.test(p1)){ erro.textContent = 'O PIN tem 4 números.'; return; }
   const k = chaveComparacao(nome);
-  const chaveTent = 'obra_pin_tentativas_' + k;
+  const chaveTent = 'obra_pin_tentativas_' + (OBRA ? OBRA + '__' : '') + k;
   if (modo === 'criar'){
     if (p1 !== p2){ erro.textContent = 'Os dois PINs não são iguais.'; return; }
     const doc = await store.getDoc('config', 'pins');           // lê na hora: alguém pode ter criado agora
@@ -2444,11 +2475,35 @@ function renderListaPins(){
   pessoasConhecidas().forEach((n) => { if (!nomes.some((x) => chaveComparacao(x) === chaveComparacao(n))) nomes.push(n); });
   Object.values(pinsEquipe).forEach((p) => { if (!nomes.some((x) => chaveComparacao(x) === chaveComparacao(p.nome))) nomes.push(p.nome); });
   nomes.sort((a,b) => a.localeCompare(b, 'pt-BR'));
-  cont.innerHTML = '<h2 style="margin-bottom:4px;">Equipe e PINs</h2>' +
+  const fixos = PODE_TIRAR_DA_OBRA.map(chaveComparacao);
+  const ehAdmin = (n) => fixos.indexOf(chaveComparacao(n)) !== -1 || (configObra.admins || []).some((a) => chaveComparacao(a) === chaveComparacao(n));
+  cont.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">' +
+      '<div><div class="rodape-nota" style="text-align:left; margin:0;">Obra</div><div style="font-size:16px; color:var(--text);">'+esc(nomeDaObra())+'</div>' +
+      '<div class="rodape-nota" style="text-align:left; margin:2px 0 0;">Endereço desta obra: '+esc(location.origin + location.pathname)+(OBRA ? '?obra='+esc(OBRA) : '')+'</div></div>' +
+      '<button type="button" class="chip-acao" id="btn-nome-obra">Renomear obra</button></div>' +
+    '<h2 style="margin-bottom:4px;">Equipe e PINs</h2>' +
     '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
     nomes.map((n) => { const p = pinsEquipe[chaveComparacao(n)];
       return '<div class="insight-item"><div><div class="local">'+esc(n)+'</div><div class="detalhe">'+(p ? 'PIN criado em '+dataHoraCurta(p.em) : 'ainda sem PIN (cria no próximo acesso)')+'</div></div>' +
-        (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div>'; }).join('');
+        '<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">' +
+        (fixos.indexOf(chaveComparacao(n)) !== -1 ? '<span class="badge liberado-pend" style="font-size:11px;">administrador</span>'
+          : '<button type="button" class="chip-acao" data-admin="'+esc(n)+'">'+(ehAdmin(n) ? 'Tirar de administrador' : 'Tornar administrador')+'</button>') +
+        (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div></div>'; }).join('');
+  const bNome = document.getElementById('btn-nome-obra');
+  if (bNome) bNome.addEventListener('click', async () => {
+    const novo = window.prompt('Nome desta obra (aparece no topo do painel e nos PDFs):', nomeDaObra());
+    if (novo === null || !novo.trim()) return;
+    const r = await store.setDoc('config', 'obra', { nome: novo.trim(), admins: configObra.admins || [] });
+    if (r.ok){ configObra.nome = novo.trim(); renderNomeObra(); renderListaPins(); avisoFlutuante('Nome da obra salvo', 'ok'); }
+  });
+  cont.querySelectorAll('[data-admin]').forEach((b) => b.addEventListener('click', async () => {
+    const n = b.dataset.admin;
+    const atual = (configObra.admins || []).slice();
+    const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
+    if (i === -1) atual.push(n); else atual.splice(i, 1);
+    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: atual });
+    if (r.ok){ configObra.admins = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora é administrador desta obra' : n+' não é mais administrador', 'ok'); }
+  }));
   cont.querySelectorAll('[data-apagar-pin]').forEach((b) => b.addEventListener('click', async () => {
     if (!window.confirm('Apagar o PIN de '+b.dataset.nome+'?\\n\\nNo próximo acesso, ela vai criar um PIN novo.')) return;
     const doc = await store.getDoc('config', 'pins');
@@ -2658,8 +2713,24 @@ async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter)
    é pra evitar engano no dia a dia). */
 let itensExcluidos = {}; // id → { por, em, andar, local, disciplina, desc }
 const PODE_TIRAR_DA_OBRA = ['Guilherme Titton', 'Marcel Camilo'];
+let configObra = { nome: '', admins: [] }; // nome da obra e administradores DESTA obra (além de Guilherme e Marcel)
+async function carregarConfigObra(){
+  try{ const d = await store.getDoc('config', 'obra'); configObra = { nome: (d && d.nome) || '', admins: (d && Array.isArray(d.admins)) ? d.admins : [] }; }catch(e){}
+  renderNomeObra();
+}
+function nomeDaObra(){
+  if (configObra.nome) return configObra.nome;
+  if (!OBRA) return 'Quartos';
+  return OBRA.split('-').map((p) => p ? p[0].toUpperCase() + p.slice(1) : p).join(' ');
+}
+function renderNomeObra(){
+  const h = document.querySelector('.marca-texto h1');
+  if (h) h.textContent = 'Acompanhamento de obra — ' + nomeDaObra();
+}
 function podeTirarDaObra(){
-  return !!usuarioAtual && PODE_TIRAR_DA_OBRA.some((n) => chaveComparacao(n) === chaveComparacao(usuarioAtual));
+  if (!usuarioAtual) return false;
+  const k = chaveComparacao(usuarioAtual);
+  return PODE_TIRAR_DA_OBRA.concat(configObra.admins || []).some((n) => chaveComparacao(n) === k);
 }
 async function carregarExcluidos(){
   try{
@@ -5199,7 +5270,7 @@ async function gerarImagemCartao(o){
   const rr = (x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); };
   if (logos.sofitel){ const im = await carregar(logos.sofitel.src); rr(x, P, 84, 34, 8); ctx.fill(); ctx.stroke(); if (im){ let lh = 24, lw = lh*logos.sofitel.ratio; if (lw > 70){ lw = 70; lh = lw/logos.sofitel.ratio; } ctx.drawImage(im, x+42-lw/2, P+17-lh/2, lw, lh); } x += 92; }
   if (logos.aw){ const im = await carregar(logos.aw.src); if (im){ ctx.save(); rr(x, P, 34, 34, 8); ctx.clip(); ctx.drawImage(im, x, P, 34, 34); ctx.restore(); } x += 42; }
-  ctx.fillStyle = corTexto; ctx.font = fonte(14, true); ctx.fillText('Checklist · Sofitel Ipanema', x, P+15);
+  ctx.fillStyle = corTexto; ctx.font = fonte(14, true); ctx.fillText('Checklist · Sofitel Ipanema · ' + nomeDaObra(), x, P+15);
   ctx.fillStyle = corMuted; ctx.font = fonte(11.5); ctx.fillText(o.rodape, x, P+31);
   // cartão branco
   let y = P + hTopo;
@@ -5732,7 +5803,18 @@ function renderPreviewEnvio(){
 /* ===================== APAGAR TUDO ===================== */
 /* ids de foto que ainda estão referenciados por algum item salvo, em qualquer revisão */
 async function coletarIdsDeFotoReferenciados(){
-  const todosSnapshots = await store.listCollection('snapshots');
+  // TODAS as obras (e a área de teste): uma foto usada em qualquer uma delas nunca é apagada
+  let todosSnapshots = [];
+  if (store.backend === 'cloud'){
+    try{
+      const data = await selecionarTudoPaginado(() => supa.from('app_data').select('data').like('collection', '%snapshots'));
+      todosSnapshots = data.map((r) => r.data || {});
+    }catch(e){ throw new Error('não consegui ler os itens de todas as obras — limpeza cancelada por segurança'); }
+  } else {
+    Object.keys(localStorage).filter((k) => /^obra_.*snapshots$/.test(k)).forEach((k) => {
+      try{ const all = JSON.parse(localStorage.getItem(k) || '{}'); Object.values(all).forEach((s) => todosSnapshots.push(s)); }catch(e){}
+    });
+  }
   const referenciados = new Set();
   todosSnapshots.forEach((snap) => {
     (snap.itens || []).forEach((it) => {
@@ -6047,7 +6129,7 @@ function pdfCabecalho(doc, ctx){
   if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+86, 28, 30, 30); }catch(e){} }
 
   pdfTxt(doc, M+128, 43, ctx.titulo, 17, PDF_COR.ink);
-  pdfTxt(doc, M+128, 55, 'Relatório de pendências · Hotel Sofitel Ipanema', 8, PDF_COR.muted);
+  pdfTxt(doc, M+128, 55, 'Relatório de pendências · Hotel Sofitel Ipanema · ' + nomeDaObra(), 8, PDF_COR.muted);
   if (ctx.revisao){
     const t = 'Revisão '+ctx.revisao, w = pdfLarg(doc, t, 7.5) + 20;
     pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 28, w, 16, 8, 8, 'F');
@@ -6098,7 +6180,7 @@ function pdfCabecalho(doc, ctx){
 function pdfRodape(doc, pagina, total){
   const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M;
   pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.line(M, PH-40, PW-M, PH-40);
-  pdfTxt(doc, M, PH-28, 'Checklist · AW — Sofitel Ipanema', 7, PDF_COR.muted);
+  pdfTxt(doc, M, PH-28, 'Checklist · AW — Sofitel Ipanema · ' + nomeDaObra(), 7, PDF_COR.muted);
   pdfTxt(doc, PW-M, PH-28, 'Página '+pagina+' de '+total, 7, PDF_COR.muted, 'right');
 }
 
@@ -6258,7 +6340,7 @@ async function exportarVisaoGeralPdf(){
         if (logos.sofitel){ let lh = 19, lw = lh*logos.sofitel.ratio; if (lw > 58){ lw = 58; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+35-lw/2, 31.5-lh/2, lw, lh); }catch(e){} }
         if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+78, 18, 27, 27); }catch(e){} }
         pdfTxt(doc, M+116, 31, 'Visão geral da obra', 15, PDF_COR.ink);
-        pdfTxt(doc, M+116, 42, 'Relatório de pendências · Hotel Sofitel Ipanema', 7.5, PDF_COR.muted);
+        pdfTxt(doc, M+116, 42, 'Relatório de pendências · Hotel Sofitel Ipanema · ' + nomeDaObra(), 7.5, PDF_COR.muted);
         if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 18, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, PW-M-w/2, 28.5, tt, 7.5, PDF_COR.acc, 'center'); }
         pdfTxt(doc, PW-M, 43, base.dataHora, 7.5, PDF_COR.muted, 'right');
         topo = 56;
@@ -6625,7 +6707,7 @@ async function exportarRelatorioLiberados(){
         if (logos.sofitel){ let lh = 19, lw = lh*logos.sofitel.ratio; if (lw > 58){ lw = 58; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+35-lw/2, 31.5-lh/2, lw, lh); }catch(e){} }
         if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+78, 18, 27, 27); }catch(e){} }
         pdfTxt(doc, M+116, 31, titulo, 14, PDF_COR.ink);
-        pdfTxt(doc, M+116, 42, 'Hotel Sofitel Ipanema · itens ainda em aberto em cada ambiente, com a data prevista', 7.5, PDF_COR.muted);
+        pdfTxt(doc, M+116, 42, 'Hotel Sofitel Ipanema · ' + nomeDaObra() + ' · itens ainda em aberto em cada ambiente, com a data prevista', 7.5, PDF_COR.muted);
         if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 18, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, PW-M-w/2, 28.5, tt, 7.5, PDF_COR.acc, 'center'); }
         pdfTxt(doc, PW-M, 43, base.dataHora, 7.5, PDF_COR.muted, 'right');
         return 56;
@@ -6778,7 +6860,7 @@ async function exportarRelatorioLiberados(){
 
 /* nome do arquivo = nome do app + aba + filtro aplicado, ex.:
    "Painel da Obra Sofitel - Itens - 18º andar - Executado AW.pdf" */
-const NOME_APP_ARQUIVO = 'Checklist';
+const NOME_APP_ARQUIVO = 'Checklist' + (OBRA ? ' ' + OBRA : '');
 function nomeArquivoPdf(aba, filtro){
   const partes = [NOME_APP_ARQUIVO, aba];
   if (filtro && filtro !== 'Todos') partes.push(String(filtro).split(' · ').join(' - '));
@@ -7053,7 +7135,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
