@@ -912,8 +912,31 @@ const OBRA = (() => {
     slug = String(param).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
     if (slug === 'quartos') slug = '';
     try{ localStorage.setItem(CH, slug); }catch(e){}
-  } else { try{ slug = localStorage.getItem(CH) || ''; }catch(e){} }
+  } else {
+    // sem ?obra: no navegador é sempre Quartos. Só o app instalado (atalho antigo, sem a obra
+    // no endereço) usa a última obra lembrada neste aparelho.
+    const instalado = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (instalado){ try{ slug = localStorage.getItem(CH) || ''; }catch(e){} }
+  }
   return slug;
+})();
+/* o atalho instalado (Android/computador) abre sempre a obra de onde foi instalado:
+   o manifesto passa a apontar pro endereço com ?obra=… */
+(function(){
+  if (!OBRA) return;
+  try{
+    const titulo = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (titulo) titulo.setAttribute('content', 'Checklist ' + OBRA.split('-').map((p) => p ? p[0].toUpperCase() + p.slice(1) : p).join(' '));
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    fetch(link.href, { cache:'no-store' }).then((r) => r.json()).then((m) => {
+      const inicio = location.origin + location.pathname + '?obra=' + encodeURIComponent(OBRA);
+      m.start_url = inicio; m.id = inicio; m.scope = location.origin + location.pathname;
+      m.name = (m.name || 'Checklist') + ' – ' + OBRA; m.short_name = 'Checklist ' + OBRA.slice(0, 6);
+      (m.icons || []).forEach((ic) => { ic.src = new URL(ic.src, link.href).href; });
+      link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
+    }).catch(() => {});
+  }catch(e){}
 })();
 function colReal(col){ return (MODO_TESTE ? 'teste_' : '') + (OBRA ? OBRA + '__' : '') + col; }
 
@@ -983,7 +1006,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.84';
+const VERSAO_APP = '2026-10-03.85';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
