@@ -735,7 +735,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         </div>
       </div>
       <div id="status-espaco-fotos" style="font-size:.85rem; color:var(--muted); margin-top:2px;"></div>
-      <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
+      <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais, áreas do térreo — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
       <div class="dropzone" id="dropzone">
         <strong>Arraste os arquivos .xlsx, PDF ou um .zip aqui</strong><br>ou clique para escolher
       </div>
@@ -983,7 +983,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.80';
+const VERSAO_APP = '2026-10-03.83';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1159,6 +1159,43 @@ let andaresConhecidos = [];    // união de todos os andares já vistos em qualq
 let andaresNestaRevisao = new Set(); // andares que TÊM snapshot na revisão selecionada
 
 /* ===================== PARSER DE PLANILHAS ===================== */
+/* NÍVEL do andar (último pedaço do título). O número define a posição física na torre:
+   subsolos negativos, térreo 0, níveis intermediários entre o térreo e o 1º, andares 1, 2, 3…,
+   e os níveis do topo acima de 100. A ÁREA (o que vem antes) é livre e é criada sozinha. */
+const NIVEIS_ESPECIAIS = [
+  { re: /^T[ÉE]RREO\b/, n: 0, nome: 'Térreo' },
+  { re: /^PILOTIS?\b/, n: 0.2, nome: 'Pilotis' },
+  { re: /^MEZANINO\b/, n: 0.5, nome: 'Mezanino' },
+  { re: /^SOBRELOJA\b/, n: 0.7, nome: 'Sobreloja' },
+  { re: /^COBERTURA\b/, n: 100, nome: 'Cobertura' },
+  { re: /^[ÁA]TICO\b/, n: 101, nome: 'Ático' },
+  { re: /^BARRILETE\b/, n: 102, nome: 'Barrilete' },
+  { re: /^CASA DE M[ÁA]QUINAS\b/, n: 103, nome: 'Casa de máquinas' },
+  { re: /^HELIPONTO\b|^HELIPORTO\b/, n: 104, nome: 'Heliponto' }
+];
+function interpretarNivel(txt){
+  const s = String(txt || '').toUpperCase().trim();
+  let m = s.match(/^(\d{1,2})\s*º?\s*(PAV|ANDAR)/) || s.match(/^(?:PAV(?:IMENTO)?|ANDAR)\s*(\d{1,2})\b/);
+  if (m) return parseInt(m[1], 10);
+  m = s.match(/^(\d)\s*º?\s*SUBSOLO/) || s.match(/^SUBSOLO\s*(\d)?/); if (m) return -(parseInt(m[1] || '1', 10));
+  const esp = NIVEIS_ESPECIAIS.find((x) => x.re.test(s));
+  return esp ? esp.n : null;
+}
+function nomeAndar(a){
+  const n = Number(a);
+  if (n < 0) return (-n) + 'º subsolo';
+  const esp = NIVEIS_ESPECIAIS.find((x) => x.n === n);
+  if (esp) return esp.nome;
+  return a + 'º';
+}
+function nomeAndarLongo(a){ const n = Number(a); return (n < 0 || NIVEIS_ESPECIAIS.some((x) => x.n === n)) ? nomeAndar(a) : a + 'º andar'; }
+function erroDeNivel(nomeArquivo, tituloTexto){
+  const pedacos = String(tituloTexto).split(/\s+-\s+/);
+  const ultimo = pedacos.length >= 2 ? pedacos[pedacos.length - 1].trim() : '';
+  return ultimo
+    ? `"${nomeArquivo}": não reconheci o nível "${ultimo}" no fim do título "${tituloTexto}". Níveis conhecidos: Nº PAV, Térreo, Subsolo, Pilotis, Mezanino, Sobreloja, Cobertura, Ático, Barrilete, Casa de máquinas, Heliponto.`
+    : `"${nomeArquivo}": não reconheci o andar/área em "${tituloTexto}".`;
+}
 function interpretarArea(tituloTexto){
   const t = tituloTexto.toUpperCase();
   let m = t.match(/APTO\s+(\d{3,4})/);
@@ -1174,6 +1211,13 @@ function interpretarArea(tituloTexto){
     const tipo = m[1].trim();
     const andar = parseInt(m[2], 10);
     return { tipo, andar, quarto:null };
+  }
+  // áreas comuns: "VERSÃO OBRA - CALÇADA - TÉRREO" (nível no fim: térreo, subsolo, cobertura…)
+  m = t.match(/VERS[ÃA]O OBRA\s*-\s*(.+)$/);
+  if (m){
+    const pedacos = m[1].split(/\s+-\s+/);
+    const nivel = interpretarNivel(pedacos[pedacos.length - 1]);
+    if (nivel !== null && pedacos.length >= 2) return { tipo: pedacos.slice(0, -1).join(' - ').trim(), andar: nivel, quarto:null };
   }
   // fallback: sem nome de área antes do "Nº PAV" (título só tem "- 14º PAV", por exemplo)
   m = t.match(/(\d{1,2})\s*º?\s*PAV/);
@@ -1209,7 +1253,7 @@ function lerPlanilha(ws, nomeArquivo, imagensInfo){
   }
   if (!tituloTexto) return { erro: `"${nomeArquivo}": não encontrei a linha com "VERSÃO OBRA - ...".` };
   const area = interpretarArea(tituloTexto);
-  if (!area) return { erro: `"${nomeArquivo}": não reconheci o andar/área em "${tituloTexto}".` };
+  if (!area) return { erro: erroDeNivel(nomeArquivo, tituloTexto) };
   if (!revisao) return { erro: `"${nomeArquivo}": não encontrei o número da revisão.` };
 
   const imagensPorLinha = (imagensInfo && imagensInfo.porLinha) || new Map();
@@ -1548,7 +1592,7 @@ async function lerPDF(buf, nomeArquivo){
 
   if (!tituloTexto) return { erro: `"${nomeArquivo}": não encontrei "VERSÃO OBRA" no PDF.` };
   const area = interpretarArea(tituloTexto);
-  if (!area) return { erro: `"${nomeArquivo}": não reconheci o andar/área em "${tituloTexto}".` };
+  if (!area) return { erro: erroDeNivel(nomeArquivo, tituloTexto) };
   if (!revisao) return { erro: `"${nomeArquivo}": não encontrei o número da revisão.` };
   if (todosItens.length === 0) return { erro: `"${nomeArquivo}": não encontrei nenhum item na tabela do PDF.` };
 
@@ -1893,7 +1937,7 @@ async function salvarLote(grupos, aoProgredir){
       const original = combinados[i];
       return original && original.x && (it.x === undefined || it.x.length < original.x.length);
     });
-    if (algumCortadoOuRemovido) avisos.descricaoCortada.push(g.andar + 'º andar (R'+g.revisao+')');
+    if (algumCortadoOuRemovido) avisos.descricaoCortada.push(nomeAndarLongo(g.andar) + ' (R'+g.revisao+')');
 
     // auditoria: arquivo(s) onde sobrou imagem no .xlsx sem conseguir associar a nenhuma linha
     (g.auditoriasFotos || []).forEach((a) => {
@@ -1952,7 +1996,7 @@ async function salvarLote(grupos, aoProgredir){
       if (!locaisNovos.has(chave)){ areasLiberadasFinal[chave] = entrada; return; } // local não tocado, mantém como estava
       const itensDoLocalAgora = itensFinal.filter((it) => chaveAreaDoc(it.t, it.q) === chave);
       if (itensDoLocalAgora.some((it) => it.s === 'VM' && estaEmAberto({ id: it.id }))){
-        avisos.liberacaoRemovidaPorVM.push(g.andar + 'º andar · ' + chave.replace('|','-'));
+        avisos.liberacaoRemovidaPorVM.push(nomeAndarLongo(g.andar) + ' · ' + chave.replace('|','-'));
         return; // sai do azul sozinha — não entra no final
       }
       const idsConhecidos = new Set(entrada.itens || []);
@@ -1974,7 +2018,7 @@ async function salvarLote(grupos, aoProgredir){
       atualizadoEm: new Date().toISOString()
     });
     if (!r.ok){
-      avisos.gravacaoFalhou.push(g.andar + 'º andar (R'+g.revisao+'): ' + r.erro);
+      avisos.gravacaoFalhou.push(nomeAndarLongo(g.andar) + ' (R'+g.revisao+'): ' + r.erro);
       continue; // não marca esta revisão/andar como tocada, já que não foi de fato salva
     }
     if (!revisoesTocadas.has(g.revisao)) revisoesTocadas.set(g.revisao, new Set());
@@ -2576,7 +2620,7 @@ function perguntarReprovado(itemId, ac){
   return new Promise((resolve) => {
     resolverReprovado = resolve;
     const it = itensRevisaoAtual.find((x) => x.id === itemId);
-    const local = it ? (it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo)+' '+it.andar+'º') : '';
+    const local = it ? (it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo)+' '+nomeAndar(it.andar) + '') : '';
     document.getElementById('texto-reprovado').textContent =
       'Item '+itemId+(local ? ' · '+local : '')+' — marcado como Executado AW'+
       (ac.awExecPor ? ' por '+ac.awExecPor : '')+' em '+dataHoraCurta(ac.awExecEm)+'.';
@@ -2745,7 +2789,7 @@ async function tirarDaObra(ids){
   const agora = new Date().toISOString();
   ids.forEach((id) => {
     const it = itensRevisaoAtual.find((x) => x.id === id) || {};
-    atual[id] = { por: usuarioAtual, em: agora, andar: it.andar || null,
+    atual[id] = { por: usuarioAtual, em: agora, andar: (it.andar != null ? it.andar : null),
       local: it.tipo ? (it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo)) : '',
       disciplina: it.disciplina || '', desc: String(it.desc || '').slice(0, 200) };
   });
@@ -2776,7 +2820,7 @@ function renderListaExcluidos(){
   cont.innerHTML = '<h2 style="margin-bottom:4px;">Itens de outra diretoria ('+ids.length+')</h2>' +
     '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Tirados da nossa obra — não aparecem em nenhuma tela nem nas próximas revisões. Restaure se algum foi tirado por engano.</p>' +
     '<div style="overflow-x:auto;"><table><thead><tr><th class="col-centro">Item</th><th class="col-centro">Andar</th><th class="col-centro">Local</th><th>Disciplina</th><th>Descrição</th><th class="col-centro">Tirado por</th><th class="col-centro">Ação</th></tr></thead><tbody>' +
-    linhas.map((l) => '<tr><td class="mono col-centro">'+esc(l.id)+'</td><td class="mono col-centro">'+(l.andar ? l.andar+'º' : '—')+'</td><td class="col-centro">'+esc(l.local||'—')+'</td>' +
+    linhas.map((l) => '<tr><td class="mono col-centro">'+esc(l.id)+'</td><td class="mono col-centro">'+(l.andar != null ? nomeAndar(l.andar) : '—')+'</td><td class="col-centro">'+esc(l.local||'—')+'</td>' +
       '<td>'+esc(l.disciplina||'—')+'</td><td>'+esc(l.desc||'—')+'</td>' +
       '<td class="col-centro" style="font-size:12px; color:var(--muted);">'+esc(l.por||'—')+'<br>'+(l.em ? dataHoraCurta(l.em) : '')+'</td>' +
       '<td class="col-centro"><button type="button" class="chip-acao" data-restaurar="'+esc(l.id)+'">Restaurar</button></td></tr>').join('') +
@@ -2903,7 +2947,7 @@ function localLabel(it){
   // espaço não-quebrável antes do "Xº" — garante que o número do andar nunca fica
   // sozinho numa linha separada do resto do nome (ex: "Corredor 7º" não quebra ali;
   // se precisar quebrar, quebra antes, num nome composto tipo "Itens gerais")
-  return it.tipo.charAt(0) + it.tipo.slice(1).toLowerCase() + '\u00A0' + it.andar + 'º';
+  return it.tipo.charAt(0) + it.tipo.slice(1).toLowerCase() + '\u00A0' + nomeAndar(it.andar) + '';
 }
 function localKey(it){
   return it.tipo === 'APTO' ? ('APTO-'+it.quarto) : (it.tipo+'-'+it.andar);
@@ -3182,17 +3226,32 @@ function piorStatusEntreLocais(locais){
 }
 const STATUS_PARA_BARRA = { BLOQUEADO:'status-vm', PENDENTE:'status-pendente', LIBERADO_PEND:'status-liberado-pend', CONCLUIDO:'status-vd' };
 
+/* a torre mostra o PRÉDIO: do nível mais baixo que já veio ao mais alto, completando os
+   andares que faltam no meio (aparecem em cinza, "sem dados", até chegar planilha deles).
+   Subsolos, térreo e andares são contínuos; níveis intermediários (pilotis, mezanino…) e do
+   topo (cobertura, ático…) entram só se vierem. Não inventa andar fora da faixa recebida. */
+function completarAndaresDaTorre(lista){
+  const nums = Array.from(new Set(lista.map(Number).filter((n) => !isNaN(n))));
+  const regulares = nums.filter((n) => Number.isInteger(n) && n > -20 && n < 100);
+  const set = new Set(nums);
+  if (regulares.length){
+    const min = Math.min(...regulares), max = Math.max(...regulares);
+    for (let n = min; n <= max; n++) set.add(n);
+  }
+  return Array.from(set).sort((a,b) => a-b);
+}
 function renderTorreAndares(){
   const cont = document.getElementById('torre-andares');
   cont.innerHTML = '';
-  const todos = andaresConhecidos.slice().sort((a,b)=>a-b);
+  const todos = completarAndaresDaTorre(andaresConhecidos);
   document.getElementById('vazio-torre-andares').classList.toggle('oculto', todos.length>0);
   if (todos.length === 0){
     document.getElementById('titulo-torre-andares').textContent = 'Andares';
     document.getElementById('marca-sub').textContent = 'pendências diárias';
     return;
   }
-  const faixaTexto = todos.length>1 ? (todos[0]+'º ao '+todos[todos.length-1]+'º') : (todos[0]+'º');
+  const ultimoN = todos[todos.length-1], ligacao = (Number.isInteger(ultimoN) && ultimoN > 0 && ultimoN < 100) ? ' ao ' : ' – ';
+  const faixaTexto = todos.length>1 ? (nomeAndar(todos[0]) + ligacao + nomeAndar(ultimoN)) : nomeAndar(todos[0]);
   document.getElementById('titulo-torre-andares').textContent = 'Andares ('+faixaTexto+')';
   document.getElementById('marca-sub').textContent = 'Andares '+faixaTexto+' · pendências diárias';
   const todosLocais = agruparPorLocal(itensRevisaoAtual);
@@ -3229,7 +3288,7 @@ function renderTorreAndares(){
         '</span>';
     }
     row.classList.toggle('liberado-total', liberadoTotal);
-    row.innerHTML = '<span class="num mono">' + andar + 'º</span>' +
+    row.innerHTML = '<span class="num mono">' + nomeAndar(andar) + '</span>' +
       (pctAndar === null
         ? '<span class="barra"><span class="' + statusClasse + '"></span></span>'
         // REGRA ÚNICA das barras (torre e rankings): clarinho = total; parte FORTE = o que já foi
@@ -3441,11 +3500,11 @@ function renderInsightsResumo(){
         (diff.desceu.length ? '<span style="color:var(--aviso-cor);">↓ '+pdfNum(diff.desceu.length)+' desceram de VM para AM</span>' : '') + '</div>';
     }
     if (diff.semDadosNoPara.length){
-      html += '<div class="aviso" style="margin:0 0 10px;">Sem dados na '+esc(atualMeta.label)+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ') +
+      html += '<div class="aviso" style="margin:0 0 10px;">Sem dados na '+esc(atualMeta.label)+': '+diff.semDadosNoPara.map((a) => nomeAndar(a) + '').join(', ') +
         ' — esses andares não vieram nesta revisão e <b>não</b> foram contados como resolvidos.</div>';
     }
     if (diff.andaresNovos.length){
-      html += '<div class="detalhe" style="margin:0 0 10px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
+      html += '<div class="detalhe" style="margin:0 0 10px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => nomeAndar(a) + '').join(', ')+'</div>';
     }
     // GRÁFICO DE BARRAS DIVERGENTES por andar: verde pra esquerda (saiu), vermelho pra direita (entrou)
     const porAndar = agruparDiferencas(diff).sort((x,y) => y.andar - x.andar);
@@ -3469,7 +3528,7 @@ function renderInsightsResumo(){
         const s = a.novos - a.resolvidos;
         svg += '<g class="clicavel" data-comp-andar="'+a.andar+'" style="cursor:pointer;">';
         svg += '<rect x="0" y="'+y+'" width="'+W+'" height="'+alturaLinha+'" style="fill:transparent;"/>';
-        svg += '<text x="'+(padL-10)+'" y="'+(cy+4)+'" font-size="12.5" text-anchor="end" style="fill:var(--text)">'+a.andar+'º</text>';
+        svg += '<text x="'+(padL-10)+'" y="'+(cy+4)+'" font-size="12.5" text-anchor="end" style="fill:var(--text)">'+nomeAndar(a.andar) + '</text>';
         if (wRes) svg += '<rect x="'+(centro-wRes).toFixed(1)+'" y="'+(cy-h/2)+'" width="'+wRes.toFixed(1)+'" height="'+h+'" rx="4" style="fill:var(--vd); opacity:.85;"/>';
         if (wNov) svg += '<rect x="'+centro+'" y="'+(cy-h/2)+'" width="'+wNov.toFixed(1)+'" height="'+h+'" rx="4" style="fill:var(--vm); opacity:.85;"/>';
         svg += '<text x="'+(centro-wRes-6).toFixed(1)+'" y="'+(cy+4)+'" font-size="11.5" text-anchor="end" style="fill:var(--vd)">'+(a.resolvidos ? '−'+pdfNum(a.resolvidos) : '0')+'</text>';
@@ -3483,7 +3542,7 @@ function renderInsightsResumo(){
       const locais = porAndar.flatMap((a) => Array.from(a.locais.values())).filter((l) => l.novos.length).sort((x,y) => y.novos.length - x.novos.length).slice(0, 6);
       if (locais.length){
         html += '<div class="detalhe" style="margin:14px 0 6px;">Onde mais entraram pendências</div><div style="display:flex; flex-wrap:wrap; gap:6px;">' +
-          locais.map((l) => '<span class="badge bloqueado" style="font-size:12px;">'+esc(l.label)+' · '+l.andar+'º  +'+l.novos.length+'</span>').join('') + '</div>';
+          locais.map((l) => '<span class="badge bloqueado" style="font-size:12px;">'+esc(l.label)+' · '+nomeAndar(l.andar) + '  +'+l.novos.length+'</span>').join('') + '</div>';
       }
     } else if (!diff.semDadosNoPara.length) {
       html += '<div class="vazio">Nenhuma diferença entre as duas revisões.</div>';
@@ -3495,7 +3554,7 @@ function renderInsightsResumo(){
       html += '<div style="margin-top:12px;"><div class="detalhe" style="margin-bottom:6px;">Críticas (VM) que pedem atenção — novas ou que subiram de AM:</div>' +
         novasCriticas.map((it) => {
           const label = it.tipo==='APTO' ? String(it.quarto) : labelTipo(it.tipo);
-          return '<div class="insight-item" style="padding:7px 0;"><div><div class="local" style="font-size:12.5px;">'+esc(it.id)+' · '+it.andar+'º · '+esc(label) +
+          return '<div class="insight-item" style="padding:7px 0;"><div><div class="local" style="font-size:12.5px;">'+esc(it.id)+' · '+nomeAndar(it.andar) + ' · '+esc(label) +
             (it._como === 'subiu' ? ' <span class="badge bloqueado" style="font-size:10.5px;">subiu AM → VM</span>' : ' <span class="badge bloqueado" style="font-size:10.5px;">nova</span>')+'</div>' +
             '<div class="detalhe">'+esc((it.desc||'').slice(0,70))+'</div></div></div>';
         }).join('') + '</div>';
@@ -3991,7 +4050,7 @@ function popularFiltroAndar(){
   sel.innerHTML = '<option value="">Todos os andares</option>';
   andaresConhecidos.forEach((a) => {
     const opt = document.createElement('option');
-    opt.value = String(a); opt.textContent = a + 'º andar';
+    opt.value = String(a); opt.textContent = nomeAndarLongo(a) + '';
     sel.appendChild(opt);
   });
   sel.value = atual;
@@ -4070,7 +4129,7 @@ function renderQuartos(){
       const texto = status === 'LIBERADO_PEND' ? 'Remover liberação' : 'Liberar c/ pendência';
       acaoHtml = '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+texto+'</button>';
     }
-    tr.innerHTML = '<td class="mono col-centro">'+l.andar+'º</td><td>'+esc(l.label)+'</td>' +
+    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label)+'</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
@@ -4106,7 +4165,7 @@ function renderQuartos(){
         e.stopPropagation();
         btn.disabled = true;
         await alternarLiberadoComPendencia(
-          revisaoSelecionada, parseInt(tr.dataset.andar,10), tr.dataset.tipo,
+          revisaoSelecionada, Number(tr.dataset.andar), tr.dataset.tipo,
           tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10)
         );
       });
@@ -4261,7 +4320,7 @@ function popularFiltroItemAndar(){
   sel.innerHTML = '<option value="">Todos os andares</option>';
   andaresConhecidos.forEach((a) => {
     const opt = document.createElement('option');
-    opt.value = String(a); opt.textContent = a + 'º andar';
+    opt.value = String(a); opt.textContent = nomeAndarLongo(a) + '';
     sel.appendChild(opt);
   });
   sel.value = atual;
@@ -4405,7 +4464,7 @@ function renderItens(){
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro">'+esc(it.id)+'</td><td class="mono col-centro">'+it.andar+'º</td><td class="col-centro">'+esc(label)+'</td>' +
+      '<td class="mono col-centro">'+esc(it.id)+'</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
       '<td class="col-centro"><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
@@ -4496,7 +4555,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       '<h3>Editar item '+esc(itemId)+'</h3>' +
       '<div class="modal-sub">'+esc(it.desc||'')+'</div>' +
       '<div class="modal-info-grid">' +
-        '<div><div class="rotulo">Andar</div><div class="valor">'+it.andar+'º</div></div>' +
+        '<div><div class="rotulo">Andar</div><div class="valor">'+nomeAndar(it.andar) + '</div></div>' +
         '<div><div class="rotulo">Local</div><div class="valor">'+esc(local)+'</div></div>' +
         '<div><div class="rotulo">Status (da planilha)</div><div class="valor"><span class="badge '+statusClasse+'">'+esc(statusTexto)+'</span></div></div>' +
         '<div><div class="rotulo">Versão / lançado em</div><div class="valor">'+esc(revLabel)+' · '+dataFmt+'</div></div>' +
@@ -4599,7 +4658,7 @@ function abrirEdicaoAgrupamento(){
       '<div class="modal-sub">'+itens.length+' item(ns) selecionado(s). Campo deixado em "manter" não muda nada nos itens.</div>' +
       '<div class="modal-info-grid">' +
         '<div><div class="rotulo">Itens</div><div class="valor">'+itens.length+'</div></div>' +
-        '<div><div class="rotulo">Andares</div><div class="valor">'+esc(resumo(andares.map((a) => a+'º'), 6))+'</div></div>' +
+        '<div><div class="rotulo">Andares</div><div class="valor">'+esc(resumo(andares.map((a) => nomeAndar(a) + ''), 6))+'</div></div>' +
         '<div><div class="rotulo">Disciplina(s) hoje</div><div class="valor">'+esc(resumo(discs, 2))+'</div></div>' +
         '<div><div class="rotulo">Fornecedor(es) hoje</div><div class="valor">'+esc(resumo(forns, 2))+'</div></div>' +
       '</div>' +
@@ -4810,10 +4869,10 @@ async function executarComparacao(){
   };
   let htmlDet = '';
   if (diff.semDadosNoPara.length){
-    htmlDet += '<div class="aviso" style="margin-bottom:12px;">Sem dados na revisão '+esc(para)+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — não contados como resolvidos.</div>';
+    htmlDet += '<div class="aviso" style="margin-bottom:12px;">Sem dados na revisão '+esc(para)+': '+diff.semDadosNoPara.map((a) => nomeAndar(a) + '').join(', ')+' — não contados como resolvidos.</div>';
   }
   if (diff.andaresNovos.length){
-    htmlDet += '<div class="rodape-nota" style="text-align:left; margin-bottom:12px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => a+'º').join(', ')+'</div>';
+    htmlDet += '<div class="rodape-nota" style="text-align:left; margin-bottom:12px;">Andares que entraram agora (sem revisão anterior pra comparar): '+diff.andaresNovos.map((a) => nomeAndar(a) + '').join(', ')+'</div>';
   }
   if (locais.length === 0){
     htmlDet += '<div class="vazio">Nenhuma diferença encontrada entre essas duas revisões.</div>';
@@ -4852,7 +4911,7 @@ async function executarComparacao(){
         const sub = ls.reduce((a, l) => a + l.subiu.length, 0), des = ls.reduce((a, l) => a + l.desceu.length, 0);
         const semB = ls.reduce((a, l) => a + l.semBaixa.length, 0);
         return '<tr class="clicavel" data-toggle-andar="'+andar+'" id="comp-andar-'+andar+'" style="scroll-margin-top:140px;">' +
-            '<td class="mono col-centro" style="color:var(--text);">'+andar+'º</td>' +
+            '<td class="mono col-centro" style="color:var(--text);">'+nomeAndar(andar) + '</td>' +
             '<td style="color:var(--muted);">'+ls.length+' ambiente(s)</td>' +
             '<td class="num-col col-vm">'+celNovas(nov, vm)+'</td>' +
             '<td class="num-col col-vd">'+(res ? '−'+pdfNum(res) : '0')+'</td>' +
@@ -4916,7 +4975,7 @@ function renderDivergenciasIac(itensDaRevisaoPara){
     linhas.map((l) => {
       const label = l.it.tipo === 'APTO' ? String(l.it.quarto) : (l.it.tipo.charAt(0)+l.it.tipo.slice(1).toLowerCase());
       const dataFmt = new Date(l.iacOkEm).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'});
-      return '<tr><td class="mono">'+esc(l.it.id)+'</td><td class="mono">'+l.it.andar+'º</td><td>'+esc(label)+'</td>'+
+      return '<tr><td class="mono">'+esc(l.it.id)+'</td><td class="mono">'+nomeAndar(l.it.andar) + '</td><td>'+esc(label)+'</td>'+
         '<td>'+esc(l.it.disciplina)+'</td>' +
         '<td><span class="badge '+(l.it.status==='VM'?'bloqueado':'pendente')+'">'+l.it.status+'</span></td>' +
         '<td class="mono">'+dataFmt+'</td></tr>';
@@ -5045,31 +5104,31 @@ async function renderTendencia(){
   const fila = Array.from(filaAndar.entries()).sort((a,b) => b[1] - a[1]);
 
   const semBaixa = (x) => x.dias === null ? 'nunca deu baixa' : 'sem baixa há '+x.dias+' dia(s)';
-  const ondeEstao = (x) => Array.from(x.porAndar.entries()).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([a,n]) => a+'º ('+n+')').join(', ');
+  const ondeEstao = (x) => Array.from(x.porAndar.entries()).sort((a,b) => b[1]-a[1]).slice(0, 6).map(([a,n]) => nomeAndar(a) + ' ('+n+')').join(', ');
   const itensAbertosDoLocal = (l) => l.itens.filter(estaEmAberto);
-  const nomeAmb = (l) => /º/.test(String(l.label)) ? String(l.label).replace(/\u00A0/g, ' ') : l.label + ' · ' + l.andar + 'º';
+  const nomeAmb = (l) => { const s = String(l.label).replace(/\u00A0/g, ' '); return s.endsWith(nomeAndar(l.andar)) ? s : s + ' · ' + nomeAndar(l.andar); };
 
   // ---------- definição de cada cartão: linhas da tela, mensagem e PDF ----------
   planoCartoes = {
     vms: {
       titulo: 'Vermelhos em aberto', sub: 'Travam a liberação dos ambientes — sempre primeiro.', vazio: 'Nenhum vermelho em aberto.',
       itens: vms,
-      linha: (it) => ({ esq: esc(it.id)+' · '+it.andar+'º · '+esc(localLabel(it)), det: esc(disciplinaEfetiva(it))+' — '+esc((it.desc||'').slice(0,80)), dir: '<span class="badge bloqueado">VM</span>',
+      linha: (it) => ({ esq: esc(it.id)+' · '+nomeAndar(it.andar) + ' · '+esc(localLabel(it)), det: esc(disciplinaEfetiva(it))+' — '+esc((it.desc||'').slice(0,80)), dir: '<span class="badge bloqueado">VM</span>',
         abrir: () => abrirItens({ andar: it.andar, ambiente: 'local:'+localKey(it), busca: it.id }) }),
-      texto: () => '*Vermelhos em aberto — '+vms.length+' item(ns)* ('+rev+')\n' + agruparTexto(vms, (it) => it.andar+'º andar', (it) => '• '+localLabel(it)+' — '+it.id+' '+disciplinaEfetiva(it)+': '+(it.desc||'')),
+      texto: () => '*Vermelhos em aberto — '+vms.length+' item(ns)* ('+rev+')\n' + agruparTexto(vms, (it) => nomeAndarLongo(it.andar) + '', (it) => '• '+localLabel(it)+' — '+it.id+' '+disciplinaEfetiva(it)+': '+(it.desc||'')),
       pdfItens: () => ({ itens: vms, titulo: 'Plano - Vermelhos em aberto', filtro: 'Vermelhos em aberto (VM sem execução da AW)' }),
-      pdf: { colunas: ['Item','Andar','Local','Disciplina','Descrição'], linhas: () => vms.map((it) => [it.id, it.andar+'º', localLabel(it), disciplinaEfetiva(it), it.desc||'']) }
+      pdf: { colunas: ['Item','Andar','Local','Disciplina','Descrição'], linhas: () => vms.map((it) => [it.id, nomeAndar(it.andar) + '', localLabel(it), disciplinaEfetiva(it), it.desc||'']) }
     },
     locais: {
       titulo: 'Quase prontos', sub: 'Ambientes com 90% ou mais executados — poucos itens fecham o ambiente.', vazio: 'Nenhum ambiente acima de 90% com itens em aberto.',
       itens: locais,
       linha: (x) => ({ esq: esc(nomeAmb(x.l)), det: x.pct+'% executado', dir: '<span style="color:var(--text);">faltam '+x.aberto+'</span>',
         abrir: () => abrirItens({ andar: x.l.andar, ambiente: 'local:'+x.l.key, fluxo: 'emAberto' }) }),
-      texto: () => '*Ambientes que fecham com poucos itens — '+locais.length+'* ('+rev+')\n' + agruparTexto(locais, (x) => x.l.andar+'º andar', (x) =>
+      texto: () => '*Ambientes que fecham com poucos itens — '+locais.length+'* ('+rev+')\n' + agruparTexto(locais, (x) => nomeAndarLongo(x.l.andar) + '', (x) =>
         '• '+x.l.label+' — falta(m) '+x.aberto+':\n' + itensAbertosDoLocal(x.l).slice(0, 5).map((it) => '   - '+disciplinaEfetiva(it)+': '+(it.desc||'')).join('\n') + (x.aberto > 5 ? '\n   - + '+(x.aberto-5)+' outro(s)' : '')),
       // todos os itens EM ABERTO dos ambientes quase prontos, no padrão do PDF de Itens
       pdfItens: () => ({ itens: locais.flatMap((x) => itensAbertosDoLocal(x.l)), titulo: 'Plano - Quase prontos', filtro: 'Quase prontos: '+locais.length+' ambiente(s) com 90% ou mais executados — itens que faltam' }),
-      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Itens que faltam'], linhas: () => locais.map((x) => [x.l.andar+'º', x.l.label, x.pct+'%', String(x.aberto), itensAbertosDoLocal(x.l).map((it) => disciplinaEfetiva(it)+': '+(it.desc||'')).join(' | ')]) }
+      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Itens que faltam'], linhas: () => locais.map((x) => [nomeAndar(x.l.andar) + '', x.l.label, x.pct+'%', String(x.aberto), itensAbertosDoLocal(x.l).map((it) => disciplinaEfetiva(it)+': '+(it.desc||'')).join(' | ')]) }
     },
     atrasados: {
       titulo: 'Mais atrasados', sub: 'Ambientes com menor % executado e mais itens em aberto — onde está o problema.', vazio: 'Nenhum ambiente abaixo de 90% executado.',
@@ -5080,7 +5139,7 @@ async function renderTendencia(){
       texto: () => '*Ambientes mais atrasados* ('+rev+')\n' + atrasados.slice(0, 20).map((x) =>
         '• '+nomeAmb(x.l)+' — '+x.pct+'% executado, faltam '+x.aberto + (x.pesa ? ' (maior parte '+x.pesa.nome+': '+x.pesa.n+')' : '')).join('\n') +
         (atrasados.length > 20 ? '\n+ '+(atrasados.length-20)+' outro(s)' : ''),
-      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Disciplina que mais pesa'], linhas: () => atrasados.map((x) => [x.l.andar+'º', x.l.label, x.pct+'%', String(x.aberto), x.pesa ? x.pesa.nome+' ('+x.pesa.n+')' : '—']) }
+      pdf: { colunas: ['Andar','Ambiente','% exec.','Faltam','Disciplina que mais pesa'], linhas: () => atrasados.map((x) => [nomeAndar(x.l.andar) + '', x.l.label, x.pct+'%', String(x.aberto), x.pesa ? x.pesa.nome+' ('+x.pesa.n+')' : '—']) }
     },
     rapidas: {
       titulo: 'Disciplinas que mais andam', sub: 'Mais itens executados nos últimos 7 dias — onde investir equipe rende volume.', vazio: 'Nenhuma execução registrada nos últimos 7 dias.',
@@ -5102,10 +5161,10 @@ async function renderTendencia(){
     fila: {
       titulo: 'Fila da IAC', sub: pdfNum(aguardando)+' item(ns) executados aguardando vistoria — por andar, pra organizar a próxima vistoria.', vazio: 'Nada aguardando vistoria.',
       itens: fila,
-      linha: ([andar, n]) => ({ esq: andar+'º andar', det: 'aguardando vistoria', dir: '<span style="color:var(--vd);">'+pdfNum(n)+'</span>',
+      linha: ([andar, n]) => ({ esq: nomeAndarLongo(andar) + '', det: 'aguardando vistoria', dir: '<span style="color:var(--vd);">'+pdfNum(n)+'</span>',
         abrir: () => abrirItens({ andar: andar, fluxo: 'awSemIac' }) }),
-      texto: () => '*Itens executados aguardando vistoria da IAC: '+pdfNum(aguardando)+'* ('+rev+')\n' + fila.map(([a, n]) => '• '+a+'º andar: '+pdfNum(n)).join('\n') + '\nPodemos agendar a vistoria?',
-      pdf: { colunas: ['Andar','Aguardando vistoria'], linhas: () => fila.map(([a, n]) => [a+'º andar', pdfNum(n)]) }
+      texto: () => '*Itens executados aguardando vistoria da IAC: '+pdfNum(aguardando)+'* ('+rev+')\n' + fila.map(([a, n]) => '• '+nomeAndarLongo(a) + ': '+pdfNum(n)).join('\n') + '\nPodemos agendar a vistoria?',
+      pdf: { colunas: ['Andar','Aguardando vistoria'], linhas: () => fila.map(([a, n]) => [nomeAndarLongo(a) + '', pdfNum(n)]) }
     }
   };
 
@@ -5149,8 +5208,8 @@ async function renderTendencia(){
       'Mais atrasados: '+atrasados.slice(0,3).map((x) => nomeAmb(x.l)+' ('+x.pct+'%, faltam '+x.aberto+')').join(', '));
   if (parados.length) add('🧱', 'Fornecedores parados: '+parados.slice(0,4).map((x) => '<b>'+esc(x.nome)+'</b> ('+pdfNum(x.aberto)+')').join(', '),
       'Fornecedores parados: '+parados.slice(0,4).map((x) => x.nome+' ('+pdfNum(x.aberto)+')').join(', '));
-  if (aguardando) add('🟢', 'Aguardando vistoria IAC: <b>'+pdfNum(aguardando)+'</b>'+(fila.length ? ' — mais no '+fila.slice(0,3).map(([a, n]) => a+'º ('+pdfNum(n)+')').join(', ') : ''),
-      'Aguardando vistoria IAC: '+pdfNum(aguardando)+(fila.length ? ' — mais no '+fila.slice(0,3).map(([a, n]) => a+'º ('+pdfNum(n)+')').join(', ') : ''));
+  if (aguardando) add('🟢', 'Aguardando vistoria IAC: <b>'+pdfNum(aguardando)+'</b>'+(fila.length ? ' — mais no '+fila.slice(0,3).map(([a, n]) => nomeAndar(a) + ' ('+pdfNum(n)+')').join(', ') : ''),
+      'Aguardando vistoria IAC: '+pdfNum(aguardando)+(fila.length ? ' — mais no '+fila.slice(0,3).map(([a, n]) => nomeAndar(a) + ' ('+pdfNum(n)+')').join(', ') : ''));
   const textoResumo = linhasResumo.map((l) => l.ico+' '+l.txt).join('\n');
   const cartaoResumo = document.createElement('div');
   cartaoResumo.className = 'card card-pad resumo-diretoria';
@@ -5443,7 +5502,7 @@ function assinaturaItens(itens, idKey, statusKey){
 
 function rotuloLocal(loc){
   const area = loc.tipo === 'APTO' ? ('quarto '+loc.quarto) : loc.tipo.toLowerCase();
-  return area + ' · ' + loc.andar + 'º andar (R'+loc.revisao+')';
+  return area + ' · ' + nomeAndarLongo(loc.andar) + ' (R'+loc.revisao+')';
 }
 function rotuloArquivo(r){ return rotuloLocal(r); }
 
@@ -5572,7 +5631,7 @@ async function executarSalvamento(grupos, btn, cont){
       estimativa = seg < 60 ? ' · menos de 1 min' : (min >= 60 ? ' · ≈ ' + Math.floor(min/60) + 'h ' + (min%60) + 'min' : ' · ≈ ' + min + ' min') + ' restantes';
       if (seg < 60) estimativa += ' restante';
     }
-    const texto = 'Salvando… (' + andar + 'º andar: ' + feitas + '/' + total + ' foto(s)' + estimativa + ')';
+    const texto = 'Salvando… (' + nomeAndarLongo(andar) + ': ' + feitas + '/' + total + ' foto(s)' + estimativa + ')';
     btn.textContent = texto;
     mostrarBannerProgresso(texto + ' — pode navegar em qualquer aba, não interrompe');
   });
@@ -5628,7 +5687,7 @@ async function executarSalvamento(grupos, btn, cont){
         const label = rv.tipo === 'APTO' ? rv.quarto : rv.tipo;
         const novosTxt = rv.novos.map((n) => esc(n.id)+' — '+esc((n.desc||'').slice(0,60))).join('<br>');
         return '<div class="insight-item" style="align-items:flex-start;" data-rv="'+idRevisaoBtn+'">' +
-          '<div><div class="local">'+esc(label)+' · '+rv.andar+'º andar</div><div class="detalhe">Novo(s): '+novosTxt+'</div></div>' +
+          '<div><div class="local">'+esc(label)+' · '+nomeAndarLongo(rv.andar) + '</div><div class="detalhe">Novo(s): '+novosTxt+'</div></div>' +
           '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
           '<button class="chip-acao marcado lib" data-rv-manter="'+idRevisaoBtn+'">Manter liberado</button>' +
           '<button class="chip-acao" data-rv-voltar="'+idRevisaoBtn+'">Voltar pendente</button>' +
@@ -5759,7 +5818,7 @@ function renderPreviewEnvio(){
       const totalFotosAndar = g.itens.reduce((a,it) => a + (it.fotosBlob?it.fotosBlob.length:0), 0);
       const chips = g.arquivos.slice().sort().map((nome) => '<span class="chip-arquivo removivel">'+esc(nome) +
         '<button type="button" class="chip-remover" title="Tirar este arquivo do envio" aria-label="Tirar '+esc(nome)+' do envio" data-remover-arquivo="'+esc(nome)+'" data-rev="'+esc(g.revisao)+'" data-andar="'+g.andar+'">×</button></span>').join('');
-      html += '<tr><td class="mono">R'+esc(g.revisao)+'</td><td class="mono">'+g.andar+'º</td>' +
+      html += '<tr><td class="mono">R'+esc(g.revisao)+'</td><td class="mono">'+nomeAndar(g.andar) + '</td>' +
         '<td><div class="contagem-chips">'+g.arquivos.length+' arquivo(s)</div><div class="chips-arquivos">'+chips+'</div></td>' +
         '<td class="num-col">'+g.itens.length+'</td><td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td><td class="num-col">'+totalFotosAndar+'</td></tr>';
     });
@@ -6370,9 +6429,9 @@ async function exportarVisaoGeralPdf(){
       const sp = el.querySelector('.barra > span'), cls = sp ? sp.className : '';
       const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.am : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
       const pctEl = el.querySelector('.pct-barra');
-      return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
+      return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), num: Number(el.dataset.andar), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
         nums: Array.from(el.querySelectorAll('.mini-valor')).map((n) => n.textContent.trim()), liberadoTotal: el.classList.contains('liberado-total') };
-    }).sort((x, z) => parseInt(z.andar, 10) - parseInt(x.andar, 10));
+    }).sort((x, z) => z.num - x.num);
 
     // ================= PÁGINA 1: torre (coluna estreita) + resumo =================
     pagina(true);
@@ -6538,7 +6597,7 @@ async function exportarVisaoGeralPdf(){
         let yb = y + 64;
         if (diff.semDadosNoPara.length){
           pdfFill(doc, PDF_COR.vms); doc.roundedRect(M+16, yb-4, CW-32, 13, 5, 5, 'F');
-          pdfTxt(doc, M+22, yb+5, pdfCaber(doc, 'Sem dados na '+ordenado[idx].label+': '+diff.semDadosNoPara.map((a) => a+'º').join(', ')+' — esses andares não vieram nesta revisão e não foram contados como resolvidos.', 6.5, CW-44), 6.5, PDF_COR.vm);
+          pdfTxt(doc, M+22, yb+5, pdfCaber(doc, 'Sem dados na '+ordenado[idx].label+': '+diff.semDadosNoPara.map((a) => nomeAndar(a) + '').join(', ')+' — esses andares não vieram nesta revisão e não foram contados como resolvidos.', 6.5, CW-44), 6.5, PDF_COR.vm);
           yb += 14;
         }
         // barras à esquerda (60%), etiquetas e críticas à direita
@@ -6550,7 +6609,7 @@ async function exportarVisaoGeralPdf(){
         const yIni = yb;
         porAndar.forEach((a) => {
           const cy = yb + rowV/2;
-          pdfTxt(doc, M+44, cy+2.5, a.andar+'º', 7, PDF_COR.ink, 'right');
+          pdfTxt(doc, M+44, cy+2.5, nomeAndar(a.andar) + '', 7, PDF_COR.ink, 'right');
           const hb = Math.max(5, rowV - 4);
           const wR2 = a.resolvidos ? Math.max(2, a.resolvidos/maxV*meia) : 0, wN = a.novos ? Math.max(2, a.novos/maxV*meia) : 0;
           if (wR2){ doc.setFillColor(PDF_COR.vd[0], PDF_COR.vd[1], PDF_COR.vd[2]); comOpacidade(0.8, () => doc.roundedRect(centro - wR2, cy - hb/2, wR2, hb, 2, 2, 'F')); }
@@ -6569,7 +6628,7 @@ async function exportarVisaoGeralPdf(){
           pdfTxt(doc, xD, yd2, 'Onde mais entraram pendências', 7.5, PDF_COR.ink2); yd2 += 6;
           let xc = xD;
           locaisNovos.forEach((l) => {
-            const s = l.label.replace(/\u00A0/g,' ')+' · '+l.andar+'º  +'+l.novos.length, w = pdfLarg(doc, s, 6.5) + 14;
+            const s = l.label.replace(/\u00A0/g,' ')+' · '+nomeAndar(l.andar) + '  +'+l.novos.length, w = pdfLarg(doc, s, 6.5) + 14;
             if (xc + w > xD + wD){ xc = xD; yd2 += 16; }
             pdfFill(doc, PDF_COR.vms); doc.roundedRect(xc, yd2, w, 13, 6.5, 6.5, 'F'); pdfTxt(doc, xc+7, yd2+9, s, 6.5, PDF_COR.vm); xc += w + 5;
           });
@@ -6579,7 +6638,7 @@ async function exportarVisaoGeralPdf(){
           pdfTxt(doc, xD, yd2, 'Críticas (VM) que pedem atenção — novas ou que subiram de AM', 7.5, PDF_COR.ink2); yd2 += 12;
           criticas.forEach((it) => {
             if (yd2 + 18 > y + hVar - 6) return;
-            const lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo), tt = it.id+' · '+it.andar+'º · '+lab;
+            const lab = it.tipo === 'APTO' ? String(it.quarto) : labelTipo(it.tipo), tt = it.id+' · '+nomeAndar(it.andar) + ' · '+lab;
             pdfTxt(doc, xD, yd2, tt, 7, PDF_COR.ink);
             pdfPill(doc, xD + pdfLarg(doc, tt, 7) + 5, yd2, it._como === 'subiu' ? 'subiu de AM para VM' : 'nova', PDF_COR.vm, PDF_COR.vms, 6);
             pdfTxt(doc, xD, yd2+9, pdfCaber(doc, it.desc || '', 6.2, wD), 6.2, PDF_COR.muted);
@@ -6725,7 +6784,7 @@ async function exportarRelatorioLiberados(){
     const cards = [
       { r:'Ambientes liberados c/ pendência', v: String(locais.length), c: PDF_COR.lib },
       { r:'Itens em aberto nesses ambientes', v: pdfNum(todosAbertos.length), c: PDF_COR.ink },
-      { r:'Conclusão prevista de tudo', v: maisLongaGeral ? fmt(maisLongaGeral) : '—', c: PDF_COR.acc, sub: localMaisLongo ? 'item mais longo: '+localMaisLongo.l.label.replace(/\u00A0/g,' ')+' ('+localMaisLongo.l.andar+'º)' : 'nenhuma data preenchida' },
+      { r:'Conclusão prevista de tudo', v: maisLongaGeral ? fmt(maisLongaGeral) : '—', c: PDF_COR.acc, sub: localMaisLongo ? 'item mais longo: '+localMaisLongo.l.label.replace(/\u00A0/g,' ')+' ('+nomeAndar(localMaisLongo.l.andar) + ')' : 'nenhuma data preenchida' },
       { r:'Sem previsão', v: String(semDataTot), c: semDataTot ? PDF_COR.am : PDF_COR.vd, sub: semDataTot ? 'itens sem data' : 'todos com data' },
       { r:'Previsões vencidas', v: String(vencTot), c: vencTot ? PDF_COR.vm : PDF_COR.vd, sub: vencTot ? 'data já passou, item ainda aberto' : 'nenhuma vencida' }
     ];
@@ -6770,7 +6829,7 @@ async function exportarRelatorioLiberados(){
     infoAndar.forEach((ia, i) => {
       if (i % 2 === 0){ pdfFill(doc, PAPER2); doc.roundedRect(M+10, ya, CW-20, rowA-3, 6, 6, 'F'); }
       const cy = ya + rowA/2 + 1;
-      pdfTxt(doc, CQ.andar, cy+2, ia.andar+'º', 9, PDF_COR.ink, 'center');
+      pdfTxt(doc, CQ.andar, cy+2, nomeAndar(ia.andar) + '', 9, PDF_COR.ink, 'center');
       pdfTxt(doc, CQ.amb, cy+2, String(ia.xs.length), 8.5, PDF_COR.lib, 'center');
       pdfTxt(doc, CQ.itens, cy+2, String(ia.itens), 8.5, PDF_COR.ink, 'center');
       pdfTxt(doc, CQ.sem, cy+2, ia.sem ? String(ia.sem) : '—', 8.5, ia.sem ? PDF_COR.am : PDF_COR.faint, 'center');
@@ -6814,7 +6873,7 @@ async function exportarRelatorioLiberados(){
       // o título do ambiente nunca fica sozinho no fim da página
       if (y + grupoH + (alturas[0] || 20) > LIMITE){ y = pagina(false); y = cabTabela(y); }
       pdfFill(doc, PDF_COR.libs); doc.roundedRect(M, y, CW, grupoH - 4, 7, 7, 'F');
-      pdfTxt(doc, M+12, y+16, x.l.label.replace(/\u00A0/g,' ') + (/º/.test(x.l.label) ? '' : '  ·  '+x.l.andar+'º andar'), 10, PDF_COR.ink);
+      pdfTxt(doc, M+12, y+16, x.l.label.replace(/\u00A0/g,' ') + (x.l.label.replace(/\u00A0/g,' ').endsWith(nomeAndar(x.l.andar)) ? '' : '  ·  '+nomeAndarLongo(x.l.andar)), 10, PDF_COR.ink);
       const det = x.abertos.length+' item(ns) em aberto' + (x.maisLonga ? '  ·  conclusão prevista '+fmt(x.maisLonga) : '') + (x.semData ? '  ·  '+x.semData+' sem previsão' : '') + (x.aguardando ? '  ·  '+x.aguardando+' executado(s) aguardando vistoria IAC' : '');
       pdfTxt(doc, PW-M-12, y+16, det, 7.5, PDF_COR.lib, 'right');
       y += grupoH;
@@ -6924,7 +6983,7 @@ async function exportarQuartosPdf(){
     altura: RH,
     desenhar: (doc, cx, top) => {
       const b = top + RH/2 + 3;
-      pdfTxt(doc, cx+C.andar, b, d.l.andar+'º', 8.5, PDF_COR.ink2, 'center');
+      pdfTxt(doc, cx+C.andar, b, nomeAndar(d.l.andar) + '', 8.5, PDF_COR.ink2, 'center');
       pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 80), 8.5, PDF_COR.ink);
       const p = PDF_PRIO[d.status];
       pdfPill(doc, cx+C.status - (pdfLarg(doc, p.longo, 7.5)+14)/2, b, p.longo, p.fg, p.bg);
@@ -6979,7 +7038,7 @@ async function exportarItensPdf(listaPronta){
   const extras = [];
   if (filtroItemLocal){
     const ex = itens[0];
-    extras.push(filtroItemLocal.tipo === 'APTO' ? String(filtroItemLocal.quarto) : labelTipo(filtroItemLocal.tipo) + (ex ? ' '+ex.andar+'º' : ''));
+    extras.push(filtroItemLocal.tipo === 'APTO' ? String(filtroItemLocal.quarto) : labelTipo(filtroItemLocal.tipo) + (ex ? ' '+nomeAndar(ex.andar) + '' : ''));
   }
   if (filtroProgresso) extras.push({ aberto:'Em aberto', awExec:'Executado AW', iacOk:'Vistoriado IAC' }[filtroProgresso] || '');
   if (filtroStatusBrutoAdHoc) extras.push(filtroStatusBrutoAdHoc);
@@ -7066,7 +7125,7 @@ async function exportarItensPdf(listaPronta){
           if (nota) pdfTxt(doc, cx+x, yb - 1, nota, 6.8, PDF_COR.faint, alinhar);
         };
         pdfTxt(doc, cx+CI.item, mid+3, it.id, 8.5, PDF_COR.ink2, 'center');
-        pdfTxt(doc, cx+CI.andar, mid+3, it.andar+'º', 8.5, PDF_COR.ink2, 'center');
+        pdfTxt(doc, cx+CI.andar, mid+3, nomeAndar(it.andar) + '', 8.5, PDF_COR.ink2, 'center');
         bloco(CI.local, loc, PDF_COR.ink2, null, 'center');
         bloco(X.disc, discTxt, PDF_COR.ink2, discNota);
         bloco(X.forn, fornTxt, PDF_COR.ink2, fornNota);
