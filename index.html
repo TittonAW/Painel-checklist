@@ -983,7 +983,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.83';
+const VERSAO_APP = '2026-10-03.84';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5711,7 +5711,12 @@ async function executarSalvamento(grupos, btn, cont){
       '<button class="btn fantasma ambar" id="btn-desfazer-este-envio">Desfazer este envio</button></div>';
     cont.innerHTML = html;
     const btnOk = document.getElementById('btn-ok-com-avisos');
-    if (btnOk) btnOk.addEventListener('click', () => irParaAba('visao-geral'));
+    if (btnOk) btnOk.addEventListener('click', () => {
+      // "Ciente" = viu os avisos: limpa o resultado (inclusive o desfazer) e vai pra Visão geral
+      cont.innerHTML = '<div class="dica">Revisão salva. Os fornecedores das disciplinas novas podem ser definidos quando quiser, na aba Disciplinas &amp; fornecedores.</div>';
+      ultimoEnvioDesfazer = null;
+      irParaAba('visao-geral');
+    });
     const btnDesf = document.getElementById('btn-desfazer-este-envio');
     if (btnDesf) btnDesf.addEventListener('click', () => executarDesfazerEnvio(cont));
     const btnForn = document.getElementById('btn-definir-fornecedores');
