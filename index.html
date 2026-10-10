@@ -249,6 +249,22 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor .parado{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--aviso-cor); margin-right:4px; vertical-align:1px; }
 @media (hover:hover){ .tag-agressor:hover{ border-color:var(--accent); color:var(--accent); } }
 .resumo-agressores{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; color:var(--muted); margin:0 0 10px; }
+.tag-origem-item{ display:inline-block; font-size:9.5px; letter-spacing:.3px; padding:2px 5px; border-radius:5px; margin-right:6px; vertical-align:1px; font-family:var(--font-ui, inherit); }
+.tag-origem-item.iac{ background:var(--paper-2); color:var(--muted); border:1px solid var(--line); }
+.tag-origem-item.aw{ background:var(--aw-soft); color:var(--aw); border:1px solid var(--aw); }
+#btn-chat{ position:fixed; right:18px; bottom:calc(18px + env(safe-area-inset-bottom, 0px)); z-index:120; border-radius:99px; box-shadow:0 6px 18px rgba(0,0,0,.18); }
+#painel-chat{ position:fixed; right:18px; bottom:calc(74px + env(safe-area-inset-bottom, 0px)); width:390px; max-width:calc(100vw - 24px); height:min(560px, calc(100vh - 120px)); z-index:121;
+  background:var(--surface, #fff); border:1px solid var(--line); border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.18); display:flex; flex-direction:column; overflow:hidden; }
+#painel-chat.oculto{ display:none; }
+.chat-topo{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
+#chat-mensagens{ flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.chat-bolha{ max-width:88%; padding:9px 12px; border-radius:14px; font-size:13.5px; line-height:1.45; }
+.chat-bolha.eu{ align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+.chat-bolha.ia{ align-self:flex-start; background:var(--paper-2); color:var(--text); border-bottom-left-radius:4px; }
+.chat-bolha.proposta{ border:1px solid var(--accent); background:var(--accent-soft); }
+.chat-entrada{ display:flex; gap:6px; align-items:flex-end; padding:10px; border-top:1px solid var(--line); }
+.chat-entrada textarea{ flex:1; resize:none; min-height:38px; max-height:110px; font-size:14px; padding:8px 10px; }
+@media (max-width:640px){ #painel-chat{ right:8px; left:8px; width:auto; bottom:calc(70px + env(safe-area-inset-bottom, 0px)); height:calc(100vh - 140px); } #btn-chat{ right:12px; } }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -642,8 +658,14 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
       </select>
+      <select id="filtro-item-origem">
+        <option value="">Todas as origens</option>
+        <option value="IAC">Origem: planilha da IAC</option>
+        <option value="AW">Origem: incluído no app (AW)</option>
+      </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
+      <button class="btn primario" id="btn-novo-item">+ Novo item</button>
     </div>
     <div id="status-pdf-itens" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto" id="barra-selecao-itens" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
@@ -702,7 +724,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
         <div>
           <h2 style="margin-bottom:2px;">IAC não deu baixa</h2>
-          <p style="color:var(--muted); margin:0;">Itens marcados como "Vistoriado IAC" antes do envio da revisão selecionada, e que a planilha nova ainda lista como pendentes. "Gerar PDF para a IAC" já sai com quem validou e quando — pronto pra mandar no WhatsApp.</p>
+          <p style="color:var(--muted); margin:0;">Itens marcados como "Vistoriado IAC" antes do envio da revisão selecionada, e que a planilha nova ainda lista como pendentes. Em "Ver na aba Itens", faça a triagem de cada um: <b style="font-weight:500;">IAC precisa corrigir</b> (vai no PDF pra ela) ou <b style="font-weight:500;">Baixa errada: reabrir</b> (volta pra em aberto, sem reincidência, pra pôr a data prevista). O PDF leva só o que a IAC precisa corrigir, com quem validou e quando.</p>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn primario no-print" id="btn-pdf-divergencia">Gerar PDF para a IAC</button>
@@ -1017,7 +1039,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.88';
+const VERSAO_APP = '2026-10-03.94';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1712,21 +1734,38 @@ function comPrazo(promessa, ms, mensagemErro){
    corte extremo que o limite antigo exigia. 900px no lado maior e JPEG 68% dá bem mais
    detalhe (ajuda a identificar a foto na tabela e no PDF) com um custo de espaço ainda
    confortável pro volume deste projeto; só usa o original se a compressão não ajudar. */
-async function comprimirImagem(blob, maxDimensao, qualidade){
+/* reduz QUALQUER foto pro mesmo padrão (lado maior 900 px, JPEG): da planilha, da câmera do
+   celular ou de um arquivo. Respeita a rotação da câmera (EXIF). Se o navegador não conseguir
+   abrir a imagem pelo caminho rápido, tenta pelo <img> (ex.: HEIC no iPhone). Com "exigir",
+   nunca sobe o arquivo original enorme: avisa que o formato não pôde ser lido. */
+async function decodificarImagem(blob){
+  try{ return await createImageBitmap(blob, { imageOrientation: 'from-image' }); }catch(e){}
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('formato de imagem não suportado')); };
+    img.src = url;
+  });
+}
+async function comprimirImagem(blob, maxDimensao, qualidade, exigir){
   maxDimensao = maxDimensao || 900; qualidade = qualidade || 0.68;
   try{
-    const bitmap = await createImageBitmap(blob);
-    const escala = Math.min(1, maxDimensao / Math.max(bitmap.width, bitmap.height));
-    const largura = Math.max(1, Math.round(bitmap.width * escala));
-    const altura = Math.max(1, Math.round(bitmap.height * escala));
+    const bitmap = await decodificarImagem(blob);
+    const w0 = bitmap.width || bitmap.naturalWidth, h0 = bitmap.height || bitmap.naturalHeight;
+    const escala = Math.min(1, maxDimensao / Math.max(w0, h0));
+    const largura = Math.max(1, Math.round(w0 * escala));
+    const altura = Math.max(1, Math.round(h0 * escala));
     const canvas = document.createElement('canvas');
     canvas.width = largura; canvas.height = altura;
     const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, largura, altura); // PNG com fundo transparente não fica preto
     ctx.drawImage(bitmap, 0, 0, largura, altura);
     if (bitmap.close) bitmap.close();
     const comprimido = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', qualidade));
-    return (comprimido && comprimido.size > 0 && comprimido.size < blob.size) ? comprimido : blob;
+    if (comprimido && comprimido.size > 0 && (exigir || comprimido.size < blob.size)) return comprimido;
+    return blob;
   }catch(e){
+    if (exigir) throw e;
     console.warn('não consegui comprimir uma foto, enviando original', e);
     return blob;
   }
@@ -2166,12 +2205,14 @@ async function sincronizarDados(manual){
   sincronizandoAgora = true;
   const novaMarca = new Date(Date.now() - 60*1000).toISOString(); // 1 min de folga pra relógio de celular adiantado/atrasado
   try{
+    let maisMudancasManuais = [];
     const [ac, cfg, rev, snaps] = await Promise.all([
       store.listMudancas('acompanhamento', ultimaSincronizacao),
       store.listMudancas('config', ultimaSincronizacao),
       store.listMudancas('revisoes', ultimaSincronizacao),
-      revisaoSelecionada ? store.listMudancas('snapshots', ultimaSincronizacao, revisaoSelecionada) : Promise.resolve([])
-    ]);
+      revisaoSelecionada ? store.listMudancas('snapshots', ultimaSincronizacao, revisaoSelecionada) : Promise.resolve([]),
+      store.listMudancas('itens_manuais', ultimaSincronizacao)
+    ]).then((r) => { maisMudancasManuais = r[4] || []; return r; });
     let mudou = 0;
     ac.forEach((d) => {
       if (itensGravandoAgora.has(d._id)) return;
@@ -2185,6 +2226,8 @@ async function sincronizarDados(manual){
     if (cfg.some((d) => d._id === 'disciplinas')){ await carregarApelidosDisc(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'pins')){ await carregarPins(); renderListaPins(); if (usuarioAtual && !pinVerificadoNesteAparelho(usuarioAtual)) exigirPinDoUsuarioAtual(); }
     if (cfg.some((d) => d._id === 'excluidos')){ await carregarExcluidos(); recarregarPorExclusao = true; renderListaExcluidos(); }
+    if (maisMudancasManuais.length){ await carregarItensManuais(); recarregarPorExclusao = true; }
+    if (ac.some((d) => d && Object.prototype.hasOwnProperty.call(d, 'prioridadeOverride'))) recarregarPorExclusao = true;
     let recarregarRevisao = snaps.length > 0 || recarregarPorExclusao;
     if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
     ultimaSincronizacao = novaMarca;
@@ -2729,6 +2772,42 @@ async function alternarAcompanhamento(itemId, campo, modo){
   }
 }
 
+/* TRIAGEM do "IAC não deu baixa": a mesma lista tem dois casos com ações opostas.
+   'iac'   = a IAC esqueceu de tirar da planilha → fica no PDF pra ela corrigir.
+   'nossa' = baixa errada do time (o item ficou como pendência aceita) → reabre: tira
+             Vistoriado IAC e Executado AW, SEM reincidência (não foi reprovação), e o item
+             continua na lista com a data prevista pra preencher. */
+async function triarDivergenciaIac(itemId, tipo){
+  if (!(await garantirUsuario())) return;
+  const anterior = acompanhamento[itemId] || { awExecEm:null, iacOkEm:null };
+  const agora = new Date().toISOString(), por = usuarioAtual;
+  const hist = historicoDoItem(anterior).slice();
+  const novo = Object.assign({}, anterior);
+  let msg = '';
+  if (tipo === 'iac'){
+    novo.divergencia = 'iac'; novo.divergenciaPor = por; novo.divergenciaEm = agora;
+    msg = 'Marcado: a IAC precisa corrigir a planilha';
+  } else if (tipo === 'nossa'){
+    if (!window.confirm('Reabrir o item '+itemId+'?\n\nFoi baixa errada no "Vistoriado IAC": o item volta para EM ABERTO (sem contar reincidência) e sai do PDF para a IAC. Se o ambiente estiver liberado com pendência, preencha a data prevista em seguida.')) return;
+    novo.divergencia = 'nossa'; novo.divergenciaPor = por; novo.divergenciaEm = agora;
+    novo.awExecEm = null; novo.awExecPor = null; novo.iacOkEm = null; novo.iacOkPor = null;
+    hist.push({ t:'reaberto', em:agora, por });
+    msg = 'Item reaberto — baixa errada corrigida';
+  } else { // desfazer a triagem 'iac'
+    delete novo.divergencia; delete novo.divergenciaPor; delete novo.divergenciaEm;
+    msg = 'Triagem desfeita';
+  }
+  novo.historico = hist;
+  acompanhamento[itemId] = novo;
+  atualizarTelasAposAcompanhamento();
+  itensGravandoAgora.add(itemId);
+  const r = await salvarAcompanhamentoComRetry(itemId, novo);
+  itensGravandoAgora.delete(itemId);
+  if (r.ok) avisoFlutuante(msg, 'ok');
+  else { acompanhamento[itemId] = anterior; atualizarTelasAposAcompanhamento(); avisoFlutuante('Não foi salvo (sem conexão?). Tente de novo.', 'erro'); }
+}
+function reabertoPorBaixaErrada(it){ const a = acompanhamento[it.id]; return !!(a && a.divergencia === 'nossa' && estaEmAberto(it)); }
+
 /* data prevista de conclusão — só existe (e só é mostrada) quando o local já está liberado
    com pendência e o usuário de fato preencheu uma data; some sozinha quando o item é
    vistoriado pela IAC, já que nesse ponto a pendência não existe mais */
@@ -2988,6 +3067,14 @@ function renderCadastroNomes(){
   }));
 }
 
+/* ITENS INCLUÍDOS NO APP (origem "AW"): ficam numa coleção à parte — a planilha da IAC não
+   os conhece, então nenhuma revisão nova faz eles "sumirem" ou contarem como resolvidos.
+   Aparecem em todas as telas, filtros e PDFs, com a etiqueta AW no começo da linha. */
+let itensManuais = [];
+async function carregarItensManuais(){
+  try{ itensManuais = await store.listCollection('itens_manuais'); }catch(e){ itensManuais = []; }
+}
+function origemDoItem(it){ return it.origem === 'AW' ? 'AW' : 'IAC'; }
 async function carregarItensDaRevisao(numeroStr){
   const snaps = await store.queryRevisao('snapshots', numeroStr);
   const itens = [];
@@ -2996,7 +3083,8 @@ async function carregarItensDaRevisao(numeroStr){
     (snap.itens || []).forEach((it) => {
       itens.push({
         id: it.id, andar: snap.andar, quarto: it.q, tipo: it.t,
-        disciplina: apelidoDisciplina(it.d), disciplinaOriginal: it.d, status: it.s, desc: it.x || '',
+        disciplina: apelidoDisciplina(it.d), disciplinaOriginal: it.d,
+        status: ((acompanhamento[it.id] || {}).prioridadeOverride) || it.s, statusOriginal: it.s, desc: it.x || '',
         fotos: it.fs || (it.f ? [it.f] : []), // "fs" é o formato novo; "f" é de itens salvos antes (1 foto só)
         atualizadoEmAndar: snap.atualizadoEm || null // quando ESSE andar (não a revisão toda) foi salvo
       });
@@ -3004,6 +3092,14 @@ async function carregarItensDaRevisao(numeroStr){
     Object.keys(snap.areasLiberadas || {}).forEach((chave) => {
       areasLiberadas[snap.andar + '|' + chave] = snap.areasLiberadas[chave];
     });
+  });
+  // itens incluídos no app entram em toda revisão (são da obra, não de uma planilha)
+  itensManuais.forEach((m) => {
+    if (!m || !m.id || m.excluido) return;
+    itens.push({ id: m.id, andar: m.andar, quarto: m.quarto ?? null, tipo: m.tipo, origem: 'AW',
+      disciplina: apelidoDisciplina(m.disciplina), disciplinaOriginal: m.disciplina,
+      status: ((acompanhamento[m.id] || {}).prioridadeOverride) || m.status || 'AM', statusOriginal: m.status || 'AM',
+      desc: m.desc || '', fotos: m.fotos || [], atualizadoEmAndar: null, criadoPor: m.criadoPor, criadoEm: m.criadoEm });
   });
   return { itens: itens.filter((it) => !itensExcluidos[it.id]), areasLiberadas };
 }
@@ -3701,6 +3797,7 @@ function calcularEvolucaoPendencias(limiteDias){
         if (e.t === 'aw'){ ex = true; if (e.dia === dia) awDia++; }
         else if (e.t === 'iac'){ ex = true; vi = true; if (e.dia === dia) iacDia++; }
         else if (e.t === 'reinc'){ ex = false; vi = false; if (e.dia === dia) reincDia++; }
+        else if (e.t === 'reaberto'){ ex = false; vi = false; }
       }
       if (ex) aw++;
       if (vi) iac++;
@@ -4219,6 +4316,33 @@ function dadosFocoAndar(andar, dias){
     fornecedores
   };
 }
+/* fornecedor → IMAGEM (WhatsApp, padrão aprovado) e PDF (padrão de Itens, com foto) */
+async function enviarFornecedorImagem(nome, andar, titulo, sub){
+  const itens = itensRevisaoAtual.filter((it) => (andar === null || it.andar === andar) && (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && ((fornecedorEfetivo(it) || 'Sem fornecedor') === nome));
+  const porLocal = new Map();
+  itens.forEach((it) => { const k = localLabel(it).replace(/\u00A0/g,' ') + (andar === null && it.tipo === 'APTO' ? ' · ' + nomeAndar(it.andar) : '');
+    if (!porLocal.has(k)) porLocal.set(k, []); porLocal.get(k).push(it); });
+  const ordem = Array.from(porLocal.entries()).sort((a,b) => b[1].length - a[1].length);
+  const linhas = ordem.slice(0, LIMITE_LINHAS_IMAGEM).map(([loc, its]) => {
+    const disc = new Map(); its.forEach((it) => { const d = disciplinaEfetiva(it); disc.set(d, (disc.get(d)||0) + 1); });
+    const vm = its.filter((it) => it.status === 'VM').length;
+    return { esq: htmlParaSegmentos('<b>'+esc(loc)+'</b>'), det: htmlParaSegmentos(Array.from(disc.entries()).sort((a,b) => b[1]-a[1]).slice(0, 3).map(([d, n]) => esc(d)+' ('+n+')').join(' · ') + (vm ? ' · <span style="color:var(--vm)">'+vm+' VM</span>' : '')),
+      dir: htmlParaSegmentos('<span style="color:var(--accent)">faltam '+its.length+'</span>') };
+  });
+  const rev = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '';
+  const agora = new Date();
+  const blob = await gerarImagemCartao({ titulo, sub, linhas,
+    extra: ordem.length > LIMITE_LINHAS_IMAGEM ? '+ '+(ordem.length - LIMITE_LINHAS_IMAGEM)+' ambiente(s) — lista completa no PDF' : 'Por favor, executar e dar baixa no checklist.',
+    rodape: (rev ? 'Revisão '+rev+' · ' : '') + agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) });
+  await enviarImagemWhatsapp(blob, NOME_APP_ARQUIVO + ' - ' + nome + (andar !== null ? ' - ' + nomeAndar(andar) : ''));
+}
+function pdfFornecedor(nome, andar){
+  const itens = itensRevisaoAtual.filter((it) => (andar === null || it.andar === andar) && (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && ((fornecedorEfetivo(it) || 'Sem fornecedor') === nome))
+    .sort((a,b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
+  if (!itens.length){ avisoFlutuante('Nenhum item em aberto', 'ok'); return; }
+  exportarItensPdf({ itens, titulo: 'Itens - ' + nome + (andar !== null ? ' - ' + nomeAndar(andar) : ''),
+    filtro: nome + (andar !== null ? ' · ' + nomeAndarLongo(andar) : ' · toda a obra') + ' · itens em aberto (' + itens.length + ')' });
+}
 function textoSituacaoFoco(x){
   if (x.situacao === 'nao') return { txt: 'ainda não começou no andar', cor: 'var(--vm)' };
   if (x.situacao === 'parado') return { txt: 'parado há '+x.diasSem+' dia(s)', cor: 'var(--aviso-cor)' };
@@ -4257,7 +4381,7 @@ function renderFocoAndar(andares){
         return '<div class="insight-item clicavel" data-foco-forn="'+i+'" style="cursor:pointer;"><div style="flex:1; min-width:0;"><div class="local">'+esc(x.nome)+' · <span style="color:var(--accent);">'+x.meta+'/dia</span></div>' +
           '<div class="detalhe">'+x.aberto+' em aberto em '+x.locais.size+' ambiente(s) · <span style="color:'+s.cor+';">'+s.txt+'</span></div>' +
           '<div class="detalhe" style="color:var(--faint);">'+esc(x.locaisTxt.slice(0, 6).join(', '))+(x.locaisTxt.length > 6 ? '…' : '')+'</div></div>' +
-          '<button type="button" class="chip-acao" data-foco-whats="'+i+'">WhatsApp</button></div>'; }).join('') : '') +
+          '<div style="display:flex; gap:6px; flex:none;"><button type="button" class="chip-acao" data-foco-pdf="'+i+'">PDF</button><button type="button" class="chip-acao" data-foco-whats="'+i+'">WhatsApp</button></div></div>'; }).join('') : '') +
     '<div class="modal-acoes" style="margin-top:14px;"><button type="button" class="btn primario" id="foco-imagem">Enviar o foco no WhatsApp</button></div>' +
   '</div>';
   document.body.appendChild(ov);
@@ -4266,7 +4390,7 @@ function renderFocoAndar(andares){
   document.getElementById('foco-andar').addEventListener('change', (e) => { focoAndar = Number(e.target.value); renderFocoAndar(andares); });
   document.getElementById('foco-dias').addEventListener('change', (e) => { focoDias = Number(e.target.value); renderFocoAndar(andares); });
   ov.querySelectorAll('[data-foco-forn]').forEach((el) => el.addEventListener('click', (e) => {
-    if (e.target.closest('[data-foco-whats]')) return;
+    if (e.target.closest('[data-foco-whats]') || e.target.closest('[data-foco-pdf]')) return;
     const x = d.fornecedores[Number(el.dataset.focoForn)];
     ov.remove();
     abrirItens({ andar: String(focoAndar), fornecedor: x.nome === 'Sem fornecedor' ? '__sem__' : x.nome, fluxo: 'emAberto' });
@@ -4274,7 +4398,12 @@ function renderFocoAndar(andares){
   ov.querySelectorAll('[data-foco-whats]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
     const x = d.fornecedores[Number(b.dataset.focoWhats)], s = textoSituacaoFoco(x);
-    enviarTextoPlano(x.nome, '*'+x.nome+' — '+nomeAndarLongo(focoAndar)+'*\n'+x.aberto+' item(ns) em aberto ('+s.txt+').\nMeta: *'+x.meta+' por dia* pra zerar em '+focoDias+' dia(s).\nOnde estão: '+x.locaisTxt.join(', ')+'.\nPor favor, executar e dar baixa no checklist. ('+rev+')');
+    enviarFornecedorImagem(x.nome, focoAndar, x.nome + ' — ' + nomeAndarLongo(focoAndar),
+      x.aberto + ' em aberto · ' + s.txt + ' · meta ' + x.meta + '/dia pra zerar em ' + focoDias + ' dia(s)');
+  }));
+  ov.querySelectorAll('[data-foco-pdf]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pdfFornecedor(d.fornecedores[Number(b.dataset.focoPdf)].nome, focoAndar);
   }));
   document.getElementById('foco-imagem').addEventListener('click', async () => {
     const linhas = [];
@@ -4575,6 +4704,8 @@ function obterItensFiltrados(){
     itens = itens.filter((it) => it.tipo === filtroItemLocal.tipo && (it.quarto ?? null) === (filtroItemLocal.quarto ?? null));
   }
   if (filtroAndar) itens = itens.filter((it) => String(it.andar) === filtroAndar);
+  const filtroOrigem = (document.getElementById('filtro-item-origem') || {}).value || '';
+  if (filtroOrigem) itens = itens.filter((it) => origemDoItem(it) === filtroOrigem);
   if (filtroAmbiente) itens = itens.filter((it) => passaFiltroAmbiente(it.tipo, localKey(it), filtroAmbiente));
   if (filtroDisciplina) itens = itens.filter((it) => disciplinaEfetiva(it) === filtroDisciplina);
   if (filtroFornecedor) itens = itens.filter((it) => passaFiltroFornecedor(it, filtroFornecedor));
@@ -4589,7 +4720,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
-      if (filtroProgressoSelect === 'naoBaixadoIac') return iacNaoDeuBaixa(it);
+      if (filtroProgressoSelect === 'naoBaixadoIac') return iacNaoDeuBaixa(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
       return true;
     });
@@ -4682,13 +4813,22 @@ function renderItens(){
       '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Vistoriado IAC':'Vistoriado IAC')+'</button>' +
       '<button class="chip-acao" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
+      (iacNaoDeuBaixa(it)
+        ? '<div style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
+            '<div style="font-size:10.5px; color:var(--aviso-cor); line-height:1.3;">IAC não deu baixa — o que é?</div>' +
+            (ac.divergencia === 'iac'
+              ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
+              : '<button class="chip-acao" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
+            '<button class="chip-acao ambar" data-triar="nossa" data-id="'+esc(it.id)+'" style="font-size:11px;">Baixa errada: reabrir</button>' +
+          '</div>'
+        : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>' : '')) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">AW: '+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro">'+esc(it.id)+'</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+'</td>' +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id)+'</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
       '<td class="col-centro"><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
@@ -4704,6 +4844,7 @@ function renderItens(){
   btnMais.classList.toggle('oculto', restantes<=0);
   if (restantes>0) btnMais.textContent = 'Carregar mais ('+restantes+' restante'+(restantes>1?'s':'')+')';
 
+  tbody.querySelectorAll('[data-triar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); triarDivergenciaIac(b.dataset.id, b.dataset.triar); }));
   tbody.querySelectorAll('[data-acomp]').forEach((btn) => {
     btn.addEventListener('click', () => alternarAcompanhamento(btn.dataset.id, btn.dataset.acomp));
   });
@@ -4787,7 +4928,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Vistoriado IAC', reinc:'Voltou para aberto (reincidência)' };
+        const nomeEv = { aw:'Executado AW', iac:'Vistoriado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Vistoriado IAC' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -4803,6 +4944,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
         '<input type="text" id="edit-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px;'+(fornEhConhecido||!fornAtual?' display:none;':'')+'" value="'+(fornEhConhecido?'':esc(fornAtual))+'">' +
       '</div>' +
       '<p style="font-size:11.5px; color:var(--muted); margin:-6px 0 16px;">O status vem direto da planilha da IAC e não é editável aqui — use os botões Executado AW / Vistoriado IAC na tabela pra acompanhar o andamento.</p>' +
+      ((it && it.origem === 'AW' && podeTirarDaObra()) ? '<div class="modal-campo"><button type="button" class="btn fantasma" id="edit-excluir-manual" style="width:100%; justify-content:center; color:var(--vm);">Excluir item (incluído no app por '+esc(it.criadoPor||'—')+')</button></div>' : '') +
       (podeTirarDaObra() ? '<div class="modal-campo"><button type="button" class="btn fantasma ambar" id="edit-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar da obra (é de outra diretoria)</button>' +
         '<div style="font-size:12px; color:var(--muted); margin-top:6px;">O item some de todas as telas e continua escondido nas próximas revisões. Dá pra restaurar na aba Enviar planilhas.</div></div>' : '') +
       '<div class="modal-acoes">' +
@@ -4821,6 +4963,8 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
     if (e.target.value === '__novo__') document.getElementById('edit-forn-novo').focus();
   });
   document.getElementById('edit-cancelar').addEventListener('click', fecharModalEdicao);
+  const btnExcl = document.getElementById('edit-excluir-manual');
+  if (btnExcl) btnExcl.addEventListener('click', async () => { if (await excluirItemManual(itemId)) fecharModalEdicao(); });
   const btnTirar = document.getElementById('edit-tirar-obra');
   if (btnTirar) btnTirar.addEventListener('click', async () => {
     if (!window.confirm('Tirar o item '+itemId+' da obra?\n\nEle é de outra diretoria: some de todas as telas e das próximas revisões. Dá pra restaurar depois.')) return;
@@ -4856,6 +5000,425 @@ function listaFornecedoresConhecidos(){
   const dosItens = itensRevisaoAtual.map((it) => fornecedorEfetivo(it));
   return Array.from(new Set(doMapeamento.concat(dosItens).map((n)=>(n||'').trim()).filter(Boolean)))
     .sort((a,b) => a.localeCompare(b,'pt-BR'));
+}
+
+/* ESCOLHER FOTOS: dois botões (câmera / galeria) + miniaturas com × — mesmo padrão no chat e no Novo item */
+function htmlEscolherFotos(prefixo){
+  return '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+    '<label class="btn fantasma" style="padding:7px 12px; cursor:pointer;">📷 Câmera<input type="file" id="'+prefixo+'-camera" accept="image/*" capture="environment" style="display:none;"></label>' +
+    '<label class="btn fantasma" style="padding:7px 12px; cursor:pointer;">🖼️ Galeria<input type="file" id="'+prefixo+'-galeria" accept="image/*" multiple style="display:none;"></label>' +
+  '</div><div id="'+prefixo+'-miniaturas" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"></div>';
+}
+function ligarEscolherFotos(prefixo, obterLista, definirLista){
+  const render = () => {
+    const box = document.getElementById(prefixo + '-miniaturas'); if (!box) return;
+    box.querySelectorAll('img').forEach((im) => { try{ URL.revokeObjectURL(im.src); }catch(e){} });
+    box.innerHTML = obterLista().map((f, i) => '<div style="position:relative;"><img src="'+URL.createObjectURL(f)+'" style="width:54px; height:54px; object-fit:cover; border-radius:8px; border:1px solid var(--line);">' +
+      '<button type="button" data-tirar-foto="'+i+'" title="Tirar esta foto" style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; border:0; background:var(--vm); color:#fff; font-size:12px; line-height:20px; padding:0; cursor:pointer;">×</button></div>').join('');
+    box.querySelectorAll('[data-tirar-foto]').forEach((b) => b.addEventListener('click', () => { const l = obterLista().slice(); l.splice(Number(b.dataset.tirarFoto), 1); definirLista(l); render(); }));
+  };
+  ['camera','galeria'].forEach((k) => {
+    const inp = document.getElementById(prefixo + '-' + k);
+    if (inp) inp.addEventListener('change', (e) => { definirLista(obterLista().concat(Array.from(e.target.files || []))); e.target.value = ''; render(); });
+  });
+  render();
+  return render;
+}
+
+/* ===================== ASSISTENTE (chat com IA) =====================
+   Escreva pedidos em português; a IA (Claude, pela função do Supabase) entende e PROPÕE.
+   O app mostra a proposta (quantos itens, quais) e só grava depois de "Confirmar".
+   A IA só enxerga um resumo da obra + o que as ferramentas de busca devolvem; todas as
+   gravações passam pelas mesmas funções do app (histórico com nome de quem confirmou). */
+const FUNCAO_CHAT = 'Chat---Checklist-Sofitel';
+let chatHistorico = [], chatFotosPendentes = [], chatOcupado = false;
+
+function chatContexto(){
+  const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
+  const rev = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '';
+  const andares = completarAndaresDaTorre(andaresConhecidos);
+  const abertosAndar = new Map(), tiposAndar = new Map();
+  pend.forEach((it) => {
+    if (estaEmAberto(it)) abertosAndar.set(it.andar, (abertosAndar.get(it.andar)||0) + 1);
+    if (it.tipo !== 'APTO'){ if (!tiposAndar.has(it.andar)) tiposAndar.set(it.andar, new Set()); tiposAndar.get(it.andar).add(it.tipo); }
+  });
+  const discs = Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva).filter(Boolean))).sort();
+  return [
+    'Obra: ' + nomeDaObra() + ' (Hotel Sofitel Ipanema). Revisão selecionada: ' + rev + '. Hoje: ' + new Date().toLocaleDateString('pt-BR') + '.',
+    'Usuário: ' + (usuarioAtual || '?') + (podeTirarDaObra() ? ' (administrador)' : ' (não administrador: não pode mudar fluxo em lote)') + '.',
+    'Níveis (andar): ' + andares.map((a) => a + '=' + nomeAndar(a)).join(', ') + '. Quartos são numerados andar+número (ex.: 1205 = 12º andar).',
+    'Áreas por andar (além de quartos): ' + Array.from(tiposAndar.entries()).sort((a,b) => a[0]-b[0]).map(([a, s]) => nomeAndar(a) + ': ' + Array.from(s).join('/')).join('; ') + '.',
+    'Disciplinas (→ fornecedor padrão): ' + discs.map((d) => d + (fornecedorPadraoDaDisciplina(d) ? ' → ' + fornecedorPadraoDaDisciplina(d) : '')).join('; ') + '.',
+    'Fornecedores: ' + listaFornecedoresConhecidos().join(', ') + '.',
+    'Itens em aberto por andar: ' + Array.from(abertosAndar.entries()).sort((a,b) => a[0]-b[0]).map(([a, n]) => nomeAndar(a) + ' ' + n).join(', ') + '. Total de pendências: ' + pend.length + '.',
+    'Prioridade: VM = vermelho (crítico), AM = amarelo. Fluxo: em aberto → Executado AW → Vistoriado IAC. Origem: IAC (planilha) ou AW (incluído no app).',
+    'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).'
+  ].join('\n');
+}
+const CHAT_FILTRO = { type:'object', description:'Critérios para escolher os itens (todos opcionais; combine o que o usuário pediu).', properties:{
+  andar:{ type:'number', description:'número do andar (0 térreo, negativo subsolo, 100 cobertura)' },
+  quartos:{ type:'array', items:{ type:'number' }, description:'números dos quartos, ex. [1205,1206]' },
+  area:{ type:'string', description:'área que não é quarto, ex. CORREDOR, HALL, ITENS GERAIS' },
+  disciplina:{ type:'string' }, fornecedor:{ type:'string' },
+  prioridade:{ type:'string', enum:['VM','AM'] },
+  fluxo:{ type:'string', enum:['emAberto','awExec','awSemIac','iacOk','naoBaixadoIac','comReinc'] },
+  texto:{ type:'string', description:'palavra na descrição ou nº do item' },
+  origem:{ type:'string', enum:['IAC','AW'] },
+  ids:{ type:'array', items:{ type:'string' }, description:'números exatos dos itens' } } };
+const CHAT_FERRAMENTAS = [
+  { name:'buscar_itens', description:'Consulta itens da revisão (só leitura). Devolve totais por andar/fornecedor/disciplina e exemplos. Use para responder perguntas ou antes de propor ações.', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO }, required:['filtro'] } },
+  { name:'criar_itens', description:'Propõe incluir item(ns) novo(s) (origem AW). Um item por quarto informado. Fotos anexadas no chat vão junto.', input_schema:{ type:'object', properties:{
+      andar:{ type:'number' }, quartos:{ type:'array', items:{ type:'number' } }, area:{ type:'string', description:'se não for quarto' },
+      disciplina:{ type:'string' }, fornecedor:{ type:'string', description:'opcional; vazio = padrão da disciplina' },
+      prioridade:{ type:'string', enum:['VM','AM'] }, descricao:{ type:'string' } }, required:['andar','disciplina','prioridade','descricao'] } },
+  { name:'editar_itens', description:'Propõe trocar disciplina, fornecedor e/ou prioridade dos itens do filtro.', input_schema:{ type:'object', properties:{
+      filtro: CHAT_FILTRO, disciplina:{ type:'string' }, fornecedor:{ type:'string' }, prioridade:{ type:'string', enum:['VM','AM'] } }, required:['filtro'] } },
+  { name:'mudar_fluxo', description:'Propõe mudar o fluxo dos itens do filtro (só administradores): aw = Executado AW, iac = Vistoriado IAC (inclui AW), aberto = voltar para em aberto (engano, sem reincidência).', input_schema:{ type:'object', properties:{
+      filtro: CHAT_FILTRO, fluxo:{ type:'string', enum:['aw','iac','aberto'] } }, required:['filtro','fluxo'] } },
+  { name:'definir_previsao', description:'Propõe pôr data prevista (AAAA-MM-DD) nos itens em aberto de ambientes liberados com pendência.', input_schema:{ type:'object', properties:{
+      filtro: CHAT_FILTRO, data:{ type:'string' } }, required:['filtro','data'] } },
+  { name:'mostrar_na_tela', description:'Abre a aba Itens já filtrada (não grava nada).', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO }, required:['filtro'] } },
+  { name:'gerar_pdf', description:'Gera o PDF de itens (padrão do app) com os itens do filtro (não grava nada).', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO, titulo:{ type:'string' } }, required:['filtro'] } }
+];
+function chatParecido(a, b){ const x = chaveComparacao(a || ''), y = chaveComparacao(b || ''); return !!x && !!y && (x === y || x.indexOf(y) !== -1 || y.indexOf(x) !== -1); }
+function chatResolverNome(digitado, lista){
+  if (!digitado) return '';
+  const exato = lista.find((n) => chaveComparacao(n) === chaveComparacao(digitado));
+  if (exato) return exato;
+  const parecidos = lista.filter((n) => chatParecido(n, digitado));
+  return parecidos.length === 1 ? parecidos[0] : '';
+}
+function chatFiltrar(f){
+  f = f || {};
+  let it = itensRevisaoAtual.filter((x) => x.status === 'VM' || x.status === 'AM');
+  if (Array.isArray(f.ids) && f.ids.length){ const s = new Set(f.ids.map(String)); it = it.filter((x) => s.has(String(x.id))); }
+  if (f.andar !== undefined && f.andar !== null && f.andar !== '') it = it.filter((x) => Number(x.andar) === Number(f.andar));
+  if (Array.isArray(f.quartos) && f.quartos.length){ const s = new Set(f.quartos.map(Number)); it = it.filter((x) => x.tipo === 'APTO' && s.has(Number(x.quarto))); }
+  if (f.area) it = it.filter((x) => x.tipo !== 'APTO' && chatParecido(x.tipo, f.area));
+  if (f.disciplina) it = it.filter((x) => chatParecido(disciplinaEfetiva(x), f.disciplina));
+  if (f.fornecedor) it = it.filter((x) => chatParecido(fornecedorEfetivo(x) || 'Sem fornecedor', f.fornecedor));
+  if (f.prioridade) it = it.filter((x) => x.status === f.prioridade);
+  if (f.origem) it = it.filter((x) => origemDoItem(x) === f.origem);
+  if (f.texto){ const q = chaveComparacao(f.texto); it = it.filter((x) => chaveComparacao(x.desc + ' ' + x.id).indexOf(q) !== -1); }
+  if (f.fluxo){
+    it = it.filter((x) => { const a = acompanhamento[x.id];
+      if (f.fluxo === 'emAberto') return estaEmAberto(x);
+      if (f.fluxo === 'awExec') return !!(a && a.awExecEm);
+      if (f.fluxo === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
+      if (f.fluxo === 'iacOk') return !!(a && a.iacOkEm);
+      if (f.fluxo === 'naoBaixadoIac') return iacNaoDeuBaixa(x);
+      if (f.fluxo === 'comReinc') return !!(a && a.reincidencias);
+      return true; });
+  }
+  return it;
+}
+function chatResumoItens(lista){
+  const contar = (fn) => { const m = new Map(); lista.forEach((x) => { const k = fn(x); m.set(k, (m.get(k)||0) + 1); }); return Array.from(m.entries()).sort((a,b) => b[1]-a[1]).slice(0, 12).map(([k, n]) => k + ': ' + n).join(', '); };
+  const fl = (x) => { const a = acompanhamento[x.id] || {}; return a.iacOkEm ? 'vistoriado IAC' : (a.awExecEm ? 'executado AW' : 'em aberto'); };
+  return JSON.stringify({ total: lista.length, em_aberto: lista.filter(estaEmAberto).length,
+    por_andar: contar((x) => nomeAndar(x.andar)), por_fornecedor: contar((x) => fornecedorEfetivo(x) || 'Sem fornecedor'), por_disciplina: contar(disciplinaEfetiva),
+    exemplos: lista.slice(0, 20).map((x) => ({ id: x.id, local: localLabel(x).replace(/\u00A0/g,' '), andar: nomeAndar(x.andar), disciplina: disciplinaEfetiva(x), fornecedor: fornecedorEfetivo(x) || '—', prioridade: x.status, fluxo: fl(x), descricao: String(x.desc || '').slice(0, 90) })) });
+}
+/* monta a proposta (o que vai acontecer) a partir de um pedido de ação da IA */
+function chatMontarProposta(nome, inp){
+  if (nome === 'criar_itens'){
+    const disc = chatResolverNome(inp.disciplina, Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva)))) || String(inp.disciplina || '').toUpperCase();
+    const forn = inp.fornecedor ? (chatResolverNome(inp.fornecedor, listaFornecedoresConhecidos()) || inp.fornecedor) : '';
+    const area = inp.area ? (Array.from(new Set(itensRevisaoAtual.filter((x) => x.andar === Number(inp.andar) && x.tipo !== 'APTO').map((x) => x.tipo))).find((tp) => chatParecido(tp, inp.area)) || String(inp.area).toUpperCase()) : '';
+    const quartos = Array.isArray(inp.quartos) && inp.quartos.length ? inp.quartos.map(Number) : [];
+    if (!quartos.length && !area) return { erro: 'Faltou dizer o quarto ou a área.' };
+    const locais = quartos.length ? quartos.map(String) : [area.charAt(0) + area.slice(1).toLowerCase() + ' ' + nomeAndar(Number(inp.andar))];
+    return { tipo: nome, inp, disc, forn, area, quartos,
+      texto: 'Incluir ' + locais.length + ' item(ns) — ' + locais.join(', ') + ' · ' + disc + ' · ' + (forn || 'fornecedor padrão') + ' · ' + inp.prioridade + ' · "' + inp.descricao + '"' + (chatFotosPendentes.length ? ' · ' + chatFotosPendentes.length + ' foto(s)' : '') };
+  }
+  const itens = chatFiltrar(inp.filtro);
+  if (!itens.length) return { erro: 'Nenhum item encontrado com esses critérios.' };
+  const amostra = itens.slice(0, 6).map((x) => x.id + ' (' + localLabel(x).replace(/\u00A0/g,' ') + ')').join(', ') + (itens.length > 6 ? '…' : '');
+  if (nome === 'editar_itens'){
+    const disc = inp.disciplina ? (chatResolverNome(inp.disciplina, Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva)))) || '') : '';
+    if (inp.disciplina && !disc) return { erro: 'Não achei a disciplina "' + inp.disciplina + '". Use um nome que já exista na obra.' };
+    const forn = inp.fornecedor ? (chatResolverNome(inp.fornecedor, listaFornecedoresConhecidos()) || inp.fornecedor) : '';
+    const mudancas = [disc && 'disciplina → ' + disc, forn && 'fornecedor → ' + forn, inp.prioridade && 'prioridade → ' + inp.prioridade].filter(Boolean);
+    if (!mudancas.length) return { erro: 'Não entendi o que trocar.' };
+    return { tipo: nome, ids: itens.map((x) => x.id), disc, forn, prio: inp.prioridade || '', texto: 'Alterar ' + itens.length + ' item(ns): ' + mudancas.join(' · ') + '. Ex.: ' + amostra };
+  }
+  if (nome === 'mudar_fluxo'){
+    if (!podeTirarDaObra()) return { erro: 'Mudar o fluxo em lote é só para administradores.' };
+    const rot = { aw:'Executado AW', iac:'Vistoriado IAC', aberto:'em aberto (engano, sem reincidência)' }[inp.fluxo];
+    return { tipo: nome, ids: itens.map((x) => x.id), fluxo: inp.fluxo, texto: 'Mudar ' + itens.length + ' item(ns) para ' + rot + '. Ex.: ' + amostra };
+  }
+  if (nome === 'definir_previsao'){
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.data))) return { erro: 'Data inválida.' };
+    const elegiveis = itens.filter((x) => estaEmAberto(x) && areasLiberadasRevisaoAtual[x.andar + '|' + chaveAreaDoc(x.tipo, x.quarto)]);
+    if (!elegiveis.length) return { erro: 'Nenhum item em aberto em ambiente liberado com pendência nesses critérios.' };
+    return { tipo: nome, ids: elegiveis.map((x) => x.id), data: inp.data, texto: 'Pôr previsão ' + inp.data.split('-').reverse().join('/') + ' em ' + elegiveis.length + ' item(ns) em aberto de ambientes liberados com pendência.' };
+  }
+  return { erro: 'Ação desconhecida.' };
+}
+async function chatExecutarProposta(p){
+  const agora = new Date().toISOString(), por = usuarioAtual;
+  if (p.tipo === 'criar_itens'){
+    const fotos = [];
+    for (const f of chatFotosPendentes){
+      try{ const blob = await comprimirImagem(f, 900, 0.68, true); const r = assetsCap ? await subirUmaFotoComRetry(blob, 3, await impressaoDigitalFoto(blob)) : null; if (r && r.id) fotos.push(r.id); }catch(e){}
+    }
+    chatFotosPendentes = []; renderChatAnexos();
+    const base = Date.now().toString(36).toUpperCase(), alvos = p.quartos.length ? p.quartos : [null];
+    let ok = 0;
+    for (let i = 0; i < alvos.length; i++){
+      const id = 'AW-' + base + (alvos.length > 1 ? '-' + (i+1) : '');
+      const doc = { id, andar: Number(p.inp.andar), tipo: alvos[i] !== null ? 'APTO' : p.area, quarto: alvos[i], disciplina: p.disc, status: p.inp.prioridade, desc: p.inp.descricao, fotos, criadoPor: por, criadoEm: agora, viaChat: true };
+      const r = await store.setDoc('itens_manuais', id, doc);
+      if (r.ok){ ok++; itensManuais.push(Object.assign({ _id: id }, doc)); if (p.forn) await salvarClassificacaoItem(id, p.disc, p.forn); }
+    }
+    await selecionarRevisao(revisaoSelecionada);
+    return ok + ' de ' + alvos.length + ' item(ns) incluído(s).';
+  }
+  if (p.tipo === 'definir_previsao'){
+    let ok = 0; for (const id of p.ids){ try{ await salvarDataPrevista(id, p.data); ok++; }catch(e){} }
+    atualizarTelasAposAcompanhamento(); return 'Previsão colocada em ' + ok + ' item(ns).';
+  }
+  let falhas = 0;
+  await comLimiteDeConcorrencia(p.ids, 4, async (id) => {
+    const it = itensRevisaoAtual.find((x) => x.id === id);
+    if (p.tipo === 'editar_itens' && (p.disc || p.forn)){
+      const ac0 = acompanhamento[id] || {};
+      const disc = p.disc || (it ? disciplinaEfetiva(it) : '');
+      const forn = p.forn || (p.disc ? (ac0.fornecedorOverride || fornecedorPadraoDaDisciplina(p.disc)) : (it ? fornecedorEfetivo(it) : ''));
+      if (!(await salvarClassificacaoItem(id, disc, forn))) falhas++;
+    }
+    if ((p.tipo === 'editar_itens' && p.prio) || p.tipo === 'mudar_fluxo'){
+      const atual = acompanhamento[id] || { awExecEm:null, iacOkEm:null };
+      const novo = Object.assign({}, atual), hist = historicoDoItem(atual).slice();
+      if (p.prio) novo.prioridadeOverride = p.prio;
+      if (p.fluxo === 'aw' || p.fluxo === 'iac'){
+        if (!novo.awExecEm){ novo.awExecEm = agora; novo.awExecPor = por; hist.push({ t:'aw', em:agora, por, via:'chat' }); }
+        if (p.fluxo === 'iac' && !novo.iacOkEm){ novo.iacOkEm = agora; novo.iacOkPor = por; hist.push({ t:'iac', em:agora, por, via:'chat' }); }
+      } else if (p.fluxo === 'aberto' && (novo.awExecEm || novo.iacOkEm)){
+        for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
+        for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i, 1); break; } }
+        novo.awExecEm = null; novo.awExecPor = null; novo.iacOkEm = null; novo.iacOkPor = null;
+      }
+      novo.historico = hist;
+      const r = await salvarAcompanhamentoComRetry(id, novo);
+      if (r.ok) acompanhamento[id] = novo; else falhas++;
+    }
+  });
+  if (p.prio) await selecionarRevisao(revisaoSelecionada); else atualizarTelasAposAcompanhamento();
+  return (p.ids.length - falhas) + ' de ' + p.ids.length + ' item(ns) atualizado(s).' + (falhas ? ' ' + falhas + ' falharam (sem conexão?).' : '');
+}
+/* ---------- conversa com a função do Supabase ---------- */
+async function chatChamarIA(){
+  // mantém só as últimas trocas, começando sempre por uma mensagem de texto do usuário
+  let msgs = chatHistorico.slice(-12);
+  while (msgs.length && !(msgs[0].role === 'user' && typeof msgs[0].content === 'string')) msgs = msgs.slice(1);
+  const corpo = { mensagens: msgs, contexto: chatContexto(), ferramentas: CHAT_FERRAMENTAS };
+  if (!supa || !supa.functions) throw new Error('sem conexão com a nuvem');
+  const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: corpo });
+  if (error){
+    let det = ''; try{ det = await error.context.text(); }catch(e){}
+    throw new Error((error.message || 'erro') + (det ? ' — ' + det.slice(0, 200) : ''));
+  }
+  if (data && data.type === 'error') throw new Error((data.error && data.error.message) || 'erro da IA');
+  return data;
+}
+async function chatEnviar(texto){
+  if (chatOcupado) return;
+  if (!(await garantirUsuario())) return;
+  texto = String(texto || '').trim();
+  if (!texto) return;
+  chatOcupado = true;
+  chatAdicionarBolha('user', esc(texto) + (chatFotosPendentes.length ? '<div style="font-size:11px; opacity:.8;">📷 '+chatFotosPendentes.length+' foto(s)</div>' : ''));
+  chatHistorico.push({ role:'user', content: texto + (chatFotosPendentes.length ? '\n[o usuário anexou ' + chatFotosPendentes.length + ' foto(s) para o item]' : '') });
+  await chatRodarIA();
+  chatOcupado = false;
+}
+async function chatRodarIA(){
+  const pensando = chatAdicionarBolha('assistant', '<span style="color:var(--muted);">pensando…</span>');
+  try{
+    for (let volta = 0; volta < 5; volta++){
+      const resp = await chatChamarIA();
+      const blocos = (resp && resp.content) || [];
+      chatHistorico.push({ role:'assistant', content: blocos });
+      const textos = blocos.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+      const usos = blocos.filter((b) => b.type === 'tool_use');
+      if (textos) chatAdicionarBolha('assistant', esc(textos).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
+      if (!usos.length) break;
+      const resultados = [], propostas = [];
+      for (const u of usos){
+        if (u.name === 'buscar_itens'){ resultados.push({ type:'tool_result', tool_use_id: u.id, content: chatResumoItens(chatFiltrar(u.input.filtro)) }); continue; }
+        if (u.name === 'mostrar_na_tela' || u.name === 'gerar_pdf'){
+          const itens = chatFiltrar(u.input.filtro);
+          if (u.name === 'gerar_pdf' && itens.length) exportarItensPdf({ itens, titulo: 'Itens - ' + (u.input.titulo || 'assistente'), filtro: (u.input.titulo || 'Pedido no assistente') + ' (' + itens.length + ')' });
+          if (u.name === 'mostrar_na_tela' && itens.length){
+            const f = u.input.filtro || {};
+            abrirItens({ andar: f.andar !== undefined ? String(f.andar) : undefined, fluxo: f.fluxo, busca: (Array.isArray(f.ids) && f.ids.length === 1) ? f.ids[0] : (f.texto || undefined),
+              fornecedor: f.fornecedor ? (chatResolverNome(f.fornecedor, listaFornecedoresConhecidos()) || undefined) : undefined,
+              disciplina: f.disciplina ? (chatResolverNome(f.disciplina, Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva)))) || undefined) : undefined });
+          }
+          resultados.push({ type:'tool_result', tool_use_id: u.id, content: itens.length ? 'feito: ' + itens.length + ' item(ns)' : 'nenhum item encontrado' });
+          continue;
+        }
+        const p = chatMontarProposta(u.name, u.input || {});
+        if (p.erro){ resultados.push({ type:'tool_result', tool_use_id: u.id, content: 'não foi possível: ' + p.erro, is_error: true }); continue; }
+        propostas.push({ u, p });
+      }
+      if (propostas.length){
+        // pede confirmação de cada ação; o resultado volta pra IA resumir
+        for (const { u, p } of propostas){
+          const ok = await chatPedirConfirmacao(p.texto);
+          const msg = ok ? await chatExecutarProposta(p) : 'cancelado pelo usuário';
+          chatAdicionarBolha('assistant', '<span style="color:'+(ok ? 'var(--vd)' : 'var(--muted)')+';">'+(ok ? '✓ ' : '')+esc(msg)+'</span>');
+          resultados.push({ type:'tool_result', tool_use_id: u.id, content: msg });
+        }
+        chatHistorico.push({ role:'user', content: resultados });
+        break; // ação feita: não precisa de outra volta (economiza)
+      }
+      chatHistorico.push({ role:'user', content: resultados });
+    }
+  }catch(e){
+    const m = String(e && e.message || e);
+    chatAdicionarBolha('assistant', '<span style="color:var(--vm);">Não consegui falar com o assistente: '+esc(/credit|saldo|balance/i.test(m) ? 'sem créditos na conta da API (Claude Console → Billing).' : m)+'</span>');
+    // descarta a última pergunta pra conversa não ficar quebrada
+    while (chatHistorico.length && chatHistorico[chatHistorico.length-1].role !== 'user') chatHistorico.pop();
+    if (chatHistorico.length) chatHistorico.pop();
+  }finally{ pensando.remove(); }
+}
+/* ---------- interface ---------- */
+function chatAdicionarBolha(papel, html){
+  const lista = document.getElementById('chat-mensagens');
+  const d = document.createElement('div');
+  d.className = 'chat-bolha ' + (papel === 'user' ? 'eu' : 'ia');
+  d.innerHTML = html;
+  lista.appendChild(d); lista.scrollTop = lista.scrollHeight;
+  return d;
+}
+function chatPedirConfirmacao(texto){
+  return new Promise((resolve) => {
+    const d = chatAdicionarBolha('assistant', '<div style="font-weight:500; margin-bottom:6px;">Confirmar?</div><div>'+esc(texto)+'</div>' +
+      '<div style="display:flex; gap:8px; margin-top:8px;"><button type="button" class="btn fantasma" data-chat-nao style="padding:6px 12px;">Cancelar</button><button type="button" class="btn primario" data-chat-sim style="padding:6px 12px;">Confirmar</button></div>');
+    d.classList.add('proposta');
+    d.querySelector('[data-chat-sim]').addEventListener('click', () => { d.querySelectorAll('button').forEach((b) => b.disabled = true); resolve(true); });
+    d.querySelector('[data-chat-nao]').addEventListener('click', () => { d.querySelectorAll('button').forEach((b) => b.disabled = true); resolve(false); });
+  });
+}
+let renderChatAnexos = () => {};
+function iniciarChat(){
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'btn-chat'; b.className = 'btn primario'; b.textContent = '💬 Assistente';
+  document.body.appendChild(b);
+  const p = document.createElement('div');
+  p.id = 'painel-chat'; p.className = 'oculto';
+  p.innerHTML = '<div class="chat-topo"><div><b style="font-weight:500;">Assistente</b><div style="font-size:11.5px; color:var(--muted);">Pedidos sobre a obra — sempre pede confirmação antes de gravar</div></div><button type="button" class="btn fantasma" id="chat-fechar" style="padding:6px 10px;">Fechar</button></div>' +
+    '<div id="chat-mensagens"><div class="chat-bolha ia">Oi! Exemplos: <i>"quantos itens da Dabol estão em aberto no 12º?"</i>, <i>"inclui no 1205 e 1206 um item de marcenaria: porta do roupeiro desalinhada"</i> (tire ou escolha a foto em 📷/🖼️), <i>"marque como executado AW os itens de elétrica do 1502"</i>, <i>"mostra os vermelhos do 15º"</i>.</div></div>' +
+    '<div style="padding:8px 10px 0; border-top:1px solid var(--line);">' + htmlEscolherFotos('chat-foto') + '</div>' +
+    '<div class="chat-entrada" style="border-top:0;"><textarea id="chat-texto" rows="1" placeholder="Escreva seu pedido…"></textarea><button type="button" class="btn primario" id="chat-enviar">Enviar</button></div>';
+  document.body.appendChild(p);
+  b.addEventListener('click', () => { p.classList.toggle('oculto'); if (!p.classList.contains('oculto')) setTimeout(() => document.getElementById('chat-texto').focus(), 50); });
+  document.getElementById('chat-fechar').addEventListener('click', () => p.classList.add('oculto'));
+  const enviar = () => { const t = document.getElementById('chat-texto'); const v = t.value; t.value = ''; chatEnviar(v); };
+  document.getElementById('chat-enviar').addEventListener('click', enviar);
+  document.getElementById('chat-texto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); enviar(); } });
+  renderChatAnexos = ligarEscolherFotos('chat-foto', () => chatFotosPendentes, (l) => { chatFotosPendentes = l; });
+}
+
+/* ===================== NOVO ITEM (incluído no app, origem AW) ===================== */
+function abrirNovoItem(){
+  document.getElementById('modal-novo-item') && document.getElementById('modal-novo-item').remove();
+  const andares = completarAndaresDaTorre(andaresConhecidos.length ? andaresConhecidos : [5]);
+  const andarIni = document.getElementById('filtro-item-andar').value !== '' ? Number(document.getElementById('filtro-item-andar').value) : andares[andares.length-1];
+  const discs = Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva).filter(Boolean))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+  const tiposDoAndar = (a) => Array.from(new Set(itensRevisaoAtual.filter((it) => it.andar === a && it.tipo !== 'APTO').map((it) => it.tipo))).sort();
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'modal-novo-item';
+  ov.innerHTML = '<div class="modal-card" role="dialog" aria-modal="true" style="max-width:520px; max-height:90vh; overflow-y:auto;">' +
+    '<h3>Novo item</h3><div class="modal-sub">Incluído no app (etiqueta AW). Entra em todas as telas, filtros e PDFs, e não é afetado pelas revisões da IAC.</div>' +
+    '<div class="modal-campo"><label for="ni-andar">Andar</label><select id="ni-andar">'+andares.slice().reverse().map((a) => '<option value="'+a+'"'+(a === andarIni ? ' selected' : '')+'>'+esc(nomeAndarLongo(a))+'</option>').join('')+'</select></div>' +
+    '<div class="modal-campo"><label for="ni-tipo">Local</label><select id="ni-tipo"></select>' +
+      '<input type="text" id="ni-quartos" placeholder="Quarto(s): 1205, 1206, 1207" inputmode="numeric" style="margin-top:8px;">' +
+      '<input type="text" id="ni-tipo-novo" placeholder="Nome da área (ex.: Escada)" style="margin-top:8px; display:none;"></div>' +
+    '<div class="modal-campo"><label for="ni-disc">Disciplina</label><select id="ni-disc">'+discs.map((d) => '<option value="'+esc(d)+'">'+esc(d)+'</option>').join('')+'<option value="__nova__">+ Nova disciplina…</option></select>' +
+      '<input type="text" id="ni-disc-nova" placeholder="Nome da disciplina" style="margin-top:8px; display:none;"></div>' +
+    '<div class="modal-campo"><label for="ni-forn">Fornecedor</label><select id="ni-forn"><option value="">— padrão da disciplina —</option>'+listaFornecedoresConhecidos().map((n) => '<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'</select></div>' +
+    '<div class="modal-campo"><label for="ni-prio">Prioridade</label><select id="ni-prio"><option value="AM">AM (amarelo)</option><option value="VM">VM (vermelho)</option></select></div>' +
+    '<div class="modal-campo"><label for="ni-desc">Descrição</label><textarea id="ni-desc" rows="3" placeholder="O que precisa ser feito"></textarea></div>' +
+    '<div class="modal-campo"><label>Foto(s)</label>' + htmlEscolherFotos('ni-foto') + '</div>' +
+    '<div id="ni-erro" style="font-size:12.5px; color:var(--vm); min-height:16px;"></div>' +
+    '<div class="modal-acoes"><button class="btn fantasma" id="ni-cancelar">Cancelar</button><button class="btn primario" id="ni-salvar">Incluir</button></div></div>';
+  document.body.appendChild(ov);
+  const $ = (id) => document.getElementById(id);
+  const montarTipos = () => {
+    const a = Number($('ni-andar').value);
+    $('ni-tipo').innerHTML = '<option value="APTO">Quarto(s)</option>' + tiposDoAndar(a).map((tp) => '<option value="'+esc(tp)+'">'+esc(tp.charAt(0) + tp.slice(1).toLowerCase())+'</option>').join('') + '<option value="__nova__">+ Outra área…</option>';
+    mostrarCampos();
+  };
+  const mostrarCampos = () => {
+    $('ni-quartos').style.display = $('ni-tipo').value === 'APTO' ? 'block' : 'none';
+    $('ni-tipo-novo').style.display = $('ni-tipo').value === '__nova__' ? 'block' : 'none';
+  };
+  $('ni-andar').addEventListener('change', montarTipos);
+  $('ni-tipo').addEventListener('change', mostrarCampos);
+  $('ni-disc').addEventListener('change', () => { $('ni-disc-nova').style.display = $('ni-disc').value === '__nova__' ? 'block' : 'none'; });
+  montarTipos();
+  let fotosNovoItem = [];
+  ligarEscolherFotos('ni-foto', () => fotosNovoItem, (l) => { fotosNovoItem = l; });
+  $('ni-cancelar').addEventListener('click', () => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  $('ni-salvar').addEventListener('click', async () => {
+    if (!(await garantirUsuario())) return;
+    const erro = $('ni-erro'); erro.textContent = '';
+    const andar = Number($('ni-andar').value);
+    let tipo = $('ni-tipo').value, quartos = [null];
+    if (tipo === 'APTO'){
+      quartos = String($('ni-quartos').value).split(/[^0-9]+/).filter(Boolean).map(Number);
+      if (!quartos.length){ erro.textContent = 'Informe o(s) número(s) do quarto.'; return; }
+    } else if (tipo === '__nova__'){
+      tipo = String($('ni-tipo-novo').value).trim().toUpperCase();
+      if (!tipo){ erro.textContent = 'Informe o nome da área.'; return; }
+    }
+    let disc = $('ni-disc').value;
+    if (disc === '__nova__'){ disc = String($('ni-disc-nova').value).trim().toUpperCase(); if (!disc){ erro.textContent = 'Informe a disciplina.'; return; } }
+    const desc = String($('ni-desc').value).trim();
+    if (!desc){ erro.textContent = 'Escreva a descrição do item.'; return; }
+    const forn = $('ni-forn').value, prio = $('ni-prio').value;
+    const btn = $('ni-salvar'); btn.disabled = true; btn.textContent = 'Incluindo…';
+    // fotos: sobe uma vez e usa em todos os quartos
+    const fotos = [];
+    try{
+      const arquivos = fotosNovoItem.slice();
+      for (let k = 0; k < arquivos.length; k++){
+        btn.textContent = 'Enviando foto ' + (k+1) + '/' + arquivos.length + '…';
+        // mesmo padrão das fotos da planilha: reduzida, rotação certa, mesma pasta e mesmo nome por conteúdo
+        const blob = await comprimirImagem(arquivos[k], 900, 0.68, true);
+        const digital = await impressaoDigitalFoto(blob);
+        const r = assetsCap ? await subirUmaFotoComRetry(blob, 3, digital) : null;
+        if (r && r.id) fotos.push(r.id);
+      }
+    }catch(e){ erro.textContent = /suportado/.test(String(e && e.message)) ? 'Não consegui ler o formato de uma foto. Tire a foto de novo ou envie como JPG.' : 'Uma foto não subiu (sem conexão?). O item será incluído sem ela.'; }
+    const agora = new Date().toISOString(), base = Date.now().toString(36).toUpperCase();
+    let feitos = 0;
+    for (let i = 0; i < quartos.length; i++){
+      const id = 'AW-' + base + (quartos.length > 1 ? '-' + (i+1) : '');
+      const doc = { id, andar, tipo, quarto: quartos[i], disciplina: disc, status: prio, desc, fotos, criadoPor: usuarioAtual, criadoEm: agora };
+      const r = await store.setDoc('itens_manuais', id, doc);
+      if (r.ok){
+        feitos++; itensManuais.push(Object.assign({ _id: id }, doc));
+        if (forn) await salvarClassificacaoItem(id, disc, forn);
+      }
+    }
+    ov.remove();
+    avisoFlutuante(feitos === quartos.length ? feitos+' item(ns) incluído(s)' : 'Só '+feitos+' de '+quartos.length+' foram incluídos (sem conexão?)', feitos === quartos.length ? 'ok' : 'erro');
+    await selecionarRevisao(revisaoSelecionada);
+  });
+}
+async function excluirItemManual(id){
+  if (!window.confirm('Excluir o item '+id+'?\n\nEle foi incluído no app e sai de todas as telas.')) return false;
+  const r = await store.deleteDoc('itens_manuais', id);
+  if (r && r.ok === false){ avisoFlutuante('Não consegui excluir (sem conexão?)', 'erro'); return false; }
+  itensManuais = itensManuais.filter((m) => (m.id || m._id) !== id);
+  avisoFlutuante('Item excluído', 'ok');
+  await selecionarRevisao(revisaoSelecionada);
+  return true;
 }
 
 /* ===================== EDITAR AGRUPAMENTO =====================
@@ -4897,6 +5460,14 @@ function abrirEdicaoAgrupamento(){
           '<option value="__novo__">+ Adicionar novo fornecedor…</option></select>' +
         '<input type="text" id="grupo-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px; display:none;">' +
       '</div>' +
+      '<div class="modal-campo">' +
+        '<label for="grupo-prio">Prioridade</label>' +
+        '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
+      '</div>' +
+      (podeTirarDaObra()
+        ? '<div class="modal-campo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
+          '<select id="grupo-fluxo"><option value="">— manter o de cada item —</option><option value="aw">Marcar Executado AW</option><option value="iac">Marcar Vistoriado IAC (inclui Executado AW)</option><option value="aberto">Voltar para em aberto (marcado por engano — sem reincidência)</option></select></div>'
+        : '') +
       (podeTirarDaObra() ? '<div class="modal-campo"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
       '<div class="modal-acoes">' +
         '<button class="btn fantasma" id="grupo-cancelar">Cancelar</button>' +
@@ -4928,7 +5499,10 @@ function abrirEdicaoAgrupamento(){
       if (!nome){ document.getElementById('grupo-forn-novo').focus(); return; }
       novoForn = nome;
     } else if (selForn !== '__manter__') novoForn = selForn; // '' = padrão da disciplina
-    if (!novaDisc && novoForn === null){ fecharEdicaoAgrupamento(); return; }
+    const novaPrio = document.getElementById('grupo-prio').value;
+    const novoFluxo = (document.getElementById('grupo-fluxo') || {}).value || '';
+    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo){ fecharEdicaoAgrupamento(); return; }
+    if (novoFluxo && !window.confirm('Mudar o fluxo de '+ids.length+' item(ns) para "'+({ aw:'Executado AW', iac:'Vistoriado IAC', aberto:'em aberto' })[novoFluxo]+'"?\n\nFica registrado no histórico de cada item, com o seu nome.')) return;
     const btn = document.getElementById('grupo-salvar');
     btn.disabled = true; btn.textContent = 'Salvando… 0/'+ids.length;
     let feitos = 0, falhas = 0;
@@ -4938,17 +5512,36 @@ function abrirEdicaoAgrupamento(){
       const disc = novaDisc || (it ? disciplinaEfetiva(it) : '');
       // fornecedor em "manter": se trocou a disciplina, mantém a exceção do item ou segue o padrão da disciplina nova
       const forn = novoForn !== null ? novoForn : (novaDisc ? (ac.fornecedorOverride || fornecedorPadraoDaDisciplina(novaDisc)) : (it ? fornecedorEfetivo(it) : ''));
-      if (!(await salvarClassificacaoItem(id, disc, forn))) falhas++;
+      if ((novaDisc || novoForn !== null) && !(await salvarClassificacaoItem(id, disc, forn))) falhas++;
+      if (novaPrio || novoFluxo){
+        const atual = acompanhamento[id] || { awExecEm:null, iacOkEm:null };
+        const novo = Object.assign({}, atual), agora = new Date().toISOString(), por = usuarioAtual;
+        const hist = historicoDoItem(atual).slice();
+        if (novaPrio === '__planilha__') delete novo.prioridadeOverride;
+        else if (novaPrio) novo.prioridadeOverride = novaPrio;
+        if (novoFluxo === 'aw' || novoFluxo === 'iac'){
+          if (!novo.awExecEm){ novo.awExecEm = agora; novo.awExecPor = por; hist.push({ t:'aw', em:agora, por, lote:true }); }
+          if (novoFluxo === 'iac' && !novo.iacOkEm){ novo.iacOkEm = agora; novo.iacOkPor = por; hist.push({ t:'iac', em:agora, por, lote:true }); }
+        } else if (novoFluxo === 'aberto' && (novo.awExecEm || novo.iacOkEm)){
+          for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
+          for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i, 1); break; } }
+          novo.awExecEm = null; novo.awExecPor = null; novo.iacOkEm = null; novo.iacOkPor = null;
+        }
+        novo.historico = hist;
+        const r = await salvarAcompanhamentoComRetry(id, novo);
+        if (r.ok) acompanhamento[id] = novo; else falhas++;
+      }
       feitos++; btn.textContent = 'Salvando… '+feitos+'/'+ids.length;
     });
     fecharEdicaoAgrupamento();
     itensSelecionados.clear();
     atualizarTelasAposAcompanhamento();
-    const oque = (novaDisc && novoForn !== null) ? 'Disciplina e fornecedor salvos' : (novaDisc ? 'Disciplina salva' : 'Fornecedor salvo');
+    const oque = 'Alterações salvas';
     if (falhas) avisoFlutuante(falhas+' de '+ids.length+' item(ns) não foram salvos (sem conexão?). Tente de novo.', 'erro');
     else avisoFlutuante(oque+' em '+ids.length+' item(ns)', 'ok');
     popularFiltroDisciplina('filtro-item-disciplina'); popularFiltroDisciplina('filtro-disciplina');
     popularFiltroFornecedor('filtro-item-fornecedor'); popularFiltroFornecedor('filtro-fornecedor');
+    if (novaPrio) await selecionarRevisao(revisaoSelecionada); // a prioridade muda a cor em todo o painel
   });
 }
 
@@ -5378,7 +5971,8 @@ async function renderTendencia(){
       itens: parados,
       linha: (x) => ({ esq: esc(x.nome), det: pdfNum(x.aberto)+' em aberto · '+esc(ondeEstao(x)), dir: '<span style="color:var(--aviso-cor);">'+semBaixa(x)+'</span>',
         abrir: () => abrirItens({ fornecedor: x.nome, fluxo: 'emAberto' }),
-        enviar: () => enviarTextoPlano(x.nome, '*'+x.nome+'* — '+pdfNum(x.aberto)+' item(ns) em aberto, '+semBaixa(x)+'.\nOnde estão: '+ondeEstao(x)+'.\nPor favor, priorizar a execução e dar baixa no checklist. ('+rev+')') }),
+        enviar: () => enviarFornecedorImagem(x.nome, null, x.nome + ' — toda a obra', pdfNum(x.aberto)+' em aberto · '+semBaixa(x)),
+        pdfLinha: () => pdfFornecedor(x.nome, null) }),
       texto: () => '*Fornecedores sem baixa há 3 dias ou mais* ('+rev+')\n' + parados.map((x) => '• '+x.nome+': '+pdfNum(x.aberto)+' em aberto, '+semBaixa(x)+' — '+ondeEstao(x)).join('\n'),
       pdf: { colunas: ['Fornecedor','Em aberto','Última baixa','Onde estão'], linhas: () => parados.map((x) => [x.nome, pdfNum(x.aberto), semBaixa(x), ondeEstao(x)]) }
     },
@@ -5463,13 +6057,19 @@ function agruparTexto(lista, chaveGrupo, linhaTexto){
 function linhaPlanoHtml(k, i, l){
   return '<div class="insight-item clicavel" data-plano-abrir="'+k+'" data-idx="'+i+'" style="cursor:pointer;"><div><div class="local">'+l.esq+'</div><div class="detalhe">'+l.det+'</div></div>' +
     '<div style="text-align:right; white-space:nowrap; display:flex; gap:8px; align-items:center;">'+l.dir +
+    (l.pdfLinha ? '<button type="button" class="chip-acao" data-plano-pdf-linha="'+k+'" data-idx="'+i+'">PDF</button>' : '') +
     (l.enviar ? '<button type="button" class="chip-acao" data-plano-enviar-linha="'+k+'" data-idx="'+i+'">WhatsApp</button>' : '') + '</div></div>';
 }
 function ligarLinhasPlano(raiz){
   raiz.querySelectorAll('[data-plano-abrir]').forEach((el) => el.addEventListener('click', (e) => {
-    if (e.target.closest('[data-plano-enviar-linha]')) return;
+    if (e.target.closest('[data-plano-enviar-linha]') || e.target.closest('[data-plano-pdf-linha]')) return;
     const c = planoCartoes[el.dataset.planoAbrir]; const x = c.itens[Number(el.dataset.idx)];
     fecharModalPlano(); c.linha(x).abrir();
+  }));
+  raiz.querySelectorAll('[data-plano-pdf-linha]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const c = planoCartoes[b.dataset.planoPdfLinha]; const x = c.itens[Number(b.dataset.idx)];
+    c.linha(x).pdfLinha();
   }));
   raiz.querySelectorAll('[data-plano-enviar-linha]').forEach((b) => b.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -5539,7 +6139,10 @@ async function gerarImagemCartao(o){
     const det = l.det && l.det.length ? quebrarSegmentos(ctx, l.det, larguraTexto, (b) => fonte(12, b)) : [];
     return { esq, det, h: 14 + esq.length*20 + det.length*17 + 10 };
   });
-  const hTopo = 64, hTit = 30 + (o.sub ? 18 : 0) + 14;
+  // subtítulo quebra em até 2 linhas (não corta a informação)
+  let linhasSub = [];
+  if (o.sub){ ctx.font = fonte(12); linhasSub = quebrarSegmentos(ctx, [{ t: o.sub }], CW - 32, () => fonte(12)).slice(0, 2).map((ln) => ln.map((s) => s.t).join('')); }
+  const hTopo = 64, hTit = 30 + linhasSub.length*16 + 14;
   const hLinhas = medidas.reduce((s, m) => s + m.h, 0);
   const hExtra = o.extra ? 34 : 0;
   const H = P + hTopo + hTit + hLinhas + hExtra + 18 + P;
@@ -5560,7 +6163,7 @@ async function gerarImagemCartao(o){
   const hCard = hTit + hLinhas + hExtra + 18;
   ctx.fillStyle = '#fff'; ctx.strokeStyle = corLinha; rr(P, y, CW, hCard, 16); ctx.fill(); ctx.stroke();
   ctx.fillStyle = corTexto; ctx.font = fonte(17, true); ctx.fillText(o.titulo, P+16, y+28);
-  if (o.sub){ ctx.fillStyle = corMuted; ctx.font = fonte(12); ctx.fillText(o.sub.length > 80 ? o.sub.slice(0, 78)+'…' : o.sub, P+16, y+46); }
+  ctx.fillStyle = corMuted; ctx.font = fonte(12); linhasSub.forEach((ln, i) => ctx.fillText(ln, P+16, y+46 + i*16));
   y += hTit;
   // linhas
   const pintar = (linhas, x0, y0, tam, corPadrao, altura) => {
@@ -7273,7 +7876,7 @@ async function exportarItensPdf(listaPronta){
   if (filtroStatusBrutoAdHoc) extras.push(filtroStatusBrutoAdHoc);
 
   const ctx = Object.assign(pdfContextoBase(externo ? (listaPronta.titulo || 'Itens') : 'Itens'), {
-    filtro: externo ? listaPronta.filtro : descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso'], 'busca-item', extras),
+    filtro: externo ? listaPronta.filtro : descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso','filtro-item-origem'], 'busca-item', extras),
     contagem: itens.length + (itens.length === 1 ? ' item' : ' itens'),
     cartoes: [
       { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
@@ -7423,7 +8026,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
@@ -7509,6 +8112,9 @@ async function iniciar(){
   document.getElementById('filtro-item-fornecedor').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-status').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-progresso').addEventListener('change', limparFiltroLocalEAtualizar);
+  document.getElementById('filtro-item-origem').addEventListener('change', limparFiltroLocalEAtualizar);
+  document.getElementById('btn-novo-item').addEventListener('click', abrirNovoItem);
+  try{ iniciarChat(); }catch(e){ console.warn('chat', e); }
   document.getElementById('btn-limpar-filtro-quartos').addEventListener('click', () => {
     document.getElementById('busca-quarto').value = '';
     document.getElementById('filtro-andar').value = '';
@@ -7526,6 +8132,7 @@ async function iniciar(){
     document.getElementById('filtro-item-fornecedor').value = '';
     document.getElementById('filtro-item-status').value = '';
     document.getElementById('filtro-item-progresso').value = '';
+    document.getElementById('filtro-item-origem').value = '';
     popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar'); // volta pro modo categoria (sem andar)
     filtroItemLocal = null;
     filtroProgresso = null;
@@ -7547,8 +8154,10 @@ async function iniciar(){
   // itens vistoriados que a IAC não tirou da lista: abre a aba Itens já filtrada (e gera o PDF, se pedido)
   document.getElementById('btn-ver-divergencia').addEventListener('click', () => abrirItens({ fluxo: 'naoBaixadoIac' }));
   document.getElementById('btn-pdf-divergencia').addEventListener('click', () => {
-    abrirItens({ fluxo: 'naoBaixadoIac' });
-    setTimeout(() => document.getElementById('btn-pdf-itens').click(), 400);
+    // só o que a IAC precisa corrigir — os reabertos (baixa errada nossa) ficam de fora
+    const lista = itensRevisaoAtual.filter(iacNaoDeuBaixa);
+    if (!lista.length){ avisoFlutuante('Nenhum item para a IAC corrigir nesta revisão', 'ok'); return; }
+    exportarItensPdf({ itens: lista, titulo: 'Itens - IAC não deu baixa', filtro: 'IAC não deu baixa — itens vistoriados pela IAC que a planilha ainda lista ('+lista.length+')' });
   });
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
   document.getElementById('btn-foco-andar').addEventListener('click', abrirFocoAndar);
