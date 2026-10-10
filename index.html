@@ -1081,7 +1081,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.99';
+const VERSAO_APP = '2026-10-03.101';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2430,7 +2430,32 @@ function fecharSemelhante(valor){
   if (resolverSemelhante){ resolverSemelhante(valor); resolverSemelhante = null; }
 }
 /* devolve o nome a usar: o já existente, o digitado (se for realmente novo) ou null (cancelou) */
+/* QUEM PODE CRIAR FORNECEDOR NOVO (escolher um existente, todos podem):
+   Guilherme e Marcel em todas as obras + a lista da obra (editável no cartão "Equipe e PINs").
+   Padrão da obra Áreas comuns: Rafael Gentil, Gabriel Cecche e Samuel Alonso. */
+const CRIAM_FORNECEDOR_PADRAO = { '': [], 'areas-comuns': ['Rafael Gentil', 'Gabriel Cecche', 'Samuel Alonso'] };
+function criadoresDeFornecedor(){
+  const daObra = Array.isArray(configObra.criamFornecedor) ? configObra.criamFornecedor : (CRIAM_FORNECEDOR_PADRAO[OBRA] || []);
+  const todos = PODE_TIRAR_DA_OBRA.concat(daObra);
+  return todos.filter((n, i) => todos.findIndex((x) => chaveComparacao(x) === chaveComparacao(n)) === i);
+}
+function podeCriarFornecedor(){
+  return !!usuarioAtual && criadoresDeFornecedor().some((n) => chaveComparacao(n) === chaveComparacao(usuarioAtual));
+}
+function avisoSemPermissaoFornecedor(nome){
+  avisoFlutuante('Fornecedor novo'+(nome ? ' (“'+nome+'”)' : '')+' só pode ser criado por: '+criadoresDeFornecedor().join(', ')+'. Escolha um fornecedor da lista.', 'erro');
+}
 async function resolverNomeSemelhante(digitado, lista, tipo){
+  if (tipo === 'fornecedor'){
+    const escolhido = await resolverNomeSemelhanteBase(digitado, lista, tipo);
+    if (escolhido && !lista.some((n) => chaveComparacao(n) === chaveComparacao(escolhido)) && !podeCriarFornecedor()){
+      avisoSemPermissaoFornecedor(escolhido); return '';
+    }
+    return escolhido;
+  }
+  return resolverNomeSemelhanteBase(digitado, lista, tipo);
+}
+async function resolverNomeSemelhanteBase(digitado, lista, tipo){
   const nome = String(digitado||'').trim().replace(/\s+/g, ' ');
   if (!nome) return '';
   const r = buscarSemelhantes(nome, lista);
@@ -2457,7 +2482,7 @@ async function resolverNomeSemelhante(digitado, lista, tipo){
 /* equipe: nomes guardados no banco (config/pessoas) assim que alguém se identifica — não
    depende de a pessoa já ter dado baixa. Assim a checagem de nome parecido funciona desde o
    primeiro acesso, e a janela de identificação mostra a lista pra tocar em vez de digitar. */
-const PESSOAS_INICIAIS = OBRA ? ['Guilherme Titton', 'Marcel Camilo'] : ['Guilherme Titton', 'Marcel Camilo', 'Elizeu Ribeiro', 'Leonardo Borba', 'Hiro Arima'];
+const PESSOAS_INICIAIS = OBRA ? ['Guilherme Titton', 'Marcel Camilo'].concat(OBRA === 'areas-comuns' ? ['Rafael Gentil', 'Gabriel Cecche', 'Samuel Alonso'] : []) : ['Guilherme Titton', 'Marcel Camilo', 'Elizeu Ribeiro', 'Leonardo Borba', 'Hiro Arima'];
 let pessoasRegistradas = [];
 async function carregarPessoas(){
   try{
@@ -2651,20 +2676,29 @@ function renderListaPins(){
         '<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">' +
         (fixos.indexOf(chaveComparacao(n)) !== -1 ? '<span class="badge liberado-pend" style="font-size:11px;">administrador</span>'
           : '<button type="button" class="chip-acao" data-admin="'+esc(n)+'">'+(ehAdmin(n) ? 'Tirar de administrador' : 'Tornar administrador')+'</button>') +
+        (fixos.indexOf(chaveComparacao(n)) === -1 ? '<button type="button" class="chip-acao" data-criar-forn="'+esc(n)+'">'+(criadoresDeFornecedor().some((c) => chaveComparacao(c) === chaveComparacao(n)) ? '✓ cria fornecedor' : 'Pode criar fornecedor?')+'</button>' : '') +
         (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div></div>'; }).join('');
   const bNome = document.getElementById('btn-nome-obra');
   if (bNome) bNome.addEventListener('click', async () => {
     const novo = window.prompt('Nome desta obra (aparece no topo do painel e nos PDFs):', nomeDaObra());
     if (novo === null || !novo.trim()) return;
-    const r = await store.setDoc('config', 'obra', { nome: novo.trim(), admins: configObra.admins || [] });
+    const r = await store.setDoc('config', 'obra', { nome: novo.trim(), admins: configObra.admins || [], criamFornecedor: configObra.criamFornecedor });
     if (r.ok){ configObra.nome = novo.trim(); renderNomeObra(); renderListaPins(); avisoFlutuante('Nome da obra salvo', 'ok'); }
   });
+  cont.querySelectorAll('[data-criar-forn]').forEach((b) => b.addEventListener('click', async () => {
+    const n = b.dataset.criarForn;
+    const atual = (Array.isArray(configObra.criamFornecedor) ? configObra.criamFornecedor : (CRIAM_FORNECEDOR_PADRAO[OBRA] || [])).slice();
+    const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
+    if (i === -1) atual.push(n); else atual.splice(i, 1);
+    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: configObra.admins || [], criamFornecedor: atual });
+    if (r.ok){ configObra.criamFornecedor = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora pode criar fornecedor' : n+' não cria mais fornecedor', 'ok'); }
+  }));
   cont.querySelectorAll('[data-admin]').forEach((b) => b.addEventListener('click', async () => {
     const n = b.dataset.admin;
     const atual = (configObra.admins || []).slice();
     const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
     if (i === -1) atual.push(n); else atual.splice(i, 1);
-    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: atual });
+    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: atual, criamFornecedor: configObra.criamFornecedor });
     if (r.ok){ configObra.admins = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora é administrador desta obra' : n+' não é mais administrador', 'ok'); }
   }));
   cont.querySelectorAll('[data-apagar-pin]').forEach((b) => b.addEventListener('click', async () => {
@@ -2914,7 +2948,7 @@ let itensExcluidos = {}; // id → { por, em, andar, local, disciplina, desc }
 const PODE_TIRAR_DA_OBRA = ['Guilherme Titton', 'Marcel Camilo'];
 let configObra = { nome: '', admins: [] }; // nome da obra e administradores DESTA obra (além de Guilherme e Marcel)
 async function carregarConfigObra(){
-  try{ const d = await store.getDoc('config', 'obra'); configObra = { nome: (d && d.nome) || '', admins: (d && Array.isArray(d.admins)) ? d.admins : [] }; }catch(e){}
+  try{ const d = await store.getDoc('config', 'obra'); configObra = { nome: (d && d.nome) || '', admins: (d && Array.isArray(d.admins)) ? d.admins : [], criamFornecedor: (d && Array.isArray(d.criamFornecedor)) ? d.criamFornecedor : undefined }; }catch(e){}
   renderNomeObra();
 }
 function nomeDaObra(){
@@ -4951,7 +4985,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
     fornecedoresConhecidos.map((n) =>
       '<option value="'+esc(n)+'"'+(n===fornAtual?' selected':'')+'>'+esc(n)+'</option>'
     ).join('') +
-    '<option value="__novo__">+ Adicionar novo fornecedor…</option>';
+    (podeCriarFornecedor() ? '<option value="__novo__">+ Adicionar novo fornecedor…</option>' : '');
   const fornEhConhecido = fornAtual && fornecedoresConhecidos.includes(fornAtual);
 
   const overlay = document.createElement('div');
@@ -5201,6 +5235,7 @@ function chatMontarProposta(nome, inp){
   if (nome === 'criar_itens'){
     const disc = chatResolverNome(inp.disciplina, Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva)))) || String(inp.disciplina || '').toUpperCase();
     const forn = inp.fornecedor ? (chatResolverNome(inp.fornecedor, listaFornecedoresConhecidos()) || inp.fornecedor) : '';
+    if (forn && !listaFornecedoresConhecidos().includes(forn) && !podeCriarFornecedor()) return { erro: 'O fornecedor "'+forn+'" não existe e só '+criadoresDeFornecedor().join(', ')+' podem criar fornecedor novo. Use um da lista.' };
     const area = inp.area ? (Array.from(new Set(itensRevisaoAtual.filter((x) => x.andar === Number(inp.andar) && x.tipo !== 'APTO').map((x) => x.tipo))).find((tp) => chatParecido(tp, inp.area)) || String(inp.area).toUpperCase()) : '';
     const quartos = Array.isArray(inp.quartos) && inp.quartos.length ? inp.quartos.map(Number) : [];
     if (!quartos.length && !area) return { erro: 'Faltou dizer o quarto ou a área.' };
@@ -5215,6 +5250,7 @@ function chatMontarProposta(nome, inp){
     const disc = inp.disciplina ? (chatResolverNome(inp.disciplina, Array.from(new Set(itensRevisaoAtual.map(disciplinaEfetiva)))) || '') : '';
     if (inp.disciplina && !disc) return { erro: 'Não achei a disciplina "' + inp.disciplina + '". Use um nome que já exista na obra.' };
     const forn = inp.fornecedor ? (chatResolverNome(inp.fornecedor, listaFornecedoresConhecidos()) || inp.fornecedor) : '';
+    if (forn && !listaFornecedoresConhecidos().includes(forn) && !podeCriarFornecedor()) return { erro: 'O fornecedor "'+forn+'" não existe e só '+criadoresDeFornecedor().join(', ')+' podem criar fornecedor novo. Use um da lista.' };
     const mudancas = [disc && 'disciplina → ' + disc, forn && 'fornecedor → ' + forn, inp.prioridade && 'prioridade → ' + inp.prioridade].filter(Boolean);
     if (!mudancas.length) return { erro: 'Não entendi o que trocar.' };
     return { tipo: nome, ids: itens.map((x) => x.id), disc, forn, prio: inp.prioridade || '', texto: 'Alterar ' + itens.length + ' item(ns): ' + mudancas.join(' · ') + '. Ex.: ' + amostra };
@@ -5631,7 +5667,7 @@ function abrirEdicaoAgrupamento(){
         '<label for="grupo-forn">Fornecedor</label>' +
         '<select id="grupo-forn"><option value="__manter__">— manter o de cada item —</option><option value="">— usar o padrão da disciplina —</option>' +
           fornecedoresConhecidos.map((n) => '<option value="'+esc(n)+'">'+esc(n)+'</option>').join('') +
-          '<option value="__novo__">+ Adicionar novo fornecedor…</option></select>' +
+          (podeCriarFornecedor() ? '<option value="__novo__">+ Adicionar novo fornecedor…</option>' : '') + '</select>' +
         '<input type="text" id="grupo-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px; display:none;">' +
       '</div>' +
       '<div class="modal-campo">' +
