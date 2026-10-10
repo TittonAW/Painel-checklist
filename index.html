@@ -1081,7 +1081,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.97';
+const VERSAO_APP = '2026-10-03.98';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5073,6 +5073,8 @@ function ligarEscolherFotos(prefixo, obterLista, definirLista){
    A IA só enxerga um resumo da obra + o que as ferramentas de busca devolvem; todas as
    gravações passam pelas mesmas funções do app (histórico com nome de quem confirmou). */
 const FUNCAO_CHAT = 'Chat---Checklist-Sofitel';
+/* ✦ desenhado em SVG (o caractere de texto fica fora do centro, dependendo da fonte) */
+const ICONE_IA = (tam) => '<svg viewBox="0 0 24 24" width="'+tam+'" height="'+tam+'" fill="currentColor" aria-hidden="true" style="display:block"><path d="M12 2.5c.5 4.6 2.4 7.5 7 9.5-4.6 2-6.5 4.9-7 9.5-.5-4.6-2.4-7.5-7-9.5 4.6-2 6.5-4.9 7-9.5z"/></svg>';
 const CHAT_ICONE = {"mic": "<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5 11a7 7 0 0 0 14 0\"/><path d=\"M12 18v3\"/></svg>", "stop": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><rect x=\"5\" y=\"5\" width=\"14\" height=\"14\" rx=\"2.5\"/></svg>", "up": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5\"/><path d=\"M5 12l7-7 7 7\"/></svg>", "plus": "<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg>", "x": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg>"};
 let chatHistorico = [], chatFotosPendentes = [], chatOcupado = false, chatCancelado = false;
 function chatAtualizarBotoes(){
@@ -5386,7 +5388,7 @@ function chatAdicionarBolha(papel, html, textoPuro){
   const boas = document.getElementById('chat-boas-vindas'); if (boas) boas.remove();
   const d = document.createElement('div');
   d.className = 'chat-msg ' + (papel === 'user' ? 'eu' : 'ia');
-  d.innerHTML = papel === 'user' ? '<div class="chat-balao">'+html+'</div>' : '<div class="chat-avatar">✦</div><div class="chat-corpo">'+html+'</div>';
+  d.innerHTML = papel === 'user' ? '<div class="chat-balao">'+html+'</div>' : '<div class="chat-avatar">'+ICONE_IA(14)+'</div><div class="chat-corpo">'+html+'</div>';
   if (papel !== 'user' && textoPuro){
     const acoes = document.createElement('div');
     acoes.className = 'chat-acoes';
@@ -5412,7 +5414,7 @@ let renderChatAnexos = () => {};
 function iniciarChat(){
   const b = document.createElement('button');
   b.type = 'button'; b.id = 'btn-chat'; b.title = 'Assistente'; b.setAttribute('aria-label', 'Abrir o assistente');
-  b.innerHTML = '<span>✦</span>';
+  b.innerHTML = ICONE_IA(22);
   document.body.appendChild(b);
   // fica quase transparente enquanto a tela rola e volta quando para
   let tRolar = null;
@@ -5423,9 +5425,9 @@ function iniciarChat(){
   const p = document.createElement('div');
   p.id = 'painel-chat'; p.className = 'oculto';
   p.innerHTML =
-    '<div class="chat-topo"><div class="chat-marca"><span class="chat-avatar">✦</span><div><div style="font-weight:500;">Assistente</div><div style="font-size:11.5px; color:var(--muted);">'+esc(nomeDaObra())+' · confirma antes de gravar</div></div></div>' +
+    '<div class="chat-topo"><div class="chat-marca"><span class="chat-avatar">'+ICONE_IA(14)+'</span><div><div style="font-weight:500;">Assistente</div><div style="font-size:11.5px; color:var(--muted);">'+esc(nomeDaObra())+' · confirma antes de gravar</div></div></div>' +
       '<button type="button" id="chat-fechar" aria-label="Fechar" class="chat-icone">'+CHAT_ICONE.x+'</button></div>' +
-    '<div id="chat-mensagens"><div id="chat-boas-vindas"><div class="chat-avatar grande">✦</div><div class="chat-ola">Como posso ajudar na obra?</div>' +
+    '<div id="chat-mensagens"><div id="chat-boas-vindas"><div class="chat-avatar grande">'+ICONE_IA(24)+'</div><div class="chat-ola">Como posso ajudar na obra?</div>' +
       '<div class="chat-sugestoes">'+sugestoes.map((s) => '<button type="button" data-sugestao="'+esc(s)+'">'+esc(s)+'</button>').join('')+'</div></div></div>' +
     '<div class="chat-rodape"><div id="chat-foto-miniaturas" class="chat-minis"></div>' +
       '<div class="chat-caixa">' +
