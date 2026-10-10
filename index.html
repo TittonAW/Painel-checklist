@@ -1081,7 +1081,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.98';
+const VERSAO_APP = '2026-10-03.99';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5088,6 +5088,19 @@ function chatAtualizarBotoes(){
   mic.classList.toggle('oculto', chatOcupado || (tem && !mic.classList.contains('ouvindo')));
 }
 
+/* números EXATOS calculados pelo app (a IA não calcula, só copia):
+   total = pendências da planilha; em aberto = sem execução; executado = AW (inclui os vistoriados);
+   % executado = executado ÷ total — a mesma conta da torre e dos cartões */
+function chatNumeros(lista){
+  const total = lista.length, aberto = lista.filter(estaEmAberto).length;
+  const vist = lista.filter((x) => acompanhamento[x.id] && acompanhamento[x.id].iacOkEm).length;
+  return { total, em_aberto: aberto, executado_aw: total - aberto, vistoriado_iac: vist, pct_executado: percentualExecutado(lista) + '%' };
+}
+function chatGrupos(lista, chave, rotulo){
+  const m = new Map();
+  lista.forEach((x) => { const k = chave(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); });
+  return Array.from(m.entries()).map(([k, l]) => Object.assign({ [rotulo]: k }, chatNumeros(l)));
+}
 function chatContexto(){
   const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
   const rev = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '';
@@ -5105,9 +5118,12 @@ function chatContexto(){
     'Áreas por andar (além de quartos): ' + Array.from(tiposAndar.entries()).sort((a,b) => a[0]-b[0]).map(([a, s]) => nomeAndar(a) + ': ' + Array.from(s).join('/')).join('; ') + '.',
     'Disciplinas (→ fornecedor padrão): ' + discs.map((d) => d + (fornecedorPadraoDaDisciplina(d) ? ' → ' + fornecedorPadraoDaDisciplina(d) : '')).join('; ') + '.',
     'Fornecedores: ' + listaFornecedoresConhecidos().join(', ') + '.',
-    'Itens em aberto por andar: ' + Array.from(abertosAndar.entries()).sort((a,b) => a[0]-b[0]).map(([a, n]) => nomeAndar(a) + ' ' + n).join(', ') + '. Total de pendências: ' + pend.length + '.',
+    'NÚMEROS EXATOS POR ANDAR (calculados pelo app; use exatamente estes, não recalcule): ' + JSON.stringify(
+      completarAndaresDaTorre(andaresConhecidos).map((a) => Object.assign({ andar: nomeAndar(a) }, chatNumeros(pend.filter((x) => x.andar === a))))),
+    'OBRA TODA: ' + JSON.stringify(chatNumeros(pend)) + '.',
     'Prioridade: VM = vermelho (crítico), AM = amarelo. Fluxo: em aberto → Executado AW → Vistoriado IAC. Origem: IAC (planilha) ou AW (incluído no app).',
     'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).',
+    'REGRAS DE RESPOSTA (obrigatórias): responda EXATAMENTE o que foi perguntado, nem mais nem menos. Se pedirem "cada andar", liste TODOS os andares (inclusive os com 0 em aberto e 100%); nunca omita linhas, nunca filtre, resuma ou escolha por conta própria. Use SÓ os números do contexto e das ferramentas — não calcule, não estime, não arredonde diferente. Coluna "em aberto" = em_aberto; "% executado" = pct_executado. Se um dado não estiver disponível, diga que não tem. Se a pergunta for ambígua, pergunte antes.',
     'FORMATO DAS RESPOSTAS: curtas e bem organizadas, prontas pra encaminhar no WhatsApp. Comece linhas com ícones, no padrão do painel: 📋 resumo/título, 🔴 VM ou crítico, 🟡 AM, 🟣 executado AW, 🟢 vistoriado IAC, 🏁 quase pronto, ⚠️ atenção/atrasado, 🧱 fornecedor, 🏢 andar, 🚪 quarto, 📅 datas, ✅ ok. Use **negrito** nos números importantes. Para listas com várias colunas, use tabela markdown curta (até ~12 linhas); destaque no fim a principal conclusão com ⚠️ ou ✅.'
   ].join('\n');
 }
@@ -5122,7 +5138,7 @@ const CHAT_FILTRO = { type:'object', description:'Critérios para escolher os it
   origem:{ type:'string', enum:['IAC','AW'] },
   ids:{ type:'array', items:{ type:'string' }, description:'números exatos dos itens' } } };
 const CHAT_FERRAMENTAS = [
-  { name:'buscar_itens', description:'Consulta itens da revisão (só leitura). Devolve totais por andar/fornecedor/disciplina e exemplos. Use para responder perguntas ou antes de propor ações.', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO }, required:['filtro'] } },
+  { name:'buscar_itens', description:'Consulta itens da revisão (só leitura). Devolve números EXATOS (total, em_aberto, executado_aw, vistoriado_iac, pct_executado) da seleção e por andar, por local (quarto/área), por fornecedor e por disciplina, mais exemplos de itens. Use para qualquer pergunta sobre quantidades — nunca calcule por conta própria.', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO }, required:['filtro'] } },
   { name:'criar_itens', description:'Propõe incluir item(ns) novo(s) (origem AW). Um item por quarto informado. Fotos anexadas no chat vão junto.', input_schema:{ type:'object', properties:{
       andar:{ type:'number' }, quartos:{ type:'array', items:{ type:'number' } }, area:{ type:'string', description:'se não for quarto' },
       disciplina:{ type:'string' }, fornecedor:{ type:'string', description:'opcional; vazio = padrão da disciplina' },
@@ -5171,9 +5187,14 @@ function chatFiltrar(f){
 function chatResumoItens(lista){
   const contar = (fn) => { const m = new Map(); lista.forEach((x) => { const k = fn(x); m.set(k, (m.get(k)||0) + 1); }); return Array.from(m.entries()).sort((a,b) => b[1]-a[1]).slice(0, 12).map(([k, n]) => k + ': ' + n).join(', '); };
   const fl = (x) => { const a = acompanhamento[x.id] || {}; return a.iacOkEm ? 'vistoriado IAC' : (a.awExecEm ? 'executado AW' : 'em aberto'); };
-  return JSON.stringify({ total: lista.length, em_aberto: lista.filter(estaEmAberto).length,
-    por_andar: contar((x) => nomeAndar(x.andar)), por_fornecedor: contar((x) => fornecedorEfetivo(x) || 'Sem fornecedor'), por_disciplina: contar(disciplinaEfetiva),
-    exemplos: lista.slice(0, 20).map((x) => ({ id: x.id, local: localLabel(x).replace(/\u00A0/g,' '), andar: nomeAndar(x.andar), disciplina: disciplinaEfetiva(x), fornecedor: fornecedorEfetivo(x) || '—', prioridade: x.status, fluxo: fl(x), descricao: String(x.desc || '').slice(0, 90) })) });
+  const locais = chatGrupos(lista, (x) => localLabel(x).replace(/\u00A0/g,' ') + (x.tipo === 'APTO' ? '' : ''), 'local');
+  return JSON.stringify(Object.assign(chatNumeros(lista), {
+    por_andar: chatGrupos(lista, (x) => nomeAndar(x.andar), 'andar'),
+    por_local: locais.length <= 60 ? locais : 'muitos locais — filtre por andar',
+    por_fornecedor: chatGrupos(lista, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 'fornecedor'),
+    por_disciplina: chatGrupos(lista, disciplinaEfetiva, 'disciplina'),
+    exemplos: lista.slice(0, 20).map((x) => ({ id: x.id, local: localLabel(x).replace(/\u00A0/g,' '), andar: nomeAndar(x.andar), disciplina: disciplinaEfetiva(x), fornecedor: fornecedorEfetivo(x) || '—', prioridade: x.status, fluxo: fl(x), descricao: String(x.desc || '').slice(0, 90) })),
+    aviso: lista.length > 20 ? 'exemplos = só os 20 primeiros; os totais acima são de todos os ' + lista.length + ' itens' : '' }));
 }
 /* monta a proposta (o que vai acontecer) a partir de um pedido de ação da IA */
 function chatMontarProposta(nome, inp){
