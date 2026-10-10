@@ -241,7 +241,14 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 #btn-meta-plano.definida{ background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); }
 .link-remover-meta{ all:unset; font-size:12.5px; color:var(--muted); text-decoration:underline; cursor:pointer; }
 .link-remover-meta[hidden]{ display:none; }
+#btn-trocar-obra{ color:var(--accent); }
 @media (max-width:640px){ .meta-plano, .meta-alvo, #btn-meta-plano{ width:100%; } #btn-meta-plano{ justify-content:center; padding:12px 16px; font-size:15px; } }
+.agressores{ display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+.tag-agressor{ all:unset; cursor:pointer; font-size:11px; line-height:1; padding:4px 7px; border-radius:99px; background:var(--paper-2); border:1px solid var(--line); color:var(--text-2); white-space:nowrap; }
+.tag-agressor b{ font-weight:600; color:var(--text); }
+.tag-agressor .parado{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--aviso-cor); margin-right:4px; vertical-align:1px; }
+@media (hover:hover){ .tag-agressor:hover{ border-color:var(--accent); color:var(--accent); } }
+.resumo-agressores{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; color:var(--muted); margin:0 0 10px; }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -485,6 +492,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="marca-texto">
       <h1>Acompanhamento de obra — Quartos</h1>
       <div class="sub" id="marca-sub">pendências diárias</div>
+      <button type="button" class="link-remover-meta" id="btn-trocar-obra" hidden style="margin-top:2px; font-size:12px;">Trocar de obra ▾</button>
     </div>
   </div>
   <div class="topo-controles">
@@ -589,10 +597,12 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="liberado">Liberado (sem pendência)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
+      <button class="btn primario" id="btn-foco-andar">🎯 Foco em finalizar</button>
       <button class="btn fantasma" id="btn-pdf-quartos">Gerar PDF</button>
       <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados com pendência, itens em aberto e previsão de conclusão">PDF liberados c/ pendência</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
+    <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card">
       <table>
         <thead><tr>
@@ -912,6 +922,7 @@ const OBRA = (() => {
     slug = String(param).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
     if (slug === 'quartos') slug = '';
     try{ localStorage.setItem(CH, slug); }catch(e){}
+    try{ const l = JSON.parse(localStorage.getItem('obra_painel_lista') || '[]'); if (l.indexOf(slug) === -1){ l.push(slug); localStorage.setItem('obra_painel_lista', JSON.stringify(l)); } }catch(e){}
   } else {
     // sem ?obra: no navegador é sempre Quartos. Só o app instalado (atalho antigo, sem a obra
     // no endereço) usa a última obra lembrada neste aparelho.
@@ -1006,7 +1017,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.85';
+const VERSAO_APP = '2026-10-03.88';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2790,7 +2801,40 @@ function nomeDaObra(){
   if (!OBRA) return 'Quartos';
   return OBRA.split('-').map((p) => p ? p[0].toUpperCase() + p.slice(1) : p).join(' ');
 }
+/* trocar de obra por dentro do app (resolve o atalho instalado antigo, que não tem barra de endereço) */
+function obrasDoAparelho(){
+  let l = []; try{ l = JSON.parse(localStorage.getItem('obra_painel_lista') || '[]'); }catch(e){}
+  if (l.indexOf('') === -1) l.unshift('');
+  if (l.indexOf(OBRA) === -1) l.push(OBRA);
+  return l;
+}
+function nomeCurtoObra(slug){ return slug ? slug.split('-').map((p) => p ? p[0].toUpperCase() + p.slice(1) : p).join(' ') : 'Quartos'; }
+function iniciarTrocaDeObra(){
+  const b = document.getElementById('btn-trocar-obra');
+  if (!b) return;
+  const lista = obrasDoAparelho();
+  b.hidden = lista.length < 2;
+  b.onclick = () => {
+    document.getElementById('modal-obras') && document.getElementById('modal-obras').remove();
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay'; ov.id = 'modal-obras';
+    ov.innerHTML = '<div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px;"><h3>Trocar de obra</h3>' +
+      '<div class="modal-sub">O app passa a abrir a obra escolhida neste aparelho.</div>' +
+      lista.map((s) => '<button type="button" class="btn '+(s === OBRA ? 'primario' : 'fantasma')+'" data-obra="'+esc(s)+'" style="width:100%; justify-content:center; margin-top:8px;">'+esc(s === OBRA ? nomeDaObra() : nomeCurtoObra(s))+(s === OBRA ? ' (aberta)' : '')+'</button>').join('') +
+      '<div class="modal-acoes"><button class="btn fantasma" id="obras-fechar">Fechar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    document.getElementById('obras-fechar').addEventListener('click', () => ov.remove());
+    ov.querySelectorAll('[data-obra]').forEach((x) => x.addEventListener('click', () => {
+      const s = x.dataset.obra;
+      if (s === OBRA){ ov.remove(); return; }
+      try{ localStorage.setItem('obra_painel_atual', s); }catch(e){}
+      location.href = location.pathname + '?obra=' + encodeURIComponent(s || 'quartos') + (MODO_TESTE ? '&teste=1' : '');
+    }));
+  };
+}
 function renderNomeObra(){
+  try{ iniciarTrocaDeObra(); }catch(e){}
   const h = document.querySelector('.marca-texto h1');
   if (h) h.textContent = 'Acompanhamento de obra — ' + nomeDaObra();
 }
@@ -4130,6 +4174,147 @@ function obterLocaisFiltrados(){
   });
 }
 
+/* ===================== FOCO EM FINALIZAR O ANDAR =====================
+   Plano de ataque de um andar num horizonte curto (1 a 3 dias): meta por dia, por onde
+   começar e a situação de cada fornecedor ali (ainda não começou / parado / andando). */
+let focoAndar = null, focoDias = 2;
+function abrirFocoAndar(){
+  const andares = Array.from(new Set(itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM').map((it) => it.andar))).sort((a,b) => a-b);
+  if (!andares.length){ avisoFlutuante('Nenhum item nesta revisão', 'erro'); return; }
+  const sel = document.getElementById('filtro-andar').value;
+  if (sel !== '' && andares.indexOf(Number(sel)) !== -1) focoAndar = Number(sel);
+  if (focoAndar === null || andares.indexOf(focoAndar) === -1){
+    // sem andar escolhido: começa pelo andar com mais itens em aberto
+    const cont = new Map(); itensRevisaoAtual.forEach((it) => { if ((it.status === 'VM' || it.status === 'AM') && estaEmAberto(it)) cont.set(it.andar, (cont.get(it.andar)||0) + 1); });
+    focoAndar = andares.slice().sort((a,b) => (cont.get(b)||0) - (cont.get(a)||0))[0];
+  }
+  renderFocoAndar(andares);
+}
+function dadosFocoAndar(andar, dias){
+  const DIA = 86400000, agora = Date.now();
+  const itens = itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM'));
+  const abertos = itens.filter(estaEmAberto);
+  const exec7 = itens.filter((it) => { const a = acompanhamento[it.id]; return a && a.awExecEm && (agora - new Date(a.awExecEm).getTime()) < 7*DIA; }).length;
+  const forn = new Map();
+  itens.forEach((it) => {
+    const f = fornecedorEfetivo(it) || 'Sem fornecedor', a = acompanhamento[it.id];
+    if (!forn.has(f)) forn.set(f, { nome: f, aberto: 0, total: 0, exec: 0, exec2: 0, ultima: 0, locais: new Map() });
+    const x = forn.get(f); x.total++;
+    if (a && a.awExecEm){ x.exec++; const tt = new Date(a.awExecEm).getTime(); x.ultima = Math.max(x.ultima, tt); if (agora - tt < 2*DIA) x.exec2++; }
+    if (estaEmAberto(it)){ x.aberto++; const lk = localLabel(it); x.locais.set(lk, (x.locais.get(lk)||0) + 1); }
+  });
+  const fornecedores = Array.from(forn.values()).filter((x) => x.aberto > 0).map((x) => {
+    const diasSem = x.ultima ? Math.floor((agora - x.ultima) / DIA) : null;
+    const situacao = !x.exec ? 'nao' : (diasSem >= 2 ? 'parado' : 'andando');
+    return Object.assign(x, { diasSem, situacao, meta: Math.ceil(x.aberto / dias),
+      locaisTxt: Array.from(x.locais.entries()).sort((a,b) => b[1]-a[1]).map(([l, n]) => l.replace(/\u00A0/g,' ')+' ('+n+')') });
+  }).sort((a,b) => b.aberto - a.aberto);
+  const locais = agruparPorLocal(itens).map((l) => ({ l, aberto: l.itens.filter(estaEmAberto).length, pct: percentualExecutado(l.itens) }));
+  return {
+    itens, abertos, ritmo: exec7 / 7, metaDia: Math.ceil(abertos.length / dias),
+    vms: abertos.filter((it) => it.status === 'VM'),
+    naoComecaram: fornecedores.filter((x) => x.situacao === 'nao'),
+    quase: locais.filter((x) => x.aberto > 0 && x.aberto <= 3 && x.pct >= 80).sort((a,b) => a.aberto - b.aberto),
+    aguardandoIac: itens.filter((it) => { const a = acompanhamento[it.id]; return a && a.awExecEm && !a.iacOkEm; }).length,
+    fornecedores
+  };
+}
+function textoSituacaoFoco(x){
+  if (x.situacao === 'nao') return { txt: 'ainda não começou no andar', cor: 'var(--vm)' };
+  if (x.situacao === 'parado') return { txt: 'parado há '+x.diasSem+' dia(s)', cor: 'var(--aviso-cor)' };
+  return { txt: 'andando: +'+x.exec2+' nos últimos 2 dias', cor: 'var(--vd)' };
+}
+function renderFocoAndar(andares){
+  document.getElementById('modal-foco') && document.getElementById('modal-foco').remove();
+  const d = dadosFocoAndar(focoAndar, focoDias);
+  const rev = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '';
+  const dentroDoPrazo = d.ritmo >= d.metaDia;
+  const passo = (n, titulo, corpo) => corpo ? '<div style="display:flex; gap:12px; padding:10px 0; border-top:1px solid var(--line);"><div style="width:22px; height:22px; flex:none; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-size:12px; display:flex; align-items:center; justify-content:center;">'+n+'</div><div style="flex:1;"><div style="font-weight:500; color:var(--text); margin-bottom:3px;">'+titulo+'</div><div style="font-size:13px; color:var(--text-2); line-height:1.5;">'+corpo+'</div></div></div>' : '';
+  let n = 0;
+  const passos =
+    passo(d.vms.length ? ++n : n, 'Vermelhos em aberto — '+d.vms.length, d.vms.length ? d.vms.slice(0, 6).map((it) => esc(localLabel(it))+' · '+esc(disciplinaEfetiva(it))).join('<br>') + (d.vms.length > 6 ? '<br>+ '+(d.vms.length-6)+' outro(s)' : '') + '<br><span style="color:var(--muted);">Travam a liberação dos ambientes — resolver primeiro.</span>' : '') +
+    passo(d.naoComecaram.length ? ++n : n, 'Ainda não começaram no andar — mobilizar já', d.naoComecaram.length ? d.naoComecaram.map((x) => '<b style="font-weight:500;">'+esc(x.nome)+'</b>: '+x.aberto+' item(ns) em '+x.locais.size+' ambiente(s)').join('<br>') : '') +
+    passo(d.quase.length ? ++n : n, 'Ambientes que fecham com pouco — '+d.quase.length, d.quase.length ? d.quase.slice(0, 8).map((x) => esc(x.l.label.replace(/\u00A0/g,' '))+' (faltam '+x.aberto+')').join(' · ') + '<br><span style="color:var(--muted);">Fechou, libera com pendência ou entrega.</span>' : '') +
+    passo(d.aguardandoIac ? ++n : n, 'Executados aguardando a IAC — '+d.aguardandoIac, d.aguardandoIac ? 'Já dá pra agendar a vistoria desses itens no andar.' : '');
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'modal-foco';
+  ov.innerHTML = '<div class="modal-card" role="dialog" aria-modal="true" style="max-width:720px; width:100%; max-height:90vh; overflow-y:auto;">' +
+    '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">' +
+      '<div><h3 style="margin-bottom:2px;">🎯 Foco em finalizar o andar</h3><div class="modal-sub" style="margin:0;">Plano de ataque pra zerar o andar no prazo · '+esc(rev)+'</div></div>' +
+      '<button type="button" class="btn fantasma" id="foco-fechar">Fechar</button></div>' +
+    '<div style="display:flex; gap:10px; flex-wrap:wrap; margin:14px 0;">' +
+      '<select id="foco-andar" style="width:auto;">'+andares.map((a) => '<option value="'+a+'"'+(a === focoAndar ? ' selected' : '')+'>'+esc(nomeAndarLongo(a))+'</option>').join('')+'</select>' +
+      '<select id="foco-dias" style="width:auto;">'+[1,2,3].map((k) => '<option value="'+k+'"'+(k === focoDias ? ' selected' : '')+'>em '+k+' dia'+(k>1?'s':'')+'</option>').join('')+'</select>' +
+    '</div>' +
+    '<div class="destaque-pct" style="padding:0 0 6px;">' +
+      '<span><span class="grande">'+d.abertos.length+'</span> <span class="rot">em aberto no andar</span></span>' +
+      '<span><span class="grande" style="color:var(--accent);">'+d.metaDia+'/dia</span> <span class="rot">meta pra zerar em '+focoDias+' dia(s)</span></span>' +
+      '<span><span class="grande" style="color:'+(dentroDoPrazo ? 'var(--vd)' : 'var(--vm)')+';">'+(Math.round(d.ritmo*10)/10)+'/dia</span> <span class="rot">ritmo do andar (7 dias)'+(dentroDoPrazo ? '' : ' — abaixo da meta')+'</span></span>' +
+    '</div>' +
+    (d.abertos.length ? '<h4 style="margin:14px 0 2px; font-size:14px;">Por onde começar</h4>' + (passos || '<div class="vazio">Nada crítico — siga pelos fornecedores abaixo.</div>') : '<div class="dica">Andar sem itens em aberto. 🎉</div>') +
+    (d.fornecedores.length ? '<h4 style="margin:18px 0 6px; font-size:14px;">Fornecedores no andar — meta por dia pra zerar em '+focoDias+' dia(s)</h4>' +
+      d.fornecedores.map((x, i) => { const s = textoSituacaoFoco(x);
+        return '<div class="insight-item clicavel" data-foco-forn="'+i+'" style="cursor:pointer;"><div style="flex:1; min-width:0;"><div class="local">'+esc(x.nome)+' · <span style="color:var(--accent);">'+x.meta+'/dia</span></div>' +
+          '<div class="detalhe">'+x.aberto+' em aberto em '+x.locais.size+' ambiente(s) · <span style="color:'+s.cor+';">'+s.txt+'</span></div>' +
+          '<div class="detalhe" style="color:var(--faint);">'+esc(x.locaisTxt.slice(0, 6).join(', '))+(x.locaisTxt.length > 6 ? '…' : '')+'</div></div>' +
+          '<button type="button" class="chip-acao" data-foco-whats="'+i+'">WhatsApp</button></div>'; }).join('') : '') +
+    '<div class="modal-acoes" style="margin-top:14px;"><button type="button" class="btn primario" id="foco-imagem">Enviar o foco no WhatsApp</button></div>' +
+  '</div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  document.getElementById('foco-fechar').addEventListener('click', () => ov.remove());
+  document.getElementById('foco-andar').addEventListener('change', (e) => { focoAndar = Number(e.target.value); renderFocoAndar(andares); });
+  document.getElementById('foco-dias').addEventListener('change', (e) => { focoDias = Number(e.target.value); renderFocoAndar(andares); });
+  ov.querySelectorAll('[data-foco-forn]').forEach((el) => el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-foco-whats]')) return;
+    const x = d.fornecedores[Number(el.dataset.focoForn)];
+    ov.remove();
+    abrirItens({ andar: String(focoAndar), fornecedor: x.nome === 'Sem fornecedor' ? '__sem__' : x.nome, fluxo: 'emAberto' });
+  }));
+  ov.querySelectorAll('[data-foco-whats]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const x = d.fornecedores[Number(b.dataset.focoWhats)], s = textoSituacaoFoco(x);
+    enviarTextoPlano(x.nome, '*'+x.nome+' — '+nomeAndarLongo(focoAndar)+'*\n'+x.aberto+' item(ns) em aberto ('+s.txt+').\nMeta: *'+x.meta+' por dia* pra zerar em '+focoDias+' dia(s).\nOnde estão: '+x.locaisTxt.join(', ')+'.\nPor favor, executar e dar baixa no checklist. ('+rev+')');
+  }));
+  document.getElementById('foco-imagem').addEventListener('click', async () => {
+    const linhas = [];
+    const L = (esq, det, dir) => linhas.push({ esq: htmlParaSegmentos(esq), det: htmlParaSegmentos(det || ''), dir: htmlParaSegmentos(dir || '') });
+    L('<b>'+d.abertos.length+'</b> em aberto · meta <b>'+d.metaDia+'/dia</b> pra zerar em '+focoDias+' dia(s)', 'ritmo do andar nos últimos 7 dias: '+(Math.round(d.ritmo*10)/10)+'/dia');
+    if (d.vms.length) L('<b>1º</b> Vermelhos em aberto: '+d.vms.length, d.vms.slice(0, 4).map((it) => localLabel(it).replace(/\u00A0/g,' ')).join(', '), '<span style="color:var(--vm)">'+d.vms.length+'</span>');
+    if (d.naoComecaram.length) L('<b>Ainda não começaram:</b> '+d.naoComecaram.map((x) => esc(x.nome)).join(', '), 'mobilizar já');
+    if (d.quase.length) L('<b>Fecham com pouco:</b> '+d.quase.length+' ambiente(s)', d.quase.slice(0, 6).map((x) => x.l.label.replace(/\u00A0/g,' ')+' ('+x.aberto+')').join(', '));
+    d.fornecedores.slice(0, 10).forEach((x) => { const s = textoSituacaoFoco(x); L('<b>'+esc(x.nome)+'</b> · '+x.aberto+' em aberto', s.txt+' · '+x.locaisTxt.slice(0, 4).join(', '), '<span style="color:var(--accent)">'+x.meta+'/dia</span>'); });
+    const agora = new Date();
+    const blob = await gerarImagemCartao({ titulo: '🎯 Foco — '+nomeAndarLongo(focoAndar), sub: 'Plano pra zerar o andar em '+focoDias+' dia(s)', linhas,
+      extra: d.fornecedores.length > 10 ? '+ '+(d.fornecedores.length-10)+' fornecedor(es) — veja no app' : '',
+      rodape: (rev ? 'Revisão '+rev+' · ' : '') + agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) });
+    await enviarImagemWhatsapp(blob, NOME_APP_ARQUIVO + ' - Foco ' + nomeAndar(focoAndar));
+  });
+}
+
+/* MAIORES AGRESSORES: fornecedores com mais itens EM ABERTO num conjunto de itens.
+   "parado" = nenhuma baixa da AW desse fornecedor ali há 2 dias ou mais (ou nunca):
+   ou não executou, ou executou e ninguém deu baixa — é onde cobrar/conferir. */
+function maioresAgressores(itens){
+  const m = new Map(), agora = Date.now();
+  itens.forEach((it) => {
+    if (!(it.status === 'VM' || it.status === 'AM')) return;
+    const f = fornecedorEfetivo(it) || 'Sem fornecedor';
+    if (!m.has(f)) m.set(f, { nome: f, aberto: 0, ultima: 0 });
+    const x = m.get(f), a = acompanhamento[it.id];
+    if (estaEmAberto(it)) x.aberto++;
+    if (a && a.awExecEm) x.ultima = Math.max(x.ultima, new Date(a.awExecEm).getTime());
+  });
+  return Array.from(m.values()).filter((x) => x.aberto > 0)
+    .map((x) => Object.assign(x, { parado: !x.ultima || (agora - x.ultima) >= 2*86400000 }))
+    .sort((a,b) => b.aberto - a.aberto);
+}
+function tagsAgressores(lista, max, attrs){
+  const mostra = lista.slice(0, max);
+  return mostra.map((x) => '<button type="button" class="tag-agressor" data-agressor="'+esc(x.nome === 'Sem fornecedor' ? '__sem__' : x.nome)+'" '+(attrs||'')+' title="'+esc(x.nome)+': '+x.aberto+' em aberto'+(x.parado ? ' · sem baixa há 2 dias ou mais' : '')+'">' +
+      (x.parado ? '<span class="parado"></span>' : '') + esc(x.nome) + ' <b>' + x.aberto + '</b></button>').join('') +
+    (lista.length > max ? '<span class="tag-agressor" style="cursor:default; background:transparent; border-color:transparent;">+'+(lista.length - max)+'</span>' : '');
+}
 function renderQuartos(){
   const locais = obterLocaisFiltrados();
   const tbody = document.getElementById('tbody-quartos');
@@ -4152,7 +4337,9 @@ function renderQuartos(){
       const texto = status === 'LIBERADO_PEND' ? 'Remover liberação' : 'Liberar c/ pendência';
       acaoHtml = '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+texto+'</button>';
     }
-    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label)+'</td>' +
+    const agr = maioresAgressores(l.itens);
+    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) +
+        (agr.length ? '<div class="agressores">'+tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
@@ -4166,9 +4353,23 @@ function renderQuartos(){
     linhas++;
   });
   document.getElementById('vazio-quartos').classList.toggle('oculto', linhas>0);
+  const caixaAgr = document.getElementById('agressores-quartos');
+  if (caixaAgr){
+    const agrSel = maioresAgressores(locais.flatMap((l) => l.itens));
+    const andarSel = document.getElementById('filtro-andar').value;
+    caixaAgr.innerHTML = agrSel.length
+      ? '<span>Maiores agressores nesta seleção:</span>' + tagsAgressores(agrSel, 5) +
+        '<span style="font-size:11.5px;">· <span class="parado" style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--aviso-cor); vertical-align:1px;"></span> sem baixa há 2+ dias</span>'
+      : '';
+    caixaAgr.querySelectorAll('[data-agressor]').forEach((b) => b.addEventListener('click', () => abrirItens({
+      andar: andarSel || undefined, fornecedor: b.dataset.agressor, fluxo: 'emAberto',
+      disciplina: document.getElementById('filtro-disciplina').value
+    })));
+  }
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
     tr.addEventListener('click', (e) => {
       if (e.target.closest('[data-acao-liberar]')) return; // o botão trata seu próprio clique
+      const tag = e.target.closest('[data-agressor]');
       // segue a "história" do usuário: o que ele filtrou em Quartos continua valendo em Itens
       const tipo = tr.dataset.tipo, quarto = tr.dataset.quarto;
       const chaveLocal = tipo === 'APTO' ? ('APTO-'+quarto) : (tipo+'-'+tr.dataset.andar);
@@ -4177,9 +4378,9 @@ function renderQuartos(){
         ambiente: 'local:' + chaveLocal,
         local: { tipo, quarto: quarto === '' ? null : parseInt(quarto,10) },
         disciplina: document.getElementById('filtro-disciplina').value,
-        fornecedor: document.getElementById('filtro-fornecedor').value,
+        fornecedor: tag ? tag.dataset.agressor : document.getElementById('filtro-fornecedor').value,
         status: document.getElementById('filtro-status').value,
-        fluxo: document.getElementById('filtro-progresso').value
+        fluxo: tag ? 'emAberto' : document.getElementById('filtro-progresso').value
       });
     });
     const btn = tr.querySelector('[data-acao-liberar]');
@@ -7350,6 +7551,7 @@ async function iniciar(){
     setTimeout(() => document.getElementById('btn-pdf-itens').click(), 400);
   });
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
+  document.getElementById('btn-foco-andar').addEventListener('click', abrirFocoAndar);
   document.getElementById('btn-pdf-liberados').addEventListener('click', exportarRelatorioLiberados);
   document.getElementById('btn-pdf-itens').addEventListener('click', exportarItensPdf);
   document.getElementById('btn-pdf-visao-geral').addEventListener('click', exportarVisaoGeralPdf);
