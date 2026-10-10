@@ -252,19 +252,59 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-origem-item{ display:inline-block; font-size:9.5px; letter-spacing:.3px; padding:2px 5px; border-radius:5px; margin-right:6px; vertical-align:1px; font-family:var(--font-ui, inherit); }
 .tag-origem-item.iac{ background:var(--paper-2); color:var(--muted); border:1px solid var(--line); }
 .tag-origem-item.aw{ background:var(--aw-soft); color:var(--aw); border:1px solid var(--aw); }
-#btn-chat{ position:fixed; right:18px; bottom:calc(18px + env(safe-area-inset-bottom, 0px)); z-index:120; border-radius:99px; box-shadow:0 6px 18px rgba(0,0,0,.18); }
-#painel-chat{ position:fixed; right:18px; bottom:calc(74px + env(safe-area-inset-bottom, 0px)); width:390px; max-width:calc(100vw - 24px); height:min(560px, calc(100vh - 120px)); z-index:121;
-  background:var(--surface, #fff); border:1px solid var(--line); border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.18); display:flex; flex-direction:column; overflow:hidden; }
+#btn-chat{ position:fixed; right:18px; bottom:calc(18px + env(safe-area-inset-bottom, 0px)); z-index:120; width:52px; height:52px; border-radius:50%; border:0; cursor:pointer;
+  background:linear-gradient(135deg, var(--accent), var(--aw)); color:#fff; font-size:22px; box-shadow:0 8px 22px rgba(30,40,60,.22); transition:transform .15s; }
+#btn-chat:active{ transform:scale(.94); }
+@media (hover:hover){ #btn-chat:hover{ transform:translateY(-2px); } }
+body.chat-aberto{ overflow:hidden; }
+#painel-chat{ position:fixed; inset:0; z-index:140; background:var(--bg, #f5f6f8); display:flex; flex-direction:column; }
 #painel-chat.oculto{ display:none; }
-.chat-topo{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
-#chat-mensagens{ flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
-.chat-bolha{ max-width:88%; padding:9px 12px; border-radius:14px; font-size:13.5px; line-height:1.45; }
-.chat-bolha.eu{ align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
-.chat-bolha.ia{ align-self:flex-start; background:var(--paper-2); color:var(--text); border-bottom-left-radius:4px; }
-.chat-bolha.proposta{ border:1px solid var(--accent); background:var(--accent-soft); }
-.chat-entrada{ display:flex; gap:6px; align-items:flex-end; padding:10px; border-top:1px solid var(--line); }
-.chat-entrada textarea{ flex:1; resize:none; min-height:38px; max-height:110px; font-size:14px; padding:8px 10px; }
-@media (max-width:640px){ #painel-chat{ right:8px; left:8px; width:auto; bottom:calc(70px + env(safe-area-inset-bottom, 0px)); height:calc(100vh - 140px); } #btn-chat{ right:12px; } }
+.chat-topo{ display:flex; justify-content:space-between; align-items:center; padding:calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; border-bottom:1px solid var(--line); background:var(--surface, #fff); }
+.chat-marca{ display:flex; gap:10px; align-items:center; }
+.chat-avatar{ width:28px; height:28px; flex:none; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:14px; color:#fff; background:linear-gradient(135deg, var(--accent), var(--aw)); }
+.chat-avatar.grande{ width:52px; height:52px; font-size:24px; }
+.chat-icone{ all:unset; cursor:pointer; width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-size:18px; color:var(--text-2); }
+.chat-icone:hover{ background:var(--paper-2); }
+#chat-mic.ouvindo{ background:var(--vm, #cc4540); color:#fff; font-size:14px; animation:pulsar 1.2s infinite; }
+@keyframes pulsar{ 50%{ box-shadow:0 0 0 6px rgba(204,69,64,.15); } }
+#chat-mensagens{ flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:18px; width:100%; max-width:780px; margin:0 auto; box-sizing:border-box; }
+#chat-boas-vindas{ margin:auto 0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; }
+.chat-ola{ font-size:21px; color:var(--text); }
+.chat-sugestoes{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:520px; }
+.chat-sugestoes button{ all:unset; cursor:pointer; font-size:13px; padding:9px 13px; border-radius:14px; border:1px solid var(--line); background:var(--surface, #fff); color:var(--text-2); }
+.chat-sugestoes button:hover{ border-color:var(--accent); color:var(--accent); }
+.chat-msg.eu{ align-self:flex-end; max-width:85%; }
+.chat-msg.eu .chat-balao{ background:var(--paper-2); color:var(--text); padding:10px 14px; border-radius:18px; border-bottom-right-radius:6px; font-size:14.5px; line-height:1.45; }
+.chat-msg.ia{ display:flex; gap:10px; align-items:flex-start; }
+.chat-corpo{ flex:1; min-width:0; font-size:14.5px; line-height:1.55; color:var(--text); }
+.chat-corpo p{ margin:0 0 6px; }
+.chat-corpo ul{ margin:2px 0 8px; padding-left:18px; }
+.chat-corpo li{ margin:2px 0; }
+.chat-corpo b{ font-weight:600; }
+.chat-titulo{ font-weight:600; margin:4px 0 6px; }
+.chat-tabela{ overflow-x:auto; margin:6px 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--surface, #fff); }
+.chat-tabela table{ border-collapse:collapse; width:100%; min-width:0 !important; font-size:13px; } /* as tabelas do app têm largura mínima — no chat, cabe na tela */
+.chat-tabela th{ text-align:left; font-weight:500; color:var(--muted); background:var(--paper-2); padding:7px 10px; white-space:nowrap; }
+.chat-tabela td{ padding:7px 10px; border-top:1px solid var(--line); white-space:nowrap; }
+.chat-acoes{ display:flex; gap:4px; margin-top:6px; }
+.chat-acoes button{ all:unset; cursor:pointer; font-size:12px; color:var(--muted); padding:4px 8px; border-radius:8px; }
+.chat-acoes button:hover{ background:var(--paper-2); color:var(--text); }
+.chat-proposta{ border:1px solid var(--accent); background:var(--accent-soft); border-radius:14px; padding:12px 14px; }
+.chat-proposta-tit{ font-weight:500; margin-bottom:4px; }
+.chat-pensando{ display:inline-flex; gap:4px; padding:8px 0; }
+.chat-pensando i{ width:7px; height:7px; border-radius:50%; background:var(--muted); opacity:.4; animation:ponto 1s infinite; }
+.chat-pensando i:nth-child(2){ animation-delay:.15s; } .chat-pensando i:nth-child(3){ animation-delay:.3s; }
+@keyframes ponto{ 50%{ opacity:1; transform:translateY(-3px); } }
+.chat-rodape{ padding:8px 12px calc(12px + env(safe-area-inset-bottom, 0px)); width:100%; max-width:780px; margin:0 auto; box-sizing:border-box; }
+.chat-minis{ display:flex; gap:6px; flex-wrap:wrap; margin:0 0 6px 4px; }
+.chat-caixa{ display:flex; align-items:flex-end; gap:4px; background:var(--surface, #fff); border:1px solid var(--line); border-radius:26px; padding:6px; box-shadow:0 4px 16px rgba(30,40,60,.08); }
+.chat-caixa textarea{ all:unset; flex:1; min-height:24px; max-height:140px; padding:8px 4px; font-size:15px; line-height:1.4; color:var(--text); white-space:pre-wrap; overflow-y:auto; }
+.chat-enviar{ all:unset; cursor:pointer; width:38px; height:38px; border-radius:50%; background:var(--text); color:var(--surface, #fff); display:inline-flex; align-items:center; justify-content:center; font-size:18px; font-weight:600; }
+.chat-enviar.oculto, .chat-icone.oculto{ display:none; }
+.chat-menu{ position:absolute; bottom:46px; left:0; background:var(--surface, #fff); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px rgba(30,40,60,.16); padding:6px; min-width:170px; z-index:2; }
+.chat-menu.oculto{ display:none; }
+.chat-menu label{ display:block; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:14px; }
+.chat-menu label:hover{ background:var(--paper-2); }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -1039,7 +1079,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.94';
+const VERSAO_APP = '2026-10-03.96';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5031,7 +5071,17 @@ function ligarEscolherFotos(prefixo, obterLista, definirLista){
    A IA só enxerga um resumo da obra + o que as ferramentas de busca devolvem; todas as
    gravações passam pelas mesmas funções do app (histórico com nome de quem confirmou). */
 const FUNCAO_CHAT = 'Chat---Checklist-Sofitel';
-let chatHistorico = [], chatFotosPendentes = [], chatOcupado = false;
+let chatHistorico = [], chatFotosPendentes = [], chatOcupado = false, chatCancelado = false;
+function chatAtualizarBotoes(){
+  // respondendo: o botão de enviar vira ■ (parar); senão, mic quando vazio e ↑ quando há texto
+  const t = document.getElementById('chat-texto'), env = document.getElementById('chat-enviar'), mic = document.getElementById('chat-mic');
+  if (!t || !env || !mic) return;
+  const tem = t.value.trim().length > 0;
+  env.textContent = chatOcupado ? '■' : '↑';
+  env.setAttribute('aria-label', chatOcupado ? 'Parar a resposta' : 'Enviar');
+  env.classList.toggle('oculto', !(chatOcupado || tem));
+  mic.classList.toggle('oculto', chatOcupado || (tem && !mic.classList.contains('ouvindo')));
+}
 
 function chatContexto(){
   const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
@@ -5052,7 +5102,8 @@ function chatContexto(){
     'Fornecedores: ' + listaFornecedoresConhecidos().join(', ') + '.',
     'Itens em aberto por andar: ' + Array.from(abertosAndar.entries()).sort((a,b) => a[0]-b[0]).map(([a, n]) => nomeAndar(a) + ' ' + n).join(', ') + '. Total de pendências: ' + pend.length + '.',
     'Prioridade: VM = vermelho (crítico), AM = amarelo. Fluxo: em aberto → Executado AW → Vistoriado IAC. Origem: IAC (planilha) ou AW (incluído no app).',
-    'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).'
+    'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).',
+    'FORMATO DAS RESPOSTAS: curtas e bem organizadas, prontas pra encaminhar no WhatsApp. Comece linhas com ícones, no padrão do painel: 📋 resumo/título, 🔴 VM ou crítico, 🟡 AM, 🟣 executado AW, 🟢 vistoriado IAC, 🏁 quase pronto, ⚠️ atenção/atrasado, 🧱 fornecedor, 🏢 andar, 🚪 quarto, 📅 datas, ✅ ok. Use **negrito** nos números importantes. Para listas com várias colunas, use tabela markdown curta (até ~12 linhas); destaque no fim a principal conclusão com ⚠️ ou ✅.'
   ].join('\n');
 }
 const CHAT_FILTRO = { type:'object', description:'Critérios para escolher os itens (todos opcionais; combine o que o usuário pediu).', properties:{
@@ -5227,22 +5278,29 @@ async function chatEnviar(texto){
   if (!(await garantirUsuario())) return;
   texto = String(texto || '').trim();
   if (!texto) return;
-  chatOcupado = true;
-  chatAdicionarBolha('user', esc(texto) + (chatFotosPendentes.length ? '<div style="font-size:11px; opacity:.8;">📷 '+chatFotosPendentes.length+' foto(s)</div>' : ''));
+  chatOcupado = true; chatCancelado = false; chatAtualizarBotoes();
+  chatAdicionarBolha('user', esc(texto) + (chatFotosPendentes.length ? '<div style="font-size:11px; opacity:.75; margin-top:3px;">📷 '+chatFotosPendentes.length+' foto(s)</div>' : ''));
   chatHistorico.push({ role:'user', content: texto + (chatFotosPendentes.length ? '\n[o usuário anexou ' + chatFotosPendentes.length + ' foto(s) para o item]' : '') });
   await chatRodarIA();
-  chatOcupado = false;
+  chatOcupado = false; chatAtualizarBotoes();
 }
 async function chatRodarIA(){
-  const pensando = chatAdicionarBolha('assistant', '<span style="color:var(--muted);">pensando…</span>');
+  const pensando = chatAdicionarBolha('assistant', '<span class="chat-pensando"><i></i><i></i><i></i></span>');
   try{
     for (let volta = 0; volta < 5; volta++){
       const resp = await chatChamarIA();
+      if (chatCancelado){
+        // descarta a pergunta e o que veio depois, pra conversa não ficar quebrada
+        while (chatHistorico.length && !(chatHistorico[chatHistorico.length-1].role === 'user' && typeof chatHistorico[chatHistorico.length-1].content === 'string')) chatHistorico.pop();
+        if (chatHistorico.length) chatHistorico.pop();
+        chatAdicionarBolha('assistant', '<span style="color:var(--muted);">Resposta cancelada.</span>');
+        break;
+      }
       const blocos = (resp && resp.content) || [];
       chatHistorico.push({ role:'assistant', content: blocos });
       const textos = blocos.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
       const usos = blocos.filter((b) => b.type === 'tool_use');
-      if (textos) chatAdicionarBolha('assistant', esc(textos).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
+      if (textos) chatAdicionarBolha('assistant', mdParaHtml(textos), textos);
       if (!usos.length) break;
       const resultados = [], propostas = [];
       for (const u of usos){
@@ -5284,20 +5342,64 @@ async function chatRodarIA(){
     if (chatHistorico.length) chatHistorico.pop();
   }finally{ pensando.remove(); }
 }
-/* ---------- interface ---------- */
-function chatAdicionarBolha(papel, html){
+/* ---------- interface (tela cheia, estilo GPT) ---------- */
+function mdParaHtml(txt){
+  // markdown simples e seguro: escapa tudo e depois aplica tabelas, títulos, listas, negrito
+  const linhas = String(txt || '').replace(/\r/g, '').split('\n');
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  let html = '', i = 0, lista = false;
+  const fecharLista = () => { if (lista){ html += '</ul>'; lista = false; } };
+  while (i < linhas.length){
+    const l = linhas[i];
+    if (/^\s*\|.*\|\s*$/.test(l)){
+      fecharLista();
+      const tab = [];
+      while (i < linhas.length && /^\s*\|.*\|\s*$/.test(linhas[i])){ tab.push(linhas[i]); i++; }
+      const celulas = (s) => s.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+      const corpo = tab.filter((r) => !/^\s*\|[\s:|-]+\|\s*$/.test(r));
+      html += '<div class="chat-tabela"><table>' + corpo.map((r, k) => '<tr>' + celulas(r).map((c) => k === 0 ? '<th>'+inline(c)+'</th>' : '<td>'+inline(c)+'</td>').join('') + '</tr>').join('') + '</table></div>';
+      continue;
+    }
+    const h = l.match(/^\s*#{1,4}\s+(.*)$/);
+    if (h){ fecharLista(); html += '<div class="chat-titulo">'+inline(h[1])+'</div>'; i++; continue; }
+    const b = l.match(/^\s*(?:[-•]|\d+\.)\s+(.*)$/);
+    if (b){ if (!lista){ html += '<ul>'; lista = true; } html += '<li>'+inline(b[1])+'</li>'; i++; continue; }
+    fecharLista();
+    html += l.trim() ? '<p>'+inline(l)+'</p>' : '';
+    i++;
+  }
+  fecharLista();
+  return html;
+}
+function textoParaCompartilhar(txt){
+  // tira a marcação: negrito do WhatsApp (*x*) e tabelas viram linhas legíveis
+  return String(txt || '').split('\n').filter((l) => !/^\s*\|[\s:|-]+\|\s*$/.test(l))
+    .map((l) => /^\s*\|.*\|\s*$/.test(l) ? l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()).join(' · ') : l)
+    .join('\n').replace(/\*\*(.+?)\*\*/g, '*$1*').replace(/^\s*#{1,4}\s+/gm, '').trim();
+}
+function chatAdicionarBolha(papel, html, textoPuro){
   const lista = document.getElementById('chat-mensagens');
+  const boas = document.getElementById('chat-boas-vindas'); if (boas) boas.remove();
   const d = document.createElement('div');
-  d.className = 'chat-bolha ' + (papel === 'user' ? 'eu' : 'ia');
-  d.innerHTML = html;
+  d.className = 'chat-msg ' + (papel === 'user' ? 'eu' : 'ia');
+  d.innerHTML = papel === 'user' ? '<div class="chat-balao">'+html+'</div>' : '<div class="chat-avatar">✦</div><div class="chat-corpo">'+html+'</div>';
+  if (papel !== 'user' && textoPuro){
+    const acoes = document.createElement('div');
+    acoes.className = 'chat-acoes';
+    acoes.innerHTML = '<button type="button" title="Copiar">⧉ Copiar</button><button type="button" title="Enviar no WhatsApp ou outro app">↗ Enviar</button>';
+    const [bCopiar, bEnviar] = acoes.querySelectorAll('button');
+    const txt = textoParaCompartilhar(textoPuro);
+    bCopiar.addEventListener('click', async () => { try{ await navigator.clipboard.writeText(txt); bCopiar.textContent = '✓ Copiado'; setTimeout(() => bCopiar.textContent = '⧉ Copiar', 1500); }catch(e){ avisoFlutuante('Não consegui copiar', 'erro'); } });
+    bEnviar.addEventListener('click', () => enviarTextoPlano('Assistente', txt));
+    d.querySelector('.chat-corpo').appendChild(acoes);
+  }
   lista.appendChild(d); lista.scrollTop = lista.scrollHeight;
   return d;
 }
 function chatPedirConfirmacao(texto){
   return new Promise((resolve) => {
-    const d = chatAdicionarBolha('assistant', '<div style="font-weight:500; margin-bottom:6px;">Confirmar?</div><div>'+esc(texto)+'</div>' +
-      '<div style="display:flex; gap:8px; margin-top:8px;"><button type="button" class="btn fantasma" data-chat-nao style="padding:6px 12px;">Cancelar</button><button type="button" class="btn primario" data-chat-sim style="padding:6px 12px;">Confirmar</button></div>');
-    d.classList.add('proposta');
+    const d = chatAdicionarBolha('assistant', '<div class="chat-proposta"><div class="chat-proposta-tit">✋ Confirmar antes de gravar</div><div>'+esc(texto)+'</div>' +
+      '<div style="display:flex; gap:8px; margin-top:10px;"><button type="button" class="btn fantasma" data-chat-nao>Cancelar</button><button type="button" class="btn primario" data-chat-sim>Confirmar</button></div></div>');
     d.querySelector('[data-chat-sim]').addEventListener('click', () => { d.querySelectorAll('button').forEach((b) => b.disabled = true); resolve(true); });
     d.querySelector('[data-chat-nao]').addEventListener('click', () => { d.querySelectorAll('button').forEach((b) => b.disabled = true); resolve(false); });
   });
@@ -5305,21 +5407,61 @@ function chatPedirConfirmacao(texto){
 let renderChatAnexos = () => {};
 function iniciarChat(){
   const b = document.createElement('button');
-  b.type = 'button'; b.id = 'btn-chat'; b.className = 'btn primario'; b.textContent = '💬 Assistente';
+  b.type = 'button'; b.id = 'btn-chat'; b.title = 'Assistente'; b.setAttribute('aria-label', 'Abrir o assistente');
+  b.innerHTML = '<span>✦</span>';
   document.body.appendChild(b);
+  const sugestoes = ['Quantos itens em aberto tem no 15º?', 'Quais fornecedores estão parados?', 'Mostra os vermelhos em aberto', 'Resumo do andar 13 por quarto'];
   const p = document.createElement('div');
   p.id = 'painel-chat'; p.className = 'oculto';
-  p.innerHTML = '<div class="chat-topo"><div><b style="font-weight:500;">Assistente</b><div style="font-size:11.5px; color:var(--muted);">Pedidos sobre a obra — sempre pede confirmação antes de gravar</div></div><button type="button" class="btn fantasma" id="chat-fechar" style="padding:6px 10px;">Fechar</button></div>' +
-    '<div id="chat-mensagens"><div class="chat-bolha ia">Oi! Exemplos: <i>"quantos itens da Dabol estão em aberto no 12º?"</i>, <i>"inclui no 1205 e 1206 um item de marcenaria: porta do roupeiro desalinhada"</i> (tire ou escolha a foto em 📷/🖼️), <i>"marque como executado AW os itens de elétrica do 1502"</i>, <i>"mostra os vermelhos do 15º"</i>.</div></div>' +
-    '<div style="padding:8px 10px 0; border-top:1px solid var(--line);">' + htmlEscolherFotos('chat-foto') + '</div>' +
-    '<div class="chat-entrada" style="border-top:0;"><textarea id="chat-texto" rows="1" placeholder="Escreva seu pedido…"></textarea><button type="button" class="btn primario" id="chat-enviar">Enviar</button></div>';
+  p.innerHTML =
+    '<div class="chat-topo"><div class="chat-marca"><span class="chat-avatar">✦</span><div><div style="font-weight:500;">Assistente</div><div style="font-size:11.5px; color:var(--muted);">'+esc(nomeDaObra())+' · confirma antes de gravar</div></div></div>' +
+      '<button type="button" id="chat-fechar" aria-label="Fechar" class="chat-icone">✕</button></div>' +
+    '<div id="chat-mensagens"><div id="chat-boas-vindas"><div class="chat-avatar grande">✦</div><div class="chat-ola">Como posso ajudar na obra?</div>' +
+      '<div class="chat-sugestoes">'+sugestoes.map((s) => '<button type="button" data-sugestao="'+esc(s)+'">'+esc(s)+'</button>').join('')+'</div></div></div>' +
+    '<div class="chat-rodape"><div id="chat-foto-miniaturas" class="chat-minis"></div>' +
+      '<div class="chat-caixa">' +
+        '<div style="position:relative;"><button type="button" id="chat-mais" class="chat-icone" aria-label="Anexar foto">＋</button>' +
+          '<div id="chat-menu-mais" class="chat-menu oculto"><label>📷 Tirar foto<input type="file" id="chat-foto-camera" accept="image/*" capture="environment" style="display:none;"></label>' +
+          '<label>🖼️ Galeria<input type="file" id="chat-foto-galeria" accept="image/*" multiple style="display:none;"></label></div></div>' +
+        '<textarea id="chat-texto" rows="1" placeholder="Pergunte ou peça algo…"></textarea>' +
+        '<button type="button" id="chat-mic" class="chat-icone" aria-label="Falar">🎙️</button>' +
+        '<button type="button" id="chat-enviar" class="chat-enviar oculto" aria-label="Enviar">↑</button>' +
+      '</div></div>';
   document.body.appendChild(p);
-  b.addEventListener('click', () => { p.classList.toggle('oculto'); if (!p.classList.contains('oculto')) setTimeout(() => document.getElementById('chat-texto').focus(), 50); });
-  document.getElementById('chat-fechar').addEventListener('click', () => p.classList.add('oculto'));
-  const enviar = () => { const t = document.getElementById('chat-texto'); const v = t.value; t.value = ''; chatEnviar(v); };
-  document.getElementById('chat-enviar').addEventListener('click', enviar);
-  document.getElementById('chat-texto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); enviar(); } });
+  const $ = (id) => document.getElementById(id);
+  const abrir = () => { p.classList.remove('oculto'); document.body.classList.add('chat-aberto'); setTimeout(() => $('chat-texto').focus(), 60); };
+  const fechar = () => { p.classList.add('oculto'); document.body.classList.remove('chat-aberto'); };
+  b.addEventListener('click', abrir);
+  $('chat-fechar').addEventListener('click', fechar);
+  const ajustar = () => { const t = $('chat-texto'); t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; chatAtualizarBotoes(); };
+  $('chat-texto').addEventListener('input', ajustar);
+  const enviar = () => {
+    if (chatOcupado){ chatCancelado = true; $('chat-enviar').textContent = '…'; return; } // ■ parar
+    const t = $('chat-texto'); const v = t.value; t.value = ''; ajustar(); chatEnviar(v);
+  };
+  $('chat-enviar').addEventListener('click', enviar);
+  $('chat-texto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)){ e.preventDefault(); enviar(); } });
+  p.querySelectorAll('[data-sugestao]').forEach((s) => s.addEventListener('click', () => chatEnviar(s.dataset.sugestao)));
+  // + → câmera / galeria
+  $('chat-mais').addEventListener('click', (e) => { e.stopPropagation(); $('chat-menu-mais').classList.toggle('oculto'); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#chat-menu-mais') && !e.target.closest('#chat-mais')) $('chat-menu-mais').classList.add('oculto'); });
+  ['chat-foto-camera','chat-foto-galeria'].forEach((id) => $(id).addEventListener('change', () => $('chat-menu-mais').classList.add('oculto')));
   renderChatAnexos = ligarEscolherFotos('chat-foto', () => chatFotosPendentes, (l) => { chatFotosPendentes = l; });
+  // microfone (ditado): usa o reconhecimento de voz do navegador, em português
+  const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, ouvindo = false;
+  $('chat-mic').addEventListener('click', () => {
+    if (!Reconhecimento){ avisoFlutuante('Este navegador não permite ditado aqui — use o microfone do teclado do celular', 'erro'); $('chat-texto').focus(); return; }
+    if (ouvindo && rec){ rec.stop(); return; }
+    rec = new Reconhecimento(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.continuous = false;
+    const base = $('chat-texto').value ? $('chat-texto').value + ' ' : '';
+    rec.onresult = (ev) => { let s = ''; for (let k = 0; k < ev.results.length; k++) s += ev.results[k][0].transcript; $('chat-texto').value = base + s; ajustar(); };
+    const parouDeOuvir = () => { ouvindo = false; $('chat-mic').classList.remove('ouvindo'); $('chat-mic').textContent = '🎙️'; $('chat-mic').setAttribute('aria-label', 'Falar'); ajustar(); $('chat-texto').focus(); };
+    rec.onend = parouDeOuvir;
+    rec.onerror = parouDeOuvir;
+    ouvindo = true; $('chat-mic').classList.add('ouvindo'); $('chat-mic').textContent = '■'; $('chat-mic').setAttribute('aria-label', 'Parar de ouvir');
+    rec.start();
+  });
 }
 
 /* ===================== NOVO ITEM (incluído no app, origem AW) ===================== */
