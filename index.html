@@ -318,6 +318,9 @@ html.chat-aberto{ overflow:hidden; }
 .chat-menu.oculto{ display:none; }
 .chat-menu label{ display:block; padding:10px 12px; border-radius:10px; cursor:pointer; font-size:14px; }
 .chat-menu label:hover{ background:var(--paper-2); }
+.grupo-liberacao{ border-top:1px solid var(--line); padding:12px 0; }
+.grupo-liberacao:first-of-type{ border-top:0; }
+.grupo-liberacao .detalhe{ font-size:12.5px; color:var(--muted); line-height:1.45; }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -671,6 +674,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados com pendência, itens em aberto e previsão de conclusão">PDF liberados c/ pendência</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
+    <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card">
       <table>
@@ -1092,7 +1096,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.105';
+const VERSAO_APP = '2026-10-03.106';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2935,6 +2939,63 @@ async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
 }
 
 /* resposta à pergunta "apareceu item amarelo novo num local que já era azul, mantém ou volta?" */
+/* LIBERAÇÕES PARA REVISAR: itens novos que entraram em ambientes já liberados com pendência.
+   Calculado a partir da revisão (não se perde ao tocar em "Ciente"). Agrupado pelo ITEM (mesma
+   descrição), pra decidir de uma vez: "manter todos liberados" ou "voltar todos para pendente". */
+function liberacoesParaRevisar(){
+  const grupos = new Map();
+  const porLocal = agruparPorLocal(itensRevisaoAtual);
+  porLocal.forEach((l) => {
+    const entrada = areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)];
+    if (!entrada) return;
+    const conhecidos = new Set(entrada.itens || []);
+    l.itens.filter((it) => !conhecidos.has(it.id) && it.origem !== 'AW').forEach((it) => {
+      const k = chaveComparacao(disciplinaEfetiva(it) + '|' + String(it.desc || '').slice(0, 160));
+      if (!grupos.has(k)) grupos.set(k, { desc: it.desc || '', disciplina: disciplinaEfetiva(it), status: it.status, ids: new Set(), locais: new Map() });
+      const g = grupos.get(k); g.ids.add(it.id);
+      g.locais.set(l.key, { andar: l.andar, tipo: l.tipo, quarto: l.quarto, label: l.label });
+    });
+  });
+  return Array.from(grupos.values()).map((g) => Object.assign(g, { locais: Array.from(g.locais.values()).sort((a,b) => a.andar - b.andar || String(a.label).localeCompare(String(b.label), 'pt-BR', { numeric:true })) }))
+    .sort((a,b) => b.locais.length - a.locais.length);
+}
+function renderLiberacoesParaRevisar(){
+  const cont = document.getElementById('liberacoes-revisar');
+  if (!cont) return;
+  const grupos = liberacoesParaRevisar();
+  if (!grupos.length){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
+  cont.classList.remove('oculto');
+  const totalLocais = new Set(grupos.flatMap((g) => g.locais.map((l) => l.andar + '|' + l.label))).size;
+  cont.innerHTML = '<h2 style="margin-bottom:4px;">Liberações para revisar ('+totalLocais+' ambiente'+(totalLocais === 1 ? '' : 's')+')</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Entraram itens novos em ambientes já liberados com pendência. Decida por item: manter os ambientes liberados (o item novo passa a fazer parte das pendências aceitas) ou voltar para pendente.</p>' +
+    grupos.map((g, gi) => '<div class="grupo-liberacao" data-grupo="'+gi+'">' +
+      '<div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">' +
+        '<div style="flex:1; min-width:240px;"><div style="font-size:13.5px; color:var(--text); line-height:1.45;"><span class="badge '+(g.status === 'VM' ? 'bloqueado' : 'pendente')+'" style="margin-right:6px;">'+esc(g.status)+'</span>'+esc(g.desc)+'</div>' +
+        '<div class="detalhe" style="margin-top:4px;">'+esc(g.disciplina)+' · item(ns) '+esc(Array.from(g.ids).slice(0, 6).join(', '))+(g.ids.size > 6 ? '…' : '')+'</div>' +
+        '<div class="detalhe" style="margin-top:4px;">Entrou em <b style="font-weight:500; color:var(--text);">'+g.locais.length+' ambiente(s) liberado(s)</b>: '+esc(g.locais.map((l) => String(l.label).replace(/\u00A0/g,' ')).join(', '))+'</div></div>' +
+        '<div style="display:flex; gap:6px; flex-wrap:wrap;"><button type="button" class="chip-acao marcado lib" data-lib-todos="manter" data-grupo="'+gi+'">Manter '+(g.locais.length > 1 ? 'todos ' : '')+'liberados</button>' +
+          '<button type="button" class="chip-acao" data-lib-todos="voltar" data-grupo="'+gi+'">Voltar '+(g.locais.length > 1 ? 'todos ' : '')+'para pendente</button></div>' +
+      '</div>' +
+      (g.locais.length > 1 ? '<details style="margin-top:8px;"><summary class="detalhe" style="cursor:pointer; color:var(--accent);">Decidir ambiente por ambiente</summary>' +
+        g.locais.map((l, li) => '<div class="insight-item" style="padding:6px 0;"><div class="local" style="font-size:13px;">'+esc(String(l.label).replace(/\u00A0/g,' '))+' · '+esc(nomeAndarLongo(l.andar))+'</div>' +
+          '<div style="display:flex; gap:6px;"><button type="button" class="chip-acao marcado lib" data-lib-um="manter" data-grupo="'+gi+'" data-local="'+li+'">Manter</button><button type="button" class="chip-acao" data-lib-um="voltar" data-grupo="'+gi+'" data-local="'+li+'">Voltar</button></div></div>').join('') +
+      '</details>' : '') +
+    '</div>').join('');
+  const aplicar = async (locais, manter, botao) => {
+    botao.closest('.grupo-liberacao').querySelectorAll('button').forEach((b) => b.disabled = true);
+    for (const l of locais) await resolverRevisaoLiberacao(revisaoSelecionada, l.andar, l.tipo, l.quarto, manter);
+    avisoFlutuante(locais.length + ' ambiente(s) ' + (manter ? 'mantido(s) liberado(s)' : 'voltaram para pendente'), 'ok');
+    await selecionarRevisao(revisaoSelecionada);
+  };
+  cont.querySelectorAll('[data-lib-todos]').forEach((b) => b.addEventListener('click', () => {
+    const g = grupos[Number(b.dataset.grupo)];
+    aplicar(g.locais, b.dataset.libTodos === 'manter', b);
+  }));
+  cont.querySelectorAll('[data-lib-um]').forEach((b) => b.addEventListener('click', () => {
+    const g = grupos[Number(b.dataset.grupo)];
+    aplicar([g.locais[Number(b.dataset.local)]], b.dataset.libUm === 'manter', b);
+  }));
+}
 async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter){
   const docId = 'R' + revisaoStr + '_' + andar;
   const doc = await store.getDoc('snapshots', docId);
@@ -3345,12 +3406,25 @@ function disciplinaEfetiva(it){
 }
 /* fornecedor padrão de uma disciplina: nome exato, ou o mesmo nome escrito com diferença de
    maiúscula, acento ou espaço ("ELETRICA" usa o de "ELÉTRICA") */
-function fornecedorPadraoDaDisciplina(disc){
+function fornecedorPadraoDaDisciplinaExata(disc){
   if (!disc) return '';
   if (fornecedores[disc]) return fornecedores[disc];
   const k = chaveComparacao(disc);
   for (const nome in fornecedores){
     if (fornecedores[nome] && chaveComparacao(nome) === k) return fornecedores[nome];
+  }
+  return '';
+}
+/* a IAC às vezes escreve a disciplina com o ambiente na frente ("SALA (ANTIGO 1708) - HIDRÁULICA"):
+   se não houver fornecedor pra esse nome completo, usa o da disciplina de base (HIDRÁULICA).
+   Um fornecedor definido pro nome completo sempre vale mais que o da base. */
+function fornecedorPadraoDaDisciplina(disc){
+  const direto = fornecedorPadraoDaDisciplinaExata(disc);
+  if (direto || !disc) return direto;
+  const partes = String(disc).split(/\s+-\s+/);
+  for (let i = 1; i < partes.length; i++){
+    const f = fornecedorPadraoDaDisciplinaExata(partes.slice(i).join(' - '));
+    if (f) return f;
   }
   return '';
 }
@@ -4532,6 +4606,7 @@ function tagsAgressores(lista, max, attrs){
     (lista.length > max ? '<span class="tag-agressor" style="cursor:default; background:transparent; border-color:transparent;">+'+(lista.length - max)+'</span>' : '');
 }
 function renderQuartos(){
+  try{ renderLiberacoesParaRevisar(); }catch(e){ console.warn('liberações', e); }
   const locais = obterLocaisFiltrados();
   const tbody = document.getElementById('tbody-quartos');
   tbody.innerHTML = '';
@@ -6815,23 +6890,18 @@ async function executarSalvamento(grupos, btn, cont){
   const discSemForn = Array.from(new Set(Array.from(grupos.values()).flatMap((g) => g.itens.map((it) => it.disciplina))
     .filter((d) => d && !fornecedorPadraoDaDisciplina(d)))).sort((a,b) => a.localeCompare(b, 'pt-BR'));
   if (discSemForn.length){
-    html += '<div class="aviso-ambar">'+discSemForn.length+' disciplina(s) sem fornecedor padrão — os itens delas entraram como "sem fornecedor": ' +
-      discSemForn.map(esc).join(', ') + '. <button type="button" class="btn fantasma ambar" id="btn-definir-fornecedores" style="margin-left:6px; padding:4px 12px;">Definir fornecedores</button></div>';
+    html += '<div class="aviso-ambar"><div style="margin-bottom:6px;">'+discSemForn.length+' disciplina(s) nova(s) sem fornecedor padrão — os itens delas entraram como "sem fornecedor":</div>' +
+      '<div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">' + discSemForn.slice(0, 12).map((d) => '<span class="tag-agressor" style="cursor:default;">'+esc(d)+'</span>').join('') +
+      (discSemForn.length > 12 ? '<span class="tag-agressor" style="cursor:default;">+'+(discSemForn.length-12)+'</span>' : '') + '</div>' +
+      '<button type="button" class="btn fantasma ambar" id="btn-definir-fornecedores" style="padding:4px 12px;">Definir fornecedores</button></div>';
   }
   let idRevisaoBtn = 0;
   if (avisos.revisarLiberacao.length > 0){
-    html += '<div class="aviso"><strong>Precisa sua confirmação — apareceu item amarelo novo em local já liberado com pendência:</strong>' +
-      '<div id="lista-revisar-liberacao">' + avisos.revisarLiberacao.map((rv) => {
-        idRevisaoBtn++;
-        const label = rv.tipo === 'APTO' ? rv.quarto : rv.tipo;
-        const novosTxt = rv.novos.map((n) => esc(n.id)+' — '+esc((n.desc||'').slice(0,60))).join('<br>');
-        return '<div class="insight-item" style="align-items:flex-start;" data-rv="'+idRevisaoBtn+'">' +
-          '<div><div class="local">'+esc(label)+' · '+nomeAndarLongo(rv.andar) + '</div><div class="detalhe">Novo(s): '+novosTxt+'</div></div>' +
-          '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
-          '<button class="chip-acao marcado lib" data-rv-manter="'+idRevisaoBtn+'">Manter liberado</button>' +
-          '<button class="chip-acao" data-rv-voltar="'+idRevisaoBtn+'">Voltar pendente</button>' +
-          '</div></div>';
-      }).join('') + '</div></div>';
+    const nItens = new Set(avisos.revisarLiberacao.flatMap((rv) => rv.novos.map((n) => chaveComparacao(n.desc || n.id)))).size;
+    html += '<div class="aviso" style="background:var(--lib-soft); color:var(--text); border-color:var(--lib);">' +
+      '<b style="font-weight:500;">'+nItens+' item(ns) novo(s) entraram em '+avisos.revisarLiberacao.length+' ambiente(s) já liberado(s) com pendência.</b> ' +
+      'A decisão (manter liberado ou voltar para pendente) fica no cartão "Liberações para revisar", na aba Quartos &amp; áreas — agrupada por item, pra decidir de uma vez. ' +
+      '<button type="button" class="btn fantasma" id="btn-revisar-liberacoes" style="margin-left:4px; padding:4px 12px;">Revisar agora</button></div>';
   }
   const tudoOk = avisos.gravacaoFalhou.length===0 && avisos.descricaoCortada.length===0 &&
     avisos.fotosFalharam.length===0 && avisos.fotosSemRecurso===0 && avisos.fotosNaoAssociadas.length===0 &&
@@ -6860,17 +6930,8 @@ async function executarSalvamento(grupos, btn, cont){
     if (btnDesf) btnDesf.addEventListener('click', () => executarDesfazerEnvio(cont));
     const btnForn = document.getElementById('btn-definir-fornecedores');
     if (btnForn) btnForn.addEventListener('click', () => irParaAba('disciplinas'));
-    cont.querySelectorAll('[data-rv-manter], [data-rv-voltar]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const idx = parseInt(btn.dataset.rvManter || btn.dataset.rvVoltar, 10) - 1;
-        const rv = avisos.revisarLiberacao[idx];
-        if (!rv) return;
-        btn.closest('[data-rv]').querySelectorAll('button').forEach((b) => b.disabled = true);
-        await resolverRevisaoLiberacao(rv.revisao, rv.andar, rv.tipo, rv.quarto, !!btn.dataset.rvManter);
-        btn.closest('[data-rv]').innerHTML = '<div class="detalhe">Resolvido: ficou '+(btn.dataset.rvManter?'liberado com pendência':'pendente (amarelo)')+'.</div>';
-        await selecionarRevisao(revisaoSelecionada);
-      });
-    });
+    const btnRev = document.getElementById('btn-revisar-liberacoes');
+    if (btnRev) btnRev.addEventListener('click', () => irParaAba('quartos'));
   }
 }
 
