@@ -258,8 +258,9 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 #btn-chat.rolando{ opacity:.18; }
 #btn-chat:active{ transform:scale(.94); }
 @media (hover:hover){ #btn-chat:hover{ transform:translateY(-2px); } }
-body.chat-aberto{ overflow:hidden; }
-#painel-chat{ position:fixed; inset:0; z-index:140; background:var(--bg, #f5f6f8); display:flex; flex-direction:column; }
+body.chat-aberto{ overflow:hidden; overscroll-behavior:none; }
+html.chat-aberto{ overflow:hidden; }
+#painel-chat{ position:fixed; inset:0; z-index:140; background:var(--bg, #f5f6f8); display:flex; flex-direction:column; overscroll-behavior:none; }
 #painel-chat.oculto{ display:none; }
 .chat-topo{ display:flex; justify-content:space-between; align-items:center; padding:calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; border-bottom:1px solid var(--line); background:var(--surface, #fff); }
 .chat-marca{ display:flex; gap:10px; align-items:center; }
@@ -269,7 +270,8 @@ body.chat-aberto{ overflow:hidden; }
 .chat-icone:hover{ background:var(--paper-2); }
 #chat-mic.ouvindo{ background:#F3D9D7; color:#9E3B37; animation:pulsar 1.4s infinite; }
 @keyframes pulsar{ 50%{ box-shadow:0 0 0 6px rgba(204,69,64,.15); } }
-#chat-mensagens{ flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:18px; width:100%; max-width:780px; margin:0 auto; box-sizing:border-box; }
+#chat-rolagem{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; touch-action:pan-y; }
+#chat-mensagens{ padding:18px 16px; display:flex; flex-direction:column; gap:18px; width:100%; max-width:780px; margin:0 auto; box-sizing:border-box; min-height:100%; }
 #chat-boas-vindas{ margin:auto 0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; }
 .chat-ola{ font-size:21px; color:var(--text); }
 .chat-sugestoes{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:520px; }
@@ -284,10 +286,11 @@ body.chat-aberto{ overflow:hidden; }
 .chat-corpo li{ margin:2px 0; }
 .chat-corpo b{ font-weight:600; }
 .chat-titulo{ font-weight:600; margin:4px 0 6px; }
-.chat-tabela{ overflow-x:auto; margin:6px 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--surface, #fff); }
+.chat-tabela{ overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; touch-action:pan-x pan-y; margin:6px 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--surface, #fff); }
 .chat-tabela table{ border-collapse:collapse; width:100%; min-width:0 !important; font-size:13px; } /* as tabelas do app têm largura mínima — no chat, cabe na tela */
-.chat-tabela th{ text-align:left; font-weight:500; color:var(--muted); background:var(--paper-2); padding:7px 10px; white-space:nowrap; }
-.chat-tabela td{ padding:7px 10px; border-top:1px solid var(--line); white-space:nowrap; }
+.chat-tabela th{ text-align:left; font-weight:500; color:var(--muted); background:var(--paper-2); padding:7px 9px; white-space:normal; vertical-align:bottom; }
+.chat-tabela td{ padding:7px 9px; border-top:1px solid var(--line); white-space:normal; overflow-wrap:anywhere; vertical-align:top; }
+.chat-tabela td:first-child{ white-space:nowrap; } /* a 1ª coluna (andar/quarto) não quebra */
 .chat-acoes{ display:flex; gap:4px; margin-top:6px; }
 .chat-acoes button{ all:unset; cursor:pointer; font-size:12px; color:var(--muted); padding:4px 8px; border-radius:8px; }
 .chat-acoes button:hover{ background:var(--paper-2); color:var(--text); }
@@ -300,7 +303,7 @@ body.chat-aberto{ overflow:hidden; }
 .chat-mini{ font-size:12.5px; color:var(--text-2); margin-top:6px; line-height:1.5; }
 .chat-lista-itens{ margin-top:8px; font-size:12px; color:var(--text-2); }
 .chat-lista-itens summary{ cursor:pointer; color:var(--accent); font-size:12.5px; }
-.chat-lista-itens > div{ max-height:180px; overflow-y:auto; margin-top:6px; line-height:1.6; }
+.chat-lista-itens > div{ margin-top:6px; line-height:1.6; }
 .chat-pensando{ display:inline-flex; gap:4px; padding:8px 0; }
 .chat-pensando i{ width:7px; height:7px; border-radius:50%; background:var(--muted); opacity:.4; animation:ponto 1s infinite; }
 .chat-pensando i:nth-child(2){ animation-delay:.15s; } .chat-pensando i:nth-child(3){ animation-delay:.3s; }
@@ -1089,7 +1092,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.104';
+const VERSAO_APP = '2026-10-03.105';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5169,7 +5172,7 @@ function chatContexto(){
     'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).',
     'AÇÕES: quando o usuário pedir uma alteração, chame a ferramenta de ação DIRETO, numa chamada só (use "andares" para vários andares). NUNCA peça confirmação em texto ("posso executar?", "pronto?") — o app mostra um cartão de confirmação com o resumo e é ele que confirma. Antes da ação, no máximo uma frase curta dizendo o que vai propor.',
     'REGRAS DE RESPOSTA (obrigatórias): responda EXATAMENTE o que foi perguntado, nem mais nem menos. Se pedirem "cada andar", liste TODOS os andares (inclusive os com 0 em aberto e 100%); nunca omita linhas, nunca filtre, resuma ou escolha por conta própria. Use SÓ os números do contexto e das ferramentas — não calcule, não estime, não arredonde diferente. Coluna "em aberto" = em_aberto; "% executado" = pct_executado. Se um dado não estiver disponível, diga que não tem. Se a pergunta for ambígua, pergunte antes.',
-    'FORMATO DAS RESPOSTAS: curtas e bem organizadas, prontas pra encaminhar no WhatsApp. Comece linhas com ícones, no padrão do painel: 📋 resumo/título, 🔴 VM ou crítico, 🟡 AM, 🟣 executado AW, 🟢 vistoriado IAC, 🏁 quase pronto, ⚠️ atenção/atrasado, 🧱 fornecedor, 🏢 andar, 🚪 quarto, 📅 datas, ✅ ok. Use **negrito** nos números importantes. Para listas com várias colunas, use tabela markdown curta (até ~12 linhas); destaque no fim a principal conclusão com ⚠️ ou ✅.'
+    'FORMATO DAS RESPOSTAS: curtas e bem organizadas, prontas pra encaminhar no WhatsApp. Comece linhas com ícones, no padrão do painel: 📋 resumo/título, 🔴 VM ou crítico, 🟡 AM, 🟣 executado AW, 🟢 vistoriado IAC, 🏁 quase pronto, ⚠️ atenção/atrasado, 🧱 fornecedor, 🏢 andar, 🚪 quarto, 📅 datas, ✅ ok. Use **negrito** nos números importantes. Para listas com várias colunas, use tabela markdown curta, com no máximo 3 ou 4 colunas e textos curtos nas células (cabe na tela do celular); destaque no fim a principal conclusão com ⚠️ ou ✅.'
   ].join('\n');
 }
 const CHAT_FILTRO = { type:'object', description:'Critérios para escolher os itens (todos opcionais; combine o que o usuário pediu).', properties:{
@@ -5480,7 +5483,8 @@ function chatAdicionarBolha(papel, html, textoPuro){
     bEnviar.addEventListener('click', () => enviarTextoPlano('Assistente', txt));
     d.querySelector('.chat-corpo').appendChild(acoes);
   }
-  lista.appendChild(d); lista.scrollTop = lista.scrollHeight;
+  lista.appendChild(d);
+  const rol = document.getElementById('chat-rolagem'); if (rol) rol.scrollTop = rol.scrollHeight;
   return d;
 }
 function chatHtmlProposta(p){
@@ -5527,8 +5531,8 @@ function iniciarChat(){
   p.innerHTML =
     '<div class="chat-topo"><div class="chat-marca"><span class="chat-avatar">'+ICONE_IA(14)+'</span><div><div style="font-weight:500;">Assistente</div><div style="font-size:11.5px; color:var(--muted);">'+esc(nomeDaObra())+' · confirma antes de gravar</div></div></div>' +
       '<button type="button" id="chat-fechar" aria-label="Fechar" class="chat-icone">'+CHAT_ICONE.x+'</button></div>' +
-    '<div id="chat-mensagens"><div id="chat-boas-vindas"><div class="chat-avatar grande">'+ICONE_IA(24)+'</div><div class="chat-ola">Como posso ajudar na obra?</div>' +
-      '<div class="chat-sugestoes">'+sugestoes.map((s) => '<button type="button" data-sugestao="'+esc(s)+'">'+esc(s)+'</button>').join('')+'</div></div></div>' +
+    '<div id="chat-rolagem"><div id="chat-mensagens"><div id="chat-boas-vindas"><div class="chat-avatar grande">'+ICONE_IA(24)+'</div><div class="chat-ola">Como posso ajudar na obra?</div>' +
+      '<div class="chat-sugestoes">'+sugestoes.map((s) => '<button type="button" data-sugestao="'+esc(s)+'">'+esc(s)+'</button>').join('')+'</div></div></div></div>' +
     '<div class="chat-rodape"><div id="chat-foto-miniaturas" class="chat-minis"></div>' +
       '<div class="chat-caixa">' +
         '<div style="position:relative;"><button type="button" id="chat-mais" class="chat-icone" aria-label="Anexar foto">'+CHAT_ICONE.plus+'</button>' +
@@ -5540,8 +5544,10 @@ function iniciarChat(){
       '</div></div>';
   document.body.appendChild(p);
   const $ = (id) => document.getElementById(id);
-  const abrir = () => { p.classList.remove('oculto'); document.body.classList.add('chat-aberto'); setTimeout(() => $('chat-texto').focus(), 60); };
-  const fechar = () => { p.classList.add('oculto'); document.body.classList.remove('chat-aberto'); };
+  const abrir = () => { p.classList.remove('oculto'); document.body.classList.add('chat-aberto'); document.documentElement.classList.add('chat-aberto'); setTimeout(() => $('chat-texto').focus(), 60); };
+  const fechar = () => { p.classList.add('oculto'); document.body.classList.remove('chat-aberto'); document.documentElement.classList.remove('chat-aberto'); };
+  // iPhone: gesto que começa no cabeçalho ou no rodapé não "vaza" pro painel de trás
+  ['touchmove'].forEach((ev) => p.addEventListener(ev, (e) => { if (!e.target.closest('#chat-rolagem') && !e.target.closest('textarea')) e.preventDefault(); }, { passive:false }));
   b.addEventListener('click', abrir);
   $('chat-fechar').addEventListener('click', fechar);
   const ajustar = () => { const t = $('chat-texto'); t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; chatAtualizarBotoes(); };
