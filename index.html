@@ -1096,7 +1096,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.107';
+const VERSAO_APP = '2026-10-03.108';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5196,7 +5196,13 @@ const FUNCAO_CHAT = 'Chat---Checklist-Sofitel';
 /* ✦ desenhado em SVG (o caractere de texto fica fora do centro, dependendo da fonte) */
 const ICONE_IA = (tam) => '<svg viewBox="0 0 24 24" width="'+tam+'" height="'+tam+'" fill="currentColor" aria-hidden="true" style="display:block"><path d="M12 2.5c.5 4.6 2.4 7.5 7 9.5-4.6 2-6.5 4.9-7 9.5-.5-4.6-2.4-7.5-7-9.5 4.6-2 6.5-4.9 7-9.5z"/></svg>';
 const CHAT_ICONE = {"mic": "<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5 11a7 7 0 0 0 14 0\"/><path d=\"M12 18v3\"/></svg>", "stop": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><rect x=\"5\" y=\"5\" width=\"14\" height=\"14\" rx=\"2.5\"/></svg>", "up": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5\"/><path d=\"M5 12l7-7 7 7\"/></svg>", "plus": "<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg>", "x": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg>"};
-let chatHistorico = [], chatFotosPendentes = [], chatOcupado = false, chatCancelado = false;
+let chatHistorico = [], chatFotosPendentes = [], chatFotosDoTurno = [], chatOcupado = false, chatCancelado = false;
+function chatEhPergunta(m){
+  if (!m || m.role !== 'user') return false;
+  if (typeof m.content === 'string') return true;
+  return Array.isArray(m.content) && m.content.some((c) => c.type === 'text') && !m.content.some((c) => c.type === 'tool_result');
+}
+function blobParaBase64(blob){ return new Promise((r, x) => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.onerror = x; f.readAsDataURL(blob); }); }
 function chatAtualizarBotoes(){
   // respondendo: o botão de enviar vira ■ (parar); senão, mic quando vazio e ↑ quando há texto
   const t = document.getElementById('chat-texto'), env = document.getElementById('chat-enviar'), mic = document.getElementById('chat-mic');
@@ -5245,6 +5251,7 @@ function chatContexto(){
     'OBRA TODA: ' + JSON.stringify(chatNumeros(pend)) + '.',
     'Prioridade: VM = vermelho (crítico), AM = amarelo. Fluxo: em aberto → Executado AW → Vistoriado IAC. Origem: IAC (planilha) ou AW (incluído no app).',
     'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).',
+    'FOTOS: quando o usuário mandar fotos, elas vêm na própria mensagem — olhe e analise o que é visível. Fotos de mensagens anteriores não são reenviadas: se precisar vê-las de novo, peça pra reenviar.',
     'AÇÕES: quando o usuário pedir uma alteração, chame a ferramenta de ação DIRETO, numa chamada só (use "andares" para vários andares). NUNCA peça confirmação em texto ("posso executar?", "pronto?") — o app mostra um cartão de confirmação com o resumo e é ele que confirma. Antes da ação, no máximo uma frase curta dizendo o que vai propor.',
     'REGRAS DE RESPOSTA (obrigatórias): responda EXATAMENTE o que foi perguntado, nem mais nem menos. Se pedirem "cada andar", liste TODOS os andares (inclusive os com 0 em aberto e 100%); nunca omita linhas, nunca filtre, resuma ou escolha por conta própria. Use SÓ os números do contexto e das ferramentas — não calcule, não estime, não arredonde diferente. Coluna "em aberto" = em_aberto; "% executado" = pct_executado. Se um dado não estiver disponível, diga que não tem. Se a pergunta for ambígua, pergunte antes.',
     'FORMATO DAS RESPOSTAS: curtas e bem organizadas, prontas pra encaminhar no WhatsApp. Comece linhas com ícones, no padrão do painel: 📋 resumo/título, 🔴 VM ou crítico, 🟡 AM, 🟣 executado AW, 🟢 vistoriado IAC, 🏁 quase pronto, ⚠️ atenção/atrasado, 🧱 fornecedor, 🏢 andar, 🚪 quarto, 📅 datas, ✅ ok. Use **negrito** nos números importantes. Para listas com várias colunas, use tabela markdown curta, com no máximo 3 ou 4 colunas e textos curtos nas células (cabe na tela do celular); destaque no fim a principal conclusão com ⚠️ ou ✅.'
@@ -5333,7 +5340,7 @@ function chatMontarProposta(nome, inp){
     const locais = quartos.length ? quartos.map(String) : [area.charAt(0) + area.slice(1).toLowerCase() + ' ' + nomeAndar(Number(inp.andar))];
     return { tipo: nome, inp, disc, forn, area, quartos, novos: locais,
       mudancas: [['Incluir', '', locais.length + ' item(ns) novo(s)'], ['Disciplina', '', disc], ['Fornecedor', '', forn || 'padrão da disciplina'], ['Prioridade', '', inp.prioridade]],
-      texto: 'Incluir ' + locais.length + ' item(ns) — ' + locais.join(', ') + ' · ' + disc + ' · ' + (forn || 'fornecedor padrão') + ' · ' + inp.prioridade + ' · "' + inp.descricao + '"' + (chatFotosPendentes.length ? ' · ' + chatFotosPendentes.length + ' foto(s)' : '') };
+      texto: 'Incluir ' + locais.length + ' item(ns) — ' + locais.join(', ') + ' · ' + disc + ' · ' + (forn || 'fornecedor padrão') + ' · ' + inp.prioridade + ' · "' + inp.descricao + '"' + (chatFotosDoTurno.length ? ' · ' + chatFotosDoTurno.length + ' foto(s)' : '') };
   }
   const itens = chatFiltrar(inp.filtro);
   if (!itens.length) return { erro: 'Nenhum item encontrado com esses critérios.' };
@@ -5366,10 +5373,10 @@ async function chatExecutarProposta(p){
   const agora = new Date().toISOString(), por = usuarioAtual;
   if (p.tipo === 'criar_itens'){
     const fotos = [];
-    for (const f of chatFotosPendentes){
+    for (const f of chatFotosDoTurno){
       try{ const blob = await comprimirImagem(f, 900, 0.68, true); const r = assetsCap ? await subirUmaFotoComRetry(blob, 3, await impressaoDigitalFoto(blob)) : null; if (r && r.id) fotos.push(r.id); }catch(e){}
     }
-    chatFotosPendentes = []; renderChatAnexos();
+    chatFotosDoTurno = [];
     const base = Date.now().toString(36).toUpperCase(), alvos = p.quartos.length ? p.quartos : [null];
     let ok = 0;
     for (let i = 0; i < alvos.length; i++){
@@ -5419,7 +5426,7 @@ async function chatChamarIA(){
   // A função do Supabase manda pra IA só as ÚLTIMAS 10 mensagens. O corte precisa começar numa
   // pergunta do usuário (texto) — nunca no meio de um par "pedido de ferramenta" + "resultado",
   // senão a IA recusa ("unexpected tool_use_id"). Então: no máximo 10, começando numa pergunta.
-  const ehPergunta = (m) => m && m.role === 'user' && typeof m.content === 'string';
+  const ehPergunta = chatEhPergunta;
   let msgs = chatHistorico.slice(-10);
   while (msgs.length && !ehPergunta(msgs[0])) msgs = msgs.slice(1);
   if (!msgs.length){
@@ -5443,9 +5450,28 @@ async function chatEnviar(texto){
   texto = String(texto || '').trim();
   if (!texto) return;
   chatOcupado = true; chatCancelado = false; chatAtualizarBotoes();
-  chatAdicionarBolha('user', esc(texto) + (chatFotosPendentes.length ? '<div style="font-size:11px; opacity:.75; margin-top:3px;">'+chatFotosPendentes.length+' foto(s) anexada(s)</div>' : ''));
-  chatHistorico.push({ role:'user', content: texto + (chatFotosPendentes.length ? '\n[o usuário anexou ' + chatFotosPendentes.length + ' foto(s) para o item]' : '') });
+  // as fotos anexadas vão pra IA DE VERDADE (reduzidas a 900 px) e ficam disponíveis pra
+  // incluir item nesta mesma mensagem; a bandeja de anexos esvazia
+  chatFotosDoTurno = chatFotosPendentes.slice(); chatFotosPendentes = []; renderChatAnexos();
+  const miniaturas = chatFotosDoTurno.map((f) => '<img src="'+URL.createObjectURL(f)+'" style="width:56px; height:56px; object-fit:cover; border-radius:8px; margin:4px 4px 0 0;">').join('');
+  chatAdicionarBolha('user', esc(texto) + (miniaturas ? '<div style="margin-top:4px;">'+miniaturas+'</div>' : ''));
+  let conteudo = texto;
+  if (chatFotosDoTurno.length){
+    const imgs = [];
+    for (const f of chatFotosDoTurno.slice(0, 6)){
+      try{ const b = await comprimirImagem(f, 900, 0.7, true); imgs.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data: await blobParaBase64(b) } }); }catch(e){}
+    }
+    conteudo = imgs.concat([{ type:'text', text: texto + '\n[' + chatFotosDoTurno.length + ' foto(s) anexada(s) nesta mensagem; se eu pedir pra incluir item, elas vão junto]' }]);
+  }
+  const msgUsuario = { role:'user', content: conteudo };
+  chatHistorico.push(msgUsuario);
   await chatRodarIA();
+  // depois da resposta, a imagem não é reenviada nas próximas perguntas (custo): fica só a lembrança
+  if (Array.isArray(msgUsuario.content)){
+    const n = msgUsuario.content.filter((c) => c.type === 'image').length;
+    msgUsuario.content = msgUsuario.content.filter((c) => c.type !== 'image').concat([{ type:'text', text:'[' + n + ' foto(s) foram enviadas e analisadas nesta mensagem]' }]);
+  }
+  chatFotosDoTurno = [];
   chatOcupado = false; chatAtualizarBotoes();
   const be = document.getElementById('chat-enviar'); if (be) be.style.opacity = '';
 }
@@ -5456,7 +5482,7 @@ async function chatRodarIA(){
       const resp = await chatChamarIA();
       if (chatCancelado){
         // descarta a pergunta e o que veio depois, pra conversa não ficar quebrada
-        while (chatHistorico.length && !(chatHistorico[chatHistorico.length-1].role === 'user' && typeof chatHistorico[chatHistorico.length-1].content === 'string')) chatHistorico.pop();
+        while (chatHistorico.length && !chatEhPergunta(chatHistorico[chatHistorico.length-1])) chatHistorico.pop();
         if (chatHistorico.length) chatHistorico.pop();
         chatAdicionarBolha('assistant', '<span style="color:var(--muted);">Resposta cancelada.</span>');
         break;
@@ -5565,7 +5591,7 @@ function chatAdicionarBolha(papel, html, textoPuro){
 function chatHtmlProposta(p){
   const linhasMud = (p.mudancas || []).map(([campo, de, para]) => '<div class="chat-mud"><span>'+esc(campo)+'</span>' + (de ? '<span class="de">'+esc(de)+'</span><span class="seta">→</span>' : '') + '<b>'+esc(para)+'</b></div>').join('');
   if (p.tipo === 'criar_itens'){
-    return linhasMud + '<div class="chat-mini">Locais: '+esc(p.novos.join(', '))+'<br>Descrição: “'+esc(p.inp.descricao)+'”' + (chatFotosPendentes.length ? '<br>'+chatFotosPendentes.length+' foto(s) anexada(s)' : '') + '</div>';
+    return linhasMud + '<div class="chat-mini">Locais: '+esc(p.novos.join(', '))+'<br>Descrição: “'+esc(p.inp.descricao)+'”' + (chatFotosDoTurno.length ? '<br>'+chatFotosDoTurno.length+' foto(s) anexada(s)' : '') + '</div>';
   }
   const porAndar = new Map();
   (p.itens || []).forEach((x) => { if (!porAndar.has(x.andar)) porAndar.set(x.andar, []); porAndar.get(x.andar).push(x); });
@@ -5649,11 +5675,16 @@ function iniciarChat(){
     avisoFlutuante(imgs.length + ' foto(s) anexada(s)', 'ok');
     return true;
   };
-  $('chat-texto').addEventListener('paste', (e) => {
-    const dt = e.clipboardData; if (!dt) return;
-    const arquivos = Array.from(dt.files || []).concat(Array.from(dt.items || []).filter((it) => it.kind === 'file').map((it) => it.getAsFile()).filter(Boolean));
-    const unicos = arquivos.filter((f, i) => arquivos.findIndex((g) => g === f || (g.size === f.size && g.type === f.type && g.lastModified === f.lastModified)) === i);
-    if (anexarArquivos(unicos)) e.preventDefault(); // colou imagem: não cola texto junto
+  // o navegador entrega a mesma imagem em "files" E em "items": usa só um dos dois (antes duplicava)
+  const imagensDoColar = (dt) => {
+    if (!dt) return [];
+    const fs = Array.from(dt.files || []);
+    return fs.length ? fs : Array.from(dt.items || []).filter((it) => it.kind === 'file').map((it) => it.getAsFile()).filter(Boolean);
+  };
+  // Ctrl+V com o chat aberto cola a foto em qualquer lugar (não precisa clicar no campo antes)
+  document.addEventListener('paste', (e) => {
+    if (p.classList.contains('oculto')) return;
+    if (anexarArquivos(imagensDoColar(e.clipboardData))){ e.preventDefault(); $('chat-texto').focus(); }
   });
   $('chat-colar-foto').addEventListener('click', async () => {
     $('chat-menu-mais').classList.add('oculto');
