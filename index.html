@@ -1096,7 +1096,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.106';
+const VERSAO_APP = '2026-10-03.107';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5612,7 +5612,8 @@ function iniciarChat(){
       '<div class="chat-caixa">' +
         '<div style="position:relative;"><button type="button" id="chat-mais" class="chat-icone" aria-label="Anexar foto">'+CHAT_ICONE.plus+'</button>' +
           '<div id="chat-menu-mais" class="chat-menu oculto"><label>Tirar foto<input type="file" id="chat-foto-camera" accept="image/*" capture="environment" style="display:none;"></label>' +
-          '<label>Galeria<input type="file" id="chat-foto-galeria" accept="image/*" multiple style="display:none;"></label></div></div>' +
+          '<label>Galeria<input type="file" id="chat-foto-galeria" accept="image/*" multiple style="display:none;"></label>' +
+          '<label id="chat-colar-foto">Colar foto copiada</label></div></div>' +
         '<textarea id="chat-texto" rows="1" placeholder="Pergunte ou peça algo…"></textarea>' +
         '<button type="button" id="chat-mic" class="chat-icone" aria-label="Falar">'+CHAT_ICONE.mic+'</button>' +
         '<button type="button" id="chat-enviar" class="chat-enviar oculto" aria-label="Enviar">'+CHAT_ICONE.up+'</button>' +
@@ -5639,6 +5640,42 @@ function iniciarChat(){
   document.addEventListener('click', (e) => { if (!e.target.closest('#chat-menu-mais') && !e.target.closest('#chat-mais')) $('chat-menu-mais').classList.add('oculto'); });
   ['chat-foto-camera','chat-foto-galeria'].forEach((id) => $(id).addEventListener('change', () => $('chat-menu-mais').classList.add('oculto')));
   renderChatAnexos = ligarEscolherFotos('chat-foto', () => chatFotosPendentes, (l) => { chatFotosPendentes = l; });
+  // COLAR / ARRASTAR FOTO: imagem copiada (WhatsApp, navegador, print…) entra como as do ＋
+  const anexarArquivos = (arquivos) => {
+    const imgs = arquivos.filter((f) => f && /^image\//.test(f.type));
+    if (!imgs.length) return false;
+    chatFotosPendentes = chatFotosPendentes.concat(imgs.map((f, i) => f.name ? f : new File([f], 'colada-' + Date.now() + '-' + i + '.png', { type: f.type || 'image/png' })));
+    renderChatAnexos();
+    avisoFlutuante(imgs.length + ' foto(s) anexada(s)', 'ok');
+    return true;
+  };
+  $('chat-texto').addEventListener('paste', (e) => {
+    const dt = e.clipboardData; if (!dt) return;
+    const arquivos = Array.from(dt.files || []).concat(Array.from(dt.items || []).filter((it) => it.kind === 'file').map((it) => it.getAsFile()).filter(Boolean));
+    const unicos = arquivos.filter((f, i) => arquivos.findIndex((g) => g === f || (g.size === f.size && g.type === f.type && g.lastModified === f.lastModified)) === i);
+    if (anexarArquivos(unicos)) e.preventDefault(); // colou imagem: não cola texto junto
+  });
+  $('chat-colar-foto').addEventListener('click', async () => {
+    $('chat-menu-mais').classList.add('oculto');
+    try{
+      if (!navigator.clipboard || !navigator.clipboard.read) throw new Error('sem suporte');
+      const itens = await navigator.clipboard.read();
+      const arquivos = [];
+      for (const it of itens){
+        const tipo = it.types.find((tp) => /^image\//.test(tp));
+        if (tipo) arquivos.push(new File([await it.getType(tipo)], 'colada-' + Date.now() + '.' + tipo.split('/')[1], { type: tipo }));
+      }
+      if (!anexarArquivos(arquivos)) avisoFlutuante('Não há foto copiada. Copie a foto no WhatsApp (ou onde estiver) e tente de novo.', 'erro');
+    }catch(e){
+      avisoFlutuante('Este navegador não deixou ler a foto copiada. Toque no campo de mensagem e use "Colar", ou use Galeria.', 'erro');
+    }
+  });
+  ['dragover','drop'].forEach((ev) => p.addEventListener(ev, (e) => {
+    const temArquivo = e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    if (!temArquivo) return;
+    e.preventDefault();
+    if (ev === 'drop') anexarArquivos(Array.from(e.dataTransfer.files || []));
+  }));
   // MICROFONE (ditado, como no app do Claude): o texto aparece enquanto fala; continua ouvindo nas
   // pausas (se o navegador encerrar sozinho, retoma); só para no ■. O texto fica no campo pra
   // corrigir e enviar. O estado é refeito a cada uso — nunca fica "preso" achando que ainda ouve.
