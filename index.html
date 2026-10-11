@@ -292,7 +292,15 @@ body.chat-aberto{ overflow:hidden; }
 .chat-acoes button{ all:unset; cursor:pointer; font-size:12px; color:var(--muted); padding:4px 8px; border-radius:8px; }
 .chat-acoes button:hover{ background:var(--paper-2); color:var(--text); }
 .chat-proposta{ border:1px solid var(--accent); background:var(--accent-soft); border-radius:14px; padding:12px 14px; }
-.chat-proposta-tit{ font-weight:500; margin-bottom:4px; }
+.chat-proposta-tit{ font-weight:500; margin-bottom:8px; }
+.chat-mud{ display:flex; flex-wrap:wrap; gap:6px; align-items:baseline; font-size:13.5px; padding:2px 0; }
+.chat-mud span:first-child{ color:var(--muted); min-width:84px; }
+.chat-mud .de{ color:var(--text-2); text-decoration:line-through; text-decoration-color:var(--faint); }
+.chat-mud .seta{ color:var(--muted); }
+.chat-mini{ font-size:12.5px; color:var(--text-2); margin-top:6px; line-height:1.5; }
+.chat-lista-itens{ margin-top:8px; font-size:12px; color:var(--text-2); }
+.chat-lista-itens summary{ cursor:pointer; color:var(--accent); font-size:12.5px; }
+.chat-lista-itens > div{ max-height:180px; overflow-y:auto; margin-top:6px; line-height:1.6; }
 .chat-pensando{ display:inline-flex; gap:4px; padding:8px 0; }
 .chat-pensando i{ width:7px; height:7px; border-radius:50%; background:var(--muted); opacity:.4; animation:ponto 1s infinite; }
 .chat-pensando i:nth-child(2){ animation-delay:.15s; } .chat-pensando i:nth-child(3){ animation-delay:.3s; }
@@ -1081,7 +1089,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.101';
+const VERSAO_APP = '2026-10-03.104';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5119,7 +5127,9 @@ function chatAtualizarBotoes(){
   env.innerHTML = chatOcupado ? CHAT_ICONE.stop : CHAT_ICONE.up;
   env.setAttribute('aria-label', chatOcupado ? 'Parar a resposta' : 'Enviar');
   env.classList.toggle('oculto', !(chatOcupado || tem));
-  mic.classList.toggle('oculto', chatOcupado || (tem && !mic.classList.contains('ouvindo')));
+  const ouvindo = mic.classList.contains('ouvindo');
+  mic.classList.toggle('oculto', chatOcupado || (tem && !ouvindo));
+  if (ouvindo) env.classList.add('oculto'); // durante o ditado: só o ■; ao parar, aparece o enviar
 }
 
 /* números EXATOS calculados pelo app (a IA não calcula, só copia):
@@ -5157,12 +5167,14 @@ function chatContexto(){
     'OBRA TODA: ' + JSON.stringify(chatNumeros(pend)) + '.',
     'Prioridade: VM = vermelho (crítico), AM = amarelo. Fluxo: em aberto → Executado AW → Vistoriado IAC. Origem: IAC (planilha) ou AW (incluído no app).',
     'Para dados de itens específicos, use buscar_itens. Para qualquer gravação, use as ferramentas de ação (o app pede confirmação).',
+    'AÇÕES: quando o usuário pedir uma alteração, chame a ferramenta de ação DIRETO, numa chamada só (use "andares" para vários andares). NUNCA peça confirmação em texto ("posso executar?", "pronto?") — o app mostra um cartão de confirmação com o resumo e é ele que confirma. Antes da ação, no máximo uma frase curta dizendo o que vai propor.',
     'REGRAS DE RESPOSTA (obrigatórias): responda EXATAMENTE o que foi perguntado, nem mais nem menos. Se pedirem "cada andar", liste TODOS os andares (inclusive os com 0 em aberto e 100%); nunca omita linhas, nunca filtre, resuma ou escolha por conta própria. Use SÓ os números do contexto e das ferramentas — não calcule, não estime, não arredonde diferente. Coluna "em aberto" = em_aberto; "% executado" = pct_executado. Se um dado não estiver disponível, diga que não tem. Se a pergunta for ambígua, pergunte antes.',
     'FORMATO DAS RESPOSTAS: curtas e bem organizadas, prontas pra encaminhar no WhatsApp. Comece linhas com ícones, no padrão do painel: 📋 resumo/título, 🔴 VM ou crítico, 🟡 AM, 🟣 executado AW, 🟢 vistoriado IAC, 🏁 quase pronto, ⚠️ atenção/atrasado, 🧱 fornecedor, 🏢 andar, 🚪 quarto, 📅 datas, ✅ ok. Use **negrito** nos números importantes. Para listas com várias colunas, use tabela markdown curta (até ~12 linhas); destaque no fim a principal conclusão com ⚠️ ou ✅.'
   ].join('\n');
 }
 const CHAT_FILTRO = { type:'object', description:'Critérios para escolher os itens (todos opcionais; combine o que o usuário pediu).', properties:{
   andar:{ type:'number', description:'número do andar (0 térreo, negativo subsolo, 100 cobertura)' },
+  andares:{ type:'array', items:{ type:'number' }, description:'vários andares de uma vez, ex. [13,14,15] — use isto em vez de chamar a ferramenta uma vez por andar' },
   quartos:{ type:'array', items:{ type:'number' }, description:'números dos quartos, ex. [1205,1206]' },
   area:{ type:'string', description:'área que não é quarto, ex. CORREDOR, HALL, ITENS GERAIS' },
   disciplina:{ type:'string' }, fornecedor:{ type:'string' },
@@ -5199,6 +5211,7 @@ function chatFiltrar(f){
   let it = itensRevisaoAtual.filter((x) => x.status === 'VM' || x.status === 'AM');
   if (Array.isArray(f.ids) && f.ids.length){ const s = new Set(f.ids.map(String)); it = it.filter((x) => s.has(String(x.id))); }
   if (f.andar !== undefined && f.andar !== null && f.andar !== '') it = it.filter((x) => Number(x.andar) === Number(f.andar));
+  if (Array.isArray(f.andares) && f.andares.length){ const s = new Set(f.andares.map(Number)); it = it.filter((x) => s.has(Number(x.andar))); }
   if (Array.isArray(f.quartos) && f.quartos.length){ const s = new Set(f.quartos.map(Number)); it = it.filter((x) => x.tipo === 'APTO' && s.has(Number(x.quarto))); }
   if (f.area) it = it.filter((x) => x.tipo !== 'APTO' && chatParecido(x.tipo, f.area));
   if (f.disciplina) it = it.filter((x) => chatParecido(disciplinaEfetiva(x), f.disciplina));
@@ -5240,7 +5253,8 @@ function chatMontarProposta(nome, inp){
     const quartos = Array.isArray(inp.quartos) && inp.quartos.length ? inp.quartos.map(Number) : [];
     if (!quartos.length && !area) return { erro: 'Faltou dizer o quarto ou a área.' };
     const locais = quartos.length ? quartos.map(String) : [area.charAt(0) + area.slice(1).toLowerCase() + ' ' + nomeAndar(Number(inp.andar))];
-    return { tipo: nome, inp, disc, forn, area, quartos,
+    return { tipo: nome, inp, disc, forn, area, quartos, novos: locais,
+      mudancas: [['Incluir', '', locais.length + ' item(ns) novo(s)'], ['Disciplina', '', disc], ['Fornecedor', '', forn || 'padrão da disciplina'], ['Prioridade', '', inp.prioridade]],
       texto: 'Incluir ' + locais.length + ' item(ns) — ' + locais.join(', ') + ' · ' + disc + ' · ' + (forn || 'fornecedor padrão') + ' · ' + inp.prioridade + ' · "' + inp.descricao + '"' + (chatFotosPendentes.length ? ' · ' + chatFotosPendentes.length + ' foto(s)' : '') };
   }
   const itens = chatFiltrar(inp.filtro);
@@ -5253,18 +5267,20 @@ function chatMontarProposta(nome, inp){
     if (forn && !listaFornecedoresConhecidos().includes(forn) && !podeCriarFornecedor()) return { erro: 'O fornecedor "'+forn+'" não existe e só '+criadoresDeFornecedor().join(', ')+' podem criar fornecedor novo. Use um da lista.' };
     const mudancas = [disc && 'disciplina → ' + disc, forn && 'fornecedor → ' + forn, inp.prioridade && 'prioridade → ' + inp.prioridade].filter(Boolean);
     if (!mudancas.length) return { erro: 'Não entendi o que trocar.' };
-    return { tipo: nome, ids: itens.map((x) => x.id), disc, forn, prio: inp.prioridade || '', texto: 'Alterar ' + itens.length + ' item(ns): ' + mudancas.join(' · ') + '. Ex.: ' + amostra };
+    const de = (fn) => Array.from(new Set(itens.map(fn))).slice(0, 3).join(', ');
+    return { tipo: nome, ids: itens.map((x) => x.id), itens, disc, forn, prio: inp.prioridade || '', texto: 'Alterar ' + itens.length + ' item(ns): ' + mudancas.join(' · '),
+      mudancas: [disc && ['Disciplina', de(disciplinaEfetiva), disc], forn && ['Fornecedor', de((x) => fornecedorEfetivo(x) || 'sem fornecedor'), forn], inp.prioridade && ['Prioridade', de((x) => x.status), inp.prioridade]].filter(Boolean) };
   }
   if (nome === 'mudar_fluxo'){
     if (!podeTirarDaObra()) return { erro: 'Mudar o fluxo em lote é só para administradores.' };
     const rot = { aw:'Executado AW', iac:'Vistoriado IAC', aberto:'em aberto (engano, sem reincidência)' }[inp.fluxo];
-    return { tipo: nome, ids: itens.map((x) => x.id), fluxo: inp.fluxo, texto: 'Mudar ' + itens.length + ' item(ns) para ' + rot + '. Ex.: ' + amostra };
+    return { tipo: nome, ids: itens.map((x) => x.id), itens, fluxo: inp.fluxo, texto: 'Mudar ' + itens.length + ' item(ns) para ' + rot, mudancas: [['Fluxo', '', rot]] };
   }
   if (nome === 'definir_previsao'){
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.data))) return { erro: 'Data inválida.' };
     const elegiveis = itens.filter((x) => estaEmAberto(x) && areasLiberadasRevisaoAtual[x.andar + '|' + chaveAreaDoc(x.tipo, x.quarto)]);
     if (!elegiveis.length) return { erro: 'Nenhum item em aberto em ambiente liberado com pendência nesses critérios.' };
-    return { tipo: nome, ids: elegiveis.map((x) => x.id), data: inp.data, texto: 'Pôr previsão ' + inp.data.split('-').reverse().join('/') + ' em ' + elegiveis.length + ' item(ns) em aberto de ambientes liberados com pendência.' };
+    return { tipo: nome, ids: elegiveis.map((x) => x.id), itens: elegiveis, data: inp.data, texto: 'Pôr previsão em ' + elegiveis.length + ' item(ns)', mudancas: [['Previsão', '', inp.data.split('-').reverse().join('/')]] };
   }
   return { erro: 'Ação desconhecida.' };
 }
@@ -5322,9 +5338,17 @@ async function chatExecutarProposta(p){
 }
 /* ---------- conversa com a função do Supabase ---------- */
 async function chatChamarIA(){
-  // mantém só as últimas trocas, começando sempre por uma mensagem de texto do usuário
-  let msgs = chatHistorico.slice(-12);
-  while (msgs.length && !(msgs[0].role === 'user' && typeof msgs[0].content === 'string')) msgs = msgs.slice(1);
+  // A função do Supabase manda pra IA só as ÚLTIMAS 10 mensagens. O corte precisa começar numa
+  // pergunta do usuário (texto) — nunca no meio de um par "pedido de ferramenta" + "resultado",
+  // senão a IA recusa ("unexpected tool_use_id"). Então: no máximo 10, começando numa pergunta.
+  const ehPergunta = (m) => m && m.role === 'user' && typeof m.content === 'string';
+  let msgs = chatHistorico.slice(-10);
+  while (msgs.length && !ehPergunta(msgs[0])) msgs = msgs.slice(1);
+  if (!msgs.length){
+    // a pergunta atual ficou de fora do corte: manda só ela e o que veio depois
+    let i = chatHistorico.length - 1; while (i >= 0 && !ehPergunta(chatHistorico[i])) i--;
+    msgs = i >= 0 ? chatHistorico.slice(i).slice(0, 10) : [];
+  }
   const corpo = { mensagens: msgs, contexto: chatContexto(), ferramentas: CHAT_FERRAMENTAS };
   if (!supa || !supa.functions) throw new Error('sem conexão com a nuvem');
   const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: corpo });
@@ -5350,7 +5374,7 @@ async function chatEnviar(texto){
 async function chatRodarIA(){
   const pensando = chatAdicionarBolha('assistant', '<span class="chat-pensando"><i></i><i></i><i></i></span>');
   try{
-    for (let volta = 0; volta < 5; volta++){
+    for (let volta = 0; volta < 4; volta++){ // pergunta + até 4 idas e voltas = cabe nas 10 mensagens
       const resp = await chatChamarIA();
       if (chatCancelado){
         // descarta a pergunta e o que veio depois, pra conversa não ficar quebrada
@@ -5386,8 +5410,8 @@ async function chatRodarIA(){
       }
       if (propostas.length){
         // pede confirmação de cada ação; o resultado volta pra IA resumir
+        const ok = await chatPedirConfirmacao(propostas.map((x) => x.p));
         for (const { u, p } of propostas){
-          const ok = await chatPedirConfirmacao(p.texto);
           const msg = ok ? await chatExecutarProposta(p) : 'cancelado pelo usuário';
           chatAdicionarBolha('assistant', '<span style="color:'+(ok ? 'var(--vd)' : 'var(--muted)')+';">'+(ok ? '✓ ' : '')+esc(msg)+'</span>');
           resultados.push({ type:'tool_result', tool_use_id: u.id, content: msg });
@@ -5459,10 +5483,29 @@ function chatAdicionarBolha(papel, html, textoPuro){
   lista.appendChild(d); lista.scrollTop = lista.scrollHeight;
   return d;
 }
-function chatPedirConfirmacao(texto){
+function chatHtmlProposta(p){
+  const linhasMud = (p.mudancas || []).map(([campo, de, para]) => '<div class="chat-mud"><span>'+esc(campo)+'</span>' + (de ? '<span class="de">'+esc(de)+'</span><span class="seta">→</span>' : '') + '<b>'+esc(para)+'</b></div>').join('');
+  if (p.tipo === 'criar_itens'){
+    return linhasMud + '<div class="chat-mini">Locais: '+esc(p.novos.join(', '))+'<br>Descrição: “'+esc(p.inp.descricao)+'”' + (chatFotosPendentes.length ? '<br>'+chatFotosPendentes.length+' foto(s) anexada(s)' : '') + '</div>';
+  }
+  const porAndar = new Map();
+  (p.itens || []).forEach((x) => { if (!porAndar.has(x.andar)) porAndar.set(x.andar, []); porAndar.get(x.andar).push(x); });
+  const linhas = Array.from(porAndar.entries()).sort((a,b) => b[0]-a[0]).map(([a, l]) => {
+    const ds = new Map(); l.forEach((x) => { const d = disciplinaEfetiva(x); ds.set(d, (ds.get(d)||0) + 1); });
+    return '<tr><td>'+esc(nomeAndar(a))+'</td><td><b>'+l.length+'</b></td><td>'+esc(Array.from(ds.entries()).sort((m,n) => n[1]-m[1]).map(([d, n]) => d + (ds.size > 1 ? ' ('+n+')' : '')).join(' + '))+'</td></tr>';
+  }).join('');
+  const total = (p.itens || []).length;
+  const lista = (p.itens || []).slice(0, 300).map((x) => '<div>'+esc(x.id)+' · '+esc(localLabel(x).replace(/\u00A0/g,' '))+' · '+esc(nomeAndar(x.andar))+' — '+esc(String(x.desc||'').slice(0, 70))+'</div>').join('');
+  return linhasMud +
+    '<div class="chat-tabela" style="margin-top:8px;"><table><tr><th>Andar</th><th>Itens</th><th>Disciplina</th></tr>'+linhas+'<tr><td><b>Total</b></td><td><b>'+total+'</b></td><td></td></tr></table></div>' +
+    '<details class="chat-lista-itens"><summary>Ver os '+total+' itens</summary><div>'+lista+(total > 300 ? '<div>+ '+(total-300)+' outros</div>' : '')+'</div></details>';
+}
+function chatPedirConfirmacao(propostas){
   return new Promise((resolve) => {
-    const d = chatAdicionarBolha('assistant', '<div class="chat-proposta"><div class="chat-proposta-tit">✋ Confirmar antes de gravar</div><div>'+esc(texto)+'</div>' +
-      '<div style="display:flex; gap:8px; margin-top:10px;"><button type="button" class="btn fantasma" data-chat-nao>Cancelar</button><button type="button" class="btn primario" data-chat-sim>Confirmar</button></div></div>');
+    const total = propostas.reduce((s, p) => s + (p.itens ? p.itens.length : (p.novos ? p.novos.length : 0)), 0);
+    const corpo = propostas.map((p, i) => (propostas.length > 1 ? '<div class="chat-mini" style="margin-top:'+(i ? 12 : 0)+'px; font-weight:500;">Ação '+(i+1)+'</div>' : '') + chatHtmlProposta(p)).join('');
+    const d = chatAdicionarBolha('assistant', '<div class="chat-proposta"><div class="chat-proposta-tit">Confirmar antes de gravar</div>'+corpo +
+      '<div style="display:flex; gap:8px; margin-top:12px;"><button type="button" class="btn fantasma" data-chat-nao>Cancelar</button><button type="button" class="btn primario" data-chat-sim>Confirmar '+total+' ite'+(total === 1 ? 'm' : 'ns')+'</button></div></div>');
     d.querySelector('[data-chat-sim]').addEventListener('click', () => { d.querySelectorAll('button').forEach((b) => b.disabled = true); resolve(true); });
     d.querySelector('[data-chat-nao]').addEventListener('click', () => { d.querySelectorAll('button').forEach((b) => b.disabled = true); resolve(false); });
   });
@@ -5515,21 +5558,74 @@ function iniciarChat(){
   document.addEventListener('click', (e) => { if (!e.target.closest('#chat-menu-mais') && !e.target.closest('#chat-mais')) $('chat-menu-mais').classList.add('oculto'); });
   ['chat-foto-camera','chat-foto-galeria'].forEach((id) => $(id).addEventListener('change', () => $('chat-menu-mais').classList.add('oculto')));
   renderChatAnexos = ligarEscolherFotos('chat-foto', () => chatFotosPendentes, (l) => { chatFotosPendentes = l; });
-  // microfone (ditado): usa o reconhecimento de voz do navegador, em português
+  // MICROFONE (ditado, como no app do Claude): o texto aparece enquanto fala; continua ouvindo nas
+  // pausas (se o navegador encerrar sozinho, retoma); só para no ■. O texto fica no campo pra
+  // corrigir e enviar. O estado é refeito a cada uso — nunca fica "preso" achando que ainda ouve.
   const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let rec = null, ouvindo = false;
+  const mic = { rec: null, querOuvindo: false, base: '', final: '', reinicios: 0, timerParar: null };
+  const micVisual = (ouvindo) => {
+    $('chat-mic').classList.toggle('ouvindo', ouvindo);
+    $('chat-mic').innerHTML = ouvindo ? CHAT_ICONE.stop : CHAT_ICONE.mic;
+    $('chat-mic').setAttribute('aria-label', ouvindo ? 'Parar de ouvir' : 'Falar');
+    ajustar();
+  };
+  const micEncerrar = () => {
+    mic.querOuvindo = false; clearTimeout(mic.timerParar);
+    const r = mic.rec; mic.rec = null;
+    if (r){ r.onresult = r.onend = r.onerror = null; try{ r.abort(); }catch(e){} }
+    micVisual(false); $('chat-texto').focus();
+  };
+  const micEscrever = (interino) => {
+    const junta = [mic.base, mic.final, interino].filter((s) => s && s.trim()).join(' ').replace(/\s+/g, ' ');
+    $('chat-texto').value = junta; ajustar();
+    const tx = $('chat-texto'); tx.scrollTop = tx.scrollHeight;
+  };
+  const micIniciarSessao = () => {
+    const r = new Reconhecimento();
+    r.lang = 'pt-BR'; r.interimResults = true; r.continuous = true;
+    r.onresult = (ev) => {
+      let interino = '';
+      for (let k = ev.resultIndex; k < ev.results.length; k++){
+        const tr = ev.results[k][0].transcript;
+        if (ev.results[k].isFinal) mic.final = (mic.final + ' ' + tr).trim(); else interino += tr;
+      }
+      micEscrever(interino);
+    };
+    r.onerror = (ev) => {
+      const e = ev && ev.error;
+      if (e === 'not-allowed' || e === 'service-not-allowed'){
+        micEncerrar(); avisoFlutuante('O microfone está bloqueado pra este site. Libere nas configurações do navegador (ícone de cadeado / Ajustes › Safari › Microfone).', 'erro'); return;
+      }
+      if (e === 'audio-capture'){ micEncerrar(); avisoFlutuante('Não encontrei microfone no aparelho', 'erro'); }
+      // 'no-speech', 'network', 'aborted': deixa o onend decidir se retoma
+    };
+    r.onend = () => {
+      if (mic.rec !== r) return;
+      micEscrever('');
+      // encerrou sozinho (pausa / limite do navegador) e a pessoa não tocou no ■ → retoma
+      if (mic.querOuvindo && mic.reinicios < 30){ mic.reinicios++; try{ mic.rec = micIniciarSessao(); return; }catch(e){} }
+      micEncerrar();
+    };
+    r.start();
+    return r;
+  };
   $('chat-mic').addEventListener('click', () => {
     if (!Reconhecimento){ avisoFlutuante('Este navegador não permite ditado aqui — use o microfone do teclado do celular', 'erro'); $('chat-texto').focus(); return; }
-    if (ouvindo && rec){ rec.stop(); return; }
-    rec = new Reconhecimento(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.continuous = false;
-    const base = $('chat-texto').value ? $('chat-texto').value + ' ' : '';
-    rec.onresult = (ev) => { let s = ''; for (let k = 0; k < ev.results.length; k++) s += ev.results[k][0].transcript; $('chat-texto').value = base + s; ajustar(); };
-    const parouDeOuvir = () => { ouvindo = false; $('chat-mic').classList.remove('ouvindo'); $('chat-mic').innerHTML = CHAT_ICONE.mic; $('chat-mic').setAttribute('aria-label', 'Falar'); ajustar(); $('chat-texto').focus(); };
-    rec.onend = parouDeOuvir;
-    rec.onerror = parouDeOuvir;
-    ouvindo = true; $('chat-mic').classList.add('ouvindo'); $('chat-mic').innerHTML = CHAT_ICONE.stop; $('chat-mic').setAttribute('aria-label', 'Parar de ouvir');
-    rec.start();
+    if (mic.querOuvindo){
+      // ■ parar: pede pra encerrar e garante o fim mesmo se o navegador não avisar
+      mic.querOuvindo = false;
+      try{ mic.rec && mic.rec.stop(); }catch(e){}
+      clearTimeout(mic.timerParar); mic.timerParar = setTimeout(micEncerrar, 1200);
+      return;
+    }
+    micEncerrar(); // limpa qualquer sessão antiga presa
+    mic.base = $('chat-texto').value.trim(); mic.final = ''; mic.reinicios = 0; mic.querOuvindo = true;
+    try{ mic.rec = micIniciarSessao(); micVisual(true); }
+    catch(e){ micEncerrar(); avisoFlutuante('Não consegui iniciar o ditado. Tente de novo.', 'erro'); }
   });
+  // enviar ou fechar o chat encerra o ditado
+  $('chat-enviar').addEventListener('click', () => { if (mic.querOuvindo || mic.rec) micEncerrar(); }, true);
+  $('chat-fechar').addEventListener('click', () => { if (mic.querOuvindo || mic.rec) micEncerrar(); });
 }
 
 /* ===================== NOVO ITEM (incluído no app, origem AW) ===================== */
