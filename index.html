@@ -909,18 +909,18 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-usuario">
     <h3 id="titulo-modal-usuario">Quem está usando o painel?</h3>
     <div class="modal-sub">Seu nome fica registrado em cada item que você der baixa (Executado AW, Vistoriado IAC, reincidência), pra saber quem foi o responsável.</div>
-    <div id="bloco-equipe" class="modal-campo oculto">
-      <label>Toque no seu nome</label>
-      <div id="lista-equipe" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
-    </div>
     <div class="modal-campo">
-      <label for="input-nome-usuario" id="rotulo-nome-usuario">Nome e sobrenome</label>
-      <input type="text" id="input-nome-usuario" placeholder="Ex.: João Silva" autocomplete="name" autocapitalize="words">
+      <label for="input-nome-usuario" id="rotulo-nome-usuario">Digite seu nome</label>
+      <input type="text" id="input-nome-usuario" placeholder="Comece a digitar… ex.: Elizeu" autocomplete="off" autocapitalize="words">
+      <div id="bloco-equipe" class="oculto" style="margin-top:8px;"><div id="lista-equipe" style="display:flex; flex-direction:column; gap:6px;"></div></div>
       <div id="erro-nome-usuario" style="font-size:12.5px; color:var(--vm); margin-top:6px; min-height:18px;"></div>
     </div>
-    <div class="modal-acoes">
-      <button class="btn fantasma oculto" id="btn-cancelar-usuario">Cancelar</button>
-      <button class="btn primario" id="btn-salvar-usuario">Continuar</button>
+    <div class="modal-acoes" style="justify-content:space-between; flex-wrap:wrap;">
+      <button class="btn fantasma" id="btn-so-visualizar" title="Ver o painel sem nome e sem PIN — o nome só é pedido se você for gravar algo">Só quero visualizar</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn fantasma oculto" id="btn-cancelar-usuario">Cancelar</button>
+        <button class="btn primario" id="btn-salvar-usuario">Continuar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1111,7 +1111,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.112';
+const VERSAO_APP = '2026-10-03.113';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2554,32 +2554,47 @@ function nomeValido(s){
   const partes = String(s||'').trim().split(/\s+/).filter((p) => p.length >= 2);
   return partes.length >= 2;
 }
+/* SÓ VISUALIZAR: entra sem nome e sem PIN; o nome só é pedido quando for gravar algo
+   (garantirUsuario). O aparelho lembra a escolha (por obra). */
+const CHAVE_VISUALIZADOR = 'obra_so_visualizar' + (OBRA ? '__' + OBRA : '');
+function modoVisualizador(){ try{ return !usuarioAtual && localStorage.getItem(CHAVE_VISUALIZADOR) === '1'; }catch(e){ return false; } }
 function renderUsuarioTopo(){
   try{ atualizarBotaoTirarLote(); renderListaExcluidos(); renderListaPins(); }catch(e){}
   const b = document.getElementById('btn-usuario');
   if (!b) return;
-  b.textContent = usuarioAtual ? usuarioAtual : 'Identificar-se';
+  b.textContent = usuarioAtual ? usuarioAtual : (modoVisualizador() ? 'Visualizando · identificar-se' : 'Identificar-se');
 }
 let resolverPedidoNome = null;
 /* lista da equipe na janela de identificação (um toque, sem risco de digitar errado) */
 let equipeCarregada = false;
 function renderListaEquipe(){
   const bloco = document.getElementById('bloco-equipe'), box = document.getElementById('lista-equipe');
-  if (!bloco || !box) return;
-  if (!equipeCarregada){
-    bloco.classList.remove('oculto');
-    box.innerHTML = '<span style="font-size:13px; color:var(--muted);">Carregando nomes da equipe…</span>';
-    document.getElementById('rotulo-nome-usuario').textContent = 'Não está na lista? Digite nome e sobrenome';
-    return;
-  }
-  // um nome por pessoa (se houver variações parecidas, fica a primeira que apareceu)
+  const inp = document.getElementById('input-nome-usuario');
+  if (!bloco || !box || !inp) return;
+  const q = chaveComparacao(inp.value || '');
+  if (q.length < 2){ bloco.classList.add('oculto'); box.innerHTML = ''; return; }
+  if (!equipeCarregada){ bloco.classList.remove('oculto'); box.innerHTML = '<span style="font-size:13px; color:var(--muted);">Carregando nomes da equipe…</span>'; return; }
   const unicos = [];
   pessoasConhecidas().forEach((n) => { if (!unicos.some((u) => chaveComparacao(u) === chaveComparacao(n))) unicos.push(n); });
-  unicos.sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  bloco.classList.toggle('oculto', unicos.length === 0);
-  document.getElementById('rotulo-nome-usuario').textContent = unicos.length ? 'Não está na lista? Digite nome e sobrenome' : 'Nome e sobrenome';
-  box.innerHTML = unicos.map((n) => '<button type="button" class="btn" data-pessoa="'+esc(n)+'" style="padding:8px 14px;'+(n===usuarioAtual?' border-color:var(--accent); color:var(--accent);':'')+'">'+esc(n)+'</button>').join('');
+  // combina pelo começo de qualquer palavra ("eli", "ribe") e também por nomes parecidos (uma letra trocada)
+  const palavras = q.split(/\s+/).filter(Boolean);
+  const combina = (n) => { const k = chaveComparacao(n), ps = k.split(/\s+/); return palavras.every((w) => ps.some((p) => p.startsWith(w))) || k.indexOf(q) !== -1; };
+  let achados = unicos.filter(combina);
+  if (!achados.length && q.length >= 4) achados = unicos.filter((n) => distanciaEdicao(chaveComparacao(n).slice(0, q.length + 1), q) <= 2);
+  achados = achados.sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 6);
+  bloco.classList.remove('oculto');
+  box.innerHTML = achados.map((n) => '<button type="button" class="btn fantasma" data-pessoa="'+esc(n)+'" style="justify-content:flex-start; padding:9px 12px;">'+esc(n)+'</button>').join('') +
+    (nomeValido(inp.value) && !unicos.some((u) => chaveComparacao(u) === q)
+      ? '<button type="button" class="btn fantasma" id="btn-sou-novo" style="justify-content:flex-start; padding:9px 12px; color:var(--accent);">Sou novo: criar “'+esc(normalizarNome(inp.value))+'”</button>' : '') +
+    (!achados.length && !nomeValido(inp.value) ? '<span style="font-size:12.5px; color:var(--muted);">Nenhum nome encontrado. Se você é novo, digite nome e sobrenome.</span>' : '');
   box.querySelectorAll('[data-pessoa]').forEach((b) => b.addEventListener('click', () => definirUsuario(b.dataset.pessoa)));
+  const novo = document.getElementById('btn-sou-novo'); if (novo) novo.addEventListener('click', confirmarNomeUsuario);
+}
+function distanciaEdicao(a, b){
+  const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i].concat(Array(n).fill(0)));
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[m][n];
 }
 /* ===================== PIN PESSOAL =====================
    Cada pessoa cria o próprio PIN de 4 dígitos no primeiro acesso. Tocar num nome pede o PIN
@@ -2667,7 +2682,7 @@ async function definirUsuario(nome){
     if (!ok) return; // voltou: continua na escolha de nome
   }
   usuarioAtual = nome;
-  try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); }catch(e){}
+  try{ localStorage.setItem(CHAVE_USUARIO, usuarioAtual); localStorage.removeItem(CHAVE_VISUALIZADOR); }catch(e){}
   document.getElementById('modal-usuario').classList.add('oculto');
   renderUsuarioTopo();
   if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
@@ -2741,13 +2756,17 @@ function renderListaPins(){
     else avisoFlutuante('Não consegui apagar (sem conexão?)', 'erro');
   }));
 }
-function pedirNomeUsuario(podeCancelar){
+function pedirNomeUsuario(podeCancelar, paraGravar){
   return new Promise((resolve) => {
     resolverPedidoNome = resolve;
     const ov = document.getElementById('modal-usuario');
     const inp = document.getElementById('input-nome-usuario');
-    renderListaEquipe();
     inp.value = '';
+    renderListaEquipe();
+    // pra gravar algo, "só visualizar" não serve: a janela pede o nome
+    document.getElementById('btn-so-visualizar').classList.toggle('oculto', !!paraGravar);
+    document.getElementById('titulo-modal-usuario').textContent = paraGravar ? 'Pra gravar, diga quem é você' : 'Quem está usando o painel?';
+    setTimeout(() => inp.focus(), 60);
     document.getElementById('erro-nome-usuario').textContent = '';
     document.getElementById('btn-cancelar-usuario').classList.toggle('oculto', !podeCancelar);
     ov.classList.remove('oculto');
@@ -2776,8 +2795,14 @@ function cancelarNomeUsuario(){
 /* garante um nome antes de qualquer baixa (se alguém pulou a janela, ela volta) */
 async function garantirUsuario(){
   if (usuarioAtual) return await exigirPinDoUsuarioAtual();
-  await pedirNomeUsuario(true);
+  await pedirNomeUsuario(true, true);
   return !!usuarioAtual;
+}
+function entrarComoVisualizador(){
+  try{ localStorage.setItem(CHAVE_VISUALIZADOR, '1'); }catch(e){}
+  document.getElementById('modal-usuario').classList.add('oculto');
+  renderUsuarioTopo();
+  if (resolverPedidoNome){ resolverPedidoNome(''); resolverPedidoNome = null; }
 }
 function dataHoraCurta(iso){
   const d = new Date(iso);
@@ -8545,6 +8570,8 @@ async function iniciar(){
   document.getElementById('btn-usuario').addEventListener('click', () => pedirNomeUsuario(true));
   document.getElementById('btn-salvar-usuario').addEventListener('click', confirmarNomeUsuario);
   document.getElementById('btn-semelhante-novo').addEventListener('click', () => fecharSemelhante('__novo__'));
+  document.getElementById('input-nome-usuario').addEventListener('input', renderListaEquipe);
+  document.getElementById('btn-so-visualizar').addEventListener('click', entrarComoVisualizador);
   document.getElementById('btn-pin-ok').addEventListener('click', confirmarPin);
   document.getElementById('btn-pin-voltar').addEventListener('click', () => fecharPin(false));
   ['input-pin-1','input-pin-2'].forEach((id) => document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarPin(); }));
@@ -8564,7 +8591,7 @@ async function iniciar(){
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
   // e quem já tinha nome achava que não estava lá e criava de novo)
-  if (!usuarioAtual) pedirNomeUsuario(false);
+  if (!usuarioAtual){ if (!modoVisualizador()) pedirNomeUsuario(false); else renderUsuarioTopo(); }
   else exigirPinDoUsuarioAtual();
   renderListaPins();
   ultimaSincronizacao = marcaCarga;
