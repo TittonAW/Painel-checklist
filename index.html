@@ -714,6 +714,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="naoBaixadoIac">IAC não deu baixa</option>
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
+        <option value="semPrevisao">Sem previsão (falta data)</option>
+        <option value="programado">Programados (com previsão)</option>
+        <option value="previsaoVencida">Previsão vencida</option>
       </select>
       <select id="filtro-item-origem">
         <option value="">Todas as origens</option>
@@ -1096,7 +1099,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.108';
+const VERSAO_APP = '2026-10-03.109';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4884,6 +4887,9 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac') return iacNaoDeuBaixa(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
+      if (filtroProgressoSelect === 'semPrevisao') return estaEmAberto(it) && !(a && a.dataPrevista);
+      if (filtroProgressoSelect === 'programado') return estaEmAberto(it) && !!(a && a.dataPrevista);
+      if (filtroProgressoSelect === 'previsaoVencida') return estaEmAberto(it) && !!(a && a.dataPrevista && a.dataPrevista < chaveDiaLocal(new Date()));
       return true;
     });
   }
@@ -4968,7 +4974,9 @@ function renderItens(){
     const dataHtml = (localLiberadoPend && estaEmAberto(it)) // executado pela AW: não há mais o que prever do nosso lado
       ? '<label style="display:flex; flex-direction:column; gap:2px; font-size:10.5px; color:var(--muted);">Previsão' +
         '<input type="date" class="input-data-prevista" data-id="'+esc(it.id)+'" value="'+esc(ac.dataPrevista||'')+'" style="font-size:12.5px; padding:4px 6px;"></label>'
-      : '';
+      : ((ac.dataPrevista && estaEmAberto(it))
+          ? '<div style="font-size:11px; color:'+(ac.dataPrevista < chaveDiaLocal(new Date()) ? 'var(--vm)' : 'var(--text-2)')+';">Previsão '+ac.dataPrevista.split('-').reverse().slice(0,2).join('/')+(ac.dataPrevista < chaveDiaLocal(new Date()) ? ' · vencida' : '')+'</div>'
+          : '');
     const fluxoHtml =
       '<div style="display:flex; flex-direction:column; gap:8px;">' +
       '<button class="chip-acao'+(ac.awExecEm?' marcado':'')+'" data-acomp="awExecEm" data-id="'+esc(it.id)+'"'+(ac.awExecEm?' title="Desmarcar devolve o item para aberto e conta uma reincidência (em até 15 min depois de marcar, conta só como correção de engano)"':'')+'>'+(ac.awExecEm?'✓ Executado AW':'Executado AW')+'</button>' +
@@ -5264,7 +5272,7 @@ const CHAT_FILTRO = { type:'object', description:'Critérios para escolher os it
   area:{ type:'string', description:'área que não é quarto, ex. CORREDOR, HALL, ITENS GERAIS' },
   disciplina:{ type:'string' }, fornecedor:{ type:'string' },
   prioridade:{ type:'string', enum:['VM','AM'] },
-  fluxo:{ type:'string', enum:['emAberto','awExec','awSemIac','iacOk','naoBaixadoIac','comReinc'] },
+  fluxo:{ type:'string', enum:['emAberto','awExec','awSemIac','iacOk','naoBaixadoIac','comReinc','semPrevisao','programado','previsaoVencida'] },
   texto:{ type:'string', description:'palavra na descrição ou nº do item' },
   origem:{ type:'string', enum:['IAC','AW'] },
   ids:{ type:'array', items:{ type:'string' }, description:'números exatos dos itens' } } };
@@ -5278,7 +5286,7 @@ const CHAT_FERRAMENTAS = [
       filtro: CHAT_FILTRO, disciplina:{ type:'string' }, fornecedor:{ type:'string' }, prioridade:{ type:'string', enum:['VM','AM'] } }, required:['filtro'] } },
   { name:'mudar_fluxo', description:'Propõe mudar o fluxo dos itens do filtro (só administradores): aw = Executado AW, iac = Vistoriado IAC (inclui AW), aberto = voltar para em aberto (engano, sem reincidência).', input_schema:{ type:'object', properties:{
       filtro: CHAT_FILTRO, fluxo:{ type:'string', enum:['aw','iac','aberto'] } }, required:['filtro','fluxo'] } },
-  { name:'definir_previsao', description:'Propõe pôr data prevista (AAAA-MM-DD) nos itens em aberto de ambientes liberados com pendência.', input_schema:{ type:'object', properties:{
+  { name:'definir_previsao', description:'Propõe pôr data prevista de execução (AAAA-MM-DD) nos itens em aberto do filtro (por andar, quarto, disciplina, fornecedor…). Item já executado não recebe.', input_schema:{ type:'object', properties:{
       filtro: CHAT_FILTRO, data:{ type:'string' } }, required:['filtro','data'] } },
   { name:'mostrar_na_tela', description:'Abre a aba Itens já filtrada (não grava nada).', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO }, required:['filtro'] } },
   { name:'gerar_pdf', description:'Gera o PDF de itens (padrão do app) com os itens do filtro (não grava nada).', input_schema:{ type:'object', properties:{ filtro: CHAT_FILTRO, titulo:{ type:'string' } }, required:['filtro'] } }
@@ -5312,6 +5320,9 @@ function chatFiltrar(f){
       if (f.fluxo === 'iacOk') return !!(a && a.iacOkEm);
       if (f.fluxo === 'naoBaixadoIac') return iacNaoDeuBaixa(x);
       if (f.fluxo === 'comReinc') return !!(a && a.reincidencias);
+      if (f.fluxo === 'semPrevisao') return estaEmAberto(x) && !(a && a.dataPrevista);
+      if (f.fluxo === 'programado') return estaEmAberto(x) && !!(a && a.dataPrevista);
+      if (f.fluxo === 'previsaoVencida') return estaEmAberto(x) && !!(a && a.dataPrevista && a.dataPrevista < chaveDiaLocal(new Date()));
       return true; });
   }
   return it;
@@ -5363,8 +5374,8 @@ function chatMontarProposta(nome, inp){
   }
   if (nome === 'definir_previsao'){
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(inp.data))) return { erro: 'Data inválida.' };
-    const elegiveis = itens.filter((x) => estaEmAberto(x) && areasLiberadasRevisaoAtual[x.andar + '|' + chaveAreaDoc(x.tipo, x.quarto)]);
-    if (!elegiveis.length) return { erro: 'Nenhum item em aberto em ambiente liberado com pendência nesses critérios.' };
+    const elegiveis = itens.filter((x) => estaEmAberto(x));
+    if (!elegiveis.length) return { erro: 'Nenhum item em aberto nesses critérios (item executado não recebe previsão).' };
     return { tipo: nome, ids: elegiveis.map((x) => x.id), itens: elegiveis, data: inp.data, texto: 'Pôr previsão em ' + elegiveis.length + ' item(ns)', mudancas: [['Previsão', '', inp.data.split('-').reverse().join('/')]] };
   }
   return { erro: 'Ação desconhecida.' };
@@ -5916,6 +5927,11 @@ function abrirEdicaoAgrupamento(){
         '<input type="text" id="grupo-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px; display:none;">' +
       '</div>' +
       '<div class="modal-campo">' +
+        '<label for="grupo-prev">Previsão de execução <span style="font-weight:400; color:var(--muted);">(só itens em aberto)</span></label>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;"><select id="grupo-prev-modo" style="width:auto;"><option value="">— manter a de cada item —</option><option value="data">Definir data</option><option value="remover">— remover a previsão —</option></select>' +
+        '<input type="date" id="grupo-prev" style="width:auto; display:none;"></div>' +
+      '</div>' +
+      '<div class="modal-campo">' +
         '<label for="grupo-prio">Prioridade</label>' +
         '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
       '</div>' +
@@ -5934,6 +5950,9 @@ function abrirEdicaoAgrupamento(){
     const inp = document.getElementById('grupo-forn-novo');
     inp.style.display = e.target.value === '__novo__' ? 'block' : 'none';
     if (e.target.value === '__novo__') inp.focus();
+  });
+  document.getElementById('grupo-prev-modo').addEventListener('change', (e) => {
+    const inp = document.getElementById('grupo-prev'); inp.style.display = e.target.value === 'data' ? 'block' : 'none'; if (e.target.value === 'data') inp.focus();
   });
   document.getElementById('grupo-cancelar').addEventListener('click', fecharEdicaoAgrupamento);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharEdicaoAgrupamento(); });
@@ -5956,7 +5975,14 @@ function abrirEdicaoAgrupamento(){
     } else if (selForn !== '__manter__') novoForn = selForn; // '' = padrão da disciplina
     const novaPrio = document.getElementById('grupo-prio').value;
     const novoFluxo = (document.getElementById('grupo-fluxo') || {}).value || '';
-    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo){ fecharEdicaoAgrupamento(); return; }
+    const modoPrev = document.getElementById('grupo-prev-modo').value, dataPrev = document.getElementById('grupo-prev').value;
+    if (modoPrev === 'data' && !dataPrev){ document.getElementById('grupo-prev').focus(); avisoFlutuante('Escolha a data da previsão', 'erro'); return; }
+    const mudaPrev = modoPrev === 'data' || modoPrev === 'remover';
+    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo && !mudaPrev){ fecharEdicaoAgrupamento(); return; }
+    if (mudaPrev){
+      const abertos = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && estaEmAberto(x); }).length;
+      if (!window.confirm((modoPrev === 'data' ? 'Pôr previsão ' + dataPrev.split('-').reverse().join('/') : 'Remover a previsão') + ' em ' + abertos + ' de ' + ids.length + ' item(ns) selecionado(s)?' + (abertos < ids.length ? '\n\nOs outros ' + (ids.length - abertos) + ' já foram executados e ficam como estão.' : ''))) return;
+    }
     if (novoFluxo && !window.confirm('Mudar o fluxo de '+ids.length+' item(ns) para "'+({ aw:'Executado AW', iac:'Vistoriado IAC', aberto:'em aberto' })[novoFluxo]+'"?\n\nFica registrado no histórico de cada item, com o seu nome.')) return;
     const btn = document.getElementById('grupo-salvar');
     btn.disabled = true; btn.textContent = 'Salvando… 0/'+ids.length;
@@ -5968,6 +5994,12 @@ function abrirEdicaoAgrupamento(){
       // fornecedor em "manter": se trocou a disciplina, mantém a exceção do item ou segue o padrão da disciplina nova
       const forn = novoForn !== null ? novoForn : (novaDisc ? (ac.fornecedorOverride || fornecedorPadraoDaDisciplina(novaDisc)) : (it ? fornecedorEfetivo(it) : ''));
       if ((novaDisc || novoForn !== null) && !(await salvarClassificacaoItem(id, disc, forn))) falhas++;
+      if (mudaPrev && it && estaEmAberto(it)){
+        const atualP = acompanhamento[id] || { awExecEm:null, iacOkEm:null };
+        const novoP = Object.assign({}, atualP, { dataPrevista: modoPrev === 'data' ? dataPrev : null });
+        const rP = await salvarAcompanhamentoComRetry(id, novoP);
+        if (rP.ok) acompanhamento[id] = novoP; else falhas++;
+      }
       if (novaPrio || novoFluxo){
         const atual = acompanhamento[id] || { awExecEm:null, iacOkEm:null };
         const novo = Object.assign({}, atual), agora = new Date().toISOString(), por = usuarioAtual;
