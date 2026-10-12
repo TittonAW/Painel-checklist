@@ -321,6 +321,18 @@ html.chat-aberto{ overflow:hidden; }
 .grupo-liberacao{ border-top:1px solid var(--line); padding:12px 0; }
 .grupo-liberacao:first-of-type{ border-top:0; }
 .grupo-liberacao .detalhe{ font-size:12.5px; color:var(--muted); line-height:1.45; }
+.modal-card.modal-largo{ max-width:700px; width:calc(100vw - 24px); max-height:94vh; display:flex; flex-direction:column; padding:18px 22px 0; }
+.modal-largo-corpo{ overflow-y:auto; flex:1; min-height:0; padding-bottom:6px; }
+.modal-largo h3{ margin-bottom:2px; }
+.modal-largo .modal-sub{ margin-bottom:10px; }
+.modal-info-grid.compacto{ padding:10px 14px; gap:6px 14px; margin-bottom:12px; }
+.modal-info-grid.compacto .valor{ font-size:13px; }
+.campos-2col{ display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+.campos-2col .modal-campo{ margin-bottom:10px; }
+.campos-2col .modal-campo select, .campos-2col .modal-campo input{ width:100%; }
+.campos-2col .campo-largo{ grid-column:1 / -1; }
+.modal-rodape-fixo{ position:sticky; bottom:0; background:var(--surface, #fff); border-top:1px solid var(--line); margin:0 -22px; padding:12px 22px; display:flex; justify-content:flex-end; gap:10px; }
+@media (max-width:640px){ .campos-2col{ grid-template-columns:1fr; } }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -1099,7 +1111,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.110';
+const VERSAO_APP = '2026-10-03.112';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5105,10 +5117,11 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
   overlay.className = 'modal-overlay';
   overlay.id = 'modal-editar-item';
   overlay.innerHTML =
-    '<div class="modal-card" role="dialog" aria-modal="true">' +
+    '<div class="modal-card modal-largo" role="dialog" aria-modal="true">' +
+      '<div class="modal-largo-corpo">' +
       '<h3>Editar item '+esc(itemId)+'</h3>' +
       '<div class="modal-sub">'+esc(it.desc||'')+'</div>' +
-      '<div class="modal-info-grid">' +
+      '<div class="modal-info-grid compacto">' +
         '<div><div class="rotulo">Andar</div><div class="valor">'+nomeAndar(it.andar) + '</div></div>' +
         '<div><div class="rotulo">Local</div><div class="valor">'+esc(local)+'</div></div>' +
         '<div><div class="rotulo">Status (da planilha)</div><div class="valor"><span class="badge '+statusClasse+'">'+esc(statusTexto)+'</span></div></div>' +
@@ -5123,8 +5136,9 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
           '</div></div>';
       })() +
 
+      '<div class="campos-2col">' +
       '<div class="modal-campo">' +
-        '<label for="edit-disc">Disciplina <span style="font-weight:400; color:var(--muted);">(vem da planilha, só reclassifica entre as existentes)</span></label>' +
+        '<label for="edit-disc" title="Vem da planilha; aqui só reclassifica entre as existentes">Disciplina</label>' +
         '<select id="edit-disc">'+opcoesDisc+'</select>' +
       '</div>' +
       '<div class="modal-campo">' +
@@ -5132,11 +5146,21 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
         '<select id="edit-forn">'+opcoesForn+'</select>' +
         '<input type="text" id="edit-forn-novo" placeholder="Nome do novo fornecedor" autocomplete="off" style="margin-top:8px;'+(fornEhConhecido||!fornAtual?' display:none;':'')+'" value="'+(fornEhConhecido?'':esc(fornAtual))+'">' +
       '</div>' +
-      '<p style="font-size:11.5px; color:var(--muted); margin:-6px 0 16px;">O status vem direto da planilha da IAC e não é editável aqui — use os botões Executado AW / Vistoriado IAC na tabela pra acompanhar o andamento.</p>' +
+      '<div class="modal-campo">' +
+        '<label for="edit-prev">Previsão de execução'+(estaEmAberto(it) ? '' : ' <span style="font-weight:400; color:var(--muted);">(item já executado)</span>')+'</label>' +
+        '<input type="date" id="edit-prev" value="'+esc(ac.dataPrevista || '')+'"'+(estaEmAberto(it) ? '' : ' disabled')+'>' +
+      '</div>' +
+      '<div class="modal-campo">' +
+        '<label for="edit-prio">Prioridade <span style="font-weight:400; color:var(--muted);">(planilha: '+esc(it.statusOriginal || it.status)+')</span></label>' +
+        '<select id="edit-prio"><option value="">— a da planilha —</option><option value="VM"'+(ac.prioridadeOverride === 'VM' ? ' selected' : '')+'>VM (vermelho)</option><option value="AM"'+(ac.prioridadeOverride === 'AM' ? ' selected' : '')+'>AM (amarelo)</option></select>' +
+      '</div>' +
+      '</div>' + // fim das 2 colunas
+      '<p style="font-size:11.5px; color:var(--muted); margin:2px 0 12px;">O andamento (Executado AW / Vistoriado IAC) é marcado pelos botões na própria linha da tabela.</p>' +
       ((it && it.origem === 'AW' && podeTirarDaObra()) ? '<div class="modal-campo"><button type="button" class="btn fantasma" id="edit-excluir-manual" style="width:100%; justify-content:center; color:var(--vm);">Excluir item (incluído no app por '+esc(it.criadoPor||'—')+')</button></div>' : '') +
       (podeTirarDaObra() ? '<div class="modal-campo"><button type="button" class="btn fantasma ambar" id="edit-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar da obra (é de outra diretoria)</button>' +
         '<div style="font-size:12px; color:var(--muted); margin-top:6px;">O item some de todas as telas e continua escondido nas próximas revisões. Dá pra restaurar na aba Enviar planilhas.</div></div>' : '') +
-      '<div class="modal-acoes">' +
+      '</div>' + // fim do corpo
+      '<div class="modal-acoes modal-rodape-fixo">' +
         '<button class="btn fantasma" id="edit-cancelar">Cancelar</button>' +
         '<button class="btn primario" id="edit-salvar">Salvar</button>' +
       '</div>' +
@@ -5176,7 +5200,20 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       if (novoForn === null) return; // cancelou: continua editando
     }
     await salvarClassificacaoItem(itemId, novaDisc, novoForn);
+    // prioridade e previsão (ficam no acompanhamento do item)
+    const novaPrio = document.getElementById('edit-prio').value, novaPrev = document.getElementById('edit-prev').value;
+    const atualA = acompanhamento[itemId] || { awExecEm:null, iacOkEm:null };
+    const prioMudou = (atualA.prioridadeOverride || '') !== novaPrio;
+    const prevMudou = !document.getElementById('edit-prev').disabled && (atualA.dataPrevista || '') !== novaPrev;
+    if (prioMudou || prevMudou){
+      const novoA = Object.assign({}, atualA);
+      if (prioMudou){ if (novaPrio) novoA.prioridadeOverride = novaPrio; else delete novoA.prioridadeOverride; }
+      if (prevMudou) novoA.dataPrevista = novaPrev || null;
+      const r = await salvarAcompanhamentoComRetry(itemId, novoA);
+      if (r.ok) acompanhamento[itemId] = novoA; else avisoFlutuante('Prioridade/previsão não foram salvas (sem conexão?)', 'erro');
+    }
     fecharModalEdicao();
+    if (prioMudou) await selecionarRevisao(revisaoSelecionada); // a cor muda em todo o painel
     renderItens();
     renderDisciplinas();
   });
@@ -5925,17 +5962,19 @@ function abrirEdicaoAgrupamento(){
   overlay.className = 'modal-overlay';
   overlay.id = 'modal-editar-grupo';
   overlay.innerHTML =
-    '<div class="modal-card" role="dialog" aria-modal="true">' +
+    '<div class="modal-card modal-largo" role="dialog" aria-modal="true">' +
+      '<div class="modal-largo-corpo">' +
       '<h3>Editar agrupamento</h3>' +
       '<div class="modal-sub">'+itens.length+' item(ns) selecionado(s). Campo deixado em "manter" não muda nada nos itens.</div>' +
-      '<div class="modal-info-grid">' +
+      '<div class="modal-info-grid compacto">' +
         '<div><div class="rotulo">Itens</div><div class="valor">'+itens.length+'</div></div>' +
         '<div><div class="rotulo">Andares</div><div class="valor">'+esc(resumo(andares.map((a) => nomeAndar(a) + ''), 6))+'</div></div>' +
         '<div><div class="rotulo">Disciplina(s) hoje</div><div class="valor">'+esc(resumo(discs, 2))+'</div></div>' +
         '<div><div class="rotulo">Fornecedor(es) hoje</div><div class="valor">'+esc(resumo(forns, 2))+'</div></div>' +
       '</div>' +
+      '<div class="campos-2col">' +
       '<div class="modal-campo">' +
-        '<label for="grupo-disc">Disciplina <span style="font-weight:400; color:var(--muted);">(reclassifica entre as existentes)</span></label>' +
+        '<label for="grupo-disc" title="Reclassifica entre as disciplinas existentes">Disciplina</label>' +
         '<select id="grupo-disc"><option value="">— manter a de cada item —</option>' + discsConhecidas.map((d) => '<option value="'+esc(d)+'">'+esc(d)+'</option>').join('') + '</select>' +
       '</div>' +
       '<div class="modal-campo">' +
@@ -5947,19 +5986,21 @@ function abrirEdicaoAgrupamento(){
       '</div>' +
       '<div class="modal-campo">' +
         '<label for="grupo-prev">Previsão de execução <span style="font-weight:400; color:var(--muted);">(só itens em aberto)</span></label>' +
-        '<div style="display:flex; gap:8px; flex-wrap:wrap;"><select id="grupo-prev-modo" style="width:auto;"><option value="">— manter a de cada item —</option><option value="data">Definir data</option><option value="remover">— remover a previsão —</option></select>' +
-        '<input type="date" id="grupo-prev" style="width:auto; display:none;"></div>' +
+        '<select id="grupo-prev-modo"><option value="">— manter a de cada item —</option><option value="data">Definir data</option><option value="remover">— remover a previsão —</option></select>' +
+        '<input type="date" id="grupo-prev" style="margin-top:8px; display:none;">' +
       '</div>' +
       '<div class="modal-campo">' +
         '<label for="grupo-prio">Prioridade</label>' +
         '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
       '</div>' +
       (podeTirarDaObra()
-        ? '<div class="modal-campo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
+        ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
           '<select id="grupo-fluxo"><option value="">— manter o de cada item —</option><option value="aw">Marcar Executado AW</option><option value="iac">Marcar Vistoriado IAC (inclui Executado AW)</option><option value="aberto">Voltar para em aberto (marcado por engano — sem reincidência)</option></select></div>'
         : '') +
-      (podeTirarDaObra() ? '<div class="modal-campo"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
-      '<div class="modal-acoes">' +
+      '</div>' + // fim das 2 colunas
+      (podeTirarDaObra() ? '<div class="modal-campo" style="margin-top:4px;"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
+      '</div>' + // fim do corpo (só ele rola, se precisar)
+      '<div class="modal-acoes modal-rodape-fixo">' +
         '<button class="btn fantasma" id="grupo-cancelar">Cancelar</button>' +
         '<button class="btn primario" id="grupo-salvar">Salvar</button>' +
       '</div>' +
@@ -5971,7 +6012,7 @@ function abrirEdicaoAgrupamento(){
     if (e.target.value === '__novo__') inp.focus();
   });
   document.getElementById('grupo-prev-modo').addEventListener('change', (e) => {
-    const inp = document.getElementById('grupo-prev'); inp.style.display = e.target.value === 'data' ? 'block' : 'none'; if (e.target.value === 'data') inp.focus();
+    const inp = document.getElementById('grupo-prev'); inp.style.display = e.target.value === 'data' ? 'block' : 'none'; if (e.target.value === 'data'){ inp.focus(); try{ inp.showPicker(); }catch(er){} }
   });
   document.getElementById('grupo-cancelar').addEventListener('click', fecharEdicaoAgrupamento);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharEdicaoAgrupamento(); });
