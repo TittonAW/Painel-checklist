@@ -1099,7 +1099,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.109';
+const VERSAO_APP = '2026-10-03.110';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2952,7 +2952,7 @@ function liberacoesParaRevisar(){
     const entrada = areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)];
     if (!entrada) return;
     const conhecidos = new Set(entrada.itens || []);
-    l.itens.filter((it) => !conhecidos.has(it.id) && it.origem !== 'AW').forEach((it) => {
+    l.itens.filter((it) => !conhecidos.has(it.idPlanilha || it.id) && it.origem !== 'AW').forEach((it) => {
       const k = chaveComparacao(disciplinaEfetiva(it) + '|' + String(it.desc || '').slice(0, 160));
       if (!grupos.has(k)) grupos.set(k, { desc: it.desc || '', disciplina: disciplinaEfetiva(it), status: it.status, ids: new Set(), locais: new Map() });
       const g = grupos.get(k); g.ids.add(it.id);
@@ -3244,6 +3244,24 @@ async function carregarItensDaRevisao(numeroStr){
       areasLiberadas[snap.andar + '|' + chave] = snap.areasLiberadas[chave];
     });
   });
+  /* NÚMERO REPETIDO: a IAC às vezes usa o mesmo número pro mesmo problema em vários quartos
+     (ex.: 9.2954 no 1601, 1602, 1603). Como tudo (fornecedor, baixas, previsão) é guardado pelo
+     número, os quartos ficavam "grudados". Quando o número se repete, cada um vira
+     "número · local" (ex.: "9.2954 · 1601") e passa a ter tudo próprio. O que já estava gravado
+     no número compartilhado serve de ponto de partida pra cada um (nada se perde). */
+  const vezes = new Map();
+  itens.forEach((it) => vezes.set(it.id, (vezes.get(it.id) || 0) + 1));
+  itens.forEach((it) => {
+    const base = it.id;
+    const local = it.tipo === 'APTO' ? String(it.quarto) : (it.tipo.charAt(0) + it.tipo.slice(1).toLowerCase() + ' ' + nomeAndar(snapAndarDe(it)));
+    const composto = base + ' · ' + local;
+    const usarComposto = vezes.get(base) > 1 || (!acompanhamento[base] && acompanhamento[composto]);
+    if (!usarComposto) return;
+    it.id = composto; it.idPlanilha = base;
+    if (!acompanhamento[composto] && acompanhamento[base]) acompanhamento[composto] = JSON.parse(JSON.stringify(acompanhamento[base]));
+    const ac = acompanhamento[composto];
+    if (ac && ac.prioridadeOverride) it.status = ac.prioridadeOverride;
+  });
   // itens incluídos no app entram em toda revisão (são da obra, não de uma planilha)
   itensManuais.forEach((m) => {
     if (!m || !m.id || m.excluido) return;
@@ -3252,8 +3270,9 @@ async function carregarItensDaRevisao(numeroStr){
       status: ((acompanhamento[m.id] || {}).prioridadeOverride) || m.status || 'AM', statusOriginal: m.status || 'AM',
       desc: m.desc || '', fotos: m.fotos || [], atualizadoEmAndar: null, criadoPor: m.criadoPor, criadoEm: m.criadoEm });
   });
-  return { itens: itens.filter((it) => !itensExcluidos[it.id]), areasLiberadas };
+  return { itens: itens.filter((it) => !itensExcluidos[it.id] && !(it.idPlanilha && itensExcluidos[it.idPlanilha] && !Object.keys(itensExcluidos).some((k) => k.indexOf(it.idPlanilha + ' · ') === 0))), areasLiberadas };
 }
+function snapAndarDe(it){ return it.andar; }
 
 /* ===================== AGREGAÇÕES ===================== */
 function localLabel(it){
