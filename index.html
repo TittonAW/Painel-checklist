@@ -64,14 +64,14 @@
   --surface:#15181D; --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.4);
   --shadow-lg: 0 20px 55px rgba(0,0,0,.5);
 }
-html{ scroll-padding-top: env(safe-area-inset-top,0px); overflow-x:hidden; width:100%; }
+html{ scroll-padding-top: env(safe-area-inset-top,0px); overflow-x:hidden; overflow-x:clip; width:100%; } /* clip: corta sem virar área de rolagem (senão nada fica preso no topo) */
 *{ box-sizing:border-box; }
 body{
   margin:0; background:var(--paper); color:var(--text);
   font-family:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size:15px; line-height:1.55;
   -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  overflow-x:hidden; overflow-x:clip;
 }
 .mono{ font-family:inherit; font-variant-numeric:tabular-nums; }
 strong, b{ font-weight:500; }
@@ -431,6 +431,12 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .tag-origem.manual{ background:var(--azul-soft); color:var(--azul); }
 
 .linha-toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+/* aba Itens: filtros, barra de seleção e resumo ficam presos no topo enquanto a lista rola */
+.itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
+.itens-fixos.preso{ border-bottom:1px solid var(--line); }
+.itens-fixos .linha-toolbar{ margin-bottom:10px; }
+.itens-fixos #barra-selecao-itens{ margin-bottom:8px !important; padding:10px 16px !important; }
+@media (max-width:640px){ .itens-fixos{ position:static; } } /* no celular os filtros ocupam muita tela: não prende */
 .linha-toolbar input[type=text]{ min-width:210px; }
 
 .fornecedor-input{ width:100%; min-width:140px; }
@@ -703,6 +709,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
   <!-- ITENS (detalhe) -->
   <section class="secao" id="secao-itens">
+    <div class="itens-fixos" id="itens-fixos">
     <div class="linha-toolbar">
       <input type="text" id="busca-item" placeholder="Buscar por nº do item, disciplina ou descrição…" autocomplete="off">
       <select id="filtro-item-andar"><option value="">Todos os andares</option></select>
@@ -746,6 +753,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn fantasma" id="btn-limpar-selecao-itens">Limpar seleção</button>
     </div>
     <div class="resumo-filtro" id="resumo-filtro-itens"></div>
+    </div>
     <div class="card">
       <table>
         <thead><tr>
@@ -1111,7 +1119,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.113';
+const VERSAO_APP = '2026-10-03.114';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4803,6 +4811,10 @@ let voltarNormalVisivel = true;
 function atualizarVoltarFixo(){
   const fixa = document.getElementById('barra-voltar-fixa');
   if (fixa) fixa.hidden = !(pilhaNavegacao.length && !voltarNormalVisivel);
+  const alt = (fixa && !fixa.hidden) ? Math.round(fixa.getBoundingClientRect().height) : 0;
+  document.documentElement.style.setProperty('--topo-fixo', alt + 'px');
+  const caixa = document.getElementById('itens-fixos');
+  if (caixa) caixa.classList.toggle('preso', caixa.getBoundingClientRect().top <= alt + 1 && window.scrollY > 40);
 }
 function iniciarVoltarFixo(){
   const barra = document.getElementById('barra-voltar');
@@ -4813,10 +4825,8 @@ function iniciarVoltarFixo(){
     }).observe(barra);
   }
   window.addEventListener('scroll', () => {
-    if (barra.hidden) return;
-    const r = barra.getBoundingClientRect();
-    voltarNormalVisivel = r.bottom > 0;
-    atualizarVoltarFixo();
+    if (!barra.hidden){ const r = barra.getBoundingClientRect(); voltarNormalVisivel = r.bottom > 0; }
+    atualizarVoltarFixo(); // também atualiza a sombra dos filtros presos da aba Itens
   }, { passive:true });
 }
 function restaurarEstadoTela(est){
