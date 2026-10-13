@@ -435,6 +435,9 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
 .itens-fixos.preso{ border-bottom:1px solid var(--line); }
 .itens-fixos .linha-toolbar{ margin-bottom:10px; }
+#btn-voltar-itens{ color:var(--accent); }
+#btn-voltar-itens[hidden]{ display:none; }
+body.aba-itens #barra-voltar, body.aba-itens #barra-voltar-fixa{ display:none !important; } /* na aba Itens o voltar fica junto dos filtros */
 .itens-fixos #barra-selecao-itens{ margin-bottom:8px !important; padding:10px 16px !important; }
 @media (max-width:640px){ .itens-fixos{ position:static; } } /* no celular os filtros ocupam muita tela: não prende */
 .linha-toolbar input[type=text]{ min-width:210px; }
@@ -711,6 +714,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <section class="secao" id="secao-itens">
     <div class="itens-fixos" id="itens-fixos">
     <div class="linha-toolbar">
+      <button type="button" id="btn-voltar-itens" class="btn fantasma" hidden style="padding:8px 12px; white-space:nowrap;"></button>
       <input type="text" id="busca-item" placeholder="Buscar por nº do item, disciplina ou descrição…" autocomplete="off">
       <select id="filtro-item-andar"><option value="">Todos os andares</option></select>
       <select id="filtro-item-ambiente"><option value="">Todos os ambientes</option></select>
@@ -1119,7 +1123,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.114';
+const VERSAO_APP = '2026-10-03.115';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4800,6 +4804,9 @@ function renderBotaoVoltar(){
   if (!b || !barra) return;
   const topo = pilhaNavegacao[pilhaNavegacao.length-1];
   barra.hidden = !topo;
+  const bi = document.getElementById('btn-voltar-itens');
+  if (bi){ bi.hidden = !topo; if (topo) bi.textContent = '‹ ' + topo.rotulo; }
+  document.body.classList.toggle('aba-itens', abaAtual() === 'itens');
   if (topo){
     b.textContent = '‹ Voltar para ' + topo.rotulo;
     document.getElementById('btn-voltar-fixo').textContent = b.textContent;
@@ -4811,7 +4818,8 @@ let voltarNormalVisivel = true;
 function atualizarVoltarFixo(){
   const fixa = document.getElementById('barra-voltar-fixa');
   if (fixa) fixa.hidden = !(pilhaNavegacao.length && !voltarNormalVisivel);
-  const alt = (fixa && !fixa.hidden) ? Math.round(fixa.getBoundingClientRect().height) : 0;
+  document.body.classList.toggle('aba-itens', abaAtual() === 'itens');
+  const alt = (fixa && !fixa.hidden && abaAtual() !== 'itens') ? Math.round(fixa.getBoundingClientRect().height) : 0;
   document.documentElement.style.setProperty('--topo-fixo', alt + 'px');
   const caixa = document.getElementById('itens-fixos');
   if (caixa) caixa.classList.toggle('preso', caixa.getBoundingClientRect().top <= alt + 1 && window.scrollY > 40);
@@ -7411,6 +7419,7 @@ function irParaAba(nome){
   if (bPdf) bPdf.hidden = nome !== 'visao-geral'; // só aparece na Visão geral
   document.querySelectorAll('main .secao').forEach((s) => s.classList.toggle('ativa', s.id==='secao-'+nome));
   if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
+  document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
 }
 
@@ -8621,6 +8630,7 @@ async function iniciar(){
   const aoVoltar = () => { if (history.state && history.state.nav) history.back(); else voltarNavegacao(); };
   document.getElementById('btn-voltar-nav').addEventListener('click', aoVoltar);
   document.getElementById('btn-voltar-fixo').addEventListener('click', aoVoltar);
+  document.getElementById('btn-voltar-itens').addEventListener('click', aoVoltar);
   iniciarVoltarFixo();
   window.addEventListener('popstate', () => { if (pilhaNavegacao.length) voltarNavegacao(); });
   iniciarSincronizacaoAutomatica();
