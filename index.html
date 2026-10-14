@@ -250,6 +250,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
 .tag-agressor.tag-vistoriado{ background:var(--vist-soft); border-color:var(--vist); color:var(--vist); }
 .tag-agressor.tag-vistoriado b{ color:var(--vist); }
+.tag-rv{ display:inline-block; font-size:9.5px; line-height:1.2; padding:1px 5px; margin-left:5px; border-radius:5px; border:1px solid var(--line); background:var(--paper-2); color:var(--muted); vertical-align:2px; font-weight:400; }
 .badge-nao-aceitou{ display:inline-block; font-size:10.5px; line-height:1.3; padding:2px 8px; border-radius:99px; border:1px solid var(--aviso-cor); background:var(--aviso-cor-soft); color:var(--aviso-cor); white-space:nowrap; align-self:center; }
 .tag-agressor.tag-nao-aceitou b{ color:var(--aviso-cor); }
 .tag-agressor .parado{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--aviso-cor); margin-right:4px; vertical-align:1px; }
@@ -339,6 +340,13 @@ html.chat-aberto{ overflow:hidden; }
 .campos-2col .campo-largo{ grid-column:1 / -1; }
 .modal-rodape-fixo{ position:sticky; bottom:0; background:var(--surface, #fff); border-top:1px solid var(--line); margin:0 -22px; padding:12px 22px; display:flex; justify-content:flex-end; gap:10px; }
 @media (max-width:640px){ .campos-2col{ grid-template-columns:1fr; } }
+#aviso-desfazer{ position:fixed; left:16px; bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:150; display:flex; align-items:center; gap:14px;
+  max-width:min(520px, calc(100vw - 90px)); padding:10px 12px 10px 16px; border-radius:12px; background:#3F444D; color:#fff; font-size:13px; line-height:1.4;
+  box-shadow:0 8px 24px rgba(20,25,35,.25); opacity:0; transform:translateY(12px); pointer-events:none; transition:opacity .2s, transform .2s; }
+#aviso-desfazer.visivel{ opacity:1; transform:none; pointer-events:auto; }
+#aviso-desfazer button{ all:unset; cursor:pointer; font-weight:600; color:#BFD6D0; white-space:nowrap; padding:4px 6px; border-radius:6px; }
+#aviso-desfazer button:hover{ background:rgba(255,255,255,.08); }
+.rank-linha:hover .rank-fundo{ fill:var(--paper-2) !important; }
 .resumo-diretoria{ grid-column: span 2; }
 @media (max-width:760px){ .resumo-diretoria{ grid-column: auto; } }
 .resumo-linha{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--text-2); line-height:1.45; }
@@ -707,7 +715,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-vm">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-vistoria-quartos">Vistoria IAC</th><th class="col-centro" id="th-acao-quartos">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-vm">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -818,7 +826,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
           <div style="font-size:12px; color:var(--muted); margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
             <span><span class="badge-nao-aceitou junto">IAC não aceitou</span> contorno contínuo = validado junto (erro de planilha da IAC)</span>
-            <span><span class="badge-nao-aceitou sozinha">IAC não aceitou</span> tracejado = a IAC vistoriou sozinha (divergência de campo) — só nos andares com a vistoria registrada (aba Quartos &amp; áreas, coluna Vistoria IAC)</span>
+            <span><span class="badge-nao-aceitou sozinha">IAC não aceitou</span> tracejado = a IAC vistoriou sozinha (divergência de campo) — só nos andares com a vistoria registrada (aba Quartos &amp; áreas, coluna Vistoriado pela IAC)</span>
           </div>
           <p style="color:var(--muted); margin:0;">Itens que já tinham baixa nossa (Executado AW ou Validado IAC) e que a IAC manteve na planilha nova. Continuam como executados — não voltam pra em aberto; é só pra cobrar a IAC. Nos marcados como Validado IAC, dá pra fazer a triagem em "Ver na aba Itens": <b style="font-weight:500;">IAC precisa corrigir</b> ou <b style="font-weight:500;">Baixa errada: reabrir</b>.</p>
         </div>
@@ -1135,7 +1143,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.124';
+const VERSAO_APP = '2026-10-03.128';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2067,6 +2075,7 @@ function renderBotaoDesfazerEnvio(){
 }
 
 async function salvarLote(grupos, aoProgredir){
+  idsResolvidosHist = null; // o histórico de "saíram" muda com o envio
   const revisoesTocadas = new Map();
   const avisos = { fotosFalharam: [], fotosSemRecurso: 0, descricaoCortada: [], gravacaoFalhou: [], fotosNaoAssociadas: [], fotosEnviadas: 0, liberacaoRemovidaPorVM: [], revisarLiberacao: [] };
   // acumula, em todo o lote, os itens que existiam antes e sumiram agora nos locais
@@ -2092,9 +2101,26 @@ async function salvarLote(grupos, aoProgredir){
     // existia, ou vem atualizado no lote novo — nunca os dois ao mesmo tempo.
     const existente = await store.getDoc('snapshots', docId);
     if (!desfazer.snapshots.has(docId)) desfazer.snapshots.set(docId, existente ? JSON.parse(JSON.stringify(existente)) : null);
-    const preservados = (existente && Array.isArray(existente.itens))
+    let preservados = (existente && Array.isArray(existente.itens))
       ? existente.itens.filter((it) => !locaisNovos.has(it.t + '|' + (it.q==null ? '' : it.q)))
       : [];
+    // REVISÃO PARCIAL: primeiro envio deste andar nesta revisão e a IAC mandou só alguns ambientes →
+    // os outros vêm da revisão anterior do andar (marcados com a revisão de origem, "rv")
+    if (!existente){
+      const antAndar = revisoesMeta.filter((r) => r.numero < Number(g.revisao) && (r.andares || []).indexOf(g.andar) !== -1).sort((a,b) => b.numero - a.numero)[0];
+      if (antAndar){
+        try{
+          const docAntItens = await store.getDoc('snapshots', 'R' + antAndar.numero + '_' + g.andar);
+          const mantidos = ((docAntItens && docAntItens.itens) || []).filter((it) => !locaisNovos.has(it.t + '|' + (it.q==null ? '' : it.q)))
+            .map((it) => Object.assign({}, it, { rv: it.rv || String(antAndar.numero) }));
+          if (mantidos.length){
+            preservados = mantidos;
+            const locMant = new Set(mantidos.map((it) => it.t + '|' + (it.q==null ? '' : it.q)));
+            avisos.ambientesMantidos = (avisos.ambientesMantidos || []).concat([{ andar: g.andar, n: locMant.size, rv: 'R' + antAndar.numero }]);
+          }
+        }catch(e){}
+      }
+    }
 
     const itensComFoto = await subirFotosDoLote(g.itens, avisos, (feitas, total) => {
       if (aoProgredir) aoProgredir(g.andar, feitas, total);
@@ -2987,7 +3013,7 @@ async function salvarDataPrevista(itemId, dataStr){
    (ver salvarLote) — por decisão sua, pra nunca manter uma liberação velha por engano. */
 async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
   if (!(await garantirUsuario())) return;
-  const docId = 'R' + revisaoStr + '_' + andar;
+  const docId = docIdDoAndar(revisaoStr, andar);
   const doc = await store.getDoc('snapshots', docId);
   if (!doc) return;
   const chave = chaveAreaDoc(tipo, quarto);
@@ -3025,7 +3051,7 @@ async function liberarAndarInteiro(andar){
   if (!alvos.length){ avisoFlutuante('Nenhum ambiente que possa ser liberado agora' + (sit.faltam.length ? ' — os que faltam têm VM em aberto' : ''), 'erro'); return; }
   if (!window.confirm('Liberar com pendência ' + alvos.length + ' ambiente(s) do ' + nomeAndarLongo(andar) + '?\n\n' + alvos.map((f) => f.nome).join(', ') +
     (sit.faltam.length > alvos.length ? '\n\nNão podem ser liberados (VM em aberto): ' + sit.faltam.filter((f) => !f.liberavel).map((f) => f.nome).join(', ') : ''))) return;
-  const docId = 'R' + revisaoSelecionada + '_' + andar;
+  const docId = docIdDoAndar(revisaoSelecionada, andar);
   const doc = await store.getDoc('snapshots', docId);
   if (!doc){ avisoFlutuante('Não achei a revisão deste andar', 'erro'); return; }
   const atual = Object.assign({}, doc.areasLiberadas || {}), agora = new Date().toISOString();
@@ -3042,7 +3068,7 @@ function renderVistoriaAndarQuartos(){
   const th = document.getElementById('th-vistoria-quartos');
   if (!th) return;
   const v = document.getElementById('filtro-andar').value;
-  if (v === ''){ th.innerHTML = 'Vistoria IAC'; return; }
+  if (v === ''){ th.innerHTML = 'Vistoriado pela IAC'; return; }
   const andar = Number(v), vi = vistoriasIac[andar];
   th.innerHTML = '<button type="button" class="chip-acao'+(vi ? ' marcado' : '')+'" id="btn-vistoria-andar" style="'+(vi ? 'border-color:var(--vist); color:var(--vist); background:var(--vist-soft);' : '')+'" title="'+(vi ? 'Registrado por '+esc(vi.por||'—')+' — tocar pra alterar ou remover' : 'Registrar a data em que a IAC vistoriou este andar')+'">'+(vi ? 'Vistoriado · '+vi.em.split('-').reverse().slice(0,2).join('/') : 'Registrar vistoria')+'</button>';
   document.getElementById('btn-vistoria-andar').addEventListener('click', (e) => { e.stopPropagation(); abrirVistoriaIac(andar); });
@@ -3121,7 +3147,7 @@ function renderLiberacoesParaRevisar(){
   }));
 }
 async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter){
-  const docId = 'R' + revisaoStr + '_' + andar;
+  const docId = docIdDoAndar(revisaoStr, andar);
   const doc = await store.getDoc('snapshots', docId);
   if (!doc) return;
   const chave = chaveAreaDoc(tipo, quarto);
@@ -3166,7 +3192,7 @@ function abrirVistoriaIac(andar){
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'modal-vistoria-iac';
   ov.innerHTML = '<div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px;">' +
-    '<h3>Vistoria da IAC · ' + esc(nomeAndarLongo(andar)) + '</h3>' +
+    '<h3>Vistoriado pela IAC · ' + esc(nomeAndarLongo(andar)) + '</h3>' +
     '<div class="modal-sub">Data em que a IAC vistoriou este andar. Itens que a AW executou até essa data e que continuam na planilha que chegou depois aparecem como "IAC não aceitou".</div>' +
     '<div class="modal-campo"><label for="vist-data">Vistoriado pela IAC em</label><input type="date" id="vist-data" value="' + esc(atual ? atual.em : chaveDiaLocal(new Date())) + '"></div>' +
     (atual ? '<div style="font-size:12px; color:var(--muted); margin:-4px 0 10px;">Registrado por ' + esc(atual.por || '—') + '</div>' : '') +
@@ -3389,8 +3415,25 @@ async function carregarItensManuais(){
   try{ itensManuais = await store.listCollection('itens_manuais'); }catch(e){ itensManuais = []; }
 }
 function origemDoItem(it){ return it.origem === 'AW' ? 'AW' : 'IAC'; }
-async function carregarItensDaRevisao(numeroStr){
-  const snaps = await store.queryRevisao('snapshots', numeroStr);
+let fonteDoAndar = {}; // andar → revisão de onde vêm os dados dele na revisão selecionada (completa o que não veio)
+function docIdDoAndar(revisaoStr, andar){
+  const fonte = String(revisaoStr) === String(revisaoSelecionada) && fonteDoAndar[andar] ? fonteDoAndar[andar] : revisaoStr;
+  return 'R' + fonte + '_' + andar;
+}
+async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
+  let snaps = await store.queryRevisao('snapshots', numeroStr);
+  // andares que NÃO vieram nesta revisão: usa a planilha mais recente anterior de cada um
+  const n = Number(numeroStr), fonte = {};
+  snaps.forEach((s) => { fonte[s.andar] = String(numeroStr); });
+  const faltando = new Map();
+  revisoesMeta.filter((r) => r.numero < n).sort((a,b) => b.numero - a.numero).forEach((r) => {
+    (r.andares || []).forEach((a) => { if (!(a in fonte) && !faltando.has(a)) faltando.set(a, r.numero); });
+  });
+  if (faltando.size){
+    const docs = await Promise.all(Array.from(faltando.entries()).map(([a, rn]) => store.getDoc('snapshots', 'R' + rn + '_' + a).then((d) => d ? Object.assign({ _id: 'R' + rn + '_' + a, revisao: String(rn), andar: a }, d) : null).catch(() => null)));
+    docs.filter(Boolean).forEach((d) => { snaps.push(Object.assign({}, d, { _veioDeAnterior: true })); fonte[d.andar] = String(d.revisao); });
+  }
+  if (!naoMarcarFonte) fonteDoAndar = fonte;
   const itens = [];
   const areasLiberadas = {};
   snaps.forEach((snap) => {
@@ -3400,7 +3443,8 @@ async function carregarItensDaRevisao(numeroStr){
         disciplina: apelidoDisciplina(it.d), disciplinaOriginal: it.d,
         status: ((acompanhamento[it.id] || {}).prioridadeOverride) || it.s, statusOriginal: it.s, desc: it.x || '',
         fotos: it.fs || (it.f ? [it.f] : []), // "fs" é o formato novo; "f" é de itens salvos antes (1 foto só)
-        atualizadoEmAndar: snap.atualizadoEm || null // quando ESSE andar (não a revisão toda) foi salvo
+        atualizadoEmAndar: snap.atualizadoEm || null, // quando ESSE andar (não a revisão toda) foi salvo
+        rv: it.rv || (snap._veioDeAnterior ? String(snap.revisao) : null) // revisão de origem, se veio de uma anterior
       });
     });
     Object.keys(snap.areasLiberadas || {}).forEach((chave) => {
@@ -3820,7 +3864,8 @@ function renderTorreAndares(){
     }
     row.classList.toggle('liberado-total', liberadoTotal);
 
-    row.innerHTML = '<span class="num mono">' + nomeAndar(andar) + '</span>' +
+    const rvAndar = fonteDoAndar[andar] && fonteDoAndar[andar] !== String(revisaoSelecionada) ? fonteDoAndar[andar] : null;
+    row.innerHTML = '<span class="num mono">' + nomeAndar(andar) + (rvAndar ? '<span class="tag-rv" title="Este andar não veio na revisão selecionada — os dados são da R'+rvAndar+'">R'+rvAndar+'</span>' : '') + '</span>' +
       (pctAndar === null
         ? '<span class="barra"><span class="' + statusClasse + '"></span></span>'
         // REGRA ÚNICA das barras (torre e rankings): clarinho = total; parte FORTE = o que já foi
@@ -3918,9 +3963,9 @@ async function renderResumoGeral(recarregarHistorico){
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
     '<div class="grupo-label" style="margin-top:22px;">Validação da IAC</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Validado IAC</div>'+sub(iacOk)+'</div>' +
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">com baixa nossa, mantidos pela IAC</div></div>' +
-      '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC tirou da planilha dela (ela não marca resolvido, só exclui a linha), desde a R20">Confirmado pela IAC</div><div class="pct-sub">a IAC tirou da planilha dela</div></div>' +
+
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">'+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'junto').length+' validados junto · '+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'sozinha').length+' IAC sozinha</div></div>' +
+      '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC tirou da planilha dela (ela não marca resolvido, só exclui a linha), desde a R20">Validado pela IAC</div><div class="pct-sub">a IAC tirou da planilha dela</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
@@ -3962,6 +4007,13 @@ function mapaPorId(itens){
 /* Compara duas revisões ANDAR POR ANDAR: andar que não veio numa das revisões não entra na
    conta (antes, um andar ausente na revisão nova fazia todos os itens dele parecerem
    "resolvidos"). Devolve também quais andares ficaram sem dados de cada lado. */
+let ultimaComparacao = null;
+let idsResolvidosHist = null; // números de item que já saíram da planilha em alguma revisão
+async function carregarIdsResolvidosHist(forcar){
+  if (idsResolvidosHist && !forcar) return idsResolvidosHist;
+  try{ idsResolvidosHist = new Set((await store.listCollection('resolvidos_historico')).map((d) => String(d._id))); }catch(e){ idsResolvidosHist = new Set(); }
+  return idsResolvidosHist;
+}
 function compararRevisoes(itensDe, itensPara){
   const andDe = new Set(itensDe.map((i) => i.andar)), andPara = new Set(itensPara.map((i) => i.andar));
   const diff = compararItens(itensDe.filter((i) => andPara.has(i.andar)), itensPara.filter((i) => andDe.has(i.andar)));
@@ -3970,16 +4022,36 @@ function compararRevisoes(itensDe, itensPara){
   diff.desceu = diff.mudaram.filter((m) => m.de === 'VM' && m.para === 'AM').map((m) => m.item);
   diff.semDadosNoPara = Array.from(andDe).filter((a) => !andPara.has(a)).sort((a,b) => a-b);
   diff.andaresNovos = Array.from(andPara).filter((a) => !andDe.has(a)).sort((a,b) => a-b);
+  /* SEPARA O "ENTRARAM" EM TRÊS:
+     - TROCA DE NÚMERO: no mesmo ambiente saiu um item e entrou outro com a MESMA descrição →
+       é o mesmo item com número novo; não conta nem como entrada nem como saída;
+     - VOLTARAM: o número já tinha saído da planilha antes e reapareceu;
+     - NOVOS DE VERDADE: o resto. */
+  const chaveDesc = (it) => it.andar + '|' + localKey(it) + '|' + chaveComparacao(String(it.desc || '')).slice(0, 160);
+  const saiu = new Map();
+  diff.resolvidos.forEach((it) => { if (!String(it.desc || '').trim()) return; const k = chaveDesc(it); if (!saiu.has(k)) saiu.set(k, []); saiu.get(k).push(it); });
+  diff.trocas = []; const resto = [];
+  diff.novos.forEach((it) => {
+    const l = String(it.desc || '').trim() ? saiu.get(chaveDesc(it)) : null;
+    if (l && l.length){ const ant = l.shift(); diff.trocas.push({ novo: it, antigo: ant }); }
+    else resto.push(it);
+  });
+  const antigosUsados = new Set(diff.trocas.map((x) => x.antigo));
+  diff.resolvidos = diff.resolvidos.filter((it) => !antigosUsados.has(it));
+  diff.voltaram = resto.filter((it) => idsResolvidosHist && idsResolvidosHist.has(String(it.idPlanilha || it.id)));
+  const setVolt = new Set(diff.voltaram);
+  diff.novosReais = resto.filter((it) => !setVolt.has(it));
+  diff.novos = resto; // "entraram" = novos de verdade + voltaram (troca de número fica fora da conta)
   return diff;
 }
 /* agrupa novos e resolvidos por andar e por local, com os itens de cada um (pro detalhe) */
 function agruparDiferencas(diff){
   const andares = new Map();
   const add = (it, tipo) => {
-    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, subiu:0, desceu:0, semBaixa:0, locais: new Map() });
+    if (!andares.has(it.andar)) andares.set(it.andar, { andar: it.andar, novos:0, resolvidos:0, subiu:0, desceu:0, semBaixa:0, trocas:0, voltaram:0, locais: new Map() });
     const a = andares.get(it.andar); a[tipo]++;
     const k = localKey(it);
-    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[], subiu:[], desceu:[], semBaixa:[] });
+    if (!a.locais.has(k)) a.locais.set(k, { chave:k, label: localLabel(it), andar: it.andar, novos:[], resolvidos:[], subiu:[], desceu:[], semBaixa:[], trocas:[], voltaram:[] });
     a.locais.get(k)[tipo].push(it);
   };
   diff.novos.forEach((it) => add(it, 'novos'));
@@ -3987,6 +4059,8 @@ function agruparDiferencas(diff){
   (diff.subiu || []).forEach((it) => add(it, 'subiu'));
   (diff.desceu || []).forEach((it) => add(it, 'desceu'));
   (diff.semBaixa || []).forEach((it) => add(it, 'semBaixa'));
+  (diff.trocas || []).forEach((x) => { x.novo._eraId = x.antigo.idPlanilha || x.antigo.id; add(x.novo, 'trocas'); });
+  (diff.voltaram || []).forEach((it) => add(it, 'voltaram'));
   return Array.from(andares.values()).sort((a,b) => b.andar - a.andar);
 }
 function abrirComparacao(de, para, andar){
@@ -4031,7 +4105,7 @@ function renderInsightsResumo(){
     cont.innerHTML = '<div class="vazio">Esta é a primeira revisão registrada — sem comparação anterior ainda.</div>';
     return;
   }
-  carregarItensDaRevisao(String(anteriorMeta.numero)).then((anterior) => {
+  Promise.all([carregarItensDaRevisao(String(anteriorMeta.numero), true), carregarIdsResolvidosHist()]).then(([anterior]) => {
     const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
     const saldo = diff.novos.length - diff.resolvidos.length;
     const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
@@ -4043,6 +4117,12 @@ function renderInsightsResumo(){
         '<span><span class="grande" style="color:var(--vd);">−'+pdfNum(diff.resolvidos.length)+'</span> <span class="rot">saíram / resolvidas</span></span>' +
         '<span><span class="grande" style="color:'+corSaldo+';">'+(saldo>0?'+':'')+pdfNum(saldo)+'</span> <span class="rot">saldo da lista</span></span>' +
       '</div>';
+    if (diff.trocas.length || diff.voltaram.length){
+      html += '<div class="detalhe" style="margin:-4px 0 10px;">Dos que entraram: <b style="font-weight:500; color:var(--text);">'+pdfNum(diff.novosReais.length)+' novos</b>' +
+        (diff.voltaram.length ? ' · <span style="color:var(--aviso-cor);">↺ '+pdfNum(diff.voltaram.length)+' voltaram</span> (já tinham saído)' : '') +
+        (diff.trocas.length ? ' · <span style="color:var(--muted);">↔ '+pdfNum(diff.trocas.length)+' trocas de número</span> (mesmo item, número novo — fora da conta)' : '') +
+        ' · detalhes e PDF na aba Comparação</div>';
+    }
     if (diff.subiu.length || diff.desceu.length){
       html += '<div class="detalhe" style="margin:-4px 0 10px;">Prioridade: ' +
         (diff.subiu.length ? '<span style="color:var(--vm);">↑ '+pdfNum(diff.subiu.length)+' subiram de AM para VM</span>' : '') +
@@ -4063,7 +4143,8 @@ function renderInsightsResumo(){
       const pequeno = W < 520;
       const padL = 46, padR = pequeno ? 52 : 70, alturaLinha = 30, padT = 24;
       const centro = padL + (W - padL - padR) / 2;
-      const meia = (W - padL - padR) / 2 - (pequeno ? 34 : 46); // deixa lugar pros números nas pontas
+      const temNotas = !pequeno && porAndar.some((a) => a.voltaram || a.trocas);
+      const meia = (W - padL - padR) / 2 - (pequeno ? 34 : 46) - (temNotas ? 150 : 0); // lugar pros números (e pra separação ↺/↔) nas pontas
       const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novos, a.resolvidos)));
       const H = padT + porAndar.length * alturaLinha + 8;
       let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="max-width:100%; height:auto; display:block; font-family:\'IBM Plex Sans\',sans-serif;">';
@@ -4082,7 +4163,8 @@ function renderInsightsResumo(){
         if (wRes) svg += '<rect x="'+(centro-wRes).toFixed(1)+'" y="'+(cy-h/2)+'" width="'+wRes.toFixed(1)+'" height="'+h+'" rx="4" style="fill:var(--vd); opacity:.85;"/>';
         if (wNov) svg += '<rect x="'+centro+'" y="'+(cy-h/2)+'" width="'+wNov.toFixed(1)+'" height="'+h+'" rx="4" style="fill:var(--vm); opacity:.85;"/>';
         svg += '<text x="'+(centro-wRes-6).toFixed(1)+'" y="'+(cy+4)+'" font-size="11.5" text-anchor="end" style="fill:var(--vd)">'+(a.resolvidos ? '−'+pdfNum(a.resolvidos) : '0')+'</text>';
-        svg += '<text x="'+(centro+wNov+6).toFixed(1)+'" y="'+(cy+4)+'" font-size="11.5" style="fill:var(--vm)">'+(a.novos ? '+'+pdfNum(a.novos) : '0')+'</text>';
+        svg += '<text x="'+(centro+wNov+6).toFixed(1)+'" y="'+(cy+4)+'" font-size="11.5" style="fill:var(--vm)">'+(a.novos ? '+'+pdfNum(a.novos) : '0') +
+          ((a.voltaram || a.trocas) && !pequeno ? '<tspan style="fill:var(--muted)" font-size="10.5">' + (a.voltaram ? '  ↺'+pdfNum(a.voltaram)+' voltaram' : '') + (a.trocas ? '  ↔'+pdfNum(a.trocas)+' troca de nº' : '') + '</tspan>' : '') + '</text>';
         svg += '<text x="'+(W-4)+'" y="'+(cy+4)+'" font-size="12.5" text-anchor="end" style="fill:'+(s>0?'var(--vm)':(s<0?'var(--vd)':'var(--muted)'))+'">'+(s>0?'+':'')+pdfNum(s)+'</text>';
         svg += '</g>';
       });
@@ -4555,6 +4637,8 @@ function construirRankingProgresso(lista, cor, maxItens){
     const larguraTotal = Math.max(4, (it.total/maxTotal)*larguraMax);
     const larguraFeita = it.total ? larguraTotal * (it.total - it.aberto) / it.total : 0;
     const pctAberto = it.total ? Math.round(it.aberto / it.total * 100) : 0;
+    // a linha inteira é clicável: abre a aba Itens filtrada nesse fornecedor/disciplina
+    svg += '<g class="rank-linha" data-rank-nome="'+esc(it.nome)+'" style="cursor:pointer;"><rect class="rank-fundo" x="0" y="'+(topos[i]-gap/2).toFixed(1)+'" width="'+W+'" height="'+(it.alturaLinha+gap).toFixed(1)+'" rx="8" style="fill:transparent;"/>';
     if (it.linhas.length === 1){
       svg += '<text x="'+(padL-12)+'" y="'+(centroY+5)+'" font-size="13.5" text-anchor="end" style="fill:var(--text)">'+esc(it.linhas[0])+'</text>';
     } else {
@@ -4574,6 +4658,7 @@ function construirRankingProgresso(lista, cor, maxItens){
       '<tspan style="fill:var(--faint)">\u00A0\u00A0·\u00A0\u00A0</tspan>' +
       '<tspan style="fill:var(--aw)">'+pdfNum(it.total - it.aberto)+' exec.</tspan>' +
       '<tspan style="fill:var(--faint)">\u00A0\u00A0·\u00A0\u00A0'+pdfNum(it.total)+' total</tspan></text>';
+    svg += '</g>';
   });
   svg += '</svg>';
   return svg;
@@ -4592,6 +4677,12 @@ function renderRankings(){
   }));
   document.getElementById('ranking-fornecedor').innerHTML = construirRankingProgresso(montar(porForn), 'var(--accent)');
   document.getElementById('ranking-disciplina').innerHTML = construirRankingProgresso(montar(porDisc), 'var(--cinza-grafico)');
+  // tocar num fornecedor ou disciplina → aba Itens já filtrada (só os itens em aberto)
+  document.querySelectorAll('#ranking-fornecedor [data-rank-nome]').forEach((g) => g.addEventListener('click', () => {
+    const n = g.dataset.rankNome;
+    abrirItens({ fornecedor: n === 'Sem fornecedor definido' ? '__sem__' : n, fluxo: 'emAberto' });
+  }));
+  document.querySelectorAll('#ranking-disciplina [data-rank-nome]').forEach((g) => g.addEventListener('click', () => abrirItens({ disciplina: g.dataset.rankNome, fluxo: 'emAberto' })));
 }
 
 /* ===================== RENDER: QUARTOS ===================== */
@@ -4858,7 +4949,8 @@ function renderQuartos(){
     const agr = maioresAgressores(l.itens);
     const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
     const nNaoAceitou = nJunto + nSozinha;
-    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) +
+    const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
+    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <span class="tag-rv" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'">R'+esc(rvLocal)+'</span>' : '') +
         ((agr.length || nNaoAceitou) ? '<div class="agressores">' + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
           (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
@@ -5252,7 +5344,23 @@ function renderItens(){
 
   tbody.querySelectorAll('[data-triar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); triarDivergenciaIac(b.dataset.id, b.dataset.triar); }));
   tbody.querySelectorAll('[data-acomp]').forEach((btn) => {
-    btn.addEventListener('click', () => alternarAcompanhamento(btn.dataset.id, btn.dataset.acomp));
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id, campo = btn.dataset.acomp;
+      const antes = { [id]: acompanhamento[id] ? JSON.parse(JSON.stringify(acompanhamento[id])) : null };
+      const marcadoAntes = !!(antes[id] && antes[id][campo]);
+      await alternarAcompanhamento(id, campo);
+      const depois = acompanhamento[id] || {};
+      if (!!depois[campo] === marcadoAntes) return; // nada mudou (cancelou / sem conexão)
+      // continua visível? então marcar/desmarcar resolve — sem aviso
+      if (document.querySelector('#tbody-itens tr[data-item="' + CSS.escape(id) + '"]')) return;
+      const it = itensRevisaoAtual.find((x) => x.id === id);
+      const nome = (campo === 'awExecEm' ? 'Executado AW' : 'Validado IAC') + (depois[campo] ? '' : ' desmarcado');
+      mostrarDesfazer(nome + ' · ' + (it ? String(localLabel(it)).replace(/\u00A0/g,' ') + ' (' + id + ')' : id) + ' saiu da lista', async () => {
+        await restaurarAcompanhamentos(antes);
+        atualizarTelasAposAcompanhamento();
+        avisoFlutuante('Desfeito', 'ok');
+      }, 7);
+    });
   });
   tbody.querySelectorAll('[data-editar-item]').forEach((btn) => {
     btn.addEventListener('click', () => abrirEdicaoItem(btn.closest('tr'), btn.dataset.editarItem, discsConhecidas));
@@ -6148,6 +6256,32 @@ async function excluirItemManual(id){
   return true;
 }
 
+/* DESFAZER: só quando a ação TIRA algo da frente (item some da lista filtrada) ou muda vários de
+   uma vez (agrupamento). Aviso pequeno no canto, some sozinho, o seguinte substitui o anterior. */
+let timerDesfazer = null;
+function mostrarDesfazer(texto, aoDesfazer, segundos){
+  let el = document.getElementById('aviso-desfazer');
+  if (!el){ el = document.createElement('div'); el.id = 'aviso-desfazer'; document.body.appendChild(el); }
+  el.innerHTML = '<span>' + esc(texto) + '</span><button type="button">Desfazer</button>';
+  el.classList.add('visivel');
+  clearTimeout(timerDesfazer);
+  timerDesfazer = setTimeout(() => el.classList.remove('visivel'), (segundos || 7) * 1000);
+  el.querySelector('button').onclick = async () => {
+    clearTimeout(timerDesfazer); el.classList.remove('visivel');
+    try{ await aoDesfazer(); }catch(e){ avisoFlutuante('Não consegui desfazer (sem conexão?)', 'erro'); }
+  };
+}
+async function restaurarAcompanhamentos(antes){
+  // volta cada item EXATAMENTE ao que era (quem deu baixa, datas, histórico, fornecedor…)
+  let falhas = 0;
+  await comLimiteDeConcorrencia(Object.keys(antes), 4, async (id) => {
+    const anterior = antes[id] ? JSON.parse(JSON.stringify(antes[id])) : { awExecEm:null, awExecPor:null, iacOkEm:null, iacOkPor:null, historico:[] };
+    const r = await salvarAcompanhamentoComRetry(id, anterior);
+    if (r.ok) acompanhamento[id] = anterior; else falhas++;
+  });
+  return falhas;
+}
+
 /* ===================== EDITAR AGRUPAMENTO =====================
    Mesma janela do "Editar" do item, para vários itens de uma vez: disciplina e fornecedor
    (e "tirar da obra", pra quem pode). Campo deixado em "manter" não mexe nos itens. */
@@ -6251,6 +6385,7 @@ function abrirEdicaoAgrupamento(){
     if (novoFluxo && !window.confirm('Mudar o fluxo de '+ids.length+' item(ns) para "'+({ aw:'Executado AW', iac:'Validado IAC', aberto:'em aberto' })[novoFluxo]+'"?\n\nFica registrado no histórico de cada item, com o seu nome.')) return;
     const btn = document.getElementById('grupo-salvar');
     btn.disabled = true; btn.textContent = 'Salvando… 0/'+ids.length;
+    const antesDoLote = {}; ids.forEach((id) => { antesDoLote[id] = acompanhamento[id] ? JSON.parse(JSON.stringify(acompanhamento[id])) : null; });
     let feitos = 0, falhas = 0;
     await comLimiteDeConcorrencia(ids, 4, async (id) => {
       const it = itensRevisaoAtual.find((x) => x.id === id);
@@ -6294,6 +6429,14 @@ function abrirEdicaoAgrupamento(){
     popularFiltroDisciplina('filtro-item-disciplina'); popularFiltroDisciplina('filtro-disciplina');
     popularFiltroFornecedor('filtro-item-fornecedor'); popularFiltroFornecedor('filtro-fornecedor');
     if (novaPrio) await selecionarRevisao(revisaoSelecionada); // a prioridade muda a cor em todo o painel
+    mostrarDesfazer('Editar agrupamento: ' + ids.length + ' item(ns) alterado(s)', async () => {
+      const f = await restaurarAcompanhamentos(antesDoLote);
+      itensSelecionados = new Set(ids); // volta a seleção pra corrigir sem selecionar tudo de novo
+      if (novaPrio) await selecionarRevisao(revisaoSelecionada);
+      atualizarTelasAposAcompanhamento(); renderItens(); atualizarBarraSelecao();
+      popularFiltroFornecedor('filtro-item-fornecedor'); popularFiltroFornecedor('filtro-fornecedor');
+      avisoFlutuante(f ? 'Desfeito em parte — ' + f + ' item(ns) sem conexão' : 'Desfeito — os ' + ids.length + ' itens voltaram e continuam selecionados', f ? 'erro' : 'ok');
+    }, 12);
   });
 }
 
@@ -6403,8 +6546,9 @@ async function executarComparacao(){
   const detalhe = document.getElementById('comp-detalhe');
   if (!de || !para){ document.getElementById('vazio-comparacao').classList.remove('oculto'); return; }
   document.getElementById('vazio-comparacao').classList.add('oculto');
-  const [de_, para_] = await Promise.all([carregarItensDaRevisao(de), carregarItensDaRevisao(para)]);
+  const [de_, para_] = await Promise.all([carregarItensDaRevisao(de, true), carregarItensDaRevisao(para, true), carregarIdsResolvidosHist()]);
   const diff = compararRevisoes(de_.itens, para_.itens);
+  ultimaComparacao = { diff, de, para };
   // vistoriados no app que a planilha nova ainda lista (a IAC não deu baixa) — por andar/ambiente
   diff.semBaixa = para_.itens.filter(iacNaoAceitou);
   const saldo = diff.novos.length - diff.resolvidos.length;
@@ -6417,7 +6561,18 @@ async function executarComparacao(){
     '<div class="stat"><div class="valor saldo '+saldoClasse+'">'+(saldo>0?'+':'')+saldo+'</div><div class="rotulo">Saldo</div></div>' +
     '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas que já chegaram VM</div></div>' +
     '<div class="stat"><div class="valor"><span style="color:var(--vm);">↑'+diff.subiu.length+'</span> <span style="color:var(--aviso-cor);">↓'+diff.desceu.length+'</span></div><div class="rotulo">Mudaram de prioridade (↑ AM→VM · ↓ VM→AM)</div></div>' +
-    '</div>';
+    '<div class="stat"><div class="valor" style="color:var(--aviso-cor);">'+diff.voltaram.length+'</div><div class="rotulo">↺ Voltaram</div><div class="pct-sub">já tinham saído da planilha (incluídos nas novas)</div></div>' +
+    '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">mesmo item, número novo — fora da conta</div></div>' +
+    '</div>' +
+    ((diff.voltaram.length || diff.trocas.length) ? '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><button type="button" class="btn primario" id="btn-pdf-correcoes">PDF: correções para a IAC</button><span class="rodape-nota" style="margin:0; text-align:left;">'+diff.voltaram.length+' que voltaram e '+diff.trocas.length+' trocas de número, com o número antigo de cada um</span></div>' : '');
+  const bCorr = document.getElementById('btn-pdf-correcoes');
+  if (bCorr) bCorr.addEventListener('click', () => {
+    const ordem = (a, b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true });
+    const lista = diff.voltaram.map((it) => Object.assign({}, it, { _notaPdf: ['Voltou', 'já tinha saído da planilha'] }))
+      .concat(diff.trocas.map((x) => Object.assign({}, x.novo, { _notaPdf: ['Troca de número', 'era ' + (x.antigo.idPlanilha || x.antigo.id)] }))).sort(ordem);
+    exportarItensPdf({ itens: lista, titulo: 'Correcoes IAC R' + de + ' para R' + para,
+      filtro: 'Correções para a IAC (R' + de + ' → R' + para + '): ' + diff.voltaram.length + ' itens que voltaram (já tinham saído) · ' + diff.trocas.length + ' trocas de número (mesmo item, número novo)' });
+  });
 
   // TABELA no mesmo formato da aba Quartos & áreas: uma linha por quarto/área;
   // tocar na linha abre, logo abaixo, a tabela dos itens que entraram e saíram
@@ -6428,6 +6583,8 @@ async function executarComparacao(){
   const linhaItem = (it, tipo) => {
     const pill = it.status === 'VM' ? '<span class="badge bloqueado">VM (vermelho)</span>' : '<span class="badge pendente">AM (amarelo)</span>';
     const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>'
+      : tipo === 'voltou' ? '<span class="badge pendente" title="Este número já tinha saído da planilha da IAC numa revisão anterior">↺ Voltou</span>'
+      : tipo === 'troca' ? '<span class="badge" style="background:var(--paper-2); color:var(--text-2);" title="Mesma descrição, no mesmo ambiente, de um item que saiu — a IAC trocou o número">↔ Troca de nº · era '+esc(it._eraId || '—')+'</span>'
       : tipo === 'subiu' ? '<span class="badge bloqueado">Subiu AM → VM</span>'
       : tipo === 'desceu' ? '<span class="badge pendente">Desceu VM → AM</span>'
       : tipo === 'semBaixa' ? '<span class="badge pendente">IAC não aceitou</span>'
@@ -6448,19 +6605,21 @@ async function executarComparacao(){
   } else {
     const porAndar = new Map();
     locais.forEach((l) => { if (!porAndar.has(l.andar)) porAndar.set(l.andar, []); porAndar.get(l.andar).push(l); });
-    const celNovas = (n, vm) => (n ? '+'+pdfNum(n) : '0') + (vm ? '<div style="font-size:11px; color:var(--vm);">('+vm+' VM)</div>' : '');
+    const celNovas = (n, vm, volt, troc) => (n ? '+'+pdfNum(n) : '0') + (vm ? '<div style="font-size:11px; color:var(--vm);">('+vm+' VM)</div>' : '') +
+      (volt ? '<div style="font-size:11px; color:var(--aviso-cor);">↺ '+volt+' voltaram</div>' : '') + (troc ? '<div style="font-size:11px; color:var(--muted);">↔ '+troc+' troca de nº</div>' : '');
     const celPrioridade = (sub, des) => (sub || des)
       ? (sub ? '<span style="color:var(--vm);">↑'+sub+'</span>' : '') + (sub && des ? ' &nbsp;' : '') + (des ? '<span style="color:var(--aviso-cor);">↓'+des+'</span>' : '')
       : '<span style="color:var(--faint);">—</span>';
     const linhaLocal = (l) => {
       const s = l.novos.length - l.resolvidos.length;
       const novasVm = l.novos.filter((it) => it.status === 'VM').length;
-      const itensHtml = l.novos.map((it) => linhaItem(it, 'novo')).join('') + l.subiu.map((it) => linhaItem(it, 'subiu')).join('') +
+      const setVolt = new Set(l.voltaram);
+      const itensHtml = l.novos.map((it) => linhaItem(it, setVolt.has(it) ? 'voltou' : 'novo')).join('') + l.trocas.map((it) => linhaItem(it, 'troca')).join('') + l.subiu.map((it) => linhaItem(it, 'subiu')).join('') +
         l.desceu.map((it) => linhaItem(it, 'desceu')).join('') + l.semBaixa.map((it) => linhaItem(it, 'semBaixa')).join('') +
         l.resolvidos.map((it) => linhaItem(it, 'resolvido')).join('');
       return '<tr class="comp-local-row oculto clicavel" data-andar-pai="'+l.andar+'" data-toggle-local>' +
           '<td class="col-centro" style="color:var(--faint);">↳</td><td style="padding-left:18px;">'+esc(l.label)+'</td>' +
-          '<td class="num-col col-vm">'+celNovas(l.novos.length, novasVm)+'</td>' +
+          '<td class="num-col col-vm">'+celNovas(l.novos.length, novasVm, l.voltaram.length, l.trocas.length)+'</td>' +
           '<td class="num-col col-vd">'+(l.resolvidos.length ? '−'+l.resolvidos.length : '0')+'</td>' +
           '<td class="num-col">'+celPrioridade(l.subiu.length, l.desceu.length)+'</td>' +
           '<td class="num-col" style="color:'+(l.semBaixa.length ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(l.semBaixa.length || '—')+'</td>' +
@@ -6482,7 +6641,7 @@ async function executarComparacao(){
         return '<tr class="clicavel" data-toggle-andar="'+andar+'" id="comp-andar-'+andar+'" style="scroll-margin-top:140px;">' +
             '<td class="mono col-centro" style="color:var(--text);">'+nomeAndar(andar) + '</td>' +
             '<td style="color:var(--muted);">'+ls.length+' ambiente(s)</td>' +
-            '<td class="num-col col-vm">'+celNovas(nov, vm)+'</td>' +
+            '<td class="num-col col-vm">'+celNovas(nov, vm, ls.reduce((a, l) => a + l.voltaram.length, 0), ls.reduce((a, l) => a + l.trocas.length, 0))+'</td>' +
             '<td class="num-col col-vd">'+(res ? '−'+pdfNum(res) : '0')+'</td>' +
             '<td class="num-col">'+celPrioridade(sub, des)+'</td>' +
             '<td class="num-col" style="color:'+(semB ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(semB || '—')+'</td>' +
@@ -7261,6 +7420,9 @@ async function executarSalvamento(grupos, btn, cont){
       '<button type="button" class="btn fantasma ambar" id="btn-definir-fornecedores" style="padding:4px 12px;">Definir fornecedores</button></div>';
   }
   let idRevisaoBtn = 0;
+  if ((avisos.ambientesMantidos || []).length){
+    html += '<div class="dica">Revisão parcial: ' + avisos.ambientesMantidos.map((m) => esc(nomeAndarLongo(m.andar)) + ' — ' + m.n + ' ambiente(s) não vieram e foram mantidos da ' + esc(m.rv)).join(' · ') + '. Eles aparecem com a etiqueta da revisão de origem.</div>';
+  }
   if (avisos.revisarLiberacao.length > 0){
     const nItens = new Set(avisos.revisarLiberacao.flatMap((rv) => rv.novos.map((n) => chaveComparacao(n.desc || n.id)))).size;
     html += '<div class="aviso" style="background:var(--lib-soft); color:var(--text); border-color:var(--lib);">' +
@@ -7606,7 +7768,7 @@ async function selecionarRevisao(numeroStr){
   const sel = document.getElementById('seletor-revisao');
   if (sel.value !== numeroStr) sel.value = numeroStr;
   const meta = revisoesMeta.find((r) => String(r.numero) === numeroStr);
-  andaresNestaRevisao = new Set(meta ? meta.andares : []);
+  andaresNestaRevisao = new Set((meta ? meta.andares : []).concat(Object.keys(fonteDoAndar).map(Number)));
   const carregado = numeroStr ? await carregarItensDaRevisao(numeroStr) : { itens:[], areasLiberadas:{} };
   itensRevisaoAtual = carregado.itens;
   areasLiberadasRevisaoAtual = carregado.areasLiberadas;
@@ -8673,6 +8835,7 @@ async function exportarItensPdf(listaPronta){
       fluxLinhas.push({ t:'IAC · '+(ac.iacOkPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
       fluxLinhas.push({ t:dataHoraCurta(ac.iacOkEm), cor:PDF_COR.muted, s:6.8 });
     }
+    if (it._notaPdf){ fluxLinhas.push({ t:it._notaPdf[0], cor:PDF_COR.am || PDF_COR.ink2, s:7 }); fluxLinhas.push({ t:it._notaPdf[1], cor:PDF_COR.muted, s:6.8 }); }
     const tipoNA = tipoNaoAceitou(it);
     if (tipoNA){
       fluxLinhas.push({ t:'IAC não aceitou', cor:PDF_COR.am || PDF_COR.ink2, s:7 });
