@@ -695,6 +695,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados com pendência, itens em aberto e previsão de conclusão">PDF liberados c/ pendência</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
+    <div class="oculto" id="situacao-andar-quartos" style="font-size:13px; color:var(--text-2); margin:0 0 10px; line-height:1.6;"></div>
     <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card">
@@ -1123,7 +1124,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.115';
+const VERSAO_APP = '2026-10-03.116';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2990,6 +2991,61 @@ async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
   await selecionarRevisao(revisaoSelecionada);
 }
 
+/* SITUAÇÃO DE LIBERAÇÃO DO ANDAR: o andar só fica azul quando TODOS os ambientes (quartos,
+   corredor, hall, itens gerais…) estão liberados ou concluídos. Diz o que falta e por quê. */
+function situacaoLiberacaoAndar(andar){
+  const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM')));
+  const novosAguardando = new Set(liberacoesParaRevisar().flatMap((g) => g.locais.filter((l) => l.andar === andar).map((l) => l.label)));
+  const faltam = [], ok = [];
+  locais.forEach((l) => {
+    const liberado = !!areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)];
+    const s = classificarComLiberacao(l.itens, liberado);
+    const nome = String(l.label).replace(/\u00A0/g, ' ');
+    if (s === 'LIBERADO_PEND' || s === 'CONCLUIDO'){ ok.push(nome); return; }
+    faltam.push({ l, nome, motivo: s === 'BLOQUEADO' ? 'tem VM em aberto' : (novosAguardando.has(l.label) ? 'item novo aguardando decisão' : ''), liberavel: s === 'PENDENTE' });
+  });
+  return { total: locais.length, ok: ok.length, faltam };
+}
+async function liberarAndarInteiro(andar){
+  if (!(await garantirUsuario())) return;
+  const sit = situacaoLiberacaoAndar(andar);
+  const alvos = sit.faltam.filter((f) => f.liberavel);
+  if (!alvos.length){ avisoFlutuante('Nenhum ambiente que possa ser liberado agora' + (sit.faltam.length ? ' — os que faltam têm VM em aberto' : ''), 'erro'); return; }
+  if (!window.confirm('Liberar com pendência ' + alvos.length + ' ambiente(s) do ' + nomeAndarLongo(andar) + '?\n\n' + alvos.map((f) => f.nome).join(', ') +
+    (sit.faltam.length > alvos.length ? '\n\nNão podem ser liberados (VM em aberto): ' + sit.faltam.filter((f) => !f.liberavel).map((f) => f.nome).join(', ') : ''))) return;
+  const docId = 'R' + revisaoSelecionada + '_' + andar;
+  const doc = await store.getDoc('snapshots', docId);
+  if (!doc){ avisoFlutuante('Não achei a revisão deste andar', 'erro'); return; }
+  const atual = Object.assign({}, doc.areasLiberadas || {}), agora = new Date().toISOString();
+  alvos.forEach((f) => {
+    const chave = chaveAreaDoc(f.l.tipo, f.l.quarto);
+    atual[chave] = { em: agora, itens: (doc.itens || []).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id), por: usuarioAtual };
+  });
+  const r = await store.setDoc('snapshots', docId, Object.assign({}, doc, { areasLiberadas: atual }));
+  if (r && r.ok === false){ avisoFlutuante('Não foi salvo (sem conexão?)', 'erro'); return; }
+  avisoFlutuante(alvos.length + ' ambiente(s) liberado(s) no ' + nomeAndarLongo(andar), 'ok');
+  await selecionarRevisao(revisaoSelecionada);
+}
+function renderSituacaoAndarQuartos(){
+  const cont = document.getElementById('situacao-andar-quartos');
+  if (!cont) return;
+  const v = document.getElementById('filtro-andar').value;
+  if (v === ''){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
+  const andar = Number(v), sit = situacaoLiberacaoAndar(andar);
+  if (!sit.total){ cont.classList.add('oculto'); return; }
+  cont.classList.remove('oculto');
+  if (!sit.faltam.length){
+    cont.innerHTML = '<span style="color:var(--lib);">✓ ' + esc(nomeAndarLongo(andar)) + ' liberado por inteiro — todos os ' + sit.total + ' ambientes.</span>';
+    return;
+  }
+  const liberaveis = sit.faltam.filter((f) => f.liberavel).length;
+  cont.innerHTML = '<span><b style="font-weight:500; color:var(--text);">' + esc(nomeAndarLongo(andar)) + ': ' + sit.ok + ' de ' + sit.total + ' ambientes liberados</b> · faltam: ' +
+    sit.faltam.map((f) => esc(f.nome) + (f.motivo ? ' <span style="color:var(--' + (f.liberavel ? 'aviso-cor' : 'vm') + ');">(' + esc(f.motivo) + ')</span>' : '')).join(', ') + '</span>' +
+    (liberaveis ? ' <button type="button" class="chip-acao lib" id="btn-liberar-andar" style="margin-left:6px;">Liberar o andar inteiro (' + liberaveis + ')</button>' : '');
+  const b = document.getElementById('btn-liberar-andar');
+  if (b) b.addEventListener('click', () => { b.disabled = true; liberarAndarInteiro(andar).finally(() => { b.disabled = false; }); });
+}
+
 /* resposta à pergunta "apareceu item amarelo novo num local que já era azul, mantém ou volta?" */
 /* LIBERAÇÕES PARA REVISAR: itens novos que entraram em ambientes já liberados com pendência.
    Calculado a partir da revisão (não se perde ao tocar em "Ciente"). Agrupado pelo ITEM (mesma
@@ -3683,6 +3739,9 @@ function renderTorreAndares(){
         '</span>';
     }
     row.classList.toggle('liberado-total', liberadoTotal);
+    if (temDados && !liberadoTotal){
+      try{ const sit = situacaoLiberacaoAndar(andar); if (sit.faltam.length) row.title = 'Pra ficar azul (liberado por inteiro) faltam ' + sit.faltam.length + ' de ' + sit.total + ' ambientes: ' + sit.faltam.slice(0, 12).map((f) => f.nome + (f.motivo ? ' (' + f.motivo + ')' : '')).join(', ') + (sit.faltam.length > 12 ? '…' : ''); }catch(e){}
+    }
     row.innerHTML = '<span class="num mono">' + nomeAndar(andar) + '</span>' +
       (pctAndar === null
         ? '<span class="barra"><span class="' + statusClasse + '"></span></span>'
@@ -4678,6 +4737,7 @@ function tagsAgressores(lista, max, attrs){
 }
 function renderQuartos(){
   try{ renderLiberacoesParaRevisar(); }catch(e){ console.warn('liberações', e); }
+  try{ renderSituacaoAndarQuartos(); }catch(e){ console.warn('situação do andar', e); }
   const locais = obterLocaisFiltrados();
   const tbody = document.getElementById('tbody-quartos');
   tbody.innerHTML = '';
