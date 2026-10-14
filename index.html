@@ -246,6 +246,10 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .agressores{ display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
 .tag-agressor{ all:unset; cursor:pointer; font-size:11px; line-height:1; padding:4px 7px; border-radius:99px; background:var(--paper-2); border:1px solid var(--line); color:var(--text-2); white-space:nowrap; }
 .tag-agressor b{ font-weight:600; color:var(--text); }
+.tag-agressor.tag-nao-aceitou{ background:var(--aviso-cor-soft); border-color:var(--aviso-cor); color:var(--aviso-cor); }
+.tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
+.badge-nao-aceitou{ display:inline-block; font-size:10.5px; line-height:1.3; padding:2px 8px; border-radius:99px; border:1px solid var(--aviso-cor); background:var(--aviso-cor-soft); color:var(--aviso-cor); white-space:nowrap; align-self:center; }
+.tag-agressor.tag-nao-aceitou b{ color:var(--aviso-cor); }
 .tag-agressor .parado{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--aviso-cor); margin-right:4px; vertical-align:1px; }
 @media (hover:hover){ .tag-agressor:hover{ border-color:var(--accent); color:var(--accent); } }
 .resumo-agressores{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; color:var(--muted); margin:0 0 10px; }
@@ -734,7 +738,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="awSemIac">Aguardando vistoria IAC</option>
         <option value="iacOk">Vistoriado IAC</option>
         <option value="comReinc">Com reincidência</option>
-        <option value="naoBaixadoIac">IAC não deu baixa</option>
+        <option value="naoBaixadoIac">IAC não aceitou</option>
         <option value="liberadoPend">Liberado com pendência</option>
         <option value="liberado">Liberado (sem pendência)</option>
         <option value="semPrevisao">Sem previsão (falta data)</option>
@@ -807,11 +811,16 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card card-pad" style="margin-top:16px;" id="card-divergencia-iac">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
         <div>
-          <h2 style="margin-bottom:2px;">IAC não deu baixa</h2>
-          <p style="color:var(--muted); margin:0;">Itens marcados como "Vistoriado IAC" antes do envio da revisão selecionada, e que a planilha nova ainda lista como pendentes. Em "Ver na aba Itens", faça a triagem de cada um: <b style="font-weight:500;">IAC precisa corrigir</b> (vai no PDF pra ela) ou <b style="font-weight:500;">Baixa errada: reabrir</b> (volta pra em aberto, sem reincidência, pra pôr a data prevista). O PDF leva só o que a IAC precisa corrigir, com quem validou e quando.</p>
+          <h2 style="margin-bottom:2px;">IAC não aceitou</h2>
+          <div id="resumo-divergencia-iac" style="display:flex; gap:18px; flex-wrap:wrap; margin:8px 0 6px;"></div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+            <span><span class="badge-nao-aceitou junto">IAC não aceitou</span> contorno contínuo = vistoriado junto (erro de planilha da IAC)</span>
+            <span><span class="badge-nao-aceitou sozinha">IAC não aceitou</span> tracejado = a IAC vistoriou sozinha (divergência de campo)</span>
+          </div>
+          <p style="color:var(--muted); margin:0;">Itens que já tinham baixa nossa (Executado AW ou Vistoriado IAC) e que a IAC manteve na planilha nova. Continuam como executados — não voltam pra em aberto; é só pra cobrar a IAC. Nos marcados como Vistoriado IAC, dá pra fazer a triagem em "Ver na aba Itens": <b style="font-weight:500;">IAC precisa corrigir</b> ou <b style="font-weight:500;">Baixa errada: reabrir</b>.</p>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn primario no-print" id="btn-pdf-divergencia">Gerar PDF para a IAC</button>
+          <button class="btn primario no-print" id="btn-pdf-manteve">PDF: IAC não aceitou</button>
           <button class="btn fantasma no-print" id="btn-ver-divergencia">Ver na aba Itens</button>
         </div>
       </div>
@@ -1123,7 +1132,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.117';
+const VERSAO_APP = '2026-10-03.121';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3426,6 +3435,23 @@ function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
 /* Vistoriado IAC no app ANTES desta revisão do andar ser salva, e a planilha nova da IAC
    continua listando o item como pendente (AM/VM) — ou seja, a IAC validou em vistoria mas
    não deu baixa no relatório dela. */
+/* a AW deu baixa (Executado AW) ANTES da planilha nova daquele andar entrar no app — ou seja,
+   antes da vistoria da IAC que gerou a revisão — e a IAC manteve o item na lista dela */
+function iacManteveExecutado(it){
+  const ac = acompanhamento[it.id];
+  if (!ac || !ac.awExecEm || ac.iacOkEm || (it.status !== 'AM' && it.status !== 'VM') || !it.atualizadoEmAndar) return false;
+  return new Date(ac.awExecEm) < new Date(it.atualizadoEmAndar);
+}
+/* "IAC NÃO ACEITOU" (nome único em todo o app): já tinha baixa nossa — Executado AW antes desta
+   revisão, ou Vistoriado IAC — e a IAC manteve o item na planilha nova. Não reabre nada. */
+function iacNaoAceitou(it){ return iacNaoDeuBaixa(it) || iacManteveExecutado(it); }
+// 'junto' = vistoriamos junto (Vistoriado IAC), ela aceitou mas não tirou da planilha → erro de planilha
+// 'sozinha' = a IAC vistoriou sozinha e manteve o que a AW executou → divergência de campo
+function tipoNaoAceitou(it){ return iacNaoDeuBaixa(it) ? 'junto' : (iacManteveExecutado(it) ? 'sozinha' : ''); }
+const DICA_NAO_ACEITOU = {
+  junto: 'IAC não aceitou — contorno contínuo: vistoriamos junto, ela aceitou, mas não tirou o item da planilha (erro de planilha da IAC).',
+  sozinha: 'IAC não aceitou — contorno tracejado: a IAC vistoriou sozinha e manteve o que a AW executou (divergência de campo).'
+};
 function iacNaoDeuBaixa(it){
   const ac = acompanhamento[it.id];
   if (!ac || !ac.iacOkEm || (it.status !== 'AM' && it.status !== 'VM')) return false;
@@ -3749,7 +3775,16 @@ function renderTorreAndares(){
 }
 
 let vdHistoricoCache = null;
+function renderResumoDivergenciaIac(){
+  const box = document.getElementById('resumo-divergencia-iac');
+  if (!box) return;
+  const nV = itensRevisaoAtual.filter(iacNaoDeuBaixa).length, nA = itensRevisaoAtual.filter(iacManteveExecutado).length;
+  const bloco = (n, rot, fluxo) => '<button type="button" class="stat clicavel" data-fluxo-div="'+fluxo+'" style="all:unset; cursor:pointer;"><div style="font-size:22px; color:var(--'+(n ? 'am' : 'muted')+');">'+n+'</div><div style="font-size:12px; color:var(--muted);">'+rot+'</div></button>';
+  box.innerHTML = bloco(nA + nV, 'IAC não aceitou · ' + nV + ' vistoriados junto · ' + nA + ' IAC sozinha', 'naoBaixadoIac');
+  box.querySelectorAll('[data-fluxo-div]').forEach((b) => b.addEventListener('click', () => abrirItens({ fluxo: b.dataset.fluxoDiv })));
+}
 async function renderResumoGeral(recarregarHistorico){
+  try{ renderResumoDivergenciaIac(); }catch(e){}
   const grid = document.getElementById('grid-resumo');
   // total histórico de itens resolvidos por desaparecimento (a IAC não marca "feito" na
   // planilha dela, só exclui a linha — a partir da R20 em diante, isso conta como VD de
@@ -3814,7 +3849,7 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label" style="margin-top:22px;">Vistoria da IAC</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat vd clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor">'+iacOk+'</div><div class="rotulo">Vistoriado IAC</div>'+sub(iacOk)+'</div>' +
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoDeuBaixa).length+'</div><div class="rotulo">IAC não deu baixa</div><div class="pct-sub">vistoriado, mas ainda na lista da IAC</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">com baixa nossa, mantidos pela IAC</div></div>' +
       '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC tirou da planilha dela (ela não marca resolvido, só exclui a linha), desde a R20">Confirmado pela IAC</div><div class="pct-sub">a IAC tirou da planilha dela</div></div>' +
     '</div>' +
 
@@ -4751,8 +4786,11 @@ function renderQuartos(){
       acaoHtml = '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+texto+'</button>';
     }
     const agr = maioresAgressores(l.itens);
+    const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
+    const nNaoAceitou = nJunto + nSozinha;
     tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) +
-        (agr.length ? '<div class="agressores">'+tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
+        ((agr.length || nNaoAceitou) ? '<div class="agressores">' + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
+          (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(l.itens)+'</td>' +
@@ -4783,6 +4821,7 @@ function renderQuartos(){
     tr.addEventListener('click', (e) => {
       if (e.target.closest('[data-acao-liberar]')) return; // o botão trata seu próprio clique
       const tag = e.target.closest('[data-agressor]');
+      const tagNA = e.target.closest('[data-nao-aceitou]');
       // segue a "história" do usuário: o que ele filtrou em Quartos continua valendo em Itens
       const tipo = tr.dataset.tipo, quarto = tr.dataset.quarto;
       const chaveLocal = tipo === 'APTO' ? ('APTO-'+quarto) : (tipo+'-'+tr.dataset.andar);
@@ -4793,7 +4832,7 @@ function renderQuartos(){
         disciplina: document.getElementById('filtro-disciplina').value,
         fornecedor: tag ? tag.dataset.agressor : document.getElementById('filtro-fornecedor').value,
         status: document.getElementById('filtro-status').value,
-        fluxo: tag ? 'emAberto' : document.getElementById('filtro-progresso').value
+        fluxo: tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value)
       });
     });
     const btn = tr.querySelector('[data-acao-liberar]');
@@ -5010,7 +5049,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
-      if (filtroProgressoSelect === 'naoBaixadoIac') return iacNaoDeuBaixa(it) || reabertoPorBaixaErrada(it);
+      if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
       if (filtroProgressoSelect === 'semPrevisao') return estaEmAberto(it) && !(a && a.dataPrevista);
       if (filtroProgressoSelect === 'programado') return estaEmAberto(it) && !!(a && a.dataPrevista);
@@ -5110,13 +5149,14 @@ function renderItens(){
       dataHtml +
       (iacNaoDeuBaixa(it)
         ? '<div style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
-            '<div style="font-size:10.5px; color:var(--aviso-cor); line-height:1.3;">IAC não deu baixa — o que é?</div>' +
+            '<span class="badge-nao-aceitou junto" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou</span>' +
             (ac.divergencia === 'iac'
               ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
               : '<button class="chip-acao" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
             '<button class="chip-acao ambar" data-triar="nossa" data-id="'+esc(it.id)+'" style="font-size:11px;">Baixa errada: reabrir</button>' +
           '</div>'
-        : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>' : '')) +
+        : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
+          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' : ''))) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">AW: '+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
@@ -5468,7 +5508,7 @@ function chatFiltrar(f){
       if (f.fluxo === 'awExec') return !!(a && a.awExecEm);
       if (f.fluxo === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
       if (f.fluxo === 'iacOk') return !!(a && a.iacOkEm);
-      if (f.fluxo === 'naoBaixadoIac') return iacNaoDeuBaixa(x);
+      if (f.fluxo === 'naoBaixadoIac' || f.fluxo === 'iacManteve') return iacNaoAceitou(x);
       if (f.fluxo === 'comReinc') return !!(a && a.reincidencias);
       if (f.fluxo === 'semPrevisao') return estaEmAberto(x) && !(a && a.dataPrevista);
       if (f.fluxo === 'programado') return estaEmAberto(x) && !!(a && a.dataPrevista);
@@ -6295,7 +6335,7 @@ async function executarComparacao(){
   const [de_, para_] = await Promise.all([carregarItensDaRevisao(de), carregarItensDaRevisao(para)]);
   const diff = compararRevisoes(de_.itens, para_.itens);
   // vistoriados no app que a planilha nova ainda lista (a IAC não deu baixa) — por andar/ambiente
-  diff.semBaixa = para_.itens.filter(iacNaoDeuBaixa);
+  diff.semBaixa = para_.itens.filter(iacNaoAceitou);
   const saldo = diff.novos.length - diff.resolvidos.length;
   const saldoClasse = saldo>0?'pos':(saldo<0?'neg':'zero');
   const criticosNovos = diff.novos.filter((i)=>i.status==='VM').length;
@@ -6319,7 +6359,7 @@ async function executarComparacao(){
     const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>'
       : tipo === 'subiu' ? '<span class="badge bloqueado">Subiu AM → VM</span>'
       : tipo === 'desceu' ? '<span class="badge pendente">Desceu VM → AM</span>'
-      : tipo === 'semBaixa' ? '<span class="badge pendente">Vistoriado — IAC não deu baixa</span>'
+      : tipo === 'semBaixa' ? '<span class="badge pendente">IAC não aceitou</span>'
       : '<span class="badge vd" style="background:var(--vd-soft); color:var(--vd);">Saiu / resolvido</span>';
     return '<tr><td class="mono col-centro">'+esc(it.id)+'</td><td class="col-centro">'+pill+'</td><td>'+esc(it.disciplina||'—')+'</td>' +
       '<td style="color:var(--text);">'+esc(it.desc||'—')+'</td><td class="col-centro">'+mov+'</td>' +
@@ -6361,7 +6401,7 @@ async function executarComparacao(){
     };
     htmlDet += '<div style="overflow-x:auto;"><table><thead><tr>' +
       '<th class="col-centro">Andar</th><th>Ambiente</th>' +
-      '<th class="num-col col-vm">Novas</th><th class="num-col col-vd">Resolvidas</th><th class="num-col">Prioridade</th><th class="num-col col-am">IAC não deu baixa</th>' +
+      '<th class="num-col col-vm">Novas</th><th class="num-col col-vd">Resolvidas</th><th class="num-col">Prioridade</th><th class="num-col col-am">IAC não aceitou</th>' +
       '<th class="num-col">Saldo</th><th class="col-centro">Detalhe</th></tr></thead><tbody>' +
       Array.from(porAndar.entries()).sort((x,y) => x[0] - y[0]).map(([andar, ls]) => {
         const nov = ls.reduce((a, l) => a + l.novos.length, 0), res = ls.reduce((a, l) => a + l.resolvidos.length, 0);
@@ -8562,6 +8602,11 @@ async function exportarItensPdf(listaPronta){
       fluxLinhas.push({ t:'IAC · '+(ac.iacOkPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
       fluxLinhas.push({ t:dataHoraCurta(ac.iacOkEm), cor:PDF_COR.muted, s:6.8 });
     }
+    const tipoNA = tipoNaoAceitou(it);
+    if (tipoNA){
+      fluxLinhas.push({ t:'IAC não aceitou', cor:PDF_COR.am || PDF_COR.ink2, s:7 });
+      fluxLinhas.push({ t:tipoNA === 'junto' ? 'vistoriado junto' : 'IAC sozinha', cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
+    }
     if (ac.dataPrevista && !ac.awExecEm && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
     const fluxH = 18 + (fluxLinhas.length ? 5 + fluxLinhas.length*LH2 : 0);
     const prioH = 13 + prioNotas.length*LH2 + (prioNotas.length ? 3 : 0);
@@ -8784,11 +8829,12 @@ async function iniciar(){
   document.getElementById('btn-comparar').addEventListener('click', executarComparacao);
   // itens vistoriados que a IAC não tirou da lista: abre a aba Itens já filtrada (e gera o PDF, se pedido)
   document.getElementById('btn-ver-divergencia').addEventListener('click', () => abrirItens({ fluxo: 'naoBaixadoIac' }));
-  document.getElementById('btn-pdf-divergencia').addEventListener('click', () => {
-    // só o que a IAC precisa corrigir — os reabertos (baixa errada nossa) ficam de fora
-    const lista = itensRevisaoAtual.filter(iacNaoDeuBaixa);
-    if (!lista.length){ avisoFlutuante('Nenhum item para a IAC corrigir nesta revisão', 'ok'); return; }
-    exportarItensPdf({ itens: lista, titulo: 'Itens - IAC não deu baixa', filtro: 'IAC não deu baixa — itens vistoriados pela IAC que a planilha ainda lista ('+lista.length+')' });
+  document.getElementById('btn-pdf-manteve').addEventListener('click', () => {
+    // todos os "IAC não aceitou" (os reabertos por baixa errada nossa ficam de fora)
+    const lista = itensRevisaoAtual.filter(iacNaoAceitou).sort((a,b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
+    if (!lista.length){ avisoFlutuante('Nenhum item com "IAC não aceitou" nesta revisão', 'ok'); return; }
+    const nJ = lista.filter((x) => tipoNaoAceitou(x) === 'junto').length;
+    exportarItensPdf({ itens: lista, titulo: 'Itens - IAC nao aceitou', filtro: 'IAC não aceitou: '+lista.length+' itens — '+nJ+' vistoriados junto (erro de planilha da IAC) · '+(lista.length-nJ)+' IAC sozinha (divergência de campo)' });
   });
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
   document.getElementById('btn-foco-andar').addEventListener('click', abrirFocoAndar);
