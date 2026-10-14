@@ -250,7 +250,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
 .tag-agressor.tag-vistoriado{ background:var(--vist-soft); border-color:var(--vist); color:var(--vist); }
 .tag-agressor.tag-vistoriado b{ color:var(--vist); }
-.tag-rv{ display:inline-block; font-size:9.5px; line-height:1.2; padding:1px 5px; margin-left:5px; border-radius:5px; border:1px solid var(--line); background:var(--paper-2); color:var(--muted); vertical-align:2px; font-weight:400; }
+.tag-rv{ cursor:pointer; font-family:inherit; display:inline-block; font-size:9.5px; line-height:1.2; padding:1px 5px; margin-left:5px; border-radius:5px; border:1px solid var(--line); background:var(--paper-2); color:var(--muted); vertical-align:2px; font-weight:400; }
 .badge-nao-aceitou{ display:inline-block; font-size:10.5px; line-height:1.3; padding:2px 8px; border-radius:99px; border:1px solid var(--aviso-cor); background:var(--aviso-cor-soft); color:var(--aviso-cor); white-space:nowrap; align-self:center; }
 .tag-agressor.tag-nao-aceitou b{ color:var(--aviso-cor); }
 .tag-agressor .parado{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--aviso-cor); margin-right:4px; vertical-align:1px; }
@@ -606,7 +606,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="topo-controles-status">
       <span class="pill local" id="pill-armazenamento">verificando…</span>
       <button type="button" class="btn fantasma" id="btn-usuario" title="Trocar o nome de quem está usando este aparelho" style="padding:6px 11px; font-size:13px; color:var(--text-2); white-space:nowrap;"></button>
-      <select id="seletor-revisao" title="Revisão em exibição"></select>
+      <span style="display:inline-flex; flex-direction:column; align-items:flex-start;"><select id="seletor-revisao" title="Revisão em exibição"></select><span id="nota-revisao-mista" class="oculto" style="font-size:11px; color:var(--muted); margin:2px 0 0 4px;"></span></span>
     </div>
     <button class="btn primario" id="btn-ir-enviar">+ Enviar planilhas</button>
   </div>
@@ -1143,7 +1143,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.128';
+const VERSAO_APP = '2026-10-03.130';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2611,6 +2611,7 @@ const CHAVE_VISUALIZADOR = 'obra_so_visualizar' + (OBRA ? '__' + OBRA : '');
 function modoVisualizador(){ try{ return !usuarioAtual && localStorage.getItem(CHAVE_VISUALIZADOR) === '1'; }catch(e){ return false; } }
 function renderUsuarioTopo(){
   try{ atualizarBotaoTirarLote(); renderListaExcluidos(); renderListaPins(); }catch(e){}
+
   const b = document.getElementById('btn-usuario');
   if (!b) return;
   b.textContent = usuarioAtual ? usuarioAtual : (modoVisualizador() ? 'Visualizando · identificar-se' : 'Identificar-se');
@@ -3011,6 +3012,23 @@ async function salvarDataPrevista(itemId, dataStr){
    Também manual, guardado dentro do próprio doc do andar (areasLiberadas), pela chave
    tipo|quarto. Reseta sozinho quando esse local recebe dados novos num próximo envio
    (ver salvarLote) — por decisão sua, pra nunca manter uma liberação velha por engano. */
+async function marcarAmbienteConcluido(andar, tipo, quarto, rvOrigem){
+  if (!(await garantirUsuario())) return;
+  const chave = chaveAreaDoc(tipo, quarto), nome = tipo === 'APTO' ? String(quarto) : tipo.charAt(0) + tipo.slice(1).toLowerCase();
+  const lab = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || ('R' + revisaoSelecionada);
+  if (!window.confirm(nome + ' (' + nomeAndarLongo(andar) + ') não veio na ' + lab + ' e está sendo mostrado com os itens da R' + rvOrigem + '.\n\nA IAC tirou este ambiente da planilha porque ele foi CONCLUÍDO?\n\nOK = sim, concluído: ele deixa de aparecer na ' + lab + '.\nCancelar = não, a IAC só ainda não revisou (continua com a etiqueta R' + rvOrigem + ').')) return;
+  const docId = 'R' + revisaoSelecionada + '_' + andar;
+  const doc = await store.getDoc('snapshots', docId);
+  if (!doc){ avisoFlutuante('Este andar não veio na ' + lab + ' — nada a marcar aqui', 'erro'); return; }
+  const lista = Array.from(new Set((doc.ambientesConcluidos || []).concat([chave])));
+  const r = await store.setDoc('snapshots', docId, Object.assign({}, doc, { ambientesConcluidos: lista }));
+  if (r && r.ok === false){ avisoFlutuante('Não foi salvo (sem conexão?)', 'erro'); return; }
+  avisoFlutuante(nome + ' marcado como concluído na ' + lab, 'ok');
+  await selecionarRevisao(revisaoSelecionada);
+}
+function idsDoAmbienteNaTela(andar, chave){
+  return itensRevisaoAtual.filter((it) => it.andar === andar && chaveAreaDoc(it.tipo, it.quarto) === chave && it.origem !== 'AW').map((it) => it.idPlanilha || it.id);
+}
 async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
   if (!(await garantirUsuario())) return;
   const docId = docIdDoAndar(revisaoStr, andar);
@@ -3022,7 +3040,7 @@ async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
   else {
     // guarda quais itens existiam agora — é contra essa lista que a gente compara quando
     // chegar planilha nova, pra saber se "apareceu item amarelo novo" nesse local
-    const idsAgora = (doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id);
+    const idsAgora = Array.from(new Set((doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id).concat(idsDoAmbienteNaTela(andar, chave))));
     atual[chave] = { em: new Date().toISOString(), itens: idsAgora, por: usuarioAtual };
   }
   await store.setDoc('snapshots', docId, Object.assign({}, doc, { areasLiberadas: atual }));
@@ -3057,7 +3075,7 @@ async function liberarAndarInteiro(andar){
   const atual = Object.assign({}, doc.areasLiberadas || {}), agora = new Date().toISOString();
   alvos.forEach((f) => {
     const chave = chaveAreaDoc(f.l.tipo, f.l.quarto);
-    atual[chave] = { em: agora, itens: (doc.itens || []).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id), por: usuarioAtual };
+    atual[chave] = { em: agora, itens: Array.from(new Set((doc.itens || []).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id).concat(idsDoAmbienteNaTela(andar, chave)))), por: usuarioAtual };
   });
   const r = await store.setDoc('snapshots', docId, Object.assign({}, doc, { areasLiberadas: atual }));
   if (r && r.ok === false){ avisoFlutuante('Não foi salvo (sem conexão?)', 'erro'); return; }
@@ -3086,6 +3104,63 @@ function renderSituacaoAndarQuartos(){
   th.innerHTML = '<button type="button" class="chip-acao" id="btn-liberar-andar" title="Libera com pendência os '+liberaveis+' ambiente(s) deste andar que ainda faltam">Liberar andar ('+liberaveis+')</button>';
   const btn = document.getElementById('btn-liberar-andar');
   btn.addEventListener('click', (e) => { e.stopPropagation(); btn.disabled = true; liberarAndarInteiro(Number(v)).finally(() => { btn.disabled = false; }); });
+}
+
+/* COMPLETAR REVISÃO COM A ANTERIOR: conserta revisões importadas só em parte ANTES do envio passar a
+   manter sozinho os ambientes que não vieram. Pra cada andar da revisão, traz da revisão anterior do
+   andar os ambientes que faltam (marcados com a revisão de origem) — você confirma andar por andar. */
+async function ambientesFaltandoNaRevisao(revStr){
+  const n = Number(revStr), docs = await store.queryRevisao('snapshots', revStr), saida = [];
+  for (const d of docs){
+    const ant = revisoesMeta.filter((r) => r.numero < n && (r.andares || []).indexOf(d.andar) !== -1).sort((a,b) => b.numero - a.numero)[0];
+    if (!ant) continue;
+    const prev = await store.getDoc('snapshots', 'R' + ant.numero + '_' + d.andar);
+    if (!prev || !Array.isArray(prev.itens)) continue;
+    const temAgora = new Set((d.itens || []).map((it) => chaveAreaDoc(it.t, it.q)));
+    const faltam = new Map();
+    prev.itens.forEach((it) => { const k = chaveAreaDoc(it.t, it.q); if (!temAgora.has(k)){ if (!faltam.has(k)) faltam.set(k, []); faltam.get(k).push(it); } });
+    if (faltam.size) saida.push({ andar: d.andar, docId: 'R' + revStr + '_' + d.andar, de: String(ant.numero), prev, faltam });
+  }
+  return saida.sort((a,b) => a.andar - b.andar);
+}
+async function abrirCompletarRevisao(){
+  if (!(await garantirUsuario())) return;
+  const rev = revisaoSelecionada, lab = (revisoesMeta.find((r) => String(r.numero) === rev) || {}).label || ('R' + rev);
+  avisoFlutuante('Procurando ambientes que faltam na ' + lab + '…', 'ok');
+  const lista = await ambientesFaltandoNaRevisao(rev);
+  if (!lista.length){ avisoFlutuante('A ' + lab + ' já está completa — nenhum ambiente faltando em relação às revisões anteriores', 'ok'); return; }
+  document.getElementById('modal-completar') && document.getElementById('modal-completar').remove();
+  const nomeLocal = (k) => { const [tp, q] = k.split('|'); return tp === 'APTO' ? q : tp.charAt(0) + tp.slice(1).toLowerCase(); };
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'modal-completar';
+  ov.innerHTML = '<div class="modal-card modal-largo" role="dialog" aria-modal="true"><div class="modal-largo-corpo">' +
+    '<h3>Completar a ' + esc(lab) + ' com a revisão anterior</h3>' +
+    '<div class="modal-sub">Estes ambientes estavam na revisão anterior do andar e não vieram na ' + esc(lab) + '. Marcados, eles passam a valer na ' + esc(lab) + ' (com a etiqueta da revisão de origem) até você importar a outra parte. <b style="font-weight:500;">Desmarque o andar</b> se a IAC tirou esses ambientes porque foram concluídos.</div>' +
+    lista.map((x, i) => '<label style="display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--line); cursor:pointer;">' +
+      '<input type="checkbox" data-completar="' + i + '" checked style="margin-top:3px;"><span><b style="font-weight:500;">' + esc(nomeAndarLongo(x.andar)) + '</b> — ' + x.faltam.size + ' ambiente(s) da R' + esc(x.de) +
+      ' · ' + Array.from(x.faltam.values()).reduce((s, l) => s + l.length, 0) + ' itens<br><span style="font-size:12px; color:var(--muted);">' + esc(Array.from(x.faltam.keys()).map(nomeLocal).join(', ')) + '</span></span></label>').join('') +
+    '</div><div class="modal-acoes modal-rodape-fixo"><button class="btn fantasma" id="comp-cancelar">Cancelar</button><button class="btn primario" id="comp-ok">Completar</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  document.getElementById('comp-cancelar').addEventListener('click', () => ov.remove());
+  document.getElementById('comp-ok').addEventListener('click', async () => {
+    const escolhidos = lista.filter((x, i) => ov.querySelector('[data-completar="' + i + '"]').checked);
+    if (!escolhidos.length){ ov.remove(); return; }
+    const btn = document.getElementById('comp-ok'); btn.disabled = true; btn.textContent = 'Completando…';
+    let feitos = 0, itensAdd = 0;
+    for (const x of escolhidos){
+      const atual = await store.getDoc('snapshots', x.docId);
+      if (!atual) continue;
+      const add = Array.from(x.faltam.values()).flat().map((it) => Object.assign({}, it, { rv: it.rv || x.de }));
+      const libs = Object.assign({}, atual.areasLiberadas || {});
+      Array.from(x.faltam.keys()).forEach((k) => { if (x.prev.areasLiberadas && x.prev.areasLiberadas[k] && !libs[k]) libs[k] = x.prev.areasLiberadas[k]; });
+      const r = await store.setDoc('snapshots', x.docId, Object.assign({}, atual, { itens: (atual.itens || []).concat(add), areasLiberadas: libs }));
+      if (!r || r.ok !== false){ feitos++; itensAdd += add.length; }
+    }
+    ov.remove();
+    avisoFlutuante('Pronto: ' + feitos + ' andar(es) completado(s), ' + pdfNum(itensAdd) + ' itens trazidos da revisão anterior', 'ok');
+    await selecionarRevisao(revisaoSelecionada);
+  });
 }
 
 /* resposta à pergunta "apareceu item amarelo novo num local que já era azul, mantém ou volta?" */
@@ -3153,7 +3228,7 @@ async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter)
   const chave = chaveAreaDoc(tipo, quarto);
   const atual = Object.assign({}, doc.areasLiberadas || {});
   if (manter){
-    const idsAgora = (doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id);
+    const idsAgora = Array.from(new Set((doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id).concat(idsDoAmbienteNaTela(andar, chave))));
     atual[chave] = { em: new Date().toISOString(), itens: idsAgora }; // confirma e atualiza a lista conhecida
   } else {
     delete atual[chave]; // volta pra pendente (amarelo)
@@ -3434,6 +3509,28 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
     docs.filter(Boolean).forEach((d) => { snaps.push(Object.assign({}, d, { _veioDeAnterior: true })); fonte[d.andar] = String(d.revisao); });
   }
   if (!naoMarcarFonte) fonteDoAndar = fonte;
+  /* AMBIENTES QUE NÃO VIERAM: nos andares que vieram nesta revisão, os ambientes que estavam na
+     revisão anterior do andar e não vieram agora continuam valendo (marcados com a revisão de
+     origem) — a revisão fica completa sem precisar reenviar tudo. Exceção: ambiente que você
+     marcou como "concluído pela IAC" nesta revisão. */
+  const dosAndaresDaRevisao = snaps.filter((s) => !s._veioDeAnterior);
+  const anteriores = await Promise.all(dosAndaresDaRevisao.map((s) => {
+    const ant = revisoesMeta.filter((r) => r.numero < n && (r.andares || []).indexOf(s.andar) !== -1).sort((a,b) => b.numero - a.numero)[0];
+    return ant ? store.getDoc('snapshots', 'R' + ant.numero + '_' + s.andar).then((d) => d ? Object.assign({ revisao: String(ant.numero) }, d) : null).catch(() => null) : Promise.resolve(null);
+  }));
+  dosAndaresDaRevisao.forEach((s, i) => {
+    const ant = anteriores[i];
+    if (!ant || !Array.isArray(ant.itens)) return;
+    const temAgora = new Set((s.itens || []).map((it) => chaveAreaDoc(it.t, it.q)));
+    const concluidos = new Set(s.ambientesConcluidos || []);
+    const herdados = ant.itens.filter((it) => { const k = chaveAreaDoc(it.t, it.q); return !temAgora.has(k) && !concluidos.has(k); });
+    if (!herdados.length) return;
+    s.itens = (s.itens || []).concat(herdados.map((it) => Object.assign({}, it, { rv: it.rv || String(ant.revisao) })));
+    // liberações desses ambientes vêm junto
+    Object.keys(ant.areasLiberadas || {}).forEach((k) => {
+      if (!temAgora.has(k) && !concluidos.has(k)){ s.areasLiberadas = Object.assign({}, s.areasLiberadas || {}); if (!s.areasLiberadas[k]) s.areasLiberadas[k] = ant.areasLiberadas[k]; }
+    });
+  });
   const itens = [];
   const areasLiberadas = {};
   snaps.forEach((snap) => {
@@ -4950,7 +5047,7 @@ function renderQuartos(){
     const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
     const nNaoAceitou = nJunto + nSozinha;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
-    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <span class="tag-rv" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'">R'+esc(rvLocal)+'</span>' : '') +
+    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
         ((agr.length || nNaoAceitou) ? '<div class="agressores">' + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
           (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
@@ -4983,6 +5080,8 @@ function renderQuartos(){
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
     tr.addEventListener('click', (e) => {
       if (e.target.closest('[data-acao-liberar]')) return; // o botão trata seu próprio clique
+      const tagRv = e.target.closest('[data-rv-local]');
+      if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
       const tag = e.target.closest('[data-agressor]');
       const tagNA = e.target.closest('[data-nao-aceitou]');
       // segue a "história" do usuário: o que ele filtrou em Quartos continua valendo em Itens
@@ -5326,7 +5425,7 @@ function renderItens(){
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id)+'</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+'</td>' +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id)+'</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
       '<td class="col-centro"><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
@@ -7768,10 +7867,14 @@ async function selecionarRevisao(numeroStr){
   const sel = document.getElementById('seletor-revisao');
   if (sel.value !== numeroStr) sel.value = numeroStr;
   const meta = revisoesMeta.find((r) => String(r.numero) === numeroStr);
-  andaresNestaRevisao = new Set((meta ? meta.andares : []).concat(Object.keys(fonteDoAndar).map(Number)));
   const carregado = numeroStr ? await carregarItensDaRevisao(numeroStr) : { itens:[], areasLiberadas:{} };
   itensRevisaoAtual = carregado.itens;
   areasLiberadasRevisaoAtual = carregado.areasLiberadas;
+  // andares desta revisão = os que vieram + os completados com a revisão anterior (depois de carregar)
+  andaresNestaRevisao = new Set((meta ? meta.andares : []).concat(Object.keys(fonteDoAndar).map(Number)));
+  const outras = Array.from(new Set(itensRevisaoAtual.map((it) => it.rv).filter((r) => r && r !== String(revisaoSelecionada)))).sort((a,b) => Number(b) - Number(a));
+  const notaMista = document.getElementById('nota-revisao-mista');
+  if (notaMista){ notaMista.classList.toggle('oculto', !outras.length); notaMista.textContent = outras.length ? 'parte com ' + outras.map((r) => 'R' + r).join(', ') : ''; }
   if (numeroStr) await capturarSnapshotDiarioSeNecessario(numeroStr);
   renderTorreAndares();
   await renderResumoGeral(true);
