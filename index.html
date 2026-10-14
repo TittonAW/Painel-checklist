@@ -1144,7 +1144,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.135';
+const VERSAO_APP = '2026-10-03.136';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2259,9 +2259,11 @@ async function salvarLote(grupos, aoProgredir){
   // próprio id do item, então reenviar de novo não duplica, só confirma o que já estava lá
   if (recemResolvidosDoLote.length > 0){
     try{
-      desfazer.resolvidosNovos = recemResolvidosDoLote.map((r) => r.id).filter((id) => historicoAntes && !historicoAntes.has(id));
+      const chaveDoHist = (r) => r.t ? r.id + '@' + r.andar + '|' + r.t + '|' + (r.q == null ? '' : r.q) : r.id;
+      desfazer.resolvidosNovos = recemResolvidosDoLote.map(chaveDoHist).filter((id) => historicoAntes && !historicoAntes.has(id));
       await comLimiteDeConcorrencia(recemResolvidosDoLote, 4, async (res) => {
-        await store.setDoc('resolvidos_historico', res.id, Object.assign({ resolvidoEm: new Date().toISOString() }, res));
+        const chaveHist = res.t ? res.id + '@' + res.andar + '|' + res.t + '|' + (res.q == null ? '' : res.q) : res.id;
+        await store.setDoc('resolvidos_historico', chaveHist, Object.assign({ resolvidoEm: new Date().toISOString() }, res));
       });
     }catch(e){ console.warn('não consegui gravar o histórico de resolvidos deste lote', e); }
   }
@@ -4025,7 +4027,7 @@ async function renderResumoGeral(recarregarHistorico){
   }
   await carregarHistResolvidos(recarregarHistorico);
   const sairam = sairamDaPlanilha().length;
-  vdHistorico = sairam;
+  vdHistorico = sairam + itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').length;
   const c = contarVMAMAbertos(itensRevisaoAtual);
   const locais = agruparPorLocal(itensRevisaoAtual);
   let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0;
@@ -4051,10 +4053,11 @@ async function renderResumoGeral(recarregarHistorico){
     if (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO') andaresLiberadosTotal++;
   });
 
-  const totalObra = c.total + sairam;           // o universo: não diminui quando a IAC aceita
+  const vdNaPlanilha = itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').length; // a IAC marcou verde em vez de tirar
+  const totalObra = c.total + vdNaPlanilha + sairam;  // o universo: não diminui quando a IAC aceita
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAberto) / totalItens * 100);
-  const pctVist = Math.round((iacOk + sairam)/totalItens*100);
+  const pctVist = Math.round((iacOk + sairam + vdNaPlanilha)/totalItens*100);
   const vmTotal = itensRevisaoAtual.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
@@ -4070,9 +4073,9 @@ async function renderResumoGeral(recarregarHistorico){
     // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">'+c.total+' na planilha atual · '+sairam+' a IAC já tirou</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">'+c.total+' pendentes na planilha · '+(vdNaPlanilha ? vdNaPlanilha+' verdes na planilha · ' : '')+sairam+' a IAC já tirou</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>'+sub(emAberto)+'</div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam)/totalItens*100)+'% do total · inclui os validados que saíram</div></div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total · inclui os validados pela IAC</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
@@ -4125,6 +4128,7 @@ function mapaPorId(itens){
    conta (antes, um andar ausente na revisão nova fazia todos os itens dele parecerem
    "resolvidos"). Devolve também quais andares ficaram sem dados de cada lado. */
 let ultimaComparacao = null;
+let diffComAnterior = null; // { revAnterior, diff } da revisão selecionada contra a anterior
 /* TROCA DE NÚMERO → o número novo HERDA tudo do antigo (baixas, quem/quando, histórico, disciplina,
    fornecedor, prioridade, previsão, triagem). Só se o número novo ainda não tiver nada registrado. */
 const mapaTrocasNumero = new Map(); // número novo → número antigo (pra liberação não acusar "item novo")
@@ -4162,7 +4166,7 @@ let histResolvidosDocs = null; // os registros completos (andar, disciplina, rev
 async function carregarHistResolvidos(forcar){
   if (histResolvidosDocs && !forcar) return histResolvidosDocs;
   try{ histResolvidosDocs = await store.listCollection('resolvidos_historico'); }catch(e){ histResolvidosDocs = []; }
-  idsResolvidosHist = new Set(histResolvidosDocs.map((d) => String(d._id)));
+  idsResolvidosHist = new Set(histResolvidosDocs.map((d) => String(d.id || d._id)));
   return histResolvidosDocs;
 }
 /* TOTAL DA OBRA = o que está na planilha agora + o que a IAC já tirou da planilha (validado pela IAC).
@@ -4170,14 +4174,24 @@ async function carregarHistResolvidos(forcar){
    Conta só o que saiu até a revisão selecionada, e ignora: item que voltou pra planilha, e troca de
    número (mesma descrição, mesmo ambiente, número novo). */
 function sairamDaPlanilha(){
-  if (!histResolvidosDocs) return [];
   const n = Number(revisaoSelecionada);
+  // última etapa (revisão anterior → selecionada): comparação EXATA item a item, por ambiente —
+  // não se confunde com número repetido em vários quartos e já tira as trocas de número
+  // (o que virou verde e continua na planilha já é contado à parte — não entra aqui de novo)
+  const naPlanilha = new Set(itensRevisaoAtual.map((it) => it.andar + '|' + localKey(it) + '|' + String(it.idPlanilha || it.id)));
+  const recentes = diffComAnterior ? diffComAnterior.diff.resolvidos
+    .filter((it) => !naPlanilha.has(it.andar + '|' + localKey(it) + '|' + String(it.idPlanilha || it.id)))
+    .map((it) => ({ _id: it.id, andar: it.andar })) : [];
+  const limite = diffComAnterior ? Number(diffComAnterior.revAnterior) : n;
+  // etapas mais antigas: o registro guardado a cada envio
   const presentes = new Set(itensRevisaoAtual.map((it) => String(it.idPlanilha || it.id)));
-  return histResolvidosDocs.filter((h) => {
-    if (!h || h.troca || presentes.has(String(h._id))) return false; // troca de número não é validação
-    if (h.revisao && Number(h.revisao) > n) return false;
+  const antigos = (histResolvidosDocs || []).filter((h) => {
+    if (!h || h.troca) return false;
+    if (h.revisao && Number(h.revisao) > limite) return false; // a última etapa vem da comparação
+    if (!h.t && presentes.has(String(h.id || h._id))) return false;
     return true;
   });
+  return antigos.concat(recentes);
 }
 function sairamPorAndar(){ const m = new Map(); sairamDaPlanilha().forEach((h) => m.set(Number(h.andar), (m.get(Number(h.andar)) || 0) + 1)); return m; }
 async function carregarIdsResolvidosHist(forcar){
@@ -4288,8 +4302,9 @@ function renderInsightsResumo(){
     cont.innerHTML = '<div class="vazio">Esta é a primeira revisão registrada — sem comparação anterior ainda.</div>';
     return;
   }
-  Promise.all([carregarItensDaRevisao(String(anteriorMeta.numero), true), carregarIdsResolvidosHist()]).then(async ([anterior]) => {
-    const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
+  const pronto = (diffComAnterior && diffComAnterior.revAnterior === String(anteriorMeta.numero)) ? Promise.resolve([diffComAnterior.anterior]) : Promise.all([carregarItensDaRevisao(String(anteriorMeta.numero), true), carregarIdsResolvidosHist()]);
+  pronto.then(async ([anterior]) => {
+    const diff = (diffComAnterior && diffComAnterior.revAnterior === String(anteriorMeta.numero)) ? diffComAnterior.diff : compararRevisoes(anterior.itens, itensRevisaoAtual);
     const saldo = diff.novos.length - diff.resolvidos.length;
     const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
     const herdados = await herdarStatusDasTrocas(diff.trocas, deStr);
@@ -7975,6 +7990,12 @@ async function selecionarRevisao(numeroStr){
   if (notaMista){ notaMista.classList.toggle('oculto', !outras.length); notaMista.textContent = outras.length ? 'parte com ' + outras.map((r) => 'R' + r).join(', ') : ''; }
   if (numeroStr) await capturarSnapshotDiarioSeNecessario(numeroStr);
   await carregarHistResolvidos();
+  diffComAnterior = null;
+  try{
+    const ord = revisoesMeta.slice().sort((a,b) => b.numero - a.numero);
+    const ix = ord.findIndex((r) => String(r.numero) === numeroStr), antM = ix >= 0 ? ord[ix+1] : null;
+    if (antM){ const ant = await carregarItensDaRevisao(String(antM.numero), true); diffComAnterior = { revAnterior: String(antM.numero), anterior: ant, diff: compararRevisoes(ant.itens, itensRevisaoAtual) }; }
+  }catch(e){ diffComAnterior = null; }
   renderTorreAndares();
   await renderResumoGeral(true);
   renderInsightsResumo();
