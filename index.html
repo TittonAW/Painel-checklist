@@ -1143,7 +1143,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.130';
+const VERSAO_APP = '2026-10-03.132';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2075,7 +2075,7 @@ function renderBotaoDesfazerEnvio(){
 }
 
 async function salvarLote(grupos, aoProgredir){
-  idsResolvidosHist = null; // o histórico de "saíram" muda com o envio
+  idsResolvidosHist = null; histResolvidosDocs = null; // o histórico de "saíram" muda com o envio
   const revisoesTocadas = new Map();
   const avisos = { fotosFalharam: [], fotosSemRecurso: 0, descricaoCortada: [], gravacaoFalhou: [], fotosNaoAssociadas: [], fotosEnviadas: 0, liberacaoRemovidaPorVM: [], revisarLiberacao: [] };
   // acumula, em todo o lote, os itens que existiam antes e sumiram agora nos locais
@@ -2158,10 +2158,19 @@ async function salvarLote(grupos, aoProgredir){
           base = (docAnt && Array.isArray(docAnt.itens)) ? docAnt.itens : [];
         }
       }
+      // TROCA DE NÚMERO: no mesmo ambiente entrou um item com a mesma descrição e número novo →
+      // o que "saiu" é o mesmo item renumerado: fica registrado como troca (não conta como validado)
+      const idsBase = new Set((base || []).map((it) => it.id));
+      const chaveD = (it) => it.t + '|' + (it.q==null ? '' : it.q) + '|' + chaveComparacao(String(it.x || '')).slice(0, 160);
+      const novosPorChave = new Map();
+      itensFinal.forEach((it) => { if (!idsBase.has(it.id) && String(it.x || '').trim()){ const k = chaveD(it); novosPorChave.set(k, (novosPorChave.get(k) || 0) + 1); } });
       (base || []).forEach((it) => {
         const chaveLocal = it.t + '|' + (it.q==null ? '' : it.q);
         if (locaisNovos.has(chaveLocal) && !idsNovosFinal.has(it.id)){
-          recemResolvidosDoLote.push({ id: it.id, andar: g.andar, disciplina: it.d, descricao: it.x||'', revisao: String(g.revisao) });
+          const k = chaveD(it), livres = novosPorChave.get(k) || 0;
+          const troca = livres > 0 && String(it.x || '').trim() !== '';
+          if (troca) novosPorChave.set(k, livres - 1);
+          recemResolvidosDoLote.push(Object.assign({ id: it.id, andar: g.andar, t: it.t, q: it.q ?? null, disciplina: it.d, descricao: it.x||'', revisao: String(g.revisao) }, troca ? { troca: true } : {}));
         }
       });
     }catch(e){ console.warn('não consegui calcular recém-resolvidos deste andar', e); }
@@ -3174,7 +3183,7 @@ function liberacoesParaRevisar(){
     const entrada = areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)];
     if (!entrada) return;
     const conhecidos = new Set(entrada.itens || []);
-    l.itens.filter((it) => !conhecidos.has(it.idPlanilha || it.id) && it.origem !== 'AW').forEach((it) => {
+    l.itens.filter((it) => { const idp = String(it.idPlanilha || it.id); return !conhecidos.has(idp) && !conhecidos.has(mapaTrocasNumero.get(idp)) && it.origem !== 'AW'; }).forEach((it) => {
       const k = chaveComparacao(disciplinaEfetiva(it) + '|' + String(it.desc || '').slice(0, 160));
       if (!grupos.has(k)) grupos.set(k, { desc: it.desc || '', disciplina: disciplinaEfetiva(it), status: it.status, ids: new Set(), locais: new Map() });
       const g = grupos.get(k); g.ids.add(it.id);
@@ -3913,6 +3922,7 @@ function completarAndaresDaTorre(lista){
   return Array.from(set).sort((a,b) => a-b);
 }
 function renderTorreAndares(){
+  const mapaSairam = sairamPorAndar();
   const cont = document.getElementById('torre-andares');
   cont.innerHTML = '';
   const todos = completarAndaresDaTorre(andaresConhecidos);
@@ -3951,12 +3961,14 @@ function renderTorreAndares(){
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const abertoDoAndar = contarEmAberto(itensDoAndar);
-      pctAndar = percentualExecutado(itensDoAndar);
+      const saiuDoAndar = (mapaSairam.get(andar) || 0);
+      const totalAndar = itensDoAndar.length + saiuDoAndar;
+      pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
-        '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+awExecDoAndar+'</span></span>' +
-        '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono">'+iacOkDoAndar+'</span></span>' +
-        '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono">'+itensDoAndar.length+'</span></span>' +
+        '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+(awExecDoAndar + saiuDoAndar)+'</span></span>' +
+        '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+saiuDoAndar+' a IAC tirou da planilha">'+(iacOkDoAndar + saiuDoAndar)+'</span></span>' +
+        '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+itensDoAndar.length+' na planilha atual + '+saiuDoAndar+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>' +
         '</span>';
     }
     row.classList.toggle('liberado-total', liberadoTotal);
@@ -4006,7 +4018,9 @@ async function renderResumoGeral(recarregarHistorico){
     try{ vdHistoricoCache = (await store.listCollection('resolvidos_historico')).length; }
     catch(e){ console.warn('não consegui carregar o histórico de resolvidos', e); }
   }
-  vdHistorico = vdHistoricoCache || 0;
+  await carregarHistResolvidos(recarregarHistorico);
+  const sairam = sairamDaPlanilha().length;
+  vdHistorico = sairam;
   const c = contarVMAMAbertos(itensRevisaoAtual);
   const locais = agruparPorLocal(itensRevisaoAtual);
   let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0;
@@ -4032,9 +4046,10 @@ async function renderResumoGeral(recarregarHistorico){
     if (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO') andaresLiberadosTotal++;
   });
 
-  const totalItens = c.total || 1;
-  const pctExec = percentualExecutado(itensRevisaoAtual);
-  const pctVist = Math.round(iacOk/totalItens*100);
+  const totalObra = c.total + sairam;           // o universo: não diminui quando a IAC aceita
+  const totalItens = totalObra || 1;
+  const pctExec = Math.round((totalObra - emAberto) / totalItens * 100);
+  const pctVist = Math.round((iacOk + sairam)/totalItens*100);
   const vmTotal = itensRevisaoAtual.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
@@ -4050,9 +4065,9 @@ async function renderResumoGeral(recarregarHistorico){
     // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+c.total+'</div><div class="rotulo">Pendências totais</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">'+c.total+' na planilha atual · '+sairam+' a IAC já tirou</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>'+sub(emAberto)+'</div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awExec+'</div><div class="rotulo">Executado AW</div>'+sub(awExec)+'</div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam)/totalItens*100)+'% do total · inclui os validados que saíram</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
@@ -4105,10 +4120,52 @@ function mapaPorId(itens){
    conta (antes, um andar ausente na revisão nova fazia todos os itens dele parecerem
    "resolvidos"). Devolve também quais andares ficaram sem dados de cada lado. */
 let ultimaComparacao = null;
+/* TROCA DE NÚMERO → o número novo HERDA tudo do antigo (baixas, quem/quando, histórico, disciplina,
+   fornecedor, prioridade, previsão, triagem). Só se o número novo ainda não tiver nada registrado. */
+const mapaTrocasNumero = new Map(); // número novo → número antigo (pra liberação não acusar "item novo")
+async function herdarStatusDasTrocas(trocas){
+  let herdados = 0;
+  for (const x of (trocas || [])){
+    const idN = x.novo.id, idA = x.antigo.id;
+    mapaTrocasNumero.set(String(x.novo.idPlanilha || idN), String(x.antigo.idPlanilha || idA));
+    const antigo = acompanhamento[idA], atualN = acompanhamento[idN];
+    const vazio = (a) => !a || (!a.awExecEm && !a.iacOkEm && !a.disciplinaOverride && !a.fornecedorOverride && !a.prioridadeOverride && !a.dataPrevista && !a.divergencia);
+    if (!antigo || !vazio(atualN)) continue;
+    const novo = JSON.parse(JSON.stringify(antigo));
+    novo.herdadoDe = String(x.antigo.idPlanilha || idA);
+    novo.historico = (novo.historico || []).concat([{ t:'troca', em: new Date().toISOString(), por: 'troca de número da IAC', de: novo.herdadoDe }]);
+    acompanhamento[idN] = novo;
+    herdados++;
+    salvarAcompanhamentoComRetry(idN, novo).catch(() => {}); // grava em segundo plano
+  }
+  return herdados;
+}
 let idsResolvidosHist = null; // números de item que já saíram da planilha em alguma revisão
+let histResolvidosDocs = null; // os registros completos (andar, disciplina, revisão em que saiu…)
+async function carregarHistResolvidos(forcar){
+  if (histResolvidosDocs && !forcar) return histResolvidosDocs;
+  try{ histResolvidosDocs = await store.listCollection('resolvidos_historico'); }catch(e){ histResolvidosDocs = []; }
+  idsResolvidosHist = new Set(histResolvidosDocs.map((d) => String(d._id)));
+  return histResolvidosDocs;
+}
+/* TOTAL DA OBRA = o que está na planilha agora + o que a IAC já tirou da planilha (validado pela IAC).
+   O total não diminui quando a IAC aceita: o item sai do "em aberto" e entra no "concluído".
+   Conta só o que saiu até a revisão selecionada, e ignora: item que voltou pra planilha, e troca de
+   número (mesma descrição, mesmo ambiente, número novo). */
+function sairamDaPlanilha(){
+  if (!histResolvidosDocs) return [];
+  const n = Number(revisaoSelecionada);
+  const presentes = new Set(itensRevisaoAtual.map((it) => String(it.idPlanilha || it.id)));
+  return histResolvidosDocs.filter((h) => {
+    if (!h || h.troca || presentes.has(String(h._id))) return false; // troca de número não é validação
+    if (h.revisao && Number(h.revisao) > n) return false;
+    return true;
+  });
+}
+function sairamPorAndar(){ const m = new Map(); sairamDaPlanilha().forEach((h) => m.set(Number(h.andar), (m.get(Number(h.andar)) || 0) + 1)); return m; }
 async function carregarIdsResolvidosHist(forcar){
   if (idsResolvidosHist && !forcar) return idsResolvidosHist;
-  try{ idsResolvidosHist = new Set((await store.listCollection('resolvidos_historico')).map((d) => String(d._id))); }catch(e){ idsResolvidosHist = new Set(); }
+  await carregarHistResolvidos(forcar);
   return idsResolvidosHist;
 }
 function compararRevisoes(itensDe, itensPara){
@@ -4202,8 +4259,16 @@ function renderInsightsResumo(){
     cont.innerHTML = '<div class="vazio">Esta é a primeira revisão registrada — sem comparação anterior ainda.</div>';
     return;
   }
-  Promise.all([carregarItensDaRevisao(String(anteriorMeta.numero), true), carregarIdsResolvidosHist()]).then(([anterior]) => {
+  Promise.all([carregarItensDaRevisao(String(anteriorMeta.numero), true), carregarIdsResolvidosHist()]).then(async ([anterior]) => {
     const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
+    const herdados = await herdarStatusDasTrocas(diff.trocas);
+    if (herdados){
+      // a classificação/prioridade herdada muda a montagem dos itens: recarrega a revisão uma vez
+      avisoFlutuante(herdados + ' item(ns) com número trocado pela IAC herdaram o status do número antigo', 'ok');
+      if (diff.trocas.some((x) => (acompanhamento[x.novo.id] || {}).prioridadeOverride)) await selecionarRevisao(revisaoSelecionada);
+      else atualizarTelasAposAcompanhamento();
+      return;
+    }
     const saldo = diff.novos.length - diff.resolvidos.length;
     const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
     const corSaldo = saldo > 0 ? 'var(--vm)' : (saldo < 0 ? 'var(--vd)' : 'var(--muted)');
@@ -5542,7 +5607,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -7876,6 +7941,7 @@ async function selecionarRevisao(numeroStr){
   const notaMista = document.getElementById('nota-revisao-mista');
   if (notaMista){ notaMista.classList.toggle('oculto', !outras.length); notaMista.textContent = outras.length ? 'parte com ' + outras.map((r) => 'R' + r).join(', ') : ''; }
   if (numeroStr) await capturarSnapshotDiarioSeNecessario(numeroStr);
+  await carregarHistResolvidos();
   renderTorreAndares();
   await renderResumoGeral(true);
   renderInsightsResumo();
