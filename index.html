@@ -695,14 +695,13 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados com pendência, itens em aberto e previsão de conclusão">PDF liberados c/ pendência</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
-    <div class="oculto" id="situacao-andar-quartos" style="font-size:13px; color:var(--text-2); margin:0 0 10px; line-height:1.6;"></div>
     <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card">
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-vm">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-vm">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-acao-quartos">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1124,7 +1123,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.116';
+const VERSAO_APP = '2026-10-03.117';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3027,23 +3026,17 @@ async function liberarAndarInteiro(andar){
   await selecionarRevisao(revisaoSelecionada);
 }
 function renderSituacaoAndarQuartos(){
-  const cont = document.getElementById('situacao-andar-quartos');
-  if (!cont) return;
+  // com um andar filtrado e ambientes que ainda podem ser liberados: o botão aparece no topo da
+  // coluna Ação, igual (estilo e alinhamento) ao "Liberar c/ pendência" de cada linha
+  const th = document.getElementById('th-acao-quartos');
+  if (!th) return;
   const v = document.getElementById('filtro-andar').value;
-  if (v === ''){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
-  const andar = Number(v), sit = situacaoLiberacaoAndar(andar);
-  if (!sit.total){ cont.classList.add('oculto'); return; }
-  cont.classList.remove('oculto');
-  if (!sit.faltam.length){
-    cont.innerHTML = '<span style="color:var(--lib);">✓ ' + esc(nomeAndarLongo(andar)) + ' liberado por inteiro — todos os ' + sit.total + ' ambientes.</span>';
-    return;
-  }
-  const liberaveis = sit.faltam.filter((f) => f.liberavel).length;
-  cont.innerHTML = '<span><b style="font-weight:500; color:var(--text);">' + esc(nomeAndarLongo(andar)) + ': ' + sit.ok + ' de ' + sit.total + ' ambientes liberados</b> · faltam: ' +
-    sit.faltam.map((f) => esc(f.nome) + (f.motivo ? ' <span style="color:var(--' + (f.liberavel ? 'aviso-cor' : 'vm') + ');">(' + esc(f.motivo) + ')</span>' : '')).join(', ') + '</span>' +
-    (liberaveis ? ' <button type="button" class="chip-acao lib" id="btn-liberar-andar" style="margin-left:6px;">Liberar o andar inteiro (' + liberaveis + ')</button>' : '');
-  const b = document.getElementById('btn-liberar-andar');
-  if (b) b.addEventListener('click', () => { b.disabled = true; liberarAndarInteiro(andar).finally(() => { b.disabled = false; }); });
+  const sit = v === '' ? null : situacaoLiberacaoAndar(Number(v));
+  const liberaveis = sit ? sit.faltam.filter((f) => f.liberavel).length : 0;
+  if (!liberaveis){ th.innerHTML = 'Ação'; return; }
+  th.innerHTML = '<button type="button" class="chip-acao" id="btn-liberar-andar" title="Libera com pendência os '+liberaveis+' ambiente(s) deste andar que ainda faltam">Liberar andar ('+liberaveis+')</button>';
+  const btn = document.getElementById('btn-liberar-andar');
+  btn.addEventListener('click', (e) => { e.stopPropagation(); btn.disabled = true; liberarAndarInteiro(Number(v)).finally(() => { btn.disabled = false; }); });
 }
 
 /* resposta à pergunta "apareceu item amarelo novo num local que já era azul, mantém ou volta?" */
@@ -3739,9 +3732,7 @@ function renderTorreAndares(){
         '</span>';
     }
     row.classList.toggle('liberado-total', liberadoTotal);
-    if (temDados && !liberadoTotal){
-      try{ const sit = situacaoLiberacaoAndar(andar); if (sit.faltam.length) row.title = 'Pra ficar azul (liberado por inteiro) faltam ' + sit.faltam.length + ' de ' + sit.total + ' ambientes: ' + sit.faltam.slice(0, 12).map((f) => f.nome + (f.motivo ? ' (' + f.motivo + ')' : '')).join(', ') + (sit.faltam.length > 12 ? '…' : ''); }catch(e){}
-    }
+
     row.innerHTML = '<span class="num mono">' + nomeAndar(andar) + '</span>' +
       (pctAndar === null
         ? '<span class="barra"><span class="' + statusClasse + '"></span></span>'
