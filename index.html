@@ -250,6 +250,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
 .tag-agressor.tag-vistoriado{ background:var(--vist-soft); border-color:var(--vist); color:var(--vist); }
 .tag-agressor.tag-vistoriado b{ color:var(--vist); }
+.mini-stat.novos .mini-rotulo, .mini-stat.novos .mini-valor{ color:var(--vm); }
 .tag-entrou{ display:inline-block; font-size:10px; line-height:1.3; padding:1px 6px; margin-top:3px; border-radius:99px; background:var(--vm-soft); color:var(--vm); border:1px solid transparent; }
 .tag-entrou.voltou{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
 .tag-agressor.tag-novos{ background:var(--vm-soft); border-color:transparent; color:var(--vm); }
@@ -1149,7 +1150,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.140';
+const VERSAO_APP = '2026-10-03.145';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2175,9 +2176,7 @@ async function salvarLote(grupos, aoProgredir){
         if (locaisNovos.has(chaveLocal) && !idsNovosFinal.has(it.id)){
           const k = chaveD(it), livres = novosPorChave.get(k) || [];
           const fA = new Set((it.fs || []).map(String));
-          const acA = acompanhamento[it.id], antigoComBaixa = !!(acA && (acA.awExecEm || acA.iacOkEm));
-          let idx = livres.findIndex((fN) => Array.from(fA).some((f) => fN.has(f)));          // mesma foto
-          if (idx === -1 && !antigoComBaixa) idx = livres.findIndex((fN) => !fN.size || !fA.size); // sem foto e sem baixa
+          const idx = livres.findIndex((fN) => Array.from(fA).some((f) => fN.has(f)));        // só com a mesma foto
           const troca = idx !== -1 && String(it.x || '').trim() !== '';
           if (troca) livres.splice(idx, 1);
           recemResolvidosDoLote.push(Object.assign({ id: it.id, andar: g.andar, t: it.t, q: it.q ?? null, disciplina: it.d, descricao: it.x||'', revisao: String(g.revisao) }, troca ? { troca: true } : {}));
@@ -4014,12 +4013,14 @@ function renderTorreAndares(){
       liberadoTotal = (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO');
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
-      const abertoDoAndar = contarEmAberto(itensDoAndar);
+      const novosAbertosDoAndar = itensDoAndar.filter((x) => estaEmAberto(x) && infoItemNovo(x)).length;
+      const abertoDoAndar = contarEmAberto(itensDoAndar) - novosAbertosDoAndar; // "Aberto" = o que vocês já acompanhavam
       const saiuDoAndar = (mapaSairam.get(andar) || 0);
       const totalAndar = itensDoAndar.length + saiuDoAndar;
-      pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
+      pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar - novosAbertosDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
+        (novosAbertosDoAndar ? '<span class="mini-stat novos" title="Itens novos em aberto: entraram depois da planilha original do andar"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+novosAbertosDoAndar+'</span></span>' : '') +
         '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+(awExecDoAndar + saiuDoAndar)+'</span></span>' +
         '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+saiuDoAndar+' a IAC tirou da planilha">'+(iacOkDoAndar + saiuDoAndar)+'</span></span>' +
         '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+itensDoAndar.length+' na planilha atual + '+saiuDoAndar+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>' +
@@ -4087,7 +4088,9 @@ async function renderResumoGeral(recarregarHistorico){
   });
   const awExec = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
   const iacOk = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
-  const emAberto = itensRevisaoAtual.filter((it) => { const a=acompanhamento[it.id]; return !a || (!a.awExecEm && !a.iacOkEm); }).length;
+  const emAbertoTodos = itensRevisaoAtual.filter((it) => { const a=acompanhamento[it.id]; return !a || (!a.awExecEm && !a.iacOkEm); }).length;
+  const novosEmAberto = itensRevisaoAtual.filter((it) => estaEmAberto(it) && infoItemNovo(it)).length;
+  const emAberto = emAbertoTodos - novosEmAberto; // o que vocês já acompanhavam (os novos ficam no cartão ao lado)
   const porAndar = resumoPorAndar(itensRevisaoAtual);
   const mapaAndar = new Map(porAndar.map((x)=>[x.andar,x]));
   // "liberado por inteiro": mesmo critério usado no destaque da torre — nenhuma área
@@ -4103,7 +4106,7 @@ async function renderResumoGeral(recarregarHistorico){
   const vdNaPlanilha = itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').length; // a IAC marcou verde em vez de tirar
   const totalObra = c.total + vdNaPlanilha + sairam;  // o universo: não diminui quando a IAC aceita
   const totalItens = totalObra || 1;
-  const pctExec = Math.round((totalObra - emAberto) / totalItens * 100);
+  const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
   const pctVist = Math.round((iacOk + sairam + vdNaPlanilha)/totalItens*100);
   const vmTotal = itensRevisaoAtual.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
@@ -4121,11 +4124,11 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">'+c.total+' pendentes na planilha · '+(vdNaPlanilha ? vdNaPlanilha+' verdes na planilha · ' : '')+sairam+' a IAC já tirou</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>'+sub(emAberto)+'</div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total · sem contar os novos</div></div>' +
+      (() => { const novos = itensRevisaoAtual.filter((x) => infoItemNovo(x));
+        return '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="novosRevisao"><div class="valor" style="color:var(--vm);">'+novosEmAberto+'</div><div class="rotulo">Novos em aberto</div><div class="pct-sub">entraram depois da planilha original · '+novos.length+' itens novos no total</div></div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total · inclui os validados pela IAC</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
-      (() => { const novos = itensRevisaoAtual.filter((x) => infoItemNovo(x)); const ab = novos.filter(estaEmAberto).length;
-        return '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="novosRevisao"><div class="valor" style="color:var(--vm);">'+novos.length+'</div><div class="rotulo">Itens novos</div><div class="pct-sub">entraram depois da planilha original · '+ab+' em aberto</div></div>'; })() +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
 
@@ -4181,44 +4184,148 @@ let diffComAnterior = null; // { revAnterior, diff } da revisão selecionada con
 /* ITEM NOVO = não existia na planilha ORIGINAL do andar (a primeira revisão em que o andar apareceu)
    e entrou depois — continua "novo" enquanto existir. Troca de número nunca conta como novo.
    A revisão em que entrou fica registrada (config "itens_entradas") quando a revisão é aberta. */
-let baseOriginal = null;        // { andar: { rev, chaves:Set } }
-let entradasItens = null;       // { chave: 'rev' }
-const chaveItemNovo = (andar, tipo, quarto, id) => andar + '|' + chaveAreaDoc(tipo, quarto) + '|' + id;
+let baseOriginal = null;        // { andar: { rev, ids:Set } } — números da planilha ORIGINAL de cada andar
+let entradasItens = null;       // { 'andar|número': 'rev' } — primeira revisão em que o número apareceu
+const chaveNovo = (andar, id) => Number(andar) + '|' + String(id);
 async function carregarBaseOriginal(){
   if (baseOriginal) return baseOriginal;
-  const primeira = {};
-  revisoesMeta.slice().sort((a,b) => a.numero - b.numero).forEach((r) => (r.andares || []).forEach((a) => { if (!(a in primeira)) primeira[a] = r.numero; }));
+  /* PLANILHA ORIGINAL POR AMBIENTE: pra cada quarto/área, vale a primeira revisão em que AQUELE
+     ambiente apareceu (a IAC às vezes manda um andar em partes — ex.: os "Itens gerais" só chegam
+     numa revisão depois). Os itens dessa primeira vez são originais; novo é só o que surgiu depois. */
   const res = {};
-  await Promise.all(Object.entries(primeira).map(async ([a, rn]) => {
-    try{ const d = await store.getDoc('snapshots', 'R' + rn + '_' + a); res[a] = { rev: String(rn), chaves: new Set(((d && d.itens) || []).map((it) => chaveItemNovo(Number(a), it.t, quartoCorrigido(Number(a), it.t, it.q ?? null, rn), it.id))) }; }catch(e){}
+  const andares = Array.from(new Set(itensRevisaoAtual.map((it) => it.andar)));
+  await Promise.all(andares.map(async (a) => {
+    const precisa = new Set(itensRevisaoAtual.filter((it) => it.andar === a && it.origem !== 'AW').map((it) => chaveAreaDoc(it.tipo, it.quarto)));
+    const revs = revisoesMeta.filter((r) => (r.andares || []).indexOf(a) !== -1).sort((x,y) => x.numero - y.numero);
+    const vistos = new Set(), ids = new Set();
+    for (const r of revs){
+      if (Array.from(precisa).every((k) => vistos.has(k))) break; // todos os ambientes de hoje já têm a sua "primeira vez"
+      let d = null; try{ d = await store.getDoc('snapshots', 'R' + r.numero + '_' + a); }catch(e){}
+      const novosAmbientes = new Set();
+      ((d && d.itens) || []).forEach((it) => {
+        if (it.rv) return; // mantido de outra revisão não conta como "primeira vez"
+        const k = chaveAreaDoc(it.t, quartoCorrigido(a, it.t, it.q ?? null, r.numero));
+        if (!vistos.has(k)) novosAmbientes.add(k);
+        if (novosAmbientes.has(k)) ids.add(String(it.id));
+      });
+      novosAmbientes.forEach((k) => vistos.add(k));
+    }
+    res[a] = { rev: revs.length ? String(revs[0].numero) : '', ids };
   }));
   baseOriginal = res;
-  try{ const d = await store.getDoc('config', 'itens_entradas'); entradasItens = (d && d.mapa) || {}; }catch(e){ entradasItens = {}; }
+  try{ const d = await store.getDoc('config', 'itens_novos_entrada'); entradasItens = (d && d.mapa) || {}; }catch(e){ entradasItens = {}; }
   return baseOriginal;
 }
-async function registrarEntradas(){
-  // guarda em que revisão cada item novo entrou (só os que ainda não estavam registrados)
-  if (!diffComAnterior || !entradasItens) return;
-  const d = diffComAnterior.diff, novas = {};
-  (d.novosReais || []).concat(d.voltaram || []).forEach((it) => { const k = chaveItemNovo(it.andar, it.tipo, it.quarto, String(it.idPlanilha || it.id)); if (!entradasItens[k]) novas[k] = String(revisaoSelecionada); });
-  if (!Object.keys(novas).length) return;
-  Object.assign(entradasItens, novas);
-  try{ await store.setDoc('config', 'itens_entradas', { mapa: entradasItens }); }catch(e){}
+/* revisão de ENTRADA: a primeira revisão do andar em que o número aparece (procura em ordem, uma
+   vez por andar, e guarda). Nunca depois de uma baixa do próprio item. */
+let calculandoEntradas = false;
+async function calcularEntradas(){
+  if (calculandoEntradas || !baseOriginal || !entradasItens) return;
+  const faltam = new Map(); // andar → Set(ids)
+  itensRevisaoAtual.forEach((it) => {
+    if (it.origem === 'AW') return;
+    const idp = String(it.idPlanilha || it.id), base = baseOriginal[it.andar];
+    if (!base || base.ids.has(idp) || entradasItens[chaveNovo(it.andar, idp)]) return;
+    if (!faltam.has(it.andar)) faltam.set(it.andar, new Set());
+    faltam.get(it.andar).add(idp);
+  });
+  if (!faltam.size) return;
+  calculandoEntradas = true;
+  let mudou = false;
+  try{
+    for (const [andar, ids] of faltam){
+      const revs = revisoesMeta.filter((r) => (r.andares || []).indexOf(andar) !== -1).sort((a,b) => a.numero - b.numero);
+      for (const r of revs){
+        if (!ids.size) break;
+        let d = null; try{ d = await store.getDoc('snapshots', 'R' + r.numero + '_' + andar); }catch(e){}
+        ((d && d.itens) || []).forEach((it) => { if (!it.rv && ids.has(String(it.id))){ entradasItens[chaveNovo(andar, it.id)] = String(r.numero); ids.delete(String(it.id)); mudou = true; } });
+      }
+    }
+    if (mudou){ await store.setDoc('config', 'itens_novos_entrada', { mapa: entradasItens }); try{ renderItens(); renderQuartos(); }catch(e){} }
+  }finally{ calculandoEntradas = false; }
 }
+async function registrarEntradas(){ calcularEntradas(); } // em segundo plano
 function infoItemNovo(it){
   if (!baseOriginal || it.origem === 'AW') return null;
   const base = baseOriginal[it.andar];
-  if (!base) return null;
-  const idp = String(it.idPlanilha || it.id), k = chaveItemNovo(it.andar, it.tipo, it.quarto, idp);
-  if (base.chaves.has(k)) return null;
+  if (!base || base.rev === String(revisaoSelecionada)) return null;
+  const idp = String(it.idPlanilha || it.id);
+  if (base.ids.has(idp)) return null;                                   // estava na planilha original
   const ac = acompanhamento[it.id] || {};
-  if (ac.herdadoDe && base.chaves.has(chaveItemNovo(it.andar, it.tipo, it.quarto, String(ac.herdadoDe)))) return null; // troca de número de um item original
-  if (base.rev === String(revisaoSelecionada)) return null;
+  if (ac.herdadoDe && base.ids.has(String(ac.herdadoDe))) return null;  // troca de número de um item original
+  // TRAVA: item que já tinha baixa ANTES de a planilha do andar ser importada já existia → nunca é novo
+  const importadoEm = it.atualizadoEmAndar ? new Date(it.atualizadoEmAndar).getTime() : Date.now();
+  const baixaAntes = [ac.awExecEm, ac.iacOkEm].some((d) => d && new Date(d).getTime() < importadoEm);
+  if (baixaAntes) return null;
   const d = diffComAnterior && diffComAnterior.diff;
   const voltou = !!(d && (d.voltaram || []).some((x) => x.id === it.id));
-  return { tipo: voltou ? 'voltou' : 'novo', rev: (entradasItens && entradasItens[k]) || (ac.herdadoDe && entradasItens && entradasItens[chaveItemNovo(it.andar, it.tipo, it.quarto, String(ac.herdadoDe))]) || '' };
+  let rev = entradasItens && (entradasItens[chaveNovo(it.andar, idp)] || (ac.herdadoDe && entradasItens[chaveNovo(it.andar, ac.herdadoDe)])) || '';
+  return { tipo: 'novo', rev };
 }
 function entradaNestaRevisao(it){ const i = infoItemNovo(it); return i ? i.tipo : ''; }
+/* AUDITORIA DOS ITENS NOVOS: confere cada "novo" contra TODAS as revisões anteriores do andar:
+   mesma foto (forte) ou mesma descrição (fraco) em outro número/quarto = suspeito. */
+async function auditarItensNovos(){
+  const novos = itensRevisaoAtual.filter((it) => infoItemNovo(it));
+  if (!novos.length){ avisoFlutuante('Nenhum item novo nesta revisão', 'ok'); return; }
+  avisoFlutuante('Auditando ' + novos.length + ' itens novos nas revisões anteriores…', 'ok');
+  const n = Number(revisaoSelecionada), porAndar = new Map();
+  novos.forEach((it) => { if (!porAndar.has(it.andar)) porAndar.set(it.andar, []); porAndar.get(it.andar).push(it); });
+  const resultado = [];
+  for (const [andar, lista] of porAndar){
+    const fotos = new Map(), descs = new Map(); // → [{ id, q, t, rev }]
+    const revs = revisoesMeta.filter((r) => r.numero <= n && (r.andares || []).indexOf(andar) !== -1).sort((a,b) => a.numero - b.numero);
+    for (const r of revs){
+      let d = null; try{ d = await store.getDoc('snapshots', 'R' + r.numero + '_' + andar); }catch(e){}
+      ((d && d.itens) || []).forEach((it) => {
+        if (it.rv) return;
+        const ref = { id: String(it.id), q: it.q, t: it.t, rev: String(r.numero) };
+        (it.fs || (it.f ? [it.f] : [])).forEach((f) => { if (!fotos.has(f)) fotos.set(f, []); fotos.get(f).push(ref); });
+        const k = chaveComparacao(String(it.x || '')).slice(0, 160);
+        if (k){ if (!descs.has(k)) descs.set(k, []); descs.get(k).push(ref); }
+      });
+    }
+    lista.forEach((it) => {
+      const idp = String(it.idPlanilha || it.id);
+      const outros = (arr) => (arr || []).filter((x) => x.id !== idp);
+      const porFoto = (it.fotos || []).flatMap((f) => outros(fotos.get(String(f))));
+      const porDesc = outros(descs.get(chaveComparacao(String(it.desc || '')).slice(0, 160)));
+      const ref = (porFoto[0] || porDesc[0]);
+      const local = (x) => x.t === 'APTO' ? String(quartoCorrigido(andar, x.t, x.q, x.rev)) : (String(x.t || '').charAt(0) + String(x.t || '').slice(1).toLowerCase());
+      resultado.push({ it, tipo: porFoto.length ? 'foto' : (porDesc.length ? 'desc' : 'ok'),
+        ref: ref ? (ref.id + ' · ' + local(ref) + ' · R' + ref.rev) : '' });
+    });
+  }
+  const conta = (tp) => resultado.filter((r) => r.tipo === tp).length;
+  document.getElementById('modal-auditoria') && document.getElementById('modal-auditoria').remove();
+  const andares = Array.from(porAndar.keys()).sort((a,b) => a-b);
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'modal-auditoria';
+  ov.innerHTML = '<div class="modal-card modal-largo" role="dialog" aria-modal="true"><div class="modal-largo-corpo">' +
+    '<h3>Auditoria dos itens novos · ' + esc((revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '') + '</h3>' +
+    '<div class="modal-sub">Cada item marcado como novo foi conferido contra todas as revisões anteriores do andar.</div>' +
+    '<div class="resumo-grid" style="margin-bottom:12px;">' +
+      '<div class="stat"><div class="valor">' + resultado.length + '</div><div class="rotulo">Itens novos</div></div>' +
+      '<div class="stat vd"><div class="valor">' + conta('ok') + '</div><div class="rotulo">Novo confirmado</div><div class="pct-sub">nada com a mesma foto ou descrição antes</div></div>' +
+      '<div class="stat vm"><div class="valor">' + conta('foto') + '</div><div class="rotulo">Suspeito: mesma foto</div><div class="pct-sub">provavelmente o mesmo item</div></div>' +
+      '<div class="stat am"><div class="valor">' + conta('desc') + '</div><div class="rotulo">Suspeito: mesma descrição</div><div class="pct-sub">conferir (pode ser repetição legítima)</div></div>' +
+    '</div>' +
+    '<div class="chat-tabela"><table><tr><th>Andar</th><th>Novos</th><th>Confirmados</th><th>Mesma foto</th><th>Mesma descrição</th></tr>' +
+      andares.map((a) => { const r = resultado.filter((x) => x.it.andar === a), c = (tp) => r.filter((x) => x.tipo === tp).length;
+        return '<tr><td>' + esc(nomeAndar(a)) + '</td><td>' + r.length + '</td><td>' + c('ok') + '</td><td style="color:var(--vm);">' + (c('foto') || '—') + '</td><td style="color:var(--aviso-cor);">' + (c('desc') || '—') + '</td></tr>'; }).join('') +
+    '</table></div></div>' +
+    '<div class="modal-acoes modal-rodape-fixo"><button class="btn fantasma" id="aud-fechar">Fechar</button><button class="btn primario" id="aud-pdf">PDF da auditoria</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  document.getElementById('aud-fechar').addEventListener('click', () => ov.remove());
+  document.getElementById('aud-pdf').addEventListener('click', () => {
+    const ordemTipo = { foto: 0, desc: 1, ok: 2 };
+    const lista = resultado.slice().sort((a,b) => ordemTipo[a.tipo] - ordemTipo[b.tipo] || a.it.andar - b.it.andar || String(localLabel(a.it)).localeCompare(String(localLabel(b.it)), 'pt-BR', { numeric:true }))
+      .map((r) => Object.assign({}, r.it, { _notaPdf: r.tipo === 'foto' ? ['Suspeito: mesma foto', 'de ' + r.ref] : (r.tipo === 'desc' ? ['Suspeito: mesma descrição', 'de ' + r.ref] : ['Novo confirmado', 'sem foto/descrição iguais antes']) }));
+    exportarItensPdf({ itens: lista, titulo: 'Auditoria itens novos R' + revisaoSelecionada,
+      filtro: 'Auditoria dos itens novos: ' + resultado.length + ' itens — ' + conta('ok') + ' novos confirmados · ' + conta('foto') + ' suspeitos pela mesma foto · ' + conta('desc') + ' suspeitos pela mesma descrição' });
+  });
+}
 /* TROCA DE NÚMERO → o número novo HERDA tudo do antigo (baixas, quem/quando, histórico, disciplina,
    fornecedor, prioridade, previsão, triagem). Só se o número novo ainda não tiver nada registrado. */
 const mapaTrocasNumero = new Map(); // número novo → número antigo (pra liberação não acusar "item novo")
@@ -4312,22 +4419,19 @@ function compararRevisoes(itensDe, itensPara){
     const l = String(it.desc || '').trim() ? saiu.get(chaveDesc(it)) : null;
     if (l && l.length){
       const fN = fotosDe(it);
-      const temBaixa = (a) => { const ac = acompanhamento[a.id]; return !!(ac && (ac.awExecEm || ac.iacOkEm)); };
       // TROCA DE NÚMERO só com a MESMA FOTO — ou, sem foto pra comparar, se o antigo não tinha baixa.
       // Foto diferente = item NOVO de verdade (o antigo conta como saído).
-      let idx = l.findIndex((a) => Array.from(fotosDe(a)).some((f) => fN.has(f)));
-      const fotoIgual = idx !== -1;
-      if (idx === -1) idx = l.findIndex((a) => (!fN.size || !fotosDe(a).size) && !temBaixa(a));
-      if (idx !== -1){ const ant = l.splice(idx, 1)[0]; diff.trocas.push({ novo: it, antigo: ant, fotoIgual, semFoto: !fotoIgual }); }
+      // REGRA ÚNICA: número diferente só é o mesmo item com MESMA descrição, MESMO ambiente e MESMA foto
+      const idx = l.findIndex((a) => Array.from(fotosDe(a)).some((f) => fN.has(f)));
+      if (idx !== -1){ const ant = l.splice(idx, 1)[0]; diff.trocas.push({ novo: it, antigo: ant, fotoIgual: true, semFoto: false }); }
       else resto.push(it);
     }
     else resto.push(it);
   });
   const antigosUsados = new Set(diff.trocas.map((x) => x.antigo));
   diff.resolvidos = diff.resolvidos.filter((it) => !antigosUsados.has(it));
-  diff.voltaram = resto.filter((it) => idsResolvidosHist && idsResolvidosHist.has(String(it.idPlanilha || it.id)));
-  const setVolt = new Set(diff.voltaram);
-  diff.novosReais = resto.filter((it) => !setVolt.has(it));
+  diff.voltaram = [];          // sem categoria à parte: quem não é troca de número é NOVO
+  diff.novosReais = resto;
   diff.novos = resto; // "entraram" = novos de verdade + voltaram (troca de número fica fora da conta)
   return diff;
 }
@@ -6889,10 +6993,13 @@ async function executarComparacao(){
     '<div class="stat"><div class="valor saldo '+saldoClasse+'">'+(saldo>0?'+':'')+saldo+'</div><div class="rotulo">Saldo</div></div>' +
     '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas que já chegaram VM</div></div>' +
     '<div class="stat"><div class="valor"><span style="color:var(--vm);">↑'+diff.subiu.length+'</span> <span style="color:var(--aviso-cor);">↓'+diff.desceu.length+'</span></div><div class="rotulo">Mudaram de prioridade (↑ AM→VM · ↓ VM→AM)</div></div>' +
-    '<div class="stat"><div class="valor" style="color:var(--aviso-cor);">'+diff.voltaram.length+'</div><div class="rotulo">↺ Voltaram</div><div class="pct-sub">já tinham saído da planilha (incluídos nas novas)</div></div>' +
-    '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">'+diff.trocas.filter((x) => x.fotoIgual).length+' com a mesma foto · '+diff.trocas.filter((x) => !x.fotoIgual).length+' sem foto pra comparar — fora da conta (foto diferente conta como novo)</div></div>' +
+
+    '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">mesmo ambiente, mesma descrição e mesma foto — fora da conta</div></div>' +
     '</div>' +
+    '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' + (para === revisaoSelecionada ? '<button type="button" class="btn fantasma" id="btn-auditar-novos">Auditar itens novos</button>' : '') + '</div>' +
     ((diff.voltaram.length || diff.trocas.length) ? '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><button type="button" class="btn primario" id="btn-pdf-correcoes">PDF: correções para a IAC</button><span class="rodape-nota" style="margin:0; text-align:left;">'+diff.voltaram.length+' que voltaram e '+diff.trocas.length+' trocas de número, com o número antigo de cada um</span></div>' : '');
+  const bAud = document.getElementById('btn-auditar-novos');
+  if (bAud) bAud.addEventListener('click', auditarItensNovos);
   const bCorr = document.getElementById('btn-pdf-correcoes');
   if (bCorr) bCorr.addEventListener('click', () => {
     const ordem = (a, b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true });
@@ -8114,6 +8221,7 @@ async function selecionarRevisao(numeroStr){
     const ix = ord.findIndex((r) => String(r.numero) === numeroStr), antM = ix >= 0 ? ord[ix+1] : null;
     if (antM){ const ant = await carregarItensDaRevisao(String(antM.numero), true); diffComAnterior = { revAnterior: String(antM.numero), anterior: ant, diff: compararRevisoes(ant.itens, itensRevisaoAtual) }; }
   }catch(e){ diffComAnterior = null; }
+  baseOriginal = null;
   try{ await carregarBaseOriginal(); await registrarEntradas(); }catch(e){}
   renderTorreAndares();
   await renderResumoGeral(true);
