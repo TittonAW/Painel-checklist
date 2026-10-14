@@ -250,6 +250,10 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
 .tag-agressor.tag-vistoriado{ background:var(--vist-soft); border-color:var(--vist); color:var(--vist); }
 .tag-agressor.tag-vistoriado b{ color:var(--vist); }
+.tag-entrou{ display:inline-block; font-size:10px; line-height:1.3; padding:1px 6px; margin-top:3px; border-radius:99px; background:var(--vm-soft); color:var(--vm); border:1px solid transparent; }
+.tag-entrou.voltou{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
+.tag-agressor.tag-novos{ background:var(--vm-soft); border-color:transparent; color:var(--vm); }
+.tag-agressor.tag-novos b{ color:var(--vm); }
 .num-antigo{ font-size:10.5px; color:var(--faint); margin-top:2px; font-variant-numeric:tabular-nums; }
 .tag-rv{ cursor:pointer; font-family:inherit; display:inline-block; font-size:9.5px; line-height:1.2; padding:1px 5px; margin-left:5px; border-radius:5px; border:1px solid var(--line); background:var(--paper-2); color:var(--muted); vertical-align:2px; font-weight:400; }
 .badge-nao-aceitou{ display:inline-block; font-size:10.5px; line-height:1.3; padding:2px 8px; border-radius:99px; border:1px solid var(--aviso-cor); background:var(--aviso-cor-soft); color:var(--aviso-cor); white-space:nowrap; align-self:center; }
@@ -755,6 +759,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="semPrevisao">Sem previsão (falta data)</option>
         <option value="programado">Programados (com previsão)</option>
         <option value="previsaoVencida">Previsão vencida</option>
+        <option value="novosRevisao">Itens novos</option>
       </select>
       <select id="filtro-item-origem">
         <option value="">Todas as origens</option>
@@ -1144,7 +1149,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.136';
+const VERSAO_APP = '2026-10-03.140';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2076,7 +2081,7 @@ function renderBotaoDesfazerEnvio(){
 }
 
 async function salvarLote(grupos, aoProgredir){
-  idsResolvidosHist = null; histResolvidosDocs = null; // o histórico de "saíram" muda com o envio
+  idsResolvidosHist = null; histResolvidosDocs = null; baseOriginal = null; // o histórico de "saíram" muda com o envio
   const revisoesTocadas = new Map();
   const avisos = { fotosFalharam: [], fotosSemRecurso: 0, descricaoCortada: [], gravacaoFalhou: [], fotosNaoAssociadas: [], fotosEnviadas: 0, liberacaoRemovidaPorVM: [], revisarLiberacao: [] };
   // acumula, em todo o lote, os itens que existiam antes e sumiram agora nos locais
@@ -3506,13 +3511,48 @@ async function carregarItensManuais(){
   try{ itensManuais = await store.listCollection('itens_manuais'); }catch(e){ itensManuais = []; }
 }
 function origemDoItem(it){ return it.origem === 'AW' ? 'AW' : 'IAC'; }
+/* QUARTO COM NÚMERO CORRIGIDO PELA IAC: quando a planilha traz "(ANTIGO 1708)" na disciplina de um
+   item do quarto 1707, o 1708 das revisões anteriores era o número ERRADO desse mesmo quarto.
+   Nas revisões ANTERIORES à correção, o 1708 passa a ser lido como 1707 (não duplica e a troca de
+   número herda o status). Aprendido sozinho e guardado em config "quartos_corrigidos". */
+let quartosCorrigidos = null; // [{ andar, de, para, desde }]
+async function carregarQuartosCorrigidos(){
+  if (quartosCorrigidos) return quartosCorrigidos;
+  try{ const d = await store.getDoc('config', 'quartos_corrigidos'); quartosCorrigidos = (d && d.lista) || []; }catch(e){ quartosCorrigidos = []; }
+  return quartosCorrigidos;
+}
+function quartoCorrigido(andar, tipo, quarto, rev){
+  if (tipo !== 'APTO' || !quartosCorrigidos || !quartosCorrigidos.length || quarto == null) return quarto;
+  const c = quartosCorrigidos.find((x) => Number(x.andar) === Number(andar) && Number(x.de) === Number(quarto) && Number(rev) < Number(x.desde));
+  return c ? Number(c.para) : quarto;
+}
+function aprenderQuartosCorrigidos(docs){
+  if (!quartosCorrigidos) return;
+  const novos = [];
+  docs.forEach((d) => (d.itens || []).forEach((it) => {
+    if (it.t !== 'APTO' || it.rv) return;
+    const m = String(it.d || '').match(/\(\s*ANTIGO\s+(\d{3,4})\s*\)/i);
+    if (!m || Number(m[1]) === Number(it.q)) return;
+    const x = { andar: Number(d.andar), de: Number(m[1]), para: Number(it.q), desde: String(d.revisao) };
+    const ja = quartosCorrigidos.concat(novos).find((y) => Number(y.andar) === x.andar && Number(y.de) === x.de);
+    if (!ja) novos.push(x);
+    else if (Number(x.desde) < Number(ja.desde)) ja.desde = x.desde; // vale a partir da 1ª revisão em que apareceu
+  }));
+  if (!novos.length) return;
+  quartosCorrigidos = quartosCorrigidos.concat(novos);
+  baseOriginal = null; // a planilha original passa a ser lida com o número corrigido
+  store.setDoc('config', 'quartos_corrigidos', { lista: quartosCorrigidos }).catch(() => {});
+  try{ avisoFlutuante('Número de quarto corrigido pela IAC: ' + novos.map((x) => x.de + ' → ' + x.para).join(', ') + ' (revisões anteriores ajustadas)', 'ok'); }catch(e){}
+}
 let fonteDoAndar = {}; // andar → revisão de onde vêm os dados dele na revisão selecionada (completa o que não veio)
 function docIdDoAndar(revisaoStr, andar){
   const fonte = String(revisaoStr) === String(revisaoSelecionada) && fonteDoAndar[andar] ? fonteDoAndar[andar] : revisaoStr;
   return 'R' + fonte + '_' + andar;
 }
 async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
+  await carregarQuartosCorrigidos();
   let snaps = await store.queryRevisao('snapshots', numeroStr);
+  aprenderQuartosCorrigidos(snaps);
   // andares que NÃO vieram nesta revisão: usa a planilha mais recente anterior de cada um
   const n = Number(numeroStr), fonte = {};
   snaps.forEach((s) => { fonte[s.andar] = String(numeroStr); });
@@ -3537,9 +3577,11 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
   dosAndaresDaRevisao.forEach((s, i) => {
     const ant = anteriores[i];
     if (!ant || !Array.isArray(ant.itens)) return;
-    const temAgora = new Set((s.itens || []).map((it) => chaveAreaDoc(it.t, it.q)));
+    const temAgora = new Set((s.itens || []).filter((it) => !it.rv).map((it) => chaveAreaDoc(it.t, it.q)));
     const concluidos = new Set(s.ambientesConcluidos || []);
-    const herdados = ant.itens.filter((it) => { const k = chaveAreaDoc(it.t, it.q); return !temAgora.has(k) && !concluidos.has(k); });
+    const qAnt = (it) => quartoCorrigido(s.andar, it.t, it.q, it.rv || ant.revisao);
+    const herdados = ant.itens.filter((it) => { const k = chaveAreaDoc(it.t, qAnt(it)); return !temAgora.has(k) && !concluidos.has(k); })
+      .map((it) => Object.assign({}, it, { q: qAnt(it) }));
     if (!herdados.length) return;
     s.itens = (s.itens || []).concat(herdados.map((it) => Object.assign({}, it, { rv: it.rv || String(ant.revisao) })));
     // liberações desses ambientes vêm junto
@@ -3550,9 +3592,14 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
   const itens = [];
   const areasLiberadas = {};
   snaps.forEach((snap) => {
+    const revSnap = Number(snap.revisao || numeroStr);
+    const enviadosAgora = new Set((snap.itens || []).filter((it) => !it.rv).map((it) => chaveAreaDoc(it.t, it.q)));
     (snap.itens || []).forEach((it) => {
+      const q = quartoCorrigido(snap.andar, it.t, it.q, it.rv || revSnap);
+      // item mantido de revisão anterior cujo quarto (já corrigido) veio de novo nesta revisão: não duplica
+      if (it.rv && q !== it.q && enviadosAgora.has(chaveAreaDoc(it.t, q))) return;
       itens.push({
-        id: it.id, andar: snap.andar, quarto: it.q, tipo: it.t,
+        id: it.id, andar: snap.andar, quarto: q, tipo: it.t,
         disciplina: apelidoDisciplina(it.d), disciplinaOriginal: it.d,
         status: ((acompanhamento[it.id] || {}).prioridadeOverride) || it.s, statusOriginal: it.s, desc: it.x || '',
         fotos: it.fs || (it.f ? [it.f] : []), // "fs" é o formato novo; "f" é de itens salvos antes (1 foto só)
@@ -4077,6 +4124,8 @@ async function renderResumoGeral(recarregarHistorico){
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>'+sub(emAberto)+'</div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total · inclui os validados pela IAC</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
+      (() => { const novos = itensRevisaoAtual.filter((x) => infoItemNovo(x)); const ab = novos.filter(estaEmAberto).length;
+        return '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="novosRevisao"><div class="valor" style="color:var(--vm);">'+novos.length+'</div><div class="rotulo">Itens novos</div><div class="pct-sub">entraram depois da planilha original · '+ab+' em aberto</div></div>'; })() +
       '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
 
@@ -4129,6 +4178,47 @@ function mapaPorId(itens){
    "resolvidos"). Devolve também quais andares ficaram sem dados de cada lado. */
 let ultimaComparacao = null;
 let diffComAnterior = null; // { revAnterior, diff } da revisão selecionada contra a anterior
+/* ITEM NOVO = não existia na planilha ORIGINAL do andar (a primeira revisão em que o andar apareceu)
+   e entrou depois — continua "novo" enquanto existir. Troca de número nunca conta como novo.
+   A revisão em que entrou fica registrada (config "itens_entradas") quando a revisão é aberta. */
+let baseOriginal = null;        // { andar: { rev, chaves:Set } }
+let entradasItens = null;       // { chave: 'rev' }
+const chaveItemNovo = (andar, tipo, quarto, id) => andar + '|' + chaveAreaDoc(tipo, quarto) + '|' + id;
+async function carregarBaseOriginal(){
+  if (baseOriginal) return baseOriginal;
+  const primeira = {};
+  revisoesMeta.slice().sort((a,b) => a.numero - b.numero).forEach((r) => (r.andares || []).forEach((a) => { if (!(a in primeira)) primeira[a] = r.numero; }));
+  const res = {};
+  await Promise.all(Object.entries(primeira).map(async ([a, rn]) => {
+    try{ const d = await store.getDoc('snapshots', 'R' + rn + '_' + a); res[a] = { rev: String(rn), chaves: new Set(((d && d.itens) || []).map((it) => chaveItemNovo(Number(a), it.t, quartoCorrigido(Number(a), it.t, it.q ?? null, rn), it.id))) }; }catch(e){}
+  }));
+  baseOriginal = res;
+  try{ const d = await store.getDoc('config', 'itens_entradas'); entradasItens = (d && d.mapa) || {}; }catch(e){ entradasItens = {}; }
+  return baseOriginal;
+}
+async function registrarEntradas(){
+  // guarda em que revisão cada item novo entrou (só os que ainda não estavam registrados)
+  if (!diffComAnterior || !entradasItens) return;
+  const d = diffComAnterior.diff, novas = {};
+  (d.novosReais || []).concat(d.voltaram || []).forEach((it) => { const k = chaveItemNovo(it.andar, it.tipo, it.quarto, String(it.idPlanilha || it.id)); if (!entradasItens[k]) novas[k] = String(revisaoSelecionada); });
+  if (!Object.keys(novas).length) return;
+  Object.assign(entradasItens, novas);
+  try{ await store.setDoc('config', 'itens_entradas', { mapa: entradasItens }); }catch(e){}
+}
+function infoItemNovo(it){
+  if (!baseOriginal || it.origem === 'AW') return null;
+  const base = baseOriginal[it.andar];
+  if (!base) return null;
+  const idp = String(it.idPlanilha || it.id), k = chaveItemNovo(it.andar, it.tipo, it.quarto, idp);
+  if (base.chaves.has(k)) return null;
+  const ac = acompanhamento[it.id] || {};
+  if (ac.herdadoDe && base.chaves.has(chaveItemNovo(it.andar, it.tipo, it.quarto, String(ac.herdadoDe)))) return null; // troca de número de um item original
+  if (base.rev === String(revisaoSelecionada)) return null;
+  const d = diffComAnterior && diffComAnterior.diff;
+  const voltou = !!(d && (d.voltaram || []).some((x) => x.id === it.id));
+  return { tipo: voltou ? 'voltou' : 'novo', rev: (entradasItens && entradasItens[k]) || (ac.herdadoDe && entradasItens && entradasItens[chaveItemNovo(it.andar, it.tipo, it.quarto, String(ac.herdadoDe))]) || '' };
+}
+function entradaNestaRevisao(it){ const i = infoItemNovo(it); return i ? i.tipo : ''; }
 /* TROCA DE NÚMERO → o número novo HERDA tudo do antigo (baixas, quem/quando, histórico, disciplina,
    fornecedor, prioridade, previsão, triagem). Só se o número novo ainda não tiver nada registrado. */
 const mapaTrocasNumero = new Map(); // número novo → número antigo (pra liberação não acusar "item novo")
@@ -5155,9 +5245,10 @@ function renderQuartos(){
     const agr = maioresAgressores(l.itens);
     const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
     const nNaoAceitou = nJunto + nSozinha;
+    const nNovos = l.itens.filter((x) => entradaNestaRevisao(x)).length;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
     tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
-        ((agr.length || nNaoAceitou) ? '<div class="agressores">' + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
+        ((agr.length || nNaoAceitou || nNovos) ? '<div class="agressores">' + (nNovos ? '<button type="button" class="tag-agressor tag-novos" data-novos="1" title="Itens novos: não existiam na planilha original do andar (troca de número não conta)">Novos <b>'+nNovos+'</b></button>' : '') + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
           (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
@@ -5193,6 +5284,7 @@ function renderQuartos(){
       if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
       const tag = e.target.closest('[data-agressor]');
       const tagNA = e.target.closest('[data-nao-aceitou]');
+      const tagNovos = e.target.closest('[data-novos]');
       // segue a "história" do usuário: o que ele filtrou em Quartos continua valendo em Itens
       const tipo = tr.dataset.tipo, quarto = tr.dataset.quarto;
       const chaveLocal = tipo === 'APTO' ? ('APTO-'+quarto) : (tipo+'-'+tr.dataset.andar);
@@ -5203,7 +5295,7 @@ function renderQuartos(){
         disciplina: document.getElementById('filtro-disciplina').value,
         fornecedor: tag ? tag.dataset.agressor : document.getElementById('filtro-fornecedor').value,
         status: document.getElementById('filtro-status').value,
-        fluxo: tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value)
+        fluxo: tagNovos ? 'novosRevisao' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
       });
     });
     const btn = tr.querySelector('[data-acao-liberar]');
@@ -5422,6 +5514,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
+      if (filtroProgressoSelect === 'novosRevisao') return !!entradaNestaRevisao(it);
       if (filtroProgressoSelect === 'semPrevisao') return estaEmAberto(it) && !(a && a.dataPrevista);
       if (filtroProgressoSelect === 'programado') return estaEmAberto(it) && !!(a && a.dataPrevista);
       if (filtroProgressoSelect === 'previsaoVencida') return estaEmAberto(it) && !!(a && a.dataPrevista && a.dataPrevista < chaveDiaLocal(new Date()));
@@ -5527,7 +5620,7 @@ function renderItens(){
             '<button class="chip-acao ambar" data-triar="nossa" data-id="'+esc(it.id)+'" style="font-size:11px;">Baixa errada: reabrir</button>' +
           '</div>'
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
-          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>'
+          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
             : (ac.possivelReabertura && estaEmAberto(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal; background:var(--vm-soft); color:var(--vm);" title="Mesma descrição de um item que a AW já tinha executado, com foto diferente (ou sem foto): a IAC pode ter reaberto. Conferir em campo.">Possível reabertura · era '+esc(ac.possivelReabertura)+'</span>' : '')))) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">AW: '+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
@@ -5536,6 +5629,7 @@ function renderItens(){
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
       '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id) +
+        (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
         ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
@@ -6543,6 +6637,10 @@ function abrirEdicaoAgrupamento(){
         '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
       '</div>' +
       (podeTirarDaObra()
+        ? '<div class="modal-campo campo-largo"><label for="grupo-naoaceitou">IAC não aceitou <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens com essa etiqueta)</span></label>' +
+          '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC precisa corrigir (continua executado, vai no PDF de cobrança)</option><option value="nossa">Baixa errada: reabrir (volta pra em aberto, sem reincidência)</option></select></div>'
+        : '') +
+      (podeTirarDaObra()
         ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
           '<select id="grupo-fluxo"><option value="">— manter o de cada item —</option><option value="aw">Marcar Executado AW</option><option value="iac">Marcar Validado IAC (inclui Executado AW)</option><option value="aberto">Voltar para em aberto (marcado por engano — sem reincidência)</option></select></div>'
         : '') +
@@ -6585,9 +6683,17 @@ function abrirEdicaoAgrupamento(){
     const novaPrio = document.getElementById('grupo-prio').value;
     const novoFluxo = (document.getElementById('grupo-fluxo') || {}).value || '';
     const modoPrev = document.getElementById('grupo-prev-modo').value, dataPrev = document.getElementById('grupo-prev').value;
+    const triagemNA = (document.getElementById('grupo-naoaceitou') || {}).value || '';
+    const idsNA = triagemNA ? ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && iacNaoAceitou(x); }) : [];
+    if (triagemNA){
+      if (!idsNA.length){ avisoFlutuante('Nenhum dos selecionados está como "IAC não aceitou"', 'erro'); return; }
+      if (!window.confirm((triagemNA === 'iac' ? 'Marcar "IAC precisa corrigir"' : 'Reabrir (baixa errada)') + ' em ' + idsNA.length + ' de ' + ids.length + ' item(ns) selecionado(s)?' +
+        (idsNA.length < ids.length ? '\n\nOs outros ' + (ids.length - idsNA.length) + ' não estão como "IAC não aceitou" e ficam como estão.' : '') +
+        (triagemNA === 'nossa' ? '\n\nEles voltam para EM ABERTO, sem contar reincidência, e saem do PDF de cobrança.' : ''))) return;
+    }
     if (modoPrev === 'data' && !dataPrev){ document.getElementById('grupo-prev').focus(); avisoFlutuante('Escolha a data da previsão', 'erro'); return; }
     const mudaPrev = modoPrev === 'data' || modoPrev === 'remover';
-    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo && !mudaPrev){ fecharEdicaoAgrupamento(); return; }
+    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo && !mudaPrev && !triagemNA){ fecharEdicaoAgrupamento(); return; }
     if (mudaPrev){
       const abertos = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && estaEmAberto(x); }).length;
       if (!window.confirm((modoPrev === 'data' ? 'Pôr previsão ' + dataPrev.split('-').reverse().join('/') : 'Remover a previsão') + ' em ' + abertos + ' de ' + ids.length + ' item(ns) selecionado(s)?' + (abertos < ids.length ? '\n\nOs outros ' + (ids.length - abertos) + ' já foram executados e ficam como estão.' : ''))) return;
@@ -6604,6 +6710,18 @@ function abrirEdicaoAgrupamento(){
       // fornecedor em "manter": se trocou a disciplina, mantém a exceção do item ou segue o padrão da disciplina nova
       const forn = novoForn !== null ? novoForn : (novaDisc ? (ac.fornecedorOverride || fornecedorPadraoDaDisciplina(novaDisc)) : (it ? fornecedorEfetivo(it) : ''));
       if ((novaDisc || novoForn !== null) && !(await salvarClassificacaoItem(id, disc, forn))) falhas++;
+      if (triagemNA && idsNA.indexOf(id) !== -1){
+        const atualT = acompanhamento[id] || { awExecEm:null, iacOkEm:null };
+        const novoT = Object.assign({}, atualT), agoraT = new Date().toISOString(), histT = historicoDoItem(atualT).slice();
+        novoT.divergencia = triagemNA; novoT.divergenciaPor = usuarioAtual; novoT.divergenciaEm = agoraT;
+        if (triagemNA === 'nossa'){
+          novoT.awExecEm = null; novoT.awExecPor = null; novoT.iacOkEm = null; novoT.iacOkPor = null;
+          histT.push({ t:'reaberto', em:agoraT, por:usuarioAtual, lote:true });
+        }
+        novoT.historico = histT;
+        const rT = await salvarAcompanhamentoComRetry(id, novoT);
+        if (rT.ok) acompanhamento[id] = novoT; else falhas++;
+      }
       if (mudaPrev && it && estaEmAberto(it)){
         const atualP = acompanhamento[id] || { awExecEm:null, iacOkEm:null };
         const novoP = Object.assign({}, atualP, { dataPrevista: modoPrev === 'data' ? dataPrev : null });
@@ -7996,6 +8114,7 @@ async function selecionarRevisao(numeroStr){
     const ix = ord.findIndex((r) => String(r.numero) === numeroStr), antM = ix >= 0 ? ord[ix+1] : null;
     if (antM){ const ant = await carregarItensDaRevisao(String(antM.numero), true); diffComAnterior = { revAnterior: String(antM.numero), anterior: ant, diff: compararRevisoes(ant.itens, itensRevisaoAtual) }; }
   }catch(e){ diffComAnterior = null; }
+  try{ await carregarBaseOriginal(); await registrarEntradas(); }catch(e){}
   renderTorreAndares();
   await renderResumoGeral(true);
   renderInsightsResumo();
