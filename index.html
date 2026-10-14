@@ -1150,7 +1150,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.145';
+const VERSAO_APP = '2026-10-03.146';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4397,6 +4397,7 @@ async function carregarIdsResolvidosHist(forcar){
   return idsResolvidosHist;
 }
 function compararRevisoes(itensDe, itensPara){
+  // (itensDe é usado também na correção de quarto, pra achar o item correspondente)
   const andDe = new Set(itensDe.map((i) => i.andar)), andPara = new Set(itensPara.map((i) => i.andar));
   const diff = compararItens(itensDe.filter((i) => andPara.has(i.andar)), itensPara.filter((i) => andDe.has(i.andar)));
   // mudança de prioridade entre as duas planilhas (só AM ↔ VM; virar VD já conta como resolvido)
@@ -4428,6 +4429,23 @@ function compararRevisoes(itensDe, itensPara){
     }
     else resto.push(it);
   });
+  /* QUARTO CORRIGIDO ("ANTIGO 1708" → 1707): item novo com "(ANTIGO …)" na disciplina é procurado
+     entre os itens que já existiam no mesmo ambiente (1707 + antigo 1708, já corrigido) na revisão
+     anterior — mesma foto ou texto parecido, um pra um. Achou: é o mesmo item (correção do cadastro). */
+  const palavrasDe = (s) => new Set(chaveComparacao(String(s || '')).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && ['para','pela','pelo','com','como','todos','todas','entre','sobre','conforme','adequada','adequado'].indexOf(w) === -1));
+  const parecido = (a, b) => { const A = palavrasDe(a), B = palavrasDe(b); if (!A.size || !B.size) return false; let c = 0; A.forEach((w) => { if (B.has(w)) c++; }); return c / Math.min(A.size, B.size) >= 0.6; };
+  const usadosCorrecao = new Set(diff.trocas.map((x) => x.antigo));
+  const restoFinal = [];
+  resto.forEach((it) => {
+    if (!/\(\s*ANTIGO\s+\d{3,4}\s*\)/i.test(String(it.disciplinaOriginal || it.disciplina || ''))){ restoFinal.push(it); return; }
+    const cands = itensDe.filter((a) => a.andar === it.andar && localKey(a) === localKey(it) && !usadosCorrecao.has(a) && a.id !== it.id);
+    const fN = fotosDe(it);
+    let ant = cands.find((a) => Array.from(fotosDe(a)).some((f) => fN.has(f)));
+    if (!ant) ant = cands.find((a) => parecido(a.desc, it.desc));
+    if (ant){ usadosCorrecao.add(ant); diff.trocas.push({ novo: it, antigo: ant, fotoIgual: true, semFoto: false, correcaoQuarto: true }); }
+    else restoFinal.push(it);
+  });
+  resto.length = 0; restoFinal.forEach((x) => resto.push(x));
   const antigosUsados = new Set(diff.trocas.map((x) => x.antigo));
   diff.resolvidos = diff.resolvidos.filter((it) => !antigosUsados.has(it));
   diff.voltaram = [];          // sem categoria à parte: quem não é troca de número é NOVO
