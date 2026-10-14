@@ -250,6 +250,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
 .tag-agressor.tag-vistoriado{ background:var(--vist-soft); border-color:var(--vist); color:var(--vist); }
 .tag-agressor.tag-vistoriado b{ color:var(--vist); }
+.num-antigo{ font-size:10.5px; color:var(--faint); margin-top:2px; font-variant-numeric:tabular-nums; }
 .tag-rv{ cursor:pointer; font-family:inherit; display:inline-block; font-size:9.5px; line-height:1.2; padding:1px 5px; margin-left:5px; border-radius:5px; border:1px solid var(--line); background:var(--paper-2); color:var(--muted); vertical-align:2px; font-weight:400; }
 .badge-nao-aceitou{ display:inline-block; font-size:10.5px; line-height:1.3; padding:2px 8px; border-radius:99px; border:1px solid var(--aviso-cor); background:var(--aviso-cor-soft); color:var(--aviso-cor); white-space:nowrap; align-self:center; }
 .tag-agressor.tag-nao-aceitou b{ color:var(--aviso-cor); }
@@ -1143,7 +1144,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.132';
+const VERSAO_APP = '2026-10-03.135';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2162,14 +2163,18 @@ async function salvarLote(grupos, aoProgredir){
       // o que "saiu" é o mesmo item renumerado: fica registrado como troca (não conta como validado)
       const idsBase = new Set((base || []).map((it) => it.id));
       const chaveD = (it) => it.t + '|' + (it.q==null ? '' : it.q) + '|' + chaveComparacao(String(it.x || '')).slice(0, 160);
-      const novosPorChave = new Map();
-      itensFinal.forEach((it) => { if (!idsBase.has(it.id) && String(it.x || '').trim()){ const k = chaveD(it); novosPorChave.set(k, (novosPorChave.get(k) || 0) + 1); } });
+      const novosPorChave = new Map(); // chave → lista de conjuntos de fotos dos itens novos
+      itensFinal.forEach((it) => { if (!idsBase.has(it.id) && String(it.x || '').trim()){ const k = chaveD(it); if (!novosPorChave.has(k)) novosPorChave.set(k, []); novosPorChave.get(k).push(new Set((it.fs || []).map(String))); } });
       (base || []).forEach((it) => {
         const chaveLocal = it.t + '|' + (it.q==null ? '' : it.q);
         if (locaisNovos.has(chaveLocal) && !idsNovosFinal.has(it.id)){
-          const k = chaveD(it), livres = novosPorChave.get(k) || 0;
-          const troca = livres > 0 && String(it.x || '').trim() !== '';
-          if (troca) novosPorChave.set(k, livres - 1);
+          const k = chaveD(it), livres = novosPorChave.get(k) || [];
+          const fA = new Set((it.fs || []).map(String));
+          const acA = acompanhamento[it.id], antigoComBaixa = !!(acA && (acA.awExecEm || acA.iacOkEm));
+          let idx = livres.findIndex((fN) => Array.from(fA).some((f) => fN.has(f)));          // mesma foto
+          if (idx === -1 && !antigoComBaixa) idx = livres.findIndex((fN) => !fN.size || !fA.size); // sem foto e sem baixa
+          const troca = idx !== -1 && String(it.x || '').trim() !== '';
+          if (troca) livres.splice(idx, 1);
           recemResolvidosDoLote.push(Object.assign({ id: it.id, andar: g.andar, t: it.t, q: it.q ?? null, disciplina: it.d, descricao: it.x||'', revisao: String(g.revisao) }, troca ? { troca: true } : {}));
         }
       });
@@ -4123,7 +4128,7 @@ let ultimaComparacao = null;
 /* TROCA DE NÚMERO → o número novo HERDA tudo do antigo (baixas, quem/quando, histórico, disciplina,
    fornecedor, prioridade, previsão, triagem). Só se o número novo ainda não tiver nada registrado. */
 const mapaTrocasNumero = new Map(); // número novo → número antigo (pra liberação não acusar "item novo")
-async function herdarStatusDasTrocas(trocas){
+async function herdarStatusDasTrocas(trocas, revAnterior){
   let herdados = 0;
   for (const x of (trocas || [])){
     const idN = x.novo.id, idA = x.antigo.id;
@@ -4131,9 +4136,21 @@ async function herdarStatusDasTrocas(trocas){
     const antigo = acompanhamento[idA], atualN = acompanhamento[idN];
     const vazio = (a) => !a || (!a.awExecEm && !a.iacOkEm && !a.disciplinaOverride && !a.fornecedorOverride && !a.prioridadeOverride && !a.dataPrevista && !a.divergencia);
     if (!antigo || !vazio(atualN)) continue;
-    const novo = JSON.parse(JSON.stringify(antigo));
-    novo.herdadoDe = String(x.antigo.idPlanilha || idA);
-    novo.historico = (novo.historico || []).concat([{ t:'troca', em: new Date().toISOString(), por: 'troca de número da IAC', de: novo.herdadoDe }]);
+    const de = String(x.antigo.idPlanilha || idA), agora = new Date().toISOString();
+    const tinhaBaixa = !!(antigo.awExecEm || antigo.iacOkEm);
+    // MESMA FOTO = troca de número confirmada → herda tudo. Foto diferente (ou sem foto e o antigo
+    // já tinha baixa) = possível REABERTURA → herda só a classificação e entra em aberto, sinalizado.
+    const confirmada = true; // só chega aqui troca confirmada (mesma foto, ou sem foto e sem baixa)
+    let novo;
+    if (confirmada){
+      novo = JSON.parse(JSON.stringify(antigo));
+      novo.historico = (novo.historico || []).concat([{ t:'troca', em: agora, por: 'troca de número da IAC' + (x.fotoIgual ? ' (mesma foto)' : ''), de }]);
+    } else {
+      novo = { awExecEm:null, iacOkEm:null, historico:[{ t:'reabertura', em: agora, por: 'IAC — mesma descrição' + (x.semFoto ? '' : ', foto nova'), de }], possivelReabertura: de };
+      ['disciplinaOverride','fornecedorOverride','prioridadeOverride','dataPrevista'].forEach((k) => { if (antigo[k]) novo[k] = antigo[k]; });
+    }
+    novo.herdadoDe = de;
+    novo.herdadoRev = String(x.antigo.rv || revAnterior || '');
     acompanhamento[idN] = novo;
     herdados++;
     salvarAcompanhamentoComRetry(idN, novo).catch(() => {}); // grava em segundo plano
@@ -4185,9 +4202,21 @@ function compararRevisoes(itensDe, itensPara){
   const saiu = new Map();
   diff.resolvidos.forEach((it) => { if (!String(it.desc || '').trim()) return; const k = chaveDesc(it); if (!saiu.has(k)) saiu.set(k, []); saiu.get(k).push(it); });
   diff.trocas = []; const resto = [];
+  // a foto é guardada pela "impressão digital" do conteúdo: mesma imagem = mesmo código
+  const fotosDe = (it) => new Set((it.fotos || []).map(String));
   diff.novos.forEach((it) => {
     const l = String(it.desc || '').trim() ? saiu.get(chaveDesc(it)) : null;
-    if (l && l.length){ const ant = l.shift(); diff.trocas.push({ novo: it, antigo: ant }); }
+    if (l && l.length){
+      const fN = fotosDe(it);
+      const temBaixa = (a) => { const ac = acompanhamento[a.id]; return !!(ac && (ac.awExecEm || ac.iacOkEm)); };
+      // TROCA DE NÚMERO só com a MESMA FOTO — ou, sem foto pra comparar, se o antigo não tinha baixa.
+      // Foto diferente = item NOVO de verdade (o antigo conta como saído).
+      let idx = l.findIndex((a) => Array.from(fotosDe(a)).some((f) => fN.has(f)));
+      const fotoIgual = idx !== -1;
+      if (idx === -1) idx = l.findIndex((a) => (!fN.size || !fotosDe(a).size) && !temBaixa(a));
+      if (idx !== -1){ const ant = l.splice(idx, 1)[0]; diff.trocas.push({ novo: it, antigo: ant, fotoIgual, semFoto: !fotoIgual }); }
+      else resto.push(it);
+    }
     else resto.push(it);
   });
   const antigosUsados = new Set(diff.trocas.map((x) => x.antigo));
@@ -4213,7 +4242,7 @@ function agruparDiferencas(diff){
   (diff.subiu || []).forEach((it) => add(it, 'subiu'));
   (diff.desceu || []).forEach((it) => add(it, 'desceu'));
   (diff.semBaixa || []).forEach((it) => add(it, 'semBaixa'));
-  (diff.trocas || []).forEach((x) => { x.novo._eraId = x.antigo.idPlanilha || x.antigo.id; add(x.novo, 'trocas'); });
+  (diff.trocas || []).forEach((x) => { x.novo._eraId = x.antigo.idPlanilha || x.antigo.id; x.novo._fotoIgual = !!x.fotoIgual; add(x.novo, 'trocas'); });
   (diff.voltaram || []).forEach((it) => add(it, 'voltaram'));
   return Array.from(andares.values()).sort((a,b) => b.andar - a.andar);
 }
@@ -4261,7 +4290,9 @@ function renderInsightsResumo(){
   }
   Promise.all([carregarItensDaRevisao(String(anteriorMeta.numero), true), carregarIdsResolvidosHist()]).then(async ([anterior]) => {
     const diff = compararRevisoes(anterior.itens, itensRevisaoAtual);
-    const herdados = await herdarStatusDasTrocas(diff.trocas);
+    const saldo = diff.novos.length - diff.resolvidos.length;
+    const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
+    const herdados = await herdarStatusDasTrocas(diff.trocas, deStr);
     if (herdados){
       // a classificação/prioridade herdada muda a montagem dos itens: recarrega a revisão uma vez
       avisoFlutuante(herdados + ' item(ns) com número trocado pela IAC herdaram o status do número antigo', 'ok');
@@ -4269,8 +4300,6 @@ function renderInsightsResumo(){
       else atualizarTelasAposAcompanhamento();
       return;
     }
-    const saldo = diff.novos.length - diff.resolvidos.length;
-    const deStr = String(anteriorMeta.numero), paraStr = String(atualMeta.numero);
     const corSaldo = saldo > 0 ? 'var(--vm)' : (saldo < 0 ? 'var(--vd)' : 'var(--muted)');
     // números grandes no topo (mesmo estilo da linha de destaque da Visão geral)
     let html = '<div class="detalhe" style="margin-bottom:4px;">De '+esc(anteriorMeta.label)+' para '+esc(atualMeta.label)+'</div>' +
@@ -5483,14 +5512,16 @@ function renderItens(){
             '<button class="chip-acao ambar" data-triar="nossa" data-id="'+esc(it.id)+'" style="font-size:11px;">Baixa errada: reabrir</button>' +
           '</div>'
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
-          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' : ''))) +
+          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>'
+            : (ac.possivelReabertura && estaEmAberto(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal; background:var(--vm-soft); color:var(--vm);" title="Mesma descrição de um item que a AW já tinha executado, com foto diferente (ou sem foto): a IAC pode ter reaberto. Conferir em campo.">Possível reabertura · era '+esc(ac.possivelReabertura)+'</span>' : '')))) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">AW: '+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id)+'</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id) +
+        ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
       '<td class="col-centro"><span class="badge '+badgeClasse+'">'+esc(badgeTexto)+'</span>' +
@@ -5607,7 +5638,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -6726,14 +6757,14 @@ async function executarComparacao(){
     '<div class="stat vm"><div class="valor">'+criticosNovos+'</div><div class="rotulo">Novas que já chegaram VM</div></div>' +
     '<div class="stat"><div class="valor"><span style="color:var(--vm);">↑'+diff.subiu.length+'</span> <span style="color:var(--aviso-cor);">↓'+diff.desceu.length+'</span></div><div class="rotulo">Mudaram de prioridade (↑ AM→VM · ↓ VM→AM)</div></div>' +
     '<div class="stat"><div class="valor" style="color:var(--aviso-cor);">'+diff.voltaram.length+'</div><div class="rotulo">↺ Voltaram</div><div class="pct-sub">já tinham saído da planilha (incluídos nas novas)</div></div>' +
-    '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">mesmo item, número novo — fora da conta</div></div>' +
+    '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">'+diff.trocas.filter((x) => x.fotoIgual).length+' com a mesma foto · '+diff.trocas.filter((x) => !x.fotoIgual).length+' sem foto pra comparar — fora da conta (foto diferente conta como novo)</div></div>' +
     '</div>' +
     ((diff.voltaram.length || diff.trocas.length) ? '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><button type="button" class="btn primario" id="btn-pdf-correcoes">PDF: correções para a IAC</button><span class="rodape-nota" style="margin:0; text-align:left;">'+diff.voltaram.length+' que voltaram e '+diff.trocas.length+' trocas de número, com o número antigo de cada um</span></div>' : '');
   const bCorr = document.getElementById('btn-pdf-correcoes');
   if (bCorr) bCorr.addEventListener('click', () => {
     const ordem = (a, b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true });
     const lista = diff.voltaram.map((it) => Object.assign({}, it, { _notaPdf: ['Voltou', 'já tinha saído da planilha'] }))
-      .concat(diff.trocas.map((x) => Object.assign({}, x.novo, { _notaPdf: ['Troca de número', 'era ' + (x.antigo.idPlanilha || x.antigo.id)] }))).sort(ordem);
+      .concat(diff.trocas.map((x) => Object.assign({}, x.novo, { _notaPdf: ['Troca de número', 'era ' + (x.antigo.idPlanilha || x.antigo.id) + (x.fotoIgual ? ' (mesma foto)' : ' (sem foto)')] }))).sort(ordem);
     exportarItensPdf({ itens: lista, titulo: 'Correcoes IAC R' + de + ' para R' + para,
       filtro: 'Correções para a IAC (R' + de + ' → R' + para + '): ' + diff.voltaram.length + ' itens que voltaram (já tinham saído) · ' + diff.trocas.length + ' trocas de número (mesmo item, número novo)' });
   });
@@ -6748,7 +6779,9 @@ async function executarComparacao(){
     const pill = it.status === 'VM' ? '<span class="badge bloqueado">VM (vermelho)</span>' : '<span class="badge pendente">AM (amarelo)</span>';
     const mov = tipo === 'novo' ? '<span class="badge bloqueado" style="background:var(--vm-soft);">Entrou</span>'
       : tipo === 'voltou' ? '<span class="badge pendente" title="Este número já tinha saído da planilha da IAC numa revisão anterior">↺ Voltou</span>'
-      : tipo === 'troca' ? '<span class="badge" style="background:var(--paper-2); color:var(--text-2);" title="Mesma descrição, no mesmo ambiente, de um item que saiu — a IAC trocou o número">↔ Troca de nº · era '+esc(it._eraId || '—')+'</span>'
+      : tipo === 'troca' ? (it._fotoIgual
+          ? '<span class="badge" style="background:var(--paper-2); color:var(--text-2);" title="Mesma descrição e MESMA FOTO de um item que saiu — a IAC só trocou o número">↔ Troca de nº · era '+esc(it._eraId || '—')+' · mesma foto</span>'
+          : '<span class="badge" style="background:var(--paper-2); color:var(--text-2);" title="Mesma descrição de um item que saiu, sem foto pra comparar, e o antigo não tinha baixa — tratado como troca de número">↔ Troca de nº · era '+esc(it._eraId || '—')+' · sem foto</span>')
       : tipo === 'subiu' ? '<span class="badge bloqueado">Subiu AM → VM</span>'
       : tipo === 'desceu' ? '<span class="badge pendente">Desceu VM → AM</span>'
       : tipo === 'semBaixa' ? '<span class="badge pendente">IAC não aceitou</span>'
@@ -9032,7 +9065,11 @@ async function exportarItensPdf(listaPronta){
           ls.forEach((tx) => { pdfTxt(doc, cx+x, yb, tx, 8.5, cor, alinhar); yb += LH; });
           if (nota) pdfTxt(doc, cx+x, yb - 1, nota, 6.8, PDF_COR.faint, alinhar);
         };
-        pdfTxt(doc, cx+CI.item, mid+3, it.id, 8.5, PDF_COR.ink2, 'center');
+        const acNum = acompanhamento[it.id] || {};
+        if (acNum.herdadoDe && !acNum.possivelReabertura){
+          pdfTxt(doc, cx+CI.item, mid, it.id, 8.5, PDF_COR.ink2, 'center');
+          pdfTxt(doc, cx+CI.item, mid+9, (acNum.herdadoRev ? 'R'+acNum.herdadoRev+' · ' : 'antes · ') + acNum.herdadoDe, 6.3, PDF_COR.faint, 'center');
+        } else pdfTxt(doc, cx+CI.item, mid+3, it.id, 8.5, PDF_COR.ink2, 'center');
         pdfTxt(doc, cx+CI.andar, mid+3, nomeAndar(it.andar) + '', 8.5, PDF_COR.ink2, 'center');
         bloco(CI.local, loc, PDF_COR.ink2, null, 'center');
         bloco(X.disc, discTxt, PDF_COR.ink2, discNota);
