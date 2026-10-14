@@ -36,7 +36,7 @@
   --accent:#5F8A83; --accent-2:#4F7770; --accent-soft:#E9F1EF; /* verde-sálvia suave (antes #0F766E) */
   --vm:#D1443F; --vm-soft:#FBE7E6; --vm-fill:rgba(209,68,63,.80);
   --azul:#4C73D9; --azul-soft:#E7ECFC; --azul-fill:rgba(76,115,217,.80);
-  --vd:#39976A; --vd-soft:#E1F3E9; --vist:#B5653F; --vist-soft:#F8E8DF; --vd-fill:rgba(57,151,106,.80);
+  --vd:#39976A; --vd-soft:#E1F3E9; --vist:#B5653F; --vist-soft:#F8E8DF; --reinc:#A3446F; --reinc-soft:#F6E3EC; --novo:#1F8396; --novo-soft:#DFF1F4; --vd-fill:rgba(57,151,106,.80);
   --semdados:#99A1AC; --semdados-soft:#EDEEF1; --aviso-cor:#C68934; --aviso-cor-soft:#FBEED9; --aviso-fill:rgba(198,137,52,.80);
   --lilas:#8B6FD1; --lilas-fill:rgba(139,111,209,.80); --cinza-grafico:#6B7685; --cinza-grafico-fill:rgba(107,118,133,.80);
   /* PADRÃO DE CORES POR ETAPA (igual em todo o app e nos PDFs):
@@ -56,7 +56,7 @@
   --accent:#2DD4C4; --accent-2:#58E4D6; --accent-soft:#103431;
   --vm:#E07F77; --vm-soft:#3A201F; --vm-fill:rgba(224,127,119,.78);
   --azul:#86A6F0; --azul-soft:#1A2440; --azul-fill:rgba(134,166,240,.78);
-  --vd:#5FB88B; --vd-soft:#133023; --vist:#E0956E; --vist-soft:#3A2218; --vd-fill:rgba(95,184,139,.78);
+  --vd:#5FB88B; --vd-soft:#133023; --vist:#E0956E; --vist-soft:#3A2218; --reinc:#E08AB1; --reinc-soft:#3A1A28; --novo:#5CC3D4; --novo-soft:#10313A; --vd-fill:rgba(95,184,139,.78);
   --semdados:#6E7680; --semdados-soft:#1C2027; --aviso-cor:#D9A95E; --aviso-cor-soft:#3A2D14; --aviso-fill:rgba(217,169,94,.78);
   --lilas:#A98FE8; --lilas-fill:rgba(169,143,232,.78); --cinza-grafico:#8B95A3; --cinza-grafico-fill:rgba(139,149,163,.78);
   --aw:#A98FE8; --aw-soft:#262040; --aw-fill:rgba(169,143,232,.78);
@@ -250,11 +250,14 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .tag-agressor.tag-nao-aceitou.sozinha, .badge-nao-aceitou.sozinha{ border-style:dashed; }
 .tag-agressor.tag-vistoriado{ background:var(--vist-soft); border-color:var(--vist); color:var(--vist); }
 .tag-agressor.tag-vistoriado b{ color:var(--vist); }
-.mini-stat.novos .mini-rotulo, .mini-stat.novos .mini-valor{ color:var(--vm); }
-.tag-entrou{ display:inline-block; font-size:10px; line-height:1.3; padding:1px 6px; margin-top:3px; border-radius:99px; background:var(--vm-soft); color:var(--vm); border:1px solid transparent; }
+.mini-stat.novos .mini-rotulo, .mini-stat.novos .mini-valor{ color:var(--novo); }
+.mini-stat.sem-valor{ visibility:hidden; }
+.andar-barra .num{ position:relative; }
+.andar-barra .num .tag-rv{ position:absolute; left:0; top:calc(100% + 1px); margin:0; font-size:8.5px; padding:0 4px; } /* não quebra a linha do andar */ /* reserva o espaço: colunas sempre alinhadas na torre */
+.tag-entrou{ display:inline-block; font-size:10px; line-height:1.3; padding:1px 6px; margin-top:3px; border-radius:99px; background:var(--novo-soft); color:var(--novo); border:1px solid transparent; }
 .tag-entrou.voltou{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
-.tag-agressor.tag-novos{ background:var(--vm-soft); border-color:transparent; color:var(--vm); }
-.tag-agressor.tag-novos b{ color:var(--vm); }
+.tag-agressor.tag-novos{ background:var(--novo-soft); border-color:transparent; color:var(--novo); }
+.tag-agressor.tag-novos b{ color:var(--novo); }
 .num-antigo{ font-size:10.5px; color:var(--faint); margin-top:2px; font-variant-numeric:tabular-nums; }
 .tag-rv{ cursor:pointer; font-family:inherit; display:inline-block; font-size:9.5px; line-height:1.2; padding:1px 5px; margin-left:5px; border-radius:5px; border:1px solid var(--line); background:var(--paper-2); color:var(--muted); vertical-align:2px; font-weight:400; }
 .badge-nao-aceitou{ display:inline-block; font-size:10.5px; line-height:1.3; padding:2px 8px; border-radius:99px; border:1px solid var(--aviso-cor); background:var(--aviso-cor-soft); color:var(--aviso-cor); white-space:nowrap; align-self:center; }
@@ -407,7 +410,7 @@ html.chat-aberto{ overflow:hidden; }
 tbody tr.linha-clicavel{ cursor:pointer; }
 .stat .valor{ font-family:inherit; font-variant-numeric:tabular-nums; font-size:28px; font-weight:400; line-height:1.1; }
 .stat .rotulo{ font-size:12px; color:var(--muted); margin-top:6px; }
-.stat.vm .valor{ color:var(--vm); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--aw); }
+.stat.vm .valor{ color:var(--vm); } .stat.reinc .valor{ color:var(--reinc); } .stat.am .valor{ color:var(--aviso-cor); } .stat.executado .valor{ color:var(--aw); }
 .stat.vd .valor{ color:var(--vd); } .stat.liberadopend .valor{ color:var(--lib); } .stat.aw .valor{ color:var(--aw); }
 
 table{ width:100%; min-width:620px; border-collapse:collapse; font-size:14px; }
@@ -583,7 +586,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 }
 .aviso-flutuante.erro{ background:var(--vm); border-radius:var(--r-md); }
 .aviso-flutuante.info{ background:#7A2E2B; }
-.tag-reinc{ display:inline-flex; align-items:center; margin:4px 0 0 0; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--vm-soft); color:var(--vm); white-space:nowrap; vertical-align:middle; }
+.col-reinc{ color:var(--reinc) !important; }
+.tag-reinc{ display:inline-flex; align-items:center; margin:4px 0 0 0; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--reinc-soft) !important; color:var(--reinc) !important; } .tag-reinc-antigo{ display:inline-flex; align-items:center; margin:4px 0 0 0; font-size:10.5px; padding:2px 8px; border-radius:99px; background:var(--vm-soft); color:var(--vm); white-space:nowrap; vertical-align:middle; }
 .aviso-flutuante[hidden]{ display:none; }
 
 @media print{
@@ -721,7 +725,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-vm">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Ação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1150,7 +1154,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.146';
+const VERSAO_APP = '2026-10-03.147';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4020,7 +4024,7 @@ function renderTorreAndares(){
       pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar - novosAbertosDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
-        (novosAbertosDoAndar ? '<span class="mini-stat novos" title="Itens novos em aberto: entraram depois da planilha original do andar"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+novosAbertosDoAndar+'</span></span>' : '') +
+        '<span class="mini-stat novos'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos em aberto"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
         '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+(awExecDoAndar + saiuDoAndar)+'</span></span>' +
         '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+saiuDoAndar+' a IAC tirou da planilha">'+(iacOkDoAndar + saiuDoAndar)+'</span></span>' +
         '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+itensDoAndar.length+' na planilha atual + '+saiuDoAndar+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>' +
@@ -4036,7 +4040,7 @@ function renderTorreAndares(){
         // executado (enche conforme a obra avança). O % fica ao lado, junto de cada número.
         : '<span class="barra fundo-' + statusClasse + '" title="'+pctAndar+'% executado pela AW · '+(100-pctAndar)+'% ainda em aberto"><span class="' + statusClasse + ' preenchido" style="width:'+pctAndar+'%"></span><span class="pct-barra'+(pctAndar >= 88 ? ' sobre-forte' : '')+'">'+pctAndar+'%</span></span>') +
       (miniStatsHtml || '<span class="contagem mono">' + contagemTxt + '</span>') +
-      (liberadoTotal ? '<span class="selo-liberado" title="Andar liberado por inteiro">✓</span>' : '');
+      '';
     row.addEventListener('click', () => {
       abrirQuartosComFiltro({ andar: andar });
     });
@@ -4123,13 +4127,13 @@ async function renderResumoGeral(recarregarHistorico){
     // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">'+c.total+' pendentes na planilha · '+(vdNaPlanilha ? vdNaPlanilha+' verdes na planilha · ' : '')+sairam+' a IAC já tirou</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total · sem contar os novos</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(sairam + vdNaPlanilha)+' já validados pela IAC</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total · fora os novos</div></div>' +
       (() => { const novos = itensRevisaoAtual.filter((x) => infoItemNovo(x));
-        return '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="novosRevisao"><div class="valor" style="color:var(--vm);">'+novosEmAberto+'</div><div class="rotulo">Novos em aberto</div><div class="pct-sub">entraram depois da planilha original · '+novos.length+' itens novos no total</div></div>'; })() +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total · inclui os validados pela IAC</div></div>' +
+        return '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="novosRevisao"><div class="valor" style="color:var(--novo);">'+novosEmAberto+'</div><div class="rotulo">Novos em aberto</div><div class="pct-sub">desde a R'+esc(String((revisoesMeta.slice().sort((a,b) => a.numero - b.numero)[0] || {}).numero || ''))+' · '+novos.length+' novos no total</div></div>'; })() +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
-      '<div class="stat vm clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
+      '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
 
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
@@ -4137,7 +4141,11 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="resumo-grid">' +
 
       '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">'+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'junto').length+' validados junto · '+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'sozinha').length+' IAC sozinha</div></div>' +
-      '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="Itens que a IAC tirou da planilha dela (ela não marca resolvido, só exclui a linha), desde a R20">Validado pela IAC</div><div class="pct-sub">a IAC tirou da planilha dela</div></div>' +
+      (() => {
+        const validados = sairamDaPlanilha().map((h) => String(h.id || h._id)).concat(itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').map((it) => it.id));
+        const junto = validados.filter((id) => acompanhamento[id] && acompanhamento[id].iacOkEm).length;
+        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde">Validado pela IAC</div><div class="pct-sub">'+junto+' validados junto · '+(validados.length - junto)+' IAC sozinha</div></div>';
+      })() +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
@@ -5871,7 +5879,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
         if (!h.length) return '';
         const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
-          h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--vm)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
+          h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
       })() +
 
