@@ -253,6 +253,9 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 .mini-stat.novos .mini-rotulo, .mini-stat.novos .mini-valor{ color:var(--novo); font-weight:600; }
 .txt-novo{ color:var(--novo); font-weight:600; cursor:pointer; }
 .mini-stat.sem-valor{ visibility:hidden; }
+/* USUÁRIO QUE NÃO É ADMINISTRADOR: vê só o que está em aberto (sem novos em aprovação, sem "IAC não aceitou",
+   sem comparação entre revisões) — as decisões são do administrador */
+body.nao-admin .so-admin{ display:none !important; }
 .andar-barra .num{ position:relative; }
 .andar-barra .num .tag-rv{ position:absolute; left:0; top:calc(100% + 1px); margin:0; font-size:8.5px; padding:0 4px; } /* não quebra a linha do andar */ /* reserva o espaço: colunas sempre alinhadas na torre */
 .tag-entrou{ display:inline-block; font-size:10px; line-height:1.3; padding:1px 6px; margin-top:3px; border-radius:99px; background:var(--novo-soft); color:var(--novo); border:1px solid transparent; }
@@ -636,7 +639,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button type="button" class="btn fantasma" id="btn-usuario" title="Trocar o nome de quem está usando este aparelho" style="padding:6px 11px; font-size:13px; color:var(--text-2); white-space:nowrap;"></button>
       <span style="position:relative; display:inline-flex;"><select id="seletor-revisao" title="Revisão em exibição"></select><span id="nota-revisao-mista" class="oculto" style="position:absolute; right:2px; top:calc(100% + 3px); font-size:11px; font-weight:500; color:var(--aw); white-space:nowrap;"></span></span>
     </div>
-    <button class="btn primario" id="btn-ir-enviar">+ Enviar planilhas</button>
+    <button class="btn primario so-admin" id="btn-ir-enviar">+ Enviar planilhas</button>
   </div>
 </header>
 
@@ -645,9 +648,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="quartos">Quartos &amp; áreas</button>
   <button data-aba="itens">Itens</button>
   <button data-aba="disciplinas">Disciplinas &amp; fornecedores</button>
-  <button data-aba="comparacao">Comparação</button>
+  <button data-aba="comparacao" class="so-admin">Comparação</button>
   <button data-aba="tendencia">Plano</button>
-  <button data-aba="enviar">Enviar planilhas</button>
+  <button data-aba="enviar" class="so-admin">Enviar planilhas</button>
   <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
 </nav>
 <div id="barra-voltar" class="barra-voltar" hidden>
@@ -690,7 +693,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <div class="vazio oculto" id="vazio-evolucao">Ainda não há itens nesta revisão para montar a evolução.</div>
     </div>
 
-    <div class="card card-pad" style="margin-top:18px;">
+    <div class="card card-pad so-admin" style="margin-top:18px;">
       <h2>Últimas variações (vs. revisão anterior)</h2>
       <div id="resumo-insights"></div>
     </div>
@@ -747,7 +750,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -780,9 +783,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
         <option value="iacOk">Validado IAC</option>
-        <option value="naoBaixadoIac">IAC não aceitou</option>
+        <option value="naoBaixadoIac" class="so-admin">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
-        <option value="novosAvaliar">Itens novos</option>
+        <option value="novosAvaliar" class="so-admin">Itens novos</option>
       </select>
       <select id="filtro-item-programacao">
         <option value="">Toda a programação</option>
@@ -797,7 +800,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
-      <button class="btn primario" id="btn-novo-item">+ Novo item</button>
+      <button class="btn primario so-admin" id="btn-novo-item">+ Novo item</button>
     </div>
     <div id="status-pdf-itens" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto" id="barra-selecao-itens" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
@@ -810,7 +813,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card">
       <table>
         <thead><tr>
-          <th class="col-centro"><input type="checkbox" id="check-todos-itens" title="Selecionar todos os visíveis"></th>
+          <th class="col-centro so-admin"><input type="checkbox" id="check-todos-itens" title="Selecionar todos os visíveis"></th>
           <th class="col-centro">Item</th><th class="col-centro">Andar</th><th class="col-centro">Local</th><th>Disciplina</th><th>Fornecedor</th><th class="col-centro">Status</th><th>Descrição</th><th class="col-centro">Foto</th><th class="col-centro">Fluxo</th>
         </tr></thead>
         <tbody id="tbody-itens"></tbody>
@@ -1178,7 +1181,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.165';
+const VERSAO_APP = '2026-10-03.167';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2565,11 +2568,7 @@ function fecharSemelhante(valor){
    Guilherme e Marcel em todas as obras + a lista da obra (editável no cartão "Equipe e PINs").
    Padrão da obra Áreas comuns: Rafael Gentil, Gabriel Cecche e Samuel Alonso. */
 const CRIAM_FORNECEDOR_PADRAO = { '': [], 'areas-comuns': ['Rafael Gentil', 'Gabriel Cecche', 'Samuel Alonso'] };
-function criadoresDeFornecedor(){
-  const daObra = Array.isArray(configObra.criamFornecedor) ? configObra.criamFornecedor : (CRIAM_FORNECEDOR_PADRAO[OBRA] || []);
-  const todos = PODE_TIRAR_DA_OBRA.concat(daObra);
-  return todos.filter((n, i) => todos.findIndex((x) => chaveComparacao(x) === chaveComparacao(n)) === i);
-}
+function criadoresDeFornecedor(){ return listaAdmins(); } // criar fornecedor = ser administrador
 function podeCriarFornecedor(){
   return !!usuarioAtual && criadoresDeFornecedor().some((n) => chaveComparacao(n) === chaveComparacao(usuarioAtual));
 }
@@ -2661,6 +2660,15 @@ const CHAVE_VISUALIZADOR = 'obra_so_visualizar' + (OBRA ? '__' + OBRA : '');
 function modoVisualizador(){ try{ return !usuarioAtual && localStorage.getItem(CHAVE_VISUALIZADOR) === '1'; }catch(e){ return false; } }
 function renderUsuarioTopo(){
   try{ atualizarBotaoTirarLote(); renderListaExcluidos(); renderListaPins(); }catch(e){}
+  const eraNaoAdmin = document.body.classList.contains('nao-admin');
+  document.body.classList.toggle('nao-admin', !ehAdminAtual());
+  document.querySelectorAll('option.so-admin').forEach((o) => { o.hidden = !ehAdminAtual(); o.disabled = !ehAdminAtual(); }); // iPhone ignora display:none em <option>
+  if (eraNaoAdmin !== document.body.classList.contains('nao-admin')){
+    // mudou o perfil: o filtro de fluxo não pode ficar numa opção que sumiu, e as telas são redesenhadas
+    ['filtro-item-progresso'].forEach((id) => { const s = document.getElementById(id); if (s && ['naoBaixadoIac','novosAvaliar'].indexOf(s.value) !== -1 && !ehAdminAtual()) s.value = ''; });
+    if (abaAtual() === 'comparacao' && !ehAdminAtual()) irParaAba('visao-geral');
+    try{ if (itensRevisaoAtual.length) atualizarTelasAposAcompanhamento(); }catch(e){}
+  }
 
   const b = document.getElementById('btn-usuario');
   if (!b) return;
@@ -2810,20 +2818,20 @@ function renderListaPins(){
   pessoasConhecidas().forEach((n) => { if (!nomes.some((x) => chaveComparacao(x) === chaveComparacao(n))) nomes.push(n); });
   Object.values(pinsEquipe).forEach((p) => { if (!nomes.some((x) => chaveComparacao(x) === chaveComparacao(p.nome))) nomes.push(p.nome); });
   nomes.sort((a,b) => a.localeCompare(b, 'pt-BR'));
-  const fixos = PODE_TIRAR_DA_OBRA.map(chaveComparacao);
-  const ehAdmin = (n) => fixos.indexOf(chaveComparacao(n)) !== -1 || (configObra.admins || []).some((a) => chaveComparacao(a) === chaveComparacao(n));
+  const fixos = PODE_TIRAR_DA_OBRA.concat(ADMINS_PADRAO_POR_OBRA[OBRA] || []).map(chaveComparacao);
+  const ehAdmin = (n) => ehAdminNome(n);
   cont.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">' +
       '<div><div class="rodape-nota" style="text-align:left; margin:0;">Obra</div><div style="font-size:16px; color:var(--text);">'+esc(nomeDaObra())+'</div>' +
       '<div class="rodape-nota" style="text-align:left; margin:2px 0 0;">Endereço desta obra: '+esc(location.origin + location.pathname)+(OBRA ? '?obra='+esc(OBRA) : '')+'</div></div>' +
       '<button type="button" class="chip-acao" id="btn-nome-obra">Renomear obra</button></div>' +
     '<h2 style="margin-bottom:4px;">Equipe e PINs</h2>' +
-    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;"><b style="font-weight:500;">Fundador</b> e <b style="font-weight:500;">Administradores</b> fazem tudo (editar, enviar planilhas, liberar, decidir itens novos e não aceitos, criar fornecedor); <b style="font-weight:500;">Usuários</b> veem o que está em aberto e dão baixa. Só o Fundador torna alguém administrador. Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
     nomes.map((n) => { const p = pinsEquipe[chaveComparacao(n)];
       return '<div class="insight-item"><div><div class="local">'+esc(n)+'</div><div class="detalhe">'+(p ? 'PIN criado em '+dataHoraCurta(p.em) : 'ainda sem PIN (cria no próximo acesso)')+'</div></div>' +
         '<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">' +
-        (fixos.indexOf(chaveComparacao(n)) !== -1 ? '<span class="badge liberado-pend" style="font-size:11px;">administrador</span>'
-          : '<button type="button" class="chip-acao" data-admin="'+esc(n)+'">'+(ehAdmin(n) ? 'Tirar de administrador' : 'Tornar administrador')+'</button>') +
-        (fixos.indexOf(chaveComparacao(n)) === -1 ? '<button type="button" class="chip-acao" data-criar-forn="'+esc(n)+'">'+(criadoresDeFornecedor().some((c) => chaveComparacao(c) === chaveComparacao(n)) ? '✓ cria fornecedor' : 'Pode criar fornecedor?')+'</button>' : '') +
+        (ehFundador(n) ? '<span class="badge liberado-pend" style="font-size:11px;">Fundador</span>'
+          : (fixos.indexOf(chaveComparacao(n)) !== -1 || !ehFundador() ? '<span class="badge '+(ehAdmin(n) ? 'pronto' : 'execucao')+'" style="font-size:11px;">'+(ehAdmin(n) ? 'Administrador' : 'Usuário')+'</span>'
+          : '<button type="button" class="chip-acao'+(ehAdmin(n) ? ' marcado pronto' : '')+'" data-admin="'+esc(n)+'">'+(ehAdmin(n) ? '✓ Administrador' : 'Tornar administrador')+'</button>')) +
         (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div></div>'; }).join('');
   const bNome = document.getElementById('btn-nome-obra');
   if (bNome) bNome.addEventListener('click', async () => {
@@ -2841,6 +2849,7 @@ function renderListaPins(){
     if (r.ok){ configObra.criamFornecedor = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora pode criar fornecedor' : n+' não cria mais fornecedor', 'ok'); }
   }));
   cont.querySelectorAll('[data-admin]').forEach((b) => b.addEventListener('click', async () => {
+    if (!ehFundador()){ avisoFlutuante('Só o Fundador torna ou tira administradores', 'erro'); return; }
     const n = b.dataset.admin;
     const atual = (configObra.admins || []).slice();
     const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
@@ -3046,6 +3055,7 @@ function reabertoPorBaixaErrada(it){ const a = acompanhamento[it.id]; return !!(
    com pendência e o usuário de fato preencheu uma data; some sozinha quando o item é
    vistoriado pela IAC, já que nesse ponto a pendência não existe mais */
 async function salvarDataPrevista(itemId, dataStr){
+  if (!exigirAdmin()) return false;
   const anterior = acompanhamento[itemId];
   const atual = anterior || { awExecEm:null, iacOkEm:null };
   const novo = Object.assign({}, atual, { dataPrevista: dataStr || null });
@@ -3081,6 +3091,7 @@ function idsDoAmbienteNaTela(andar, chave){
   return itensRevisaoAtual.filter((it) => it.andar === andar && chaveAreaDoc(it.tipo, it.quarto) === chave && it.origem !== 'AW').map((it) => it.idPlanilha || it.id);
 }
 async function alternarLiberadoComPendencia(revisaoStr, andar, tipo, quarto){
+  if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
   const docId = docIdDoAndar(revisaoStr, andar);
   const doc = await store.getDoc('snapshots', docId);
@@ -3114,6 +3125,7 @@ function situacaoLiberacaoAndar(andar){
   return { total: locais.length, ok: ok.length, faltam };
 }
 async function liberarAndarInteiro(andar){
+  if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
   const sit = situacaoLiberacaoAndar(andar);
   const alvos = sit.faltam.filter((f) => f.liberavel);
@@ -3134,7 +3146,7 @@ async function liberarAndarInteiro(andar){
   await selecionarRevisao(revisaoSelecionada);
 }
 function renderVistoriaAndarQuartos(){
-  const v = document.getElementById('filtro-andar').value;
+  const v = ehAdminAtual() ? document.getElementById('filtro-andar').value : '';
   const thP = document.getElementById('th-pronto-quartos'), thV = document.getElementById('th-vistoria-quartos');
   if (!thP || !thV) return;
   if (v === ''){ thP.innerHTML = 'Liberado p/ vistoria'; thV.innerHTML = 'Vistoriado pela IAC'; return; }
@@ -3158,7 +3170,7 @@ function renderSituacaoAndarQuartos(){
   const sit = v === '' ? null : situacaoLiberacaoAndar(Number(v));
   const liberaveis = sit ? sit.faltam.filter((f) => f.liberavel).length : 0;
   const nPronto = v === '' ? 0 : agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === Number(v) && (it.status === 'VM' || it.status === 'AM'))).filter((l) => classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) === 'PENDENTE').length;
-  if (v === ''){ th.innerHTML = 'Liberado p/ operação'; return; }
+  if (v === '' || !ehAdminAtual()){ th.innerHTML = 'Liberado p/ operação'; return; }
   if (!liberaveis){ th.innerHTML = '<span class="chip-acao btn-etapa'+(sit && !sit.faltam.length ? ' marcado lib' : '')+'" style="cursor:default;">'+(sit && !sit.faltam.length ? '✓ Andar todo' : 'Liberado p/ operação')+'</span>'; return; }
   th.innerHTML = '<button type="button" class="chip-acao btn-etapa" id="btn-liberar-andar" title="Libera pra operação os '+liberaveis+' ambiente(s) deste andar que ainda faltam">Liberar andar ('+liberaveis+')</button>';
   const btn = document.getElementById('btn-liberar-andar');
@@ -3399,10 +3411,26 @@ function renderNomeObra(){
   const h = document.querySelector('.marca-texto h1');
   if (h) h.textContent = 'Acompanhamento de obra — ' + nomeDaObra();
 }
+function ehAdminAtual(){ try{ return podeTirarDaObra(); }catch(e){ return false; } }
+/* PAPÉIS: FUNDADOR (Guilherme Titton — criou o app; só ele torna/tira administradores) ·
+   ADMINISTRADOR (tudo: editar, enviar planilhas, liberar, decidir novos/não aceitos, criar fornecedor) ·
+   USUÁRIO (vê o que está em aberto e dá baixa nos itens). */
+const FUNDADOR = 'Guilherme Titton';
+const ADMINS_PADRAO_POR_OBRA = { 'areas-comuns': ['Gabriel Cecche', 'Rafael Gentil'] };
+function ehFundador(n){ const x = n || usuarioAtual; return !!x && chaveComparacao(x) === chaveComparacao(FUNDADOR); }
+function listaAdmins(){
+  const todos = PODE_TIRAR_DA_OBRA.concat(ADMINS_PADRAO_POR_OBRA[OBRA] || [], configObra.admins || []);
+  return todos.filter((n, i) => todos.findIndex((x) => chaveComparacao(x) === chaveComparacao(n)) === i);
+}
+function ehAdminNome(n){ return !!n && listaAdmins().some((a) => chaveComparacao(a) === chaveComparacao(n)); }
 function podeTirarDaObra(){
   if (!usuarioAtual) return false;
-  const k = chaveComparacao(usuarioAtual);
-  return PODE_TIRAR_DA_OBRA.concat(configObra.admins || []).some((n) => chaveComparacao(n) === k);
+  return ehAdminNome(usuarioAtual);
+}
+function exigirAdmin(){
+  if (ehAdminAtual()) return true;
+  avisoFlutuante('Só administradores podem fazer isso', 'erro');
+  return false;
 }
 async function carregarExcluidos(){
   try{
@@ -3766,6 +3794,7 @@ function abrirDataVistoria(titulo, sub, dataInicial, onSalvar, onRemover){
   if (onRemover) document.getElementById('dv-remover').addEventListener('click', async () => { fechar(); await onRemover(); });
 }
 async function marcarVistoriaAmbiente(andar, tipo, quarto){
+  if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
   const k = chaveAreaGlobal(andar, tipo, quarto), atual = vistoriasAmbiente[k];
   const nome = tipo === 'APTO' ? String(quarto) : labelTipo(tipo);
@@ -3774,6 +3803,7 @@ async function marcarVistoriaAmbiente(andar, tipo, quarto){
     atual ? async () => { if (await salvarVistoriasAmbiente({ [k]: null })) await selecionarRevisao(revisaoSelecionada); } : null);
 }
 async function marcarVistoriaAndar(andar){
+  if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
   const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM')));
   abrirDataVistoria('Vistoriado pela IAC · ' + nomeAndarLongo(andar), 'Vale pra todos os ' + locais.length + ' ambientes do andar.', (vistoriasIac[andar] || {}).em || '',
@@ -3791,11 +3821,13 @@ async function salvarProntosVistoria(mudancas){
   prontosVistoria = novo; return true;
 }
 async function alternarProntoVistoria(andar, tipo, quarto){
+  if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
   const k = chaveAreaGlobal(andar, tipo, quarto);
   if (await salvarProntosVistoria({ [k]: prontosVistoria[k] ? null : { em: new Date().toISOString(), por: usuarioAtual } })) await selecionarRevisao(revisaoSelecionada);
 }
 async function prontoVistoriaAndarInteiro(andar){
+  if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
   const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM')));
   const alvos = locais.filter((l) => !l.pronto && classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) !== 'CONCLUIDO');
@@ -4159,7 +4191,7 @@ function renderTorreAndares(){
       pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
-        '<span class="mini-stat novos'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
+        '<span class="mini-stat novos so-admin'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
         '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+(awExecDoAndar + saiuDoAndar)+'</span></span>' +
         '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+saiuDoAndar+' a IAC tirou da planilha">'+(iacOkDoAndar + saiuDoAndar)+'</span></span>' +
         '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+itensDoAndar.length+' na planilha atual + '+saiuDoAndar+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>' +
@@ -4274,15 +4306,15 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(sairam + vdNaPlanilha)+' já validados pela IAC</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
       '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
 
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
-    '<div class="grupo-label" style="margin-top:22px;">Validação da IAC</div>' +
-    '<div class="resumo-grid">' +
+    '<div class="grupo-label so-admin" style="margin-top:22px;">Validação da IAC</div>' +
+    '<div class="resumo-grid so-admin">' +
       '<div class="stat"><div class="valor">'+(vdHistorico + itensConta.filter(iacNaoAceitou).length)+'</div><div class="rotulo">Itens vistoriados pela IAC</div><div class="pct-sub">aceitos + não aceitos</div></div>' +
 
       '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">'+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'junto').length+' validados junto · '+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'sozinha').length+' IAC sozinha</div></div>' +
@@ -4295,8 +4327,8 @@ async function renderResumoGeral(recarregarHistorico){
 
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span style="color:var(--vm); font-weight:600;">+'+novosVm+' novos</span><br>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div><div class="pct-sub">'+Math.round(c.am/totalItens*100)+'% do total'+(novosAm ? '<br><span style="color:var(--aviso-cor); font-weight:600;">+'+novosAm+' novos</span>' : '')+'</div></div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span class="so-admin" style="color:var(--vm); font-weight:600;">+'+novosVm+' novos<br></span>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div><div class="pct-sub">'+Math.round(c.am/totalItens*100)+'% do total'+(novosAm ? '<span class="so-admin"><br><span style="color:var(--aviso-cor); font-weight:600;">+'+novosAm+' novos</span></span>' : '')+'</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
@@ -5584,11 +5616,11 @@ function renderQuartos(){
     const kAmb = chaveAreaGlobal(l.andar, l.tipo, l.quarto), temPend = status !== 'CONCLUIDO';
     const vAmb = vistoriasAmbiente[kAmb] || (vistoriasIac[l.andar] ? { em: vistoriasIac[l.andar].em, doAndar: true } : null);
     const ddmm = (d) => String(d || '').split('-').reverse().slice(0, 2).join('/');
-    const celPronto = temPend ? '<button class="chip-acao btn-etapa'+(l.pronto ? ' marcado pronto' : '')+'" data-acao-pronto="1">'+(l.pronto ? '✓ P/ vistoria' : 'Liberar p/ vistoria')+'</button>' : '<span class="sem-foto">—</span>';
-    const celVist = temPend ? '<button class="chip-acao btn-etapa'+(vAmb ? ' marcado vist' : '')+'" data-acao-vist="1" title="'+(vAmb ? 'Vistoriado em '+String(vAmb.em).split('-').reverse().join('/')+(vAmb.doAndar ? ' (registrado pelo andar)' : '') : 'Registrar a vistoria da IAC neste ambiente')+'">'+(vAmb ? '✓ Vistoriado '+ddmm(vAmb.em) : 'Registrar vistoria')+'</button>' : '<span class="sem-foto">—</span>';
+    const celPronto = temPend ? '<button class="chip-acao btn-etapa'+(l.pronto ? ' marcado pronto' : '')+'" data-acao-pronto="1" '+(ehAdminAtual() ? '' : 'disabled')+'>'+(l.pronto ? '✓ P/ vistoria' : 'Liberar p/ vistoria')+'</button>' : '<span class="sem-foto">—</span>';
+    const celVist = temPend ? '<button class="chip-acao btn-etapa'+(vAmb ? ' marcado vist' : '')+'" '+(ehAdminAtual() ? '' : 'disabled')+' data-acao-vist="1" title="'+(vAmb ? 'Vistoriado em '+String(vAmb.em).split('-').reverse().join('/')+(vAmb.doAndar ? ' (registrado pelo andar)' : '') : 'Registrar a vistoria da IAC neste ambiente')+'">'+(vAmb ? '✓ Vistoriado '+ddmm(vAmb.em) : 'Registrar vistoria')+'</button>' : '<span class="sem-foto">—</span>';
     let acaoHtml = '<span class="sem-foto">—</span>';
     if (status !== 'BLOQUEADO' && temPend){
-      acaoHtml = '<button class="chip-acao btn-etapa'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+(status === 'LIBERADO_PEND' ? '✓ Liberado' : 'Liberar p/ operação')+'</button>';
+      acaoHtml = '<button class="chip-acao btn-etapa'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1" '+(ehAdminAtual() ? '' : 'disabled')+'>'+(status === 'LIBERADO_PEND' ? '✓ Liberado' : 'Liberar p/ operação')+'</button>';
     }
     const agr = maioresAgressores(l.itens);
     const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
@@ -5596,13 +5628,13 @@ function renderQuartos(){
     const nNovos = l.itens.filter(novoForaDoAberto).length;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
     tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
-        ((agr.length || nNaoAceitou || nNovos) ? '<div class="agressores">' + (nNovos ? '<button type="button" class="tag-agressor tag-novos" data-novos="1" title="Itens novos: não existiam na planilha original do andar (troca de número não conta)">Novos <b>'+nNovos+'</b></button>' : '') + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
-          (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
+        ((agr.length || nNaoAceitou || nNovos) ? '<div class="agressores">' + (nNovos ? '<button type="button" class="tag-agressor tag-novos so-admin" data-novos="1" title="Itens novos: não existiam na planilha original do andar (troca de número não conta)">Novos <b>'+nNovos+'</b></button>' : '') + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto so-admin" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
+          (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha so-admin" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(itC)+'</td>' +
       '<td class="num-col col-aw">'+awExecDoLocal+'</td><td class="num-col col-iac">'+iacOkDoLocal+'</td>' +
-      '<td class="num-col" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(nNaoAceitou || '—')+'</td>' +
+      '<td class="num-col so-admin" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(nNaoAceitou || '—')+'</td>' +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
@@ -5970,7 +6002,7 @@ function renderItens(){
     const localLiberadoPend = !!areasLiberadasRevisaoAtual[chaveLocalItem];
     const dataHtml = (localLiberadoPend && estaEmAberto(it)) // executado pela AW: não há mais o que prever do nosso lado
       ? '<label style="display:flex; flex-direction:column; gap:2px; font-size:10.5px; color:var(--muted);">Previsão' +
-        '<input type="date" class="input-data-prevista" data-id="'+esc(it.id)+'" value="'+esc(ac.dataPrevista||'')+'" style="font-size:12.5px; padding:4px 6px;"></label>'
+        '<input type="date" class="input-data-prevista" data-id="'+esc(it.id)+'" value="'+esc(ac.dataPrevista||'')+'" '+(ehAdminAtual() ? '' : 'disabled title="Só administradores definem a previsão"')+' style="font-size:12.5px; padding:4px 6px;"></label>'
       : ((ac.dataPrevista && estaEmAberto(it))
           ? '<div style="font-size:11px; color:'+(ac.dataPrevista < chaveDiaLocal(new Date()) ? 'var(--vm)' : 'var(--text-2)')+';">Previsão '+ac.dataPrevista.split('-').reverse().slice(0,2).join('/')+(ac.dataPrevista < chaveDiaLocal(new Date()) ? ' · vencida' : '')+'</div>'
           : '');
@@ -5978,7 +6010,7 @@ function renderItens(){
       '<div style="display:flex; flex-direction:column; gap:8px;">' +
       '<button class="chip-acao'+(ac.awExecEm?' marcado':'')+'" data-acomp="awExecEm" data-id="'+esc(it.id)+'"'+(ac.awExecEm?' title="Desmarcar devolve o item para aberto e conta uma reincidência (em até 15 min depois de marcar, conta só como correção de engano)"':'')+'>'+(ac.awExecEm?'✓ Executado AW':'Executado AW')+'</button>' +
       '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Validado IAC':'Validado IAC')+'</button>' +
-      '<button class="chip-acao" data-editar-item="'+esc(it.id)+'">Editar</button>' +
+      '<button class="chip-acao so-admin" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
       (podeTirarDaObra() && novoForaDoAberto(it)
         ? '<div style="border:1px solid var(--novo); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--novo-soft); margin-bottom:5px;">' +
@@ -5990,7 +6022,7 @@ function renderItens(){
           '</div>'
         : '') +
       (iacNaoAceitou(it)
-        ? '<div style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
+        ? '<div class="so-admin" style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
             '<span class="badge-nao-aceitou '+tipoNaoAceitou(it)+'" title="'+esc(DICA_NAO_ACEITOU[tipoNaoAceitou(it)] || '')+'">IAC não aceitou</span>' +
             (ac.divergencia === 'iac'
               ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
@@ -5998,16 +6030,16 @@ function renderItens(){
             '<button class="chip-acao ambar" data-triar="nossa" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Volta para aberto e conta como reincidência">Aceitar como aberto</button>' +
           '</div>'
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
-          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
+          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha so-admin" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
             : (ac.possivelReabertura && estaEmAberto(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal; background:var(--vm-soft); color:var(--vm);" title="Mesma descrição de um item que a AW já tinha executado, com foto diferente (ou sem foto): a IAC pode ter reaberto. Conferir em campo.">Possível reabertura · era '+esc(ac.possivelReabertura)+'</span>' : '')))) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">AW: '+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
-    tr.innerHTML = '<td class="col-centro"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
+    tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
       '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id) +
-        (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
+        (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div class="so-admin"><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
         ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
@@ -6088,6 +6120,7 @@ function fecharModalEdicao(){
 }
 
 function abrirEdicaoItem(tr, itemId, discsConhecidas){
+  if (!exigirAdmin()) return;
   fecharModalEdicao();
   const it = itensRevisaoAtual.find((x) => x.id === itemId);
   if (!it) return;
@@ -6848,6 +6881,7 @@ function iniciarChat(){
 
 /* ===================== NOVO ITEM (incluído no app, origem AW) ===================== */
 function abrirNovoItem(){
+  if (!exigirAdmin()) return;
   document.getElementById('modal-novo-item') && document.getElementById('modal-novo-item').remove();
   const andares = completarAndaresDaTorre(andaresConhecidos.length ? andaresConhecidos : [5]);
   const andarIni = document.getElementById('filtro-item-andar').value !== '' ? Number(document.getElementById('filtro-item-andar').value) : andares[andares.length-1];
@@ -6976,6 +7010,7 @@ async function restaurarAcompanhamentos(antes){
    (e "tirar da obra", pra quem pode). Campo deixado em "manter" não mexe nos itens. */
 function fecharEdicaoAgrupamento(){ const o = document.getElementById('modal-editar-grupo'); if (o) o.remove(); }
 function abrirEdicaoAgrupamento(){
+  if (!exigirAdmin()) return;
   fecharEdicaoAgrupamento();
   const ids = Array.from(itensSelecionados);
   if (!ids.length) return;
@@ -8079,6 +8114,7 @@ async function processarNovosArquivos(resultado){
 }
 
 async function executarSalvamento(grupos, btn, cont){
+  if (!exigirAdmin()) return;
   btn.disabled = true;
   // se este lote vai subir foto nova, libera espaço primeiro (apaga fotos órfãs de testes/trocas
   // anteriores) — sem perguntar nada, é manutenção automática, não mexe em nada que esteja em uso.
