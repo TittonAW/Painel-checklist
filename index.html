@@ -1181,7 +1181,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.167';
+const VERSAO_APP = '2026-10-03.169';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4560,7 +4560,15 @@ async function herdarStatusDasTrocas(trocas, revAnterior){
     mapaTrocasNumero.set(String(x.novo.idPlanilha || idN), String(x.antigo.idPlanilha || idA));
     const antigo = acompanhamento[idA], atualN = acompanhamento[idN];
     const vazio = (a) => !a || (!a.awExecEm && !a.iacOkEm && !a.disciplinaOverride && !a.fornecedorOverride && !a.prioridadeOverride && !a.dataPrevista && !a.divergencia);
-    if (!antigo || !vazio(atualN)) continue;
+    if (!vazio(atualN) || (atualN && atualN.herdadoDe)) continue;
+    if (!antigo){
+      // o antigo não tinha nada registrado: só anota de quem veio (assim não conta como item novo)
+      const marca = Object.assign({}, atualN || { awExecEm:null, iacOkEm:null }, { herdadoDe: String(x.antigo.idPlanilha || idA), herdadoRev: String(x.antigo.rv || revAnterior || ''),
+        historico: historicoDoItem(atualN).concat([{ t:'troca', em: new Date().toISOString(), por: 'troca de número da IAC', de: String(x.antigo.idPlanilha || idA) }]) });
+      acompanhamento[idN] = marca; herdados++;
+      salvarAcompanhamentoComRetry(idN, marca).catch(() => {});
+      continue;
+    }
     const de = String(x.antigo.idPlanilha || idA), agora = new Date().toISOString();
     const tinhaBaixa = !!(antigo.awExecEm || antigo.iacOkEm);
     // MESMA FOTO = troca de número confirmada → herda tudo. Foto diferente (ou sem foto e o antigo
@@ -4670,6 +4678,21 @@ function compararRevisoes(itensDe, itensPara){
     else restoFinal.push(it);
   });
   resto.length = 0; restoFinal.forEach((x) => resto.push(x));
+  /* MUDOU DE AMBIENTE (ex.: "ITENS GERAIS 18º" → "APTO 1806"): mesmo andar, MESMA descrição e MESMA
+     foto, número novo → é o mesmo item. Um pra um (cada item antigo serve pra um só). */
+  const descK = (it) => chaveComparacao(String(it.desc || '')).slice(0, 160);
+  const restoFinal2 = [];
+  resto.forEach((it) => {
+    const fN = fotosDe(it), k = descK(it);
+    if (!fN.size || !k){ restoFinal2.push(it); return; }
+    const igual = (a) => a.andar === it.andar && a.id !== it.id && descK(a) === k && Array.from(fotosDe(a)).some((f) => fN.has(f));
+    let ant = itensDe.find((a) => igual(a) && !usadosCorrecao.has(a));
+    // item GERAL do andar que a IAC detalhou por quarto: o mesmo item antigo vale pra vários quartos
+    if (!ant) ant = itensDe.find((a) => igual(a) && a.tipo === 'ITENS GERAIS');
+    if (ant){ usadosCorrecao.add(ant); diff.trocas.push({ novo: it, antigo: ant, fotoIgual: true, semFoto: false, mudouAmbiente: localKey(ant) !== localKey(it) }); }
+    else restoFinal2.push(it);
+  });
+  resto.length = 0; restoFinal2.forEach((x) => resto.push(x));
   const antigosUsados = new Set(diff.trocas.map((x) => x.antigo));
   diff.resolvidos = diff.resolvidos.filter((it) => !antigosUsados.has(it));
   diff.voltaram = [];          // sem categoria à parte: quem não é troca de número é NOVO
