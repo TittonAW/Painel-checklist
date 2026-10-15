@@ -1178,7 +1178,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.163';
+const VERSAO_APP = '2026-10-03.164';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3623,9 +3623,11 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
   dosAndaresDaRevisao.forEach((s, i) => {
     const ant = anteriores[i];
     if (!ant || !Array.isArray(ant.itens)) return;
-    const temAgora = new Set((s.itens || []).filter((it) => !it.rv).map((it) => chaveAreaDoc(it.t, it.q)));
     const concluidos = new Set(s.ambientesConcluidos || []);
     const qAnt = (it) => quartoCorrigido(s.andar, it.t, it.q, it.rv || ant.revisao);
+    // ambientes que JÁ estão neste documento — os que vieram agora e os guardados da revisão anterior
+    // (com "rv") — nunca são acrescentados de novo (isso duplicava os itens)
+    const temAgora = new Set((s.itens || []).map((it) => chaveAreaDoc(it.t, it.rv ? quartoCorrigido(s.andar, it.t, it.q, it.rv) : it.q)));
     const herdados = ant.itens.filter((it) => { const k = chaveAreaDoc(it.t, qAnt(it)); return !temAgora.has(k) && !concluidos.has(k); })
       .map((it) => Object.assign({}, it, { q: qAnt(it) }));
     if (!herdados.length) return;
@@ -3637,6 +3639,7 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
   });
   const itens = [];
   const areasLiberadas = {};
+  const vistosNaMontagem = new Set();
   snaps.forEach((snap) => {
     const revSnap = Number(snap.revisao || numeroStr);
     const enviadosAgora = new Set((snap.itens || []).filter((it) => !it.rv).map((it) => chaveAreaDoc(it.t, it.q)));
@@ -3644,6 +3647,9 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
       const q = quartoCorrigido(snap.andar, it.t, it.q, it.rv || revSnap);
       // item mantido de revisão anterior cujo quarto (já corrigido) veio de novo nesta revisão: não duplica
       if (it.rv && q !== it.q && enviadosAgora.has(chaveAreaDoc(it.t, q))) return;
+      const kUnico = snap.andar + '|' + chaveAreaDoc(it.t, q) + '|' + it.id;
+      if (vistosNaMontagem.has(kUnico)) return; // trava: nunca o mesmo item duas vezes
+      vistosNaMontagem.add(kUnico);
       itens.push({
         id: it.id, andar: snap.andar, quarto: q, tipo: it.t,
         disciplina: apelidoDisciplina(it.d), disciplinaOriginal: it.d,
@@ -4422,15 +4428,18 @@ function motivoForaDaConta(it){
 }
 /* NOVO A AVALIAR: item novo que ainda não foi aceito como aberto. Fica fora do "em aberto" (aparece em
    laranja, "novos a avaliar") até um administrador decidir — um a um ou no Editar agrupamento. */
+// novo de uma revisão ANTERIOR à selecionada: vocês já trabalhavam com ele — conta como aceito
+function novoDeRevisaoAnterior(it){ const i = infoItemNovo(it); return !!(i && i.rev && i.rev !== String(revisaoSelecionada)); }
 function novoAAvaliar(it){
   const ac = acompanhamento[it.id];
-  return !!infoItemNovo(it) && estaEmAberto(it) && !(ac && (ac.novoAceitoEm || ac.novoContestadoEm));
+  return !!infoItemNovo(it) && !novoDeRevisaoAnterior(it) && estaEmAberto(it) && !(ac && (ac.novoAceitoEm || ac.novoContestadoEm));
 }
 // fora do "em aberto": novo ainda a avaliar OU novo que a IAC precisa corrigir (não foi aceito)
 function contaNoTotal(it){ return !novoForaDoAberto(it); }
 function novoForaDoAberto(it){
   const ac = acompanhamento[it.id];
-  return !!infoItemNovo(it) && estaEmAberto(it) && !(ac && ac.novoAceitoEm);
+  if (ac && ac.novoContestadoEm && infoItemNovo(it) && estaEmAberto(it)) return true; // "IAC precisa corrigir" fica fora
+  return !!infoItemNovo(it) && !novoDeRevisaoAnterior(it) && estaEmAberto(it) && !(ac && ac.novoAceitoEm);
 }
 async function decidirItemNovo(ids, aceitar, contestar){
   if (!(await garantirUsuario())) return 0;
