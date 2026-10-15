@@ -1178,7 +1178,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.164';
+const VERSAO_APP = '2026-10-03.165';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5303,7 +5303,7 @@ function construirRankingProgresso(lista, cor, maxItens){
 function renderRankings(){
   const porForn = new Map(), porDisc = new Map();
   itensRevisaoAtual.forEach((it) => {
-    if (it.status !== 'VM' && it.status !== 'AM') return;
+    if ((it.status !== 'VM' && it.status !== 'AM') || !contaNoTotal(it)) return;
     const f = fornecedorEfetivo(it) || 'Sem fornecedor definido', d = disciplinaEfetiva(it);
     if (!porForn.has(f)) porForn.set(f, []); porForn.get(f).push(it);
     if (!porDisc.has(d)) porDisc.set(d, []); porDisc.get(d).push(it);
@@ -5405,7 +5405,7 @@ function abrirFocoAndar(){
 }
 function dadosFocoAndar(andar, dias){
   const DIA = 86400000, agora = Date.now();
-  const itens = itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM'));
+  const itens = itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM') && contaNoTotal(it));
   const abertos = itens.filter(estaEmAberto);
   const exec7 = itens.filter((it) => { const a = acompanhamento[it.id]; return a && a.awExecEm && (agora - new Date(a.awExecEm).getTime()) < 7*DIA; }).length;
   const forn = new Map();
@@ -5543,7 +5543,7 @@ function renderFocoAndar(andares){
 function maioresAgressores(itens){
   const m = new Map(), agora = Date.now();
   itens.forEach((it) => {
-    if (!(it.status === 'VM' || it.status === 'AM')) return;
+    if (!(it.status === 'VM' || it.status === 'AM') || !contaNoTotal(it)) return;
     const f = fornecedorEfetivo(it) || 'Sem fornecedor';
     if (!m.has(f)) m.set(f, { nome: f, aberto: 0, ultima: 0 });
     const x = m.get(f), a = acompanhamento[it.id];
@@ -5593,7 +5593,7 @@ function renderQuartos(){
     const agr = maioresAgressores(l.itens);
     const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
     const nNaoAceitou = nJunto + nSozinha;
-    const nNovos = l.itens.filter((x) => entradaNestaRevisao(x)).length;
+    const nNovos = l.itens.filter(novoForaDoAberto).length;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
     tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
         ((agr.length || nNaoAceitou || nNovos) ? '<div class="agressores">' + (nNovos ? '<button type="button" class="tag-agressor tag-novos" data-novos="1" title="Itens novos: não existiam na planilha original do andar (troca de número não conta)">Novos <b>'+nNovos+'</b></button>' : '') + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
@@ -6296,7 +6296,7 @@ function chatGrupos(lista, chave, rotulo){
   return Array.from(m.entries()).map(([k, l]) => Object.assign({ [rotulo]: k }, chatNumeros(l)));
 }
 function chatContexto(){
-  const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
+  const pend = itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && contaNoTotal(it));
   const rev = (revisoesMeta.find((r) => String(r.numero) === revisaoSelecionada) || {}).label || '';
   const andares = completarAndaresDaTorre(andaresConhecidos);
   const abertosAndar = new Map(), tiposAndar = new Map();
@@ -7193,7 +7193,7 @@ async function salvarClassificacaoItem(itemId, novaDisc, novoForn){
 /* ===================== RENDER: DISCIPLINAS ===================== */
 function renderDisciplinas(){
   try{ renderCadastroNomes(); }catch(e){}
-  const map = agruparPorDisciplina(itensRevisaoAtual);
+  const map = agruparPorDisciplina(itensRevisaoAtual.filter(contaNoTotal));
   const tbody = document.getElementById('tbody-disciplinas');
   tbody.innerHTML = '';
   const chaves = Array.from(map.keys()).sort((a,b) => map.get(b).length - map.get(a).length);
@@ -7493,7 +7493,7 @@ async function renderTendencia(){
     bRem.addEventListener('click', async () => { planoMeta = ''; inpMeta.value = ''; await store.setDoc('config', 'plano', { meta: '' }); renderTendencia(); });
   }
   const ritmoEl = document.getElementById('plano-ritmo'), blocos = document.getElementById('plano-blocos'), resumoEl = null;
-  const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
+  const pend = itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && contaNoTotal(it));
   if (!pend.length){ ritmoEl.innerHTML = '<div class="vazio">Sem pendências nesta revisão.</div>'; blocos.innerHTML = ''; return; }
   const DIA = 86400000, agora = Date.now();
   const fmtData = (d) => d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
@@ -9138,7 +9138,7 @@ async function exportarVisaoGeralPdf(){
     }
 
     // ================= PÁGINA 3+: fornecedor e disciplina lado a lado =================
-    const pend = itensRevisaoAtual.filter((it) => it.status === 'VM' || it.status === 'AM');
+    const pend = itensRevisaoAtual.filter((it) => (it.status === 'VM' || it.status === 'AM') && contaNoTotal(it));
     const ranking = (chave) => {
       const m = new Map();
       pend.forEach((it) => { const k = chave(it) || 'Sem fornecedor definido'; if (!m.has(k)) m.set(k, []); m.get(k).push(it); });
