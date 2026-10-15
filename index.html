@@ -634,7 +634,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="topo-controles-status">
       <span class="pill local" id="pill-armazenamento">verificando…</span>
       <button type="button" class="btn fantasma" id="btn-usuario" title="Trocar o nome de quem está usando este aparelho" style="padding:6px 11px; font-size:13px; color:var(--text-2); white-space:nowrap;"></button>
-      <span style="display:inline-flex; flex-direction:column; align-items:flex-start;"><select id="seletor-revisao" title="Revisão em exibição"></select><span id="nota-revisao-mista" class="oculto" style="font-size:11px; color:var(--muted); margin:2px 0 0 4px;"></span></span>
+      <span style="position:relative; display:inline-flex;"><select id="seletor-revisao" title="Revisão em exibição"></select><span id="nota-revisao-mista" class="oculto" style="position:absolute; right:2px; top:calc(100% + 3px); font-size:11px; font-weight:500; color:var(--aw); white-space:nowrap;"></span></span>
     </div>
     <button class="btn primario" id="btn-ir-enviar">+ Enviar planilhas</button>
   </div>
@@ -1178,7 +1178,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.158';
+const VERSAO_APP = '2026-10-03.161';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4398,6 +4398,14 @@ function infoItemNovo(it){
   return { tipo: 'novo', rev };
 }
 function entradaNestaRevisao(it){ const i = infoItemNovo(it); return i ? i.tipo : ''; }
+// por que um número que apareceu na revisão NÃO conta como novo (pra explicar o "fora da conta")
+function motivoForaDaConta(it){
+  if (!baseOriginal || infoItemNovo(it)) return '';
+  const base = baseOriginal[it.andar], idp = String(it.idPlanilha || it.id), ac = acompanhamento[it.id] || {};
+  if (!base || base.rev === String(revisaoSelecionada) || base.ids.has(idp)) return 'vistoria1';
+  if (ac.herdadoDe && base.ids.has(String(ac.herdadoDe))) return 'troca';
+  return 'baixa';
+}
 /* NOVO A AVALIAR: item novo que ainda não foi aceito como aberto. Fica fora do "em aberto" (aparece em
    laranja, "novos a avaliar") até um administrador decidir — um a um ou no Editar agrupamento. */
 function novoAAvaliar(it){
@@ -4700,6 +4708,7 @@ function renderInsightsResumo(){
         '<span><span class="grande" style="color:var(--vd);">−'+pdfNum(diff.resolvidos.length)+'</span> <span class="rot">saíram / resolvidas</span></span>' +
         '<span><span class="grande" style="color:'+corSaldo+';">'+(saldoReal>0?'+':'')+pdfNum(saldoReal)+'</span> <span class="rot">saldo</span></span>' +
       '</div>';
+    const foraV = diff.novos.filter((x) => motivoForaDaConta(x) === 'vistoria1').length, foraB = nOutros - foraV;
     if (nOutros || diff.trocas.length){
       html += '<div class="detalhe" style="margin:-4px 0 10px;">Fora da conta: ' +
         (nOutros ? pdfNum(nOutros)+' números que apareceram em ambientes vistoriados pela 1ª vez ou que já existiam' : '') +
@@ -4730,6 +4739,7 @@ function renderInsightsResumo(){
       porAndar.forEach((a) => {
         const todos = Array.from(a.locais.values()).flatMap((l) => l.novos);
         a.novosReais = todos.filter(ehNovo).length; a.outros = todos.length - a.novosReais;
+        a.foraV = todos.filter((x) => motivoForaDaConta(x) === 'vistoria1').length; a.foraB = a.outros - a.foraV;
       });
       const maxV = Math.max(1, ...porAndar.map((a) => Math.max(a.novosReais, a.resolvidos)));
       const H = padT + porAndar.length * alturaLinha + 8;
@@ -4828,9 +4838,25 @@ function calcularEvolucaoPendencias(limiteDias){
   limiteDias = limiteDias || 30;
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   // eventos de cada item, já com o dia local, em ordem de acontecimento
-  const marcas = itensRevisaoAtual.map((it) => historicoDoItem(acompanhamento[it.id])
-    .map((e) => ({ t:e.t, dia: chaveDiaLocal(new Date(e.em)), em:e.em }))
-    .sort((a,b) => (a.em < b.em ? -1 : (a.em > b.em ? 1 : 0))));
+  const evs = (ac, extra) => historicoDoItem(ac).map((e) => ({ t:e.t, em:e.em })).concat(extra || [])
+    .filter((e) => e.em).map((e) => ({ t:e.t, dia: chaveDiaLocal(new Date(e.em)), em:e.em }))
+    .sort((a,b) => (a.em < b.em ? -1 : (a.em > b.em ? 1 : 0)));
+  const importadoDoAndar = new Map();
+  itensRevisaoAtual.forEach((it) => { if (it.atualizadoEmAndar && !importadoDoAndar.has(it.andar)) importadoDoAndar.set(it.andar, it.atualizadoEmAndar); });
+  // itens da planilha atual (os verdes = validados pela IAC na data em que a planilha do andar entrou)
+  const marcas = itensRevisaoAtual.map((it) => {
+    const ac = acompanhamento[it.id];
+    const verde = it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM' && !(ac && ac.iacOkEm);
+    return evs(ac, verde && it.atualizadoEmAndar ? [{ t:'iac', em: it.atualizadoEmAndar }] : []);
+  });
+  // + os que a IAC tirou da planilha: validados no dia em que saíram
+  try{
+    sairamDaPlanilha().forEach((h) => {
+      const id = String(h.id || h._id).split('@')[0];
+      const em = h.resolvidoEm || importadoDoAndar.get(Number(h.andar)) || null;
+      marcas.push(evs(acompanhamento[id], em ? [{ t:'iac', em }] : []));
+    });
+  }catch(e){}
   let inicio = new Date(hoje); inicio.setDate(inicio.getDate() - (limiteDias-1));
   const datas = marcas.flatMap((ev) => ev.map((e) => e.dia)).sort();
   if (datas.length){
