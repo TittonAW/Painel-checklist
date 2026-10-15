@@ -36,7 +36,7 @@
   --accent:#5F8A83; --accent-2:#4F7770; --accent-soft:#E9F1EF; /* verde-sálvia suave (antes #0F766E) */
   --vm:#D1443F; --vm-soft:#FBE7E6; --vm-fill:rgba(209,68,63,.80);
   --azul:#4C73D9; --azul-soft:#E7ECFC; --azul-fill:rgba(76,115,217,.80);
-  --vd:#39976A; --vd-soft:#E1F3E9; --vist:#B5653F; --vist-soft:#F8E8DF; --reinc:#A3446F; --reinc-soft:#F6E3EC; --novo:#DD6B1E; --novo-soft:#FCE8D9; --vd-fill:rgba(57,151,106,.80);
+  --vd:#39976A; --vd-soft:#E1F3E9; --vist:#C68934; --vist-soft:#FBEED9; --exec:#7B828C; --exec-soft:#E4E6EA; --reinc:#A3446F; --reinc-soft:#F6E3EC; --novo:#DD6B1E; --novo-soft:#FCE8D9; --vd-fill:rgba(57,151,106,.80);
   --semdados:#99A1AC; --semdados-soft:#EDEEF1; --aviso-cor:#C68934; --aviso-cor-soft:#FBEED9; --aviso-fill:rgba(198,137,52,.80);
   --lilas:#8B6FD1; --lilas-fill:rgba(139,111,209,.80); --cinza-grafico:#6B7685; --cinza-grafico-fill:rgba(107,118,133,.80);
   /* PADRÃO DE CORES POR ETAPA (igual em todo o app e nos PDFs):
@@ -56,7 +56,7 @@
   --accent:#2DD4C4; --accent-2:#58E4D6; --accent-soft:#103431;
   --vm:#E07F77; --vm-soft:#3A201F; --vm-fill:rgba(224,127,119,.78);
   --azul:#86A6F0; --azul-soft:#1A2440; --azul-fill:rgba(134,166,240,.78);
-  --vd:#5FB88B; --vd-soft:#133023; --vist:#E0956E; --vist-soft:#3A2218; --reinc:#E08AB1; --reinc-soft:#3A1A28; --novo:#F39A5B; --novo-soft:#3A2414; --vd-fill:rgba(95,184,139,.78);
+  --vd:#5FB88B; --vd-soft:#133023; --vist:#D9A95E; --vist-soft:#3A2D14; --exec:#9AA1AB; --exec-soft:#262A31; --reinc:#E08AB1; --reinc-soft:#3A1A28; --novo:#F39A5B; --novo-soft:#3A2414; --vd-fill:rgba(95,184,139,.78);
   --semdados:#6E7680; --semdados-soft:#1C2027; --aviso-cor:#D9A95E; --aviso-cor-soft:#3A2D14; --aviso-fill:rgba(217,169,94,.78);
   --lilas:#A98FE8; --lilas-fill:rgba(169,143,232,.78); --cinza-grafico:#8B95A3; --cinza-grafico-fill:rgba(139,149,163,.78);
   --aw:#A98FE8; --aw-soft:#262040; --aw-fill:rgba(169,143,232,.78);
@@ -364,11 +364,11 @@ html.chat-aberto{ overflow:hidden; }
 .resumo-linha .ico{ width:22px; flex:none; text-align:center; font-size:15px; line-height:1.3; }
 .resumo-linha b{ font-weight:500; color:var(--text); }
 .andar-barra .barra.fundo-status-vm{ background:color-mix(in srgb, var(--vm) 26%, var(--surface)); }
-.andar-barra .barra.fundo-status-pendente{ background:color-mix(in srgb, var(--aviso-cor) 28%, var(--surface)); }
+.andar-barra .barra.fundo-status-pendente{ background:var(--exec-soft); }
 .andar-barra .barra.fundo-status-liberado-pend{ background:color-mix(in srgb, var(--lib) 26%, var(--surface)); }
 /* o trecho executado da barra fica na cor cheia do status (vermelho/âmbar sem transparência) */
 .andar-barra .barra > span.preenchido.status-vm{ background:var(--vm); }
-.andar-barra .barra > span.preenchido.status-pendente{ background:var(--aviso-cor); }
+.andar-barra .barra > span.preenchido.status-pendente{ background:var(--exec); }
 .andar-barra .barra > span.preenchido.status-liberado-pend{ background:var(--lib); }
 .andar-barra .barra > span.preenchido.status-vd{ background:var(--vd); }
 .andar-barra .barra.fundo-status-vd{ background:color-mix(in srgb, var(--vd) 26%, var(--surface)); }
@@ -403,12 +403,20 @@ html.chat-aberto{ overflow:hidden; }
 .status-pronto{ background:var(--pronto-fill); }
 .badge.pronto{ background:var(--pronto-soft); color:var(--pronto); }
 .stat.pronto .valor{ color:var(--pronto); }
+.andar-barra.vist-total{ border-color:var(--vist); background:var(--vist-soft); }
+.andar-barra .barra.fundo-status-vistoriado{ background:color-mix(in srgb, var(--vist) 26%, var(--surface)); }
+.andar-barra .barra > span.preenchido.status-vistoriado{ background:var(--vist); }
+.status-vistoriado{ background:var(--vist); }
+.badge.vistoriado{ background:var(--vist-soft); color:var(--vist); }
+.stat.vistoriado .valor{ color:var(--vist); }
+.chip-acao.marcado.vist{ border-color:var(--vist); color:var(--vist); background:var(--vist-soft); }
+.btn-etapa{ min-width:122px; justify-content:center; }
 .chip-acao.marcado.pronto{ border-color:var(--pronto); color:var(--pronto); background:var(--pronto-soft); }
 .selo-liberado{
   display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
   border-radius:50%; background:var(--lib); color:#fff; font-size:11px; font-weight:500; flex:none;
 }
-.status-vm{ background:var(--vm-fill); } .status-pendente{ background:var(--aviso-fill); } .status-liberado-pend{ background:var(--lib-fill); } .status-vd{ background:var(--vd-fill); } .status-sem{ background:var(--semdados); }
+.status-vm{ background:var(--vm-fill); } .status-pendente{ background:var(--exec); } .status-liberado-pend{ background:var(--lib-fill); } .status-vd{ background:var(--vd-fill); } .status-sem{ background:var(--semdados); }
 
 .resumo-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:14px; }
 .grupo-label{ font-size:12.5px; font-weight:400; color:var(--muted); margin:0 0 10px; }
@@ -443,6 +451,8 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; font-size:11.5px; font-weight:500; white-space:nowrap; }
 .badge.bloqueado{ background:var(--vm-soft); color:var(--vm); }
 .badge.pendente{ background:var(--aviso-cor-soft); color:var(--aviso-cor); }
+.badge.execucao{ background:var(--exec-soft); color:var(--text-2); }
+.stat.execucao .valor{ color:var(--text-2); }
 .badge.liberado-pend{ background:var(--lib-soft); color:var(--lib); }
 .badge.concluido{ background:var(--vd-soft); color:var(--vd); }
 .badge.semdados{ background:var(--semdados-soft); color:var(--semdados); }
@@ -660,8 +670,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <div class="vazio oculto" id="vazio-torre-andares">Nenhum andar enviado ainda — suba a primeira planilha na aba "Enviar planilhas" pra começar.</div>
         <div class="rodape-nota" style="margin-top:14px; text-align:left; display:flex; flex-wrap:wrap; gap:4px 14px;">
           <span style="white-space:nowrap;"><span class="badge bloqueado">●</span> <span class="col-vm">VM (vermelho)</span></span>
-          <span style="white-space:nowrap;"><span class="badge pendente">●</span> <span class="col-am">AM (amarelo)</span></span>
-          <span style="white-space:nowrap;"><span class="badge pronto">●</span> <span style="color:var(--pronto);">Pronto p/ vistoria IAC</span></span>
+          <span style="white-space:nowrap;"><span class="badge execucao">●</span> <span style="color:var(--text-2);">Em execução</span></span>
+          <span style="white-space:nowrap;"><span class="badge pronto">●</span> <span style="color:var(--pronto);">Liberado p/ vistoria</span></span>
+          <span style="white-space:nowrap;"><span class="badge vistoriado">●</span> <span style="color:var(--vist);">Vistoriado pela IAC</span></span>
           <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--lib);">Liberado p/ operação</span></span>
           <span style="white-space:nowrap;"><span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span></span>
           <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
@@ -710,8 +721,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <select id="filtro-status">
         <option value="">Todas as prioridades</option>
         <option value="BLOQUEADO">VM (vermelho)</option>
-        <option value="PENDENTE">AM (amarelo)</option>
-        <option value="PRONTO_VISTORIA">Pronto p/ vistoria IAC</option>
+        <option value="PENDENTE">Em execução</option>
+        <option value="PRONTO_VISTORIA">Liberado p/ vistoria</option>
+        <option value="VISTORIADO_IAC">Vistoriado pela IAC</option>
         <option value="LIBERADO_PEND">Liberado p/ operação</option>
         <option value="CONCLUIDO">VD (verde)</option>
       </select>
@@ -735,7 +747,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Ação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -758,7 +770,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="">Todas as prioridades</option>
         <option value="BLOQUEADO">VM (vermelho)</option>
         <option value="PENDENTE">AM (amarelo)</option>
-        <option value="PRONTO_VISTORIA">Pronto p/ vistoria IAC</option>
+        <option value="PRONTO_VISTORIA">Liberado p/ vistoria</option>
+        <option value="VISTORIADO_IAC">Vistoriado pela IAC</option>
         <option value="LIBERADO_PEND">Liberado p/ operação</option>
         <option value="CONCLUIDO">VD (verde)</option>
       </select>
@@ -1166,7 +1179,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.151';
+const VERSAO_APP = '2026-10-03.154';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2383,6 +2396,7 @@ async function sincronizarDados(manual){
     if (cfg.some((d) => d._id === 'obra')){ await carregarConfigObra(); renderListaPins(); }
     if (cfg.some((d) => d._id === 'vistorias_iac')){ await carregarVistoriasIac(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'prontos_vistoria')){ await carregarProntosVistoria(); recarregarPorExclusao = true; }
+    if (cfg.some((d) => d._id === 'vistorias_iac_ambiente')){ await carregarVistoriasAmbiente(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'disciplinas')){ await carregarApelidosDisc(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'pins')){ await carregarPins(); renderListaPins(); if (usuarioAtual && !pinVerificadoNesteAparelho(usuarioAtual)) exigirPinDoUsuarioAtual(); }
     if (cfg.some((d) => d._id === 'excluidos')){ await carregarExcluidos(); recarregarPorExclusao = true; renderListaExcluidos(); }
@@ -3092,10 +3106,10 @@ function situacaoLiberacaoAndar(andar){
   const faltam = [], ok = [];
   locais.forEach((l) => {
     const liberado = !!areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)];
-    const s = classificarComLiberacao(l.itens, liberado, l.pronto);
+    const s = classificarComLiberacao(l.itens, liberado, l.pronto, l.vistoriado);
     const nome = String(l.label).replace(/\u00A0/g, ' ');
     if (s === 'LIBERADO_PEND' || s === 'CONCLUIDO'){ ok.push(nome); return; }
-    faltam.push({ l, nome, motivo: s === 'BLOQUEADO' ? 'tem VM em aberto' : (novosAguardando.has(l.label) ? 'item novo aguardando decisão' : ''), liberavel: s === 'PENDENTE' || s === 'PRONTO_VISTORIA' });
+    faltam.push({ l, nome, motivo: s === 'BLOQUEADO' ? 'tem VM em aberto' : (novosAguardando.has(l.label) ? 'item novo aguardando decisão' : ''), liberavel: s === 'PENDENTE' || s === 'PRONTO_VISTORIA' || s === 'VISTORIADO_IAC' });
   });
   return { total: locais.length, ok: ok.length, faltam };
 }
@@ -3120,13 +3134,19 @@ async function liberarAndarInteiro(andar){
   await selecionarRevisao(revisaoSelecionada);
 }
 function renderVistoriaAndarQuartos(){
-  const th = document.getElementById('th-vistoria-quartos');
-  if (!th) return;
   const v = document.getElementById('filtro-andar').value;
-  if (v === ''){ th.innerHTML = 'Vistoriado pela IAC'; return; }
-  const andar = Number(v), vi = vistoriasIac[andar];
-  th.innerHTML = '<button type="button" class="chip-acao'+(vi ? ' marcado' : '')+'" id="btn-vistoria-andar" style="'+(vi ? 'border-color:var(--vist); color:var(--vist); background:var(--vist-soft);' : '')+'" title="'+(vi ? 'Registrado por '+esc(vi.por||'—')+' — tocar pra alterar ou remover' : 'Registrar a data em que a IAC vistoriou este andar')+'">'+(vi ? 'Vistoriado · '+vi.em.split('-').reverse().slice(0,2).join('/') : 'Registrar vistoria')+'</button>';
-  document.getElementById('btn-vistoria-andar').addEventListener('click', (e) => { e.stopPropagation(); abrirVistoriaIac(andar); });
+  const thP = document.getElementById('th-pronto-quartos'), thV = document.getElementById('th-vistoria-quartos');
+  if (!thP || !thV) return;
+  if (v === ''){ thP.innerHTML = 'Liberado p/ vistoria'; thV.innerHTML = 'Vistoriado pela IAC'; return; }
+  const andar = Number(v);
+  const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM'))).filter((l) => classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) !== 'CONCLUIDO');
+  const nP = locais.filter((l) => !l.pronto).length, nV = locais.filter((l) => !vistoriasAmbiente[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length;
+  thP.innerHTML = nP ? '<button type="button" class="chip-acao btn-etapa" id="btn-pronto-andar" title="Libera pra vistoria todos os ambientes do andar">Andar p/ vistoria ('+nP+')</button>' : '<span class="chip-acao btn-etapa marcado pronto" style="cursor:default;">✓ Andar todo</span>';
+  thV.innerHTML = nV ? '<button type="button" class="chip-acao btn-etapa" id="btn-vistoria-andar" title="Registra a vistoria da IAC em todos os ambientes do andar">Andar vistoriado ('+nV+')</button>' : '<span class="chip-acao btn-etapa marcado vist" style="cursor:default;">✓ Andar todo</span>';
+  const bP = document.getElementById('btn-pronto-andar');
+  if (bP) bP.addEventListener('click', (e) => { e.stopPropagation(); bP.disabled = true; prontoVistoriaAndarInteiro(andar).finally(() => { bP.disabled = false; }); });
+  const bV = document.getElementById('btn-vistoria-andar');
+  if (bV) bV.addEventListener('click', (e) => { e.stopPropagation(); marcarVistoriaAndar(andar); });
 }
 function renderSituacaoAndarQuartos(){
   try{ renderVistoriaAndarQuartos(); }catch(e){}
@@ -3137,13 +3157,10 @@ function renderSituacaoAndarQuartos(){
   const v = document.getElementById('filtro-andar').value;
   const sit = v === '' ? null : situacaoLiberacaoAndar(Number(v));
   const liberaveis = sit ? sit.faltam.filter((f) => f.liberavel).length : 0;
-  const nPronto = v === '' ? 0 : agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === Number(v) && (it.status === 'VM' || it.status === 'AM'))).filter((l) => classificarComLiberacao(l.itens, l.liberado, l.pronto) === 'PENDENTE').length;
-  if (!liberaveis && !nPronto){ th.innerHTML = 'Ação'; return; }
-  th.innerHTML = (nPronto ? '<button type="button" class="chip-acao" id="btn-pronto-andar" style="margin-bottom:5px;" title="Marca o andar inteiro como pronto pra vistoria da IAC">Andar p/ vistoria ('+nPronto+')</button><br>' : '') +
-    (liberaveis ? '<button type="button" class="chip-acao" id="btn-liberar-andar" title="Libera pra operação os '+liberaveis+' ambiente(s) deste andar que ainda faltam">Liberar andar ('+liberaveis+')</button>' : '');
-  const bP = document.getElementById('btn-pronto-andar');
-  if (bP) bP.addEventListener('click', (e) => { e.stopPropagation(); bP.disabled = true; prontoVistoriaAndarInteiro(Number(v)).finally(() => { bP.disabled = false; }); });
-  if (!liberaveis) return;
+  const nPronto = v === '' ? 0 : agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === Number(v) && (it.status === 'VM' || it.status === 'AM'))).filter((l) => classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) === 'PENDENTE').length;
+  if (v === ''){ th.innerHTML = 'Liberado p/ operação'; return; }
+  if (!liberaveis){ th.innerHTML = '<span class="chip-acao btn-etapa'+(sit && !sit.faltam.length ? ' marcado lib' : '')+'" style="cursor:default;">'+(sit && !sit.faltam.length ? '✓ Andar todo' : 'Liberado p/ operação')+'</span>'; return; }
+  th.innerHTML = '<button type="button" class="chip-acao btn-etapa" id="btn-liberar-andar" title="Libera pra operação os '+liberaveis+' ambiente(s) deste andar que ainda faltam">Liberar andar ('+liberaveis+')</button>';
   const btn = document.getElementById('btn-liberar-andar');
   btn.addEventListener('click', (e) => { e.stopPropagation(); btn.disabled = true; liberarAndarInteiro(Number(v)).finally(() => { btn.disabled = false; }); });
 }
@@ -3695,6 +3712,62 @@ function chaveAreaGlobal(andar, tipo, quarto){
 /* PRONTO P/ VISTORIA IAC: a AW terminou o ambiente e libera pra IAC vistoriar (azul). Marcado por
    ambiente (ou pelo andar inteiro), guardado na obra (config "prontos_vistoria") — vale em todas as revisões. */
 let prontosVistoria = {}; // { 'andar|TIPO|quarto': { em, por } }
+/* VISTORIADO PELA IAC, por ambiente (config "vistorias_iac_ambiente"): a IAC passou no ambiente.
+   As vistorias registradas antes pelo ANDAR valem pra todos os ambientes do andar. "Liberado p/ operação"
+   também conta como vistoriado (a IAC vistoriou e liberou) — a data da liberação vale como a da vistoria. */
+let vistoriasAmbiente = {}; // { 'andar|TIPO|quarto': { em:'AAAA-MM-DD', por } }
+async function carregarVistoriasAmbiente(){ try{ const d = await store.getDoc('config', 'vistorias_iac_ambiente'); vistoriasAmbiente = (d && d.mapa) || {}; }catch(e){ vistoriasAmbiente = {}; } }
+async function salvarVistoriasAmbiente(mudancas){
+  const novo = Object.assign({}, vistoriasAmbiente);
+  Object.entries(mudancas).forEach(([k, v]) => { if (v) novo[k] = v; else delete novo[k]; });
+  const r = await store.setDoc('config', 'vistorias_iac_ambiente', { mapa: novo });
+  if (r && r.ok === false){ avisoFlutuante('Não foi salvo (sem conexão?)', 'erro'); return false; }
+  vistoriasAmbiente = novo; return true;
+}
+function dataVistoriaAmbiente(andar, tipo, quarto){
+  // a passagem MAIS RECENTE da IAC no ambiente: vistoria registrada (do ambiente ou do andar) ou a
+  // liberação p/ operação — o "não aceitou" passa a valer daquele momento pra frente
+  const k = chaveAreaGlobal(andar, tipo, quarto);
+  const datas = [];
+  if (vistoriasAmbiente[k] && vistoriasAmbiente[k].em) datas.push(vistoriasAmbiente[k].em);
+  const lib = areasLiberadasRevisaoAtual[k];
+  if (lib && lib.em) datas.push(String(lib.em).slice(0, 10));
+  if (vistoriasIac[andar] && vistoriasIac[andar].em) datas.push(vistoriasIac[andar].em);
+  return datas.sort().pop() || '';
+}
+function ambienteVistoriado(andar, tipo, quarto){ const k = chaveAreaGlobal(andar, tipo, quarto); return !!(vistoriasAmbiente[k] || vistoriasIac[andar]); }
+function abrirDataVistoria(titulo, sub, dataInicial, onSalvar, onRemover){
+  document.getElementById('modal-data-vistoria') && document.getElementById('modal-data-vistoria').remove();
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'modal-data-vistoria';
+  ov.innerHTML = '<div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px;"><h3>' + esc(titulo) + '</h3><div class="modal-sub">' + esc(sub) + '</div>' +
+    '<div class="modal-campo"><label for="dv-data">Vistoriado pela IAC em</label><input type="date" id="dv-data" value="' + esc(dataInicial || chaveDiaLocal(new Date())) + '"></div>' +
+    '<div class="modal-acoes" style="justify-content:space-between;">' + (onRemover ? '<button class="btn fantasma" id="dv-remover" style="color:var(--vm);">Remover</button>' : '<span></span>') +
+    '<div style="display:flex; gap:8px;"><button class="btn fantasma" id="dv-cancelar">Cancelar</button><button class="btn primario" id="dv-salvar">Salvar</button></div></div></div>';
+  document.body.appendChild(ov);
+  const fechar = () => ov.remove();
+  ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
+  document.getElementById('dv-cancelar').addEventListener('click', fechar);
+  document.getElementById('dv-salvar').addEventListener('click', async () => { const v = document.getElementById('dv-data').value; if (!v) return; fechar(); await onSalvar(v); });
+  if (onRemover) document.getElementById('dv-remover').addEventListener('click', async () => { fechar(); await onRemover(); });
+}
+async function marcarVistoriaAmbiente(andar, tipo, quarto){
+  if (!(await garantirUsuario())) return;
+  const k = chaveAreaGlobal(andar, tipo, quarto), atual = vistoriasAmbiente[k];
+  const nome = tipo === 'APTO' ? String(quarto) : labelTipo(tipo);
+  abrirDataVistoria('Vistoriado pela IAC · ' + nome, nomeAndarLongo(andar), atual ? atual.em : '',
+    async (d) => { if (await salvarVistoriasAmbiente({ [k]: { em: d, por: usuarioAtual } })) await selecionarRevisao(revisaoSelecionada); },
+    atual ? async () => { if (await salvarVistoriasAmbiente({ [k]: null })) await selecionarRevisao(revisaoSelecionada); } : null);
+}
+async function marcarVistoriaAndar(andar){
+  if (!(await garantirUsuario())) return;
+  const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM')));
+  abrirDataVistoria('Vistoriado pela IAC · ' + nomeAndarLongo(andar), 'Vale pra todos os ' + locais.length + ' ambientes do andar.', (vistoriasIac[andar] || {}).em || '',
+    async (d) => {
+      const m = {}; locais.forEach((l) => { m[chaveAreaGlobal(l.andar, l.tipo, l.quarto)] = { em: d, por: usuarioAtual }; });
+      if (await salvarVistoriasAmbiente(m)){ avisoFlutuante('Vistoria registrada em ' + locais.length + ' ambiente(s)', 'ok'); await selecionarRevisao(revisaoSelecionada); }
+    }, null);
+}
 async function carregarProntosVistoria(){ try{ const d = await store.getDoc('config', 'prontos_vistoria'); prontosVistoria = (d && d.mapa) || {}; }catch(e){ prontosVistoria = {}; } }
 async function salvarProntosVistoria(mudancas){
   const novo = Object.assign({}, prontosVistoria);
@@ -3711,7 +3784,7 @@ async function alternarProntoVistoria(andar, tipo, quarto){
 async function prontoVistoriaAndarInteiro(andar){
   if (!(await garantirUsuario())) return;
   const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM')));
-  const alvos = locais.filter((l) => classificarComLiberacao(l.itens, l.liberado, l.pronto) === 'PENDENTE');
+  const alvos = locais.filter((l) => !l.pronto && classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) !== 'CONCLUIDO');
   if (!alvos.length){ avisoFlutuante('Nenhum ambiente a marcar neste andar', 'ok'); return; }
   const abertos = alvos.reduce((s, l) => s + l.itens.filter(estaEmAberto).length, 0);
   if (!window.confirm('Liberar pra vistoria da IAC ' + alvos.length + ' ambiente(s) do ' + nomeAndarLongo(andar) + '?' + (abertos ? '\n\nAtenção: ainda há ' + abertos + ' item(ns) em aberto nesses ambientes.' : ''))) return;
@@ -3719,12 +3792,12 @@ async function prontoVistoriaAndarInteiro(andar){
   alvos.forEach((l) => { m[chaveAreaGlobal(l.andar, l.tipo, l.quarto)] = { em: agora, por: usuarioAtual }; });
   if (await salvarProntosVistoria(m)){ avisoFlutuante(alvos.length + ' ambiente(s) liberado(s) pra vistoria da IAC', 'ok'); await selecionarRevisao(revisaoSelecionada); }
 }
-function classificarComLiberacao(itens, liberadoManualmente, prontoVistoria){
+function classificarComLiberacao(itens, liberadoManualmente, prontoVistoria, vistoriado){
   const vmEmAberto = itens.some((i) => i.status === 'VM' && estaEmAberto(i));
   if (vmEmAberto) return 'BLOQUEADO';
   const pendente = itens.some((i) => (i.status === 'VM' || i.status === 'AM') &&
     !(acompanhamento[i.id] && acompanhamento[i.id].iacOkEm));
-  if (pendente) return liberadoManualmente ? 'LIBERADO_PEND' : (prontoVistoria ? 'PRONTO_VISTORIA' : 'PENDENTE');
+  if (pendente) return liberadoManualmente ? 'LIBERADO_PEND' : (vistoriado ? 'VISTORIADO_IAC' : (prontoVistoria ? 'PRONTO_VISTORIA' : 'PENDENTE'));
   return 'CONCLUIDO';
 }
 function classificarStatusLista(itens){
@@ -3748,8 +3821,9 @@ function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
 function iacManteveExecutado(it){
   const ac = acompanhamento[it.id];
   if (!ac || !ac.awExecEm || ac.iacOkEm || (it.status !== 'AM' && it.status !== 'VM') || !it.atualizadoEmAndar) return false;
-  const v = vistoriasIac[it.andar];
-  if (!v || !v.em) return false;                               // a IAC ainda não vistoriou este andar
+  const dv = dataVistoriaAmbiente(it.andar, it.tipo, it.quarto);
+  if (!dv) return false;                                       // a IAC ainda não vistoriou este ambiente
+  const v = { em: dv };
   const fimDoDiaVistoria = new Date(v.em + 'T23:59:59');
   return new Date(ac.awExecEm) <= fimDoDiaVistoria                // executado até a vistoria
     && new Date(it.atualizadoEmAndar) >= new Date(v.em + 'T00:00:00') // e a planilha veio depois dela
@@ -3813,7 +3887,7 @@ function classificarItemComContexto(it){
   if (it.status === 'VM') return 'BLOQUEADO';
   if (it.status === 'AM'){
     const liberado = !!areasLiberadasRevisaoAtual[chaveAreaGlobal(it.andar, it.tipo, it.quarto)];
-    return liberado ? 'LIBERADO_PEND' : (prontosVistoria[chaveAreaGlobal(it.andar, it.tipo, it.quarto)] ? 'PRONTO_VISTORIA' : 'PENDENTE');
+    return liberado ? 'LIBERADO_PEND' : (ambienteVistoriado(it.andar, it.tipo, it.quarto) ? 'VISTORIADO_IAC' : (prontosVistoria[chaveAreaGlobal(it.andar, it.tipo, it.quarto)] ? 'PRONTO_VISTORIA' : 'PENDENTE'));
   }
   return 'CONCLUIDO';
 }
@@ -3929,7 +4003,7 @@ function agruparPorLocal(itens){
     map.get(key).itens.push(it);
   });
   const lista = Array.from(map.values());
-  lista.forEach((l) => { l.liberado = !!areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]; l.pronto = !!prontosVistoria[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]; });
+  lista.forEach((l) => { l.liberado = !!areasLiberadasRevisaoAtual[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]; l.pronto = !!prontosVistoria[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]; l.vistoriado = ambienteVistoriado(l.andar, l.tipo, l.quarto); });
   return lista;
 }
 function agruparPorDisciplina(itens){
@@ -3997,17 +4071,17 @@ function renderPillArmazenamento(){
 
 /* ===================== RENDER: VISÃO GERAL ===================== */
 /* pior estado entre vários locais, nessa ordem de gravidade */
-const PRIORIDADE_STATUS = { BLOQUEADO:5, PENDENTE:4, PRONTO_VISTORIA:3, LIBERADO_PEND:2, CONCLUIDO:1 };
+const PRIORIDADE_STATUS = { BLOQUEADO:6, PENDENTE:5, PRONTO_VISTORIA:4, VISTORIADO_IAC:3, LIBERADO_PEND:2, CONCLUIDO:1 };
 function piorStatusEntreLocais(locais){
   if (locais.length === 0) return 'CONCLUIDO';
   let pior = 'CONCLUIDO';
   locais.forEach((l) => {
-    const s = classificarComLiberacao(l.itens, l.liberado, l.pronto);
+    const s = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
     if (PRIORIDADE_STATUS[s] > PRIORIDADE_STATUS[pior]) pior = s;
   });
   return pior;
 }
-const STATUS_PARA_BARRA = { BLOQUEADO:'status-vm', PENDENTE:'status-pendente', PRONTO_VISTORIA:'status-pronto', LIBERADO_PEND:'status-liberado-pend', CONCLUIDO:'status-vd' };
+const STATUS_PARA_BARRA = { BLOQUEADO:'status-vm', PENDENTE:'status-pendente', PRONTO_VISTORIA:'status-pronto', VISTORIADO_IAC:'status-vistoriado', LIBERADO_PEND:'status-liberado-pend', CONCLUIDO:'status-vd' };
 
 /* a torre mostra o PRÉDIO: do nível mais baixo que já veio ao mais alto, completando os
    andares que faltam no meio (aparecem em cinza, "sem dados", até chegar planilha deles).
@@ -4077,6 +4151,7 @@ function renderTorreAndares(){
     }
     row.classList.toggle('liberado-total', liberadoTotal);
     row.classList.toggle('pronto-total', !liberadoTotal && temDados && statusClasse === 'status-pronto');
+    row.classList.toggle('vist-total', !liberadoTotal && temDados && statusClasse === 'status-vistoriado');
 
     const rvAndar = fonteDoAndar[andar] && fonteDoAndar[andar] !== String(revisaoSelecionada) ? fonteDoAndar[andar] : null;
     row.innerHTML = '<span class="num mono">' + nomeAndar(andar) + (rvAndar ? '<span class="tag-rv" title="Este andar não veio na revisão selecionada — os dados são da R'+rvAndar+'">R'+rvAndar+'</span>' : '') + '</span>' +
@@ -4132,13 +4207,14 @@ async function renderResumoGeral(recarregarHistorico){
   vdHistorico = sairam + itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').length;
   const c = contarVMAMAbertos(itensRevisaoAtual);
   const locais = agruparPorLocal(itensRevisaoAtual);
-  let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0, prontosVist=0;
+  let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0, prontosVist=0, vistoriadosIac=0;
   locais.forEach((l) => {
-    const s = classificarComLiberacao(l.itens, l.liberado, l.pronto);
+    const s = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
     if (s==='BLOQUEADO') bloqueados++;
     else if (s==='PENDENTE') pendentes++;
     else if (s==='LIBERADO_PEND') liberadosPend++;
     else if (s==='PRONTO_VISTORIA') prontosVist++;
+    else if (s==='VISTORIADO_IAC') vistoriadosIac++;
     else concluidos++;
   });
   const awExec = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
@@ -4206,8 +4282,9 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat vm clicavel" data-ir="quartos" data-status="BLOQUEADO"><div class="valor">'+bloqueados+'</div><div class="rotulo">VM (vermelho)</div></div>' +
-      '<div class="stat am clicavel" data-ir="quartos" data-status="PENDENTE"><div class="valor">'+pendentes+'</div><div class="rotulo">AM (amarelo)</div></div>' +
-      '<div class="stat pronto clicavel" data-ir="quartos" data-status="PRONTO_VISTORIA"><div class="valor">'+prontosVist+'</div><div class="rotulo">Prontos p/ vistoria IAC</div></div>' +
+      '<div class="stat execucao clicavel" data-ir="quartos" data-status="PENDENTE"><div class="valor">'+pendentes+'</div><div class="rotulo">Em execução</div></div>' +
+      '<div class="stat pronto clicavel" data-ir="quartos" data-status="PRONTO_VISTORIA"><div class="valor">'+prontosVist+'</div><div class="rotulo">Liberados p/ vistoria</div></div>' +
+      '<div class="stat vistoriado clicavel" data-ir="quartos" data-status="VISTORIADO_IAC"><div class="valor">'+vistoriadosIac+'</div><div class="rotulo">Vistoriados pela IAC</div></div>' +
       '<div class="stat liberadopend clicavel" data-ir="quartos" data-status="LIBERADO_PEND"><div class="valor">'+liberadosPend+'</div><div class="rotulo">Liberados p/ operação</div></div>' +
       '<div class="stat vd clicavel" data-ir="quartos" data-status="CONCLUIDO"><div class="valor">'+concluidos+'</div><div class="rotulo">VD (verde)</div></div>' +
     '</div>' +
@@ -5203,8 +5280,9 @@ function popularFiltroAndar(){
 
 const BADGE_MAP_STATUS = {
   BLOQUEADO:['bloqueado','VM (vermelho)'],
-  PENDENTE:['pendente','AM (amarelo)'],
-  PRONTO_VISTORIA:['pronto','Pronto p/ vistoria IAC'],
+  PENDENTE:['execucao','Em execução'],
+  PRONTO_VISTORIA:['pronto','Liberado p/ vistoria'],
+  VISTORIADO_IAC:['vistoriado','Vistoriado pela IAC'],
   LIBERADO_PEND:['liberado-pend','Liberado p/ operação'],
   CONCLUIDO:['concluido','VD (verde)']
 };
@@ -5228,7 +5306,7 @@ function obterLocaisFiltrados(){
     if (filtroAndar && String(l.andar) !== filtroAndar) return false;
     if (!passaFiltroAmbiente(l.tipo, l.key, filtroAmbiente)) return false;
     if (busca && l.label.toLowerCase().replace(/\u00A0/g,' ').indexOf(busca) === -1) return false;
-    const status = classificarComLiberacao(l.itens, l.liberado, l.pronto);
+    const status = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
     if (filtroStatus && status !== filtroStatus) return false;
     if (filtroProgressoSelect){
       if (filtroProgressoSelect === 'liberadoPend' && status !== 'LIBERADO_PEND') return false;
@@ -5434,7 +5512,7 @@ function renderQuartos(){
   tbody.innerHTML = '';
   let linhas = 0;
   locais.forEach((l) => {
-    const status = classificarComLiberacao(l.itens, l.liberado, l.pronto);
+    const status = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
     const c = contarVMAMAbertos(l.itens);
     const awExecDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
     const iacOkDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
@@ -5445,11 +5523,15 @@ function renderQuartos(){
     tr.dataset.tipo = l.tipo;
     tr.dataset.quarto = l.quarto == null ? '' : l.quarto;
     // o botão só faz sentido quando não tem VM (crítico nunca libera por botão, só sumindo da planilha)
+    // TRÊS ETAPAS, mesmo formato: liberado p/ vistoria → vistoriado pela IAC → liberado p/ operação
+    const kAmb = chaveAreaGlobal(l.andar, l.tipo, l.quarto), temPend = status !== 'CONCLUIDO';
+    const vAmb = vistoriasAmbiente[kAmb] || (vistoriasIac[l.andar] ? { em: vistoriasIac[l.andar].em, doAndar: true } : null);
+    const ddmm = (d) => String(d || '').split('-').reverse().slice(0, 2).join('/');
+    const celPronto = temPend ? '<button class="chip-acao btn-etapa'+(l.pronto ? ' marcado pronto' : '')+'" data-acao-pronto="1">'+(l.pronto ? '✓ P/ vistoria' : 'Liberar p/ vistoria')+'</button>' : '<span class="sem-foto">—</span>';
+    const celVist = temPend ? '<button class="chip-acao btn-etapa'+(vAmb ? ' marcado vist' : '')+'" data-acao-vist="1" title="'+(vAmb ? 'Vistoriado em '+String(vAmb.em).split('-').reverse().join('/')+(vAmb.doAndar ? ' (registrado pelo andar)' : '') : 'Registrar a vistoria da IAC neste ambiente')+'">'+(vAmb ? '✓ Vistoriado '+ddmm(vAmb.em) : 'Registrar vistoria')+'</button>' : '<span class="sem-foto">—</span>';
     let acaoHtml = '<span class="sem-foto">—</span>';
-    if (status === 'PENDENTE' || status === 'LIBERADO_PEND' || status === 'PRONTO_VISTORIA'){
-      const texto = status === 'LIBERADO_PEND' ? 'Remover liberação' : 'Liberar p/ operação';
-      acaoHtml = (status !== 'LIBERADO_PEND' ? '<button class="chip-acao'+(status==='PRONTO_VISTORIA'?' marcado pronto':'')+'" data-acao-pronto="1" style="margin-bottom:5px;">'+(status==='PRONTO_VISTORIA' ? '✓ Pronto p/ vistoria' : 'Pronto p/ vistoria')+'</button><br>' : '') +
-        '<button class="chip-acao'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+texto+'</button>';
+    if (status !== 'BLOQUEADO' && temPend){
+      acaoHtml = '<button class="chip-acao btn-etapa'+(status==='LIBERADO_PEND'?' marcado lib':'')+'" data-acao-liberar="1">'+(status === 'LIBERADO_PEND' ? '✓ Liberado' : 'Liberar p/ operação')+'</button>';
     }
     const agr = maioresAgressores(l.itens);
     const nJunto = l.itens.filter((x) => tipoNaoAceitou(x) === 'junto').length, nSozinha = l.itens.filter((x) => tipoNaoAceitou(x) === 'sozinha').length;
@@ -5467,7 +5549,7 @@ function renderQuartos(){
         return '<td class="num-col '+(r ? 'col-vm' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
       '<td class="col-centro">'+barraPct(percentualExecutado(l.itens))+'</td>' +
-      '<td class="col-centro" style="font-size:12.5px; color:'+(vistoriasIac[l.andar] ? 'var(--vist)' : 'var(--faint)')+';" title="'+(vistoriasIac[l.andar] ? 'IAC vistoriou o '+esc(nomeAndarLongo(l.andar))+' em '+vistoriasIac[l.andar].em.split('-').reverse().join('/') : 'A IAC ainda não vistoriou este andar')+'">'+(vistoriasIac[l.andar] ? vistoriasIac[l.andar].em.split('-').reverse().slice(0,2).join('/') : '—')+'</td>' +
+      '<td class="col-centro">'+celPronto+'</td><td class="col-centro">'+celVist+'</td>' + '<td hidden style="font-size:12.5px; color:'+(vistoriasIac[l.andar] ? 'var(--vist)' : 'var(--faint)')+';" title="'+(vistoriasIac[l.andar] ? 'IAC vistoriou o '+esc(nomeAndarLongo(l.andar))+' em '+vistoriasIac[l.andar].em.split('-').reverse().join('/') : 'A IAC ainda não vistoriou este andar')+'">'+(vistoriasIac[l.andar] ? vistoriasIac[l.andar].em.split('-').reverse().slice(0,2).join('/') : '—')+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>';
     tbody.appendChild(tr);
     linhas++;
@@ -5488,7 +5570,7 @@ function renderQuartos(){
   }
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
     tr.addEventListener('click', (e) => {
-      if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]')) return; // o botão trata seu próprio clique
+      if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]') || e.target.closest('[data-acao-vist]')) return; // o botão trata seu próprio clique
       const tagRv = e.target.closest('[data-rv-local]');
       if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
       const tag = e.target.closest('[data-agressor]');
@@ -5507,6 +5589,8 @@ function renderQuartos(){
         fluxo: tagNovos ? 'novosRevisao' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
       });
     });
+    const btnV = tr.querySelector('[data-acao-vist]');
+    if (btnV) btnV.addEventListener('click', (e) => { e.stopPropagation(); marcarVistoriaAmbiente(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10)); });
     const btnP = tr.querySelector('[data-acao-pronto]');
     if (btnP) btnP.addEventListener('click', async (e) => { e.stopPropagation(); btnP.disabled = true; await alternarProntoVistoria(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10)); });
     const btn = tr.querySelector('[data-acao-liberar]');
@@ -8394,13 +8478,16 @@ const PDF_COR = {
   vm:[201,67,62], vms:[251,233,232], am:[185,126,46], ams:[251,240,222],
   az:[124,92,201], azs:[239,234,251], vd:[57,151,106], vds:[227,243,234], // az = Executado AW (roxo)
   lib:[47,143,91], libs:[221,241,229],                                      // lib = Liberado p/ operação (verde)
-  pronto:[76,115,217], prontos:[233,238,252],                               // pronto = Pronto p/ vistoria IAC (azul)
+  pronto:[76,115,217], prontos:[233,238,252],                               // pronto = Liberado p/ vistoria (azul)
+  vist:[198,137,52], vists:[251,238,217],                                   // vist = Vistoriado pela IAC (amarelo)
+  exec:[123,130,140], execs:[228,230,234],                                  // exec = Em execução (cinza)
   heroLabel:[208,212,218], heroSub:[168,174,183], grafite:[58,63,71]
 };
 const PDF_PRIO = {
   BLOQUEADO:{ fg:PDF_COR.vm, bg:PDF_COR.vms, curto:'VM', longo:'VM (vermelho)' },
   PENDENTE:{ fg:PDF_COR.am, bg:PDF_COR.ams, curto:'AM', longo:'AM (amarelo)' },
-  PRONTO_VISTORIA:{ fg:PDF_COR.pronto, bg:PDF_COR.prontos, curto:'P/ vistoria IAC', longo:'Pronto p/ vistoria IAC' },
+  PRONTO_VISTORIA:{ fg:PDF_COR.pronto, bg:PDF_COR.prontos, curto:'P/ vistoria', longo:'Liberado p/ vistoria' },
+  VISTORIADO_IAC:{ fg:PDF_COR.vist, bg:PDF_COR.vists, curto:'Vistoriado IAC', longo:'Vistoriado pela IAC' },
   LIBERADO_PEND:{ fg:PDF_COR.lib, bg:PDF_COR.libs, curto:'Lib. p/ operação', longo:'Liberado p/ operação' },
   CONCLUIDO:{ fg:PDF_COR.vd, bg:PDF_COR.vds, curto:'VD', longo:'VD (verde)' },
   EXECUTADO:{ fg:PDF_COR.az, bg:PDF_COR.azs, curto:'Executado AW', longo:'Executado AW (aguardando IAC)' }
@@ -8741,7 +8828,7 @@ async function exportarVisaoGeralPdf(){
     }).filter(Boolean);
     const andares = Array.from(document.querySelectorAll('#torre-andares .andar-barra')).map((el) => {
       const sp = el.querySelector('.barra > span'), cls = sp ? sp.className : '';
-      const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.am : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-pronto/.test(cls) ? PDF_COR.pronto : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
+      const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.exec : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-pronto/.test(cls) ? PDF_COR.pronto : /status-vistoriado/.test(cls) ? PDF_COR.vist : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
       const pctEl = el.querySelector('.pct-barra');
       return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), num: Number(el.dataset.andar), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
         nums: Array.from(el.querySelectorAll('.mini-valor')).map((n) => n.textContent.trim()), liberadoTotal: el.classList.contains('liberado-total') };
@@ -9253,7 +9340,7 @@ async function exportarQuartosPdf(){
   const dados = locais.map((l) => {
     const c = contarVMAMAbertos(l.itens);
     return {
-      l, status: classificarComLiberacao(l.itens, l.liberado, l.pronto), vm: c.vm, am: c.am, total: c.total,
+      l, status: classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado), vm: c.vm, am: c.am, total: c.total,
       aberto: contarEmAberto(l.itens),
       aw: l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length,
       iac: l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length
@@ -9520,7 +9607,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais(), carregarVistoriasIac(), carregarProntosVistoria()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais(), carregarVistoriasIac(), carregarProntosVistoria(), carregarVistoriasAmbiente()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
