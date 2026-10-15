@@ -747,7 +747,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1178,7 +1178,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.161';
+const VERSAO_APP = '2026-10-03.163';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3249,46 +3249,54 @@ function renderLiberacoesParaRevisar(){
   const grupos = liberacoesParaRevisar();
   if (!grupos.length){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
   cont.classList.remove('oculto');
-  const totalLocais = new Set(grupos.flatMap((g) => g.locais.map((l) => l.andar + '|' + l.label))).size;
-  cont.innerHTML = '<h2 style="margin-bottom:4px;">Liberações para revisar ('+totalLocais+' ambiente'+(totalLocais === 1 ? '' : 's')+')</h2>' +
-    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Entraram itens novos em ambientes já liberados p/ operação. Decida por item: manter os ambientes liberados (o item novo passa a fazer parte das pendências aceitas) ou voltar para pendente.</p>' +
-    grupos.map((g, gi) => '<div class="grupo-liberacao" data-grupo="'+gi+'">' +
+  /* AM: só um resumo pra ciência (os ambientes continuam liberados; os itens são decididos na aba
+     Itens, no fluxo dos itens novos). VM: um por um, como alerta. */
+  const gVm = grupos.filter((g) => g.status === 'VM'), gAm = grupos.filter((g) => g.status !== 'VM');
+  const locaisAm = []; const vistos = new Set();
+  gAm.forEach((g) => g.locais.forEach((l) => { const k = l.andar + '|' + l.label; if (!vistos.has(k)){ vistos.add(k); locaisAm.push(l); } }));
+  const nItensAm = gAm.reduce((s, g) => s + g.ids.size, 0);
+  cont.innerHTML = '<h2 style="margin-bottom:4px;">Itens novos em ambientes liberados</h2>' +
+    (gAm.length ? '<div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin:6px 0 '+(gVm.length ? '14px' : '0')+';">' +
+      '<div style="font-size:13.5px; color:var(--text-2);">Entraram <b style="font-weight:600; color:var(--text);">'+nItensAm+' item(ns) AM</b> em <b style="font-weight:600; color:var(--text);">'+locaisAm.length+' ambiente(s)</b> já liberados p/ operação — os ambientes continuam liberados.</div>' +
+      '<div style="display:flex; gap:6px; flex-wrap:wrap;"><button type="button" class="chip-acao marcado lib" id="lib-am-ciente">Ciente</button><button type="button" class="chip-acao" id="lib-am-ver">Ver na aba Itens</button></div>' +
+    '</div>' : '') +
+    (gVm.length ? '<p class="rodape-nota" style="text-align:left; margin:0 0 8px; color:var(--vm);">Atenção: itens VM (vermelho) em ambientes liberados — decida cada um.</p>' : '') +
+    gVm.map((g, gi) => '<div class="grupo-liberacao" data-grupo="'+gi+'">' +
       '<div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">' +
-        '<div style="flex:1; min-width:240px;"><div style="font-size:13.5px; color:var(--text); line-height:1.45;"><span class="badge '+(g.status === 'VM' ? 'bloqueado' : 'pendente')+'" style="margin-right:6px;">'+esc(g.status)+'</span>'+esc(g.desc)+'</div>' +
+        '<div style="flex:1; min-width:240px;"><div style="font-size:13.5px; color:var(--text); line-height:1.45;"><span class="badge bloqueado" style="margin-right:6px;">VM</span>'+esc(g.desc)+'</div>' +
         '<div class="detalhe" style="margin-top:4px;">'+esc(g.disciplina)+' · item(ns) '+esc(Array.from(g.ids).slice(0, 6).join(', '))+(g.ids.size > 6 ? '…' : '')+'</div>' +
         '<div class="detalhe" style="margin-top:4px;">Entrou em <b style="font-weight:500; color:var(--text);">'+g.locais.length+' ambiente(s) liberado(s)</b>: '+esc(g.locais.map((l) => String(l.label).replace(/\u00A0/g,' ')).join(', '))+'</div></div>' +
-        '<div style="display:flex; gap:6px; flex-wrap:wrap;"><button type="button" class="chip-acao marcado lib" data-lib-todos="manter" data-grupo="'+gi+'">Manter '+(g.locais.length > 1 ? 'todos ' : '')+'liberados</button>' +
-          '<button type="button" class="chip-acao" data-lib-todos="voltar" data-grupo="'+gi+'">Voltar '+(g.locais.length > 1 ? 'todos ' : '')+'para pendente</button></div>' +
+        '<div style="display:flex; gap:6px; flex-wrap:wrap;"><button type="button" class="chip-acao marcado lib" data-lib-todos="manter" data-grupo="'+gi+'">Manter liberados</button>' +
+          '<button type="button" class="chip-acao" data-lib-todos="voltar" data-grupo="'+gi+'">Voltar para pendente</button></div>' +
       '</div>' +
-      (g.locais.length > 1 ? '<details style="margin-top:8px;"><summary class="detalhe" style="cursor:pointer; color:var(--accent);">Decidir ambiente por ambiente</summary>' +
-        g.locais.map((l, li) => '<div class="insight-item" style="padding:6px 0;"><div class="local" style="font-size:13px;">'+esc(String(l.label).replace(/\u00A0/g,' '))+' · '+esc(nomeAndarLongo(l.andar))+'</div>' +
-          '<div style="display:flex; gap:6px;"><button type="button" class="chip-acao marcado lib" data-lib-um="manter" data-grupo="'+gi+'" data-local="'+li+'">Manter</button><button type="button" class="chip-acao" data-lib-um="voltar" data-grupo="'+gi+'" data-local="'+li+'">Voltar</button></div></div>').join('') +
-      '</details>' : '') +
     '</div>').join('');
-  const aplicar = async (locais, manter, botao) => {
-    botao.closest('.grupo-liberacao').querySelectorAll('button').forEach((b) => b.disabled = true);
-    for (const l of locais) await resolverRevisaoLiberacao(revisaoSelecionada, l.andar, l.tipo, l.quarto, manter);
+  const idsVm = new Set(gVm.flatMap((g) => Array.from(g.ids).map(String)));
+  const aplicar = async (locais, manter, botao, soAm) => {
+    (botao.closest('.grupo-liberacao') || cont).querySelectorAll('button').forEach((b) => b.disabled = true);
+    for (const l of locais) await resolverRevisaoLiberacao(revisaoSelecionada, l.andar, l.tipo, l.quarto, manter, soAm ? idsVm : null);
     avisoFlutuante(locais.length + ' ambiente(s) ' + (manter ? 'mantido(s) liberado(s)' : 'voltaram para pendente'), 'ok');
     await selecionarRevisao(revisaoSelecionada);
   };
+  const bCiente = document.getElementById('lib-am-ciente');
+  if (bCiente) bCiente.addEventListener('click', () => aplicar(locaisAm, true, bCiente, true));
+  const bVer = document.getElementById('lib-am-ver');
+  if (bVer) bVer.addEventListener('click', () => abrirItens({ fluxo: 'novosAvaliar' }));
   cont.querySelectorAll('[data-lib-todos]').forEach((b) => b.addEventListener('click', () => {
-    const g = grupos[Number(b.dataset.grupo)];
+    const g = gVm[Number(b.dataset.grupo)];
     aplicar(g.locais, b.dataset.libTodos === 'manter', b);
   }));
-  cont.querySelectorAll('[data-lib-um]').forEach((b) => b.addEventListener('click', () => {
-    const g = grupos[Number(b.dataset.grupo)];
-    aplicar([g.locais[Number(b.dataset.local)]], b.dataset.libUm === 'manter', b);
-  }));
 }
-async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter){
+async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter, idsDeFora){
   const docId = docIdDoAndar(revisaoStr, andar);
   const doc = await store.getDoc('snapshots', docId);
   if (!doc) return;
   const chave = chaveAreaDoc(tipo, quarto);
   const atual = Object.assign({}, doc.areasLiberadas || {});
   if (manter){
-    const idsAgora = Array.from(new Set((doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id).concat(idsDoAmbienteNaTela(andar, chave))));
-    atual[chave] = { em: new Date().toISOString(), itens: idsAgora }; // confirma e atualiza a lista conhecida
+    let idsAgora = Array.from(new Set((doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id).concat(idsDoAmbienteNaTela(andar, chave))));
+    const antes = atual[chave] || {};
+    if (idsDeFora && idsDeFora.size) idsAgora = idsAgora.filter((id) => !idsDeFora.has(String(id)) || (antes.itens || []).indexOf(id) !== -1); // o "Ciente" dos AM não aceita os VM
+    atual[chave] = Object.assign({}, antes, { em: antes.em || new Date().toISOString(), confirmadoEm: new Date().toISOString(), itens: idsAgora }); // confirma e atualiza a lista conhecida (mantém a data da liberação)
   } else {
     delete atual[chave]; // volta pra pendente (amarelo)
   }
@@ -3793,6 +3801,7 @@ async function prontoVistoriaAndarInteiro(andar){
   if (await salvarProntosVistoria(m)){ avisoFlutuante(alvos.length + ' ambiente(s) liberado(s) pra vistoria da IAC', 'ok'); await selecionarRevisao(revisaoSelecionada); }
 }
 function classificarComLiberacao(itens, liberadoManualmente, prontoVistoria, vistoriado){
+  try{ itens = itens.filter(contaNoTotal); }catch(e){}
   const vmEmAberto = itens.some((i) => i.status === 'VM' && estaEmAberto(i));
   if (vmEmAberto) return 'BLOQUEADO';
   const pendente = itens.some((i) => (i.status === 'VM' || i.status === 'AM') &&
@@ -4137,10 +4146,11 @@ function renderTorreAndares(){
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const novosAbertosDoAndar = itensDoAndar.filter(novoAAvaliar).length;          // novos ainda sem decisão
-      const abertoDoAndar = contarEmAberto(itensDoAndar) - itensDoAndar.filter(novoForaDoAberto).length; // "Aberto" sem os novos não aceitos
+      const contaDoAndar = itensDoAndar.filter(contaNoTotal);
+      const abertoDoAndar = contarEmAberto(contaDoAndar);                             // sem os novos não aceitos
       const saiuDoAndar = (mapaSairam.get(andar) || 0);
-      const totalAndar = itensDoAndar.length + saiuDoAndar;
-      pctAndar = totalAndar ? Math.round((totalAndar - contarEmAberto(itensDoAndar)) / totalAndar * 100) : 0;
+      const totalAndar = contaDoAndar.length + saiuDoAndar;
+      pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
         '<span class="mini-stat novos'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
@@ -4205,7 +4215,9 @@ async function renderResumoGeral(recarregarHistorico){
   await carregarHistResolvidos(recarregarHistorico);
   const sairam = sairamDaPlanilha().length;
   vdHistorico = sairam + itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').length;
-  const c = contarVMAMAbertos(itensRevisaoAtual);
+  const itensConta = itensRevisaoAtual.filter(contaNoTotal); // novos não aceitos ficam fora de todos os totais
+  const naoAceitosNovos = itensRevisaoAtual.filter(novoForaDoAberto);
+  const c = contarVMAMAbertos(itensConta);
   const locais = agruparPorLocal(itensRevisaoAtual);
   let bloqueados=0, pendentes=0, liberadosPend=0, concluidos=0, prontosVist=0, vistoriadosIac=0;
   locais.forEach((l) => {
@@ -4217,11 +4229,11 @@ async function renderResumoGeral(recarregarHistorico){
     else if (s==='VISTORIADO_IAC') vistoriadosIac++;
     else concluidos++;
   });
-  const awExec = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
-  const iacOk = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
-  const emAbertoTodos = itensRevisaoAtual.filter((it) => { const a=acompanhamento[it.id]; return !a || (!a.awExecEm && !a.iacOkEm); }).length;
+  const awExec = itensConta.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+  const iacOk = itensConta.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
+  const emAberto = itensConta.filter((it) => { const a=acompanhamento[it.id]; return !a || (!a.awExecEm && !a.iacOkEm); }).length;
+  const emAbertoTodos = emAberto;
   const novosEmAberto = itensRevisaoAtual.filter(novoAAvaliar).length;      // novos ainda sem decisão
-  const emAberto = emAbertoTodos - itensRevisaoAtual.filter(novoForaDoAberto).length;
   const porAndar = resumoPorAndar(itensRevisaoAtual);
   const mapaAndar = new Map(porAndar.map((x)=>[x.andar,x]));
   // "liberado por inteiro": mesmo critério usado no destaque da torre — nenhuma área
@@ -4239,10 +4251,11 @@ async function renderResumoGeral(recarregarHistorico){
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
   const pctVist = Math.round((iacOk + sairam + vdNaPlanilha)/totalItens*100);
-  const vmTotal = itensRevisaoAtual.filter((it) => it.status === 'VM').length;
+  const vmTotal = itensConta.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
-  const aguardandoIac = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && !acompanhamento[it.id].iacOkEm).length;
+  const aguardandoIac = itensConta.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm && !acompanhamento[it.id].iacOkEm).length;
+  const novosVm = naoAceitosNovos.filter((x) => x.status === 'VM').length, novosAm = naoAceitosNovos.filter((x) => x.status === 'AM').length;
   const sub = (n) => '<div class="pct-sub">'+Math.round(n/totalItens*100)+'% do total</div>';
   grid.innerHTML =
     '<div class="destaque-pct">' +
@@ -4255,7 +4268,7 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(sairam + vdNaPlanilha)+' já validados pela IAC</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? ' · <span class="txt-novo" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
       '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
@@ -4264,6 +4277,7 @@ async function renderResumoGeral(recarregarHistorico){
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
     '<div class="grupo-label" style="margin-top:22px;">Validação da IAC</div>' +
     '<div class="resumo-grid">' +
+      '<div class="stat"><div class="valor">'+(vdHistorico + itensConta.filter(iacNaoAceitou).length)+'</div><div class="rotulo">Itens vistoriados pela IAC</div><div class="pct-sub">aceitos + não aceitos</div></div>' +
 
       '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">'+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'junto').length+' validados junto · '+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'sozinha').length+' IAC sozinha</div></div>' +
       (() => {
@@ -4275,8 +4289,8 @@ async function renderResumoGeral(recarregarHistorico){
 
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div>'+sub(c.am)+'</div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span style="color:var(--vm); font-weight:600;">+'+novosVm+' novos</span><br>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div><div class="pct-sub">'+Math.round(c.am/totalItens*100)+'% do total'+(novosAm ? '<br><span style="color:var(--aviso-cor); font-weight:600;">+'+novosAm+' novos</span>' : '')+'</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
@@ -4291,7 +4305,7 @@ async function renderResumoGeral(recarregarHistorico){
 
     '<div class="grupo-label" style="margin-top:22px;">Andares</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Liberados por inteiro — <span style="color:var(--vd);">liberado</span> (sem pendência) ou <span style="color:var(--lib);">liberado p/ operação</span></div></div>' +
+      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Andares liberados p/ operação<span hidden>dência) ou <span style="color:var(--lib);">liberado p/ operação</span></span></div></div>' +
     '</div>';
 
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
@@ -4413,6 +4427,7 @@ function novoAAvaliar(it){
   return !!infoItemNovo(it) && estaEmAberto(it) && !(ac && (ac.novoAceitoEm || ac.novoContestadoEm));
 }
 // fora do "em aberto": novo ainda a avaliar OU novo que a IAC precisa corrigir (não foi aceito)
+function contaNoTotal(it){ return !novoForaDoAberto(it); }
 function novoForaDoAberto(it){
   const ac = acompanhamento[it.id];
   return !!infoItemNovo(it) && estaEmAberto(it) && !(ac && ac.novoAceitoEm);
@@ -4844,7 +4859,7 @@ function calcularEvolucaoPendencias(limiteDias){
   const importadoDoAndar = new Map();
   itensRevisaoAtual.forEach((it) => { if (it.atualizadoEmAndar && !importadoDoAndar.has(it.andar)) importadoDoAndar.set(it.andar, it.atualizadoEmAndar); });
   // itens da planilha atual (os verdes = validados pela IAC na data em que a planilha do andar entrou)
-  const marcas = itensRevisaoAtual.map((it) => {
+  const marcas = itensRevisaoAtual.filter(contaNoTotal).map((it) => {
     const ac = acompanhamento[it.id];
     const verde = it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM' && !(ac && ac.iacOkEm);
     return evs(ac, verde && it.atualizadoEmAndar ? [{ t:'iac', em: it.atualizadoEmAndar }] : []);
@@ -5545,9 +5560,10 @@ function renderQuartos(){
   let linhas = 0;
   locais.forEach((l) => {
     const status = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
-    const c = contarVMAMAbertos(l.itens);
-    const awExecDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
-    const iacOkDoLocal = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
+    const itC = l.itens.filter(contaNoTotal); // os novos não aceitos ficam fora das contas
+    const c = contarVMAMAbertos(itC);
+    const awExecDoLocal = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+    const iacOkDoLocal = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
     const b = BADGE_MAP_STATUS[status];
     const tr = document.createElement('tr');
     tr.className = 'linha-clicavel';
@@ -5575,12 +5591,13 @@ function renderQuartos(){
           (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
-      '<td class="num-col col-aberto">'+(contarEmAberto(l.itens) - l.itens.filter(novoForaDoAberto).length)+'</td>' +
+      '<td class="num-col col-aberto">'+contarEmAberto(itC)+'</td>' +
       '<td class="num-col col-aw">'+awExecDoLocal+'</td><td class="num-col col-iac">'+iacOkDoLocal+'</td>' +
-      (function(){ const r = l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
-        return '<td class="num-col '+(r ? 'col-vm' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
+      '<td class="num-col" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(nNaoAceitou || '—')+'</td>' +
+      (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
+        return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       '<td class="num-col col-fluxo">'+c.total+'</td>' +
-      '<td class="col-centro">'+barraPct(percentualExecutado(l.itens))+'</td>' +
+      '<td class="col-centro">'+barraPct(percentualExecutado(itC))+'</td>' +
       '<td class="col-centro">'+celPronto+'</td><td class="col-centro">'+celVist+'</td>' + '<td hidden style="font-size:12.5px; color:'+(vistoriasIac[l.andar] ? 'var(--vist)' : 'var(--faint)')+';" title="'+(vistoriasIac[l.andar] ? 'IAC vistoriou o '+esc(nomeAndarLongo(l.andar))+' em '+vistoriasIac[l.andar].em.split('-').reverse().join('/') : 'A IAC ainda não vistoriou este andar')+'">'+(vistoriasIac[l.andar] ? vistoriasIac[l.andar].em.split('-').reverse().slice(0,2).join('/') : '—')+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>';
     tbody.appendChild(tr);
