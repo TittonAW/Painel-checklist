@@ -1181,7 +1181,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.170';
+const VERSAO_APP = '2026-10-03.172';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2348,14 +2348,18 @@ let acompanhamento = {}; // { itemId: { awExecEm, iacOkEm } }
 
 /* carrega TODOS os campos salvos de um item (não só AW/IAC) */
 function normalizarAcompanhamento(d){
-  return {
+  // guarda TODOS os campos do item (decisões de itens novos, triagem do "IAC não aceitou", troca de
+  // número, prioridade…) — antes só alguns eram mantidos e o resto se perdia ao recarregar
+  const x = Object.assign({}, d || {});
+  delete x._id; delete x.updated_at; delete x.updatedAt;
+  return Object.assign(x, {
     awExecEm: d.awExecEm||null, iacOkEm: d.iacOkEm||null,
     disciplinaOverride: d.disciplinaOverride||null, fornecedorOverride: d.fornecedorOverride||null,
     dataPrevista: d.dataPrevista||null,
     reincidencias: d.reincidencias||0,
     awExecPor: d.awExecPor||null, iacOkPor: d.iacOkPor||null,
     historico: Array.isArray(d.historico) ? d.historico : null
-  };
+  });
 }
 async function carregarAcompanhamento(){
   const docs = await store.listCollection('acompanhamento');
@@ -4460,8 +4464,25 @@ function motivoForaDaConta(it){
 }
 /* NOVO A AVALIAR: item novo que ainda não foi aceito como aberto. Fica fora do "em aberto" (aparece em
    laranja, "novos a avaliar") até um administrador decidir — um a um ou no Editar agrupamento. */
-// novo de uma revisão ANTERIOR à selecionada: vocês já trabalhavam com ele — conta como aceito
-function novoDeRevisaoAnterior(it){ const i = infoItemNovo(it); return !!(i && i.rev && i.rev !== String(revisaoSelecionada)); }
+/* A DECISÃO SOBRE O ITEM NOVO É DO ADMINISTRADOR e vale de revisão pra revisão: novo sem decisão continua
+   "a avaliar" nas revisões seguintes. Só os novos que entraram ANTES de existir essa avaliação (em Quartos,
+   até a R23 — a avaliação começou na R29) contam como já aceitos. Guardado em config "novos_avaliacao". */
+const NOVOS_AVALIACAO_DESDE_PADRAO = { quartos: 29 };
+let novosAvaliacaoDesde = null;
+async function carregarNovosAvaliacaoDesde(){
+  try{
+    const d = await store.getDoc('config', 'novos_avaliacao');
+    if (d && d.desde){ novosAvaliacaoDesde = Number(d.desde); return; }
+  }catch(e){}
+  const padrao = NOVOS_AVALIACAO_DESDE_PADRAO[OBRA || 'quartos'];
+  const ultima = revisoesMeta.length ? Math.max.apply(null, revisoesMeta.map((r) => r.numero)) : 0;
+  novosAvaliacaoDesde = padrao || ultima || 0;
+  try{ if (novosAvaliacaoDesde) await store.setDoc('config', 'novos_avaliacao', { desde: novosAvaliacaoDesde }); }catch(e){}
+}
+function novoDeRevisaoAnterior(it){
+  const i = infoItemNovo(it);
+  return !!(i && i.rev && novosAvaliacaoDesde && Number(i.rev) < novosAvaliacaoDesde);
+}
 function novoAAvaliar(it){
   const ac = acompanhamento[it.id];
   return !!infoItemNovo(it) && !novoDeRevisaoAnterior(it) && estaEmAberto(it) && !(ac && (ac.novoAceitoEm || ac.novoContestadoEm));
@@ -8584,7 +8605,7 @@ async function selecionarRevisao(numeroStr){
     if (antM){ const ant = await carregarItensDaRevisao(String(antM.numero), true); diffComAnterior = { revAnterior: String(antM.numero), anterior: ant, diff: compararRevisoes(ant.itens, itensRevisaoAtual) }; }
   }catch(e){ diffComAnterior = null; }
   baseOriginal = null;
-  try{ await carregarBaseOriginal(); await registrarEntradas(); }catch(e){}
+  try{ if (novosAvaliacaoDesde == null) await carregarNovosAvaliacaoDesde(); await carregarBaseOriginal(); await registrarEntradas(); }catch(e){}
   renderTorreAndares();
   await renderResumoGeral(true);
   renderInsightsResumo();
