@@ -750,7 +750,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col">Total pend.</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1181,7 +1181,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.172';
+const VERSAO_APP = '2026-10-03.174';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3157,8 +3157,12 @@ function renderVistoriaAndarQuartos(){
   const andar = Number(v);
   const locais = agruparPorLocal(itensRevisaoAtual.filter((it) => it.andar === andar && (it.status === 'VM' || it.status === 'AM'))).filter((l) => classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) !== 'CONCLUIDO');
   const nP = locais.filter((l) => !l.pronto).length, nV = locais.filter((l) => !vistoriasAmbiente[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length;
-  thP.innerHTML = nP ? '<button type="button" class="chip-acao btn-etapa" id="btn-pronto-andar" title="Libera pra vistoria todos os ambientes do andar">Andar p/ vistoria ('+nP+')</button>' : '<span class="chip-acao btn-etapa marcado pronto" style="cursor:default;">✓ Andar todo</span>';
-  thV.innerHTML = nV ? '<button type="button" class="chip-acao btn-etapa" id="btn-vistoria-andar" title="Registra a vistoria da IAC em todos os ambientes do andar">Andar vistoriado ('+nV+')</button>' : '<span class="chip-acao btn-etapa marcado vist" style="cursor:default;">✓ Andar todo</span>';
+  thP.innerHTML = nP ? '<button type="button" class="chip-acao btn-etapa" id="btn-pronto-andar" title="Libera pra vistoria todos os ambientes do andar">Andar p/ vistoria ('+nP+')</button>' : '<button type="button" class="chip-acao btn-etapa marcado pronto" id="btn-pronto-andar-desfazer" title="Tocar pra desfazer no andar inteiro">✓ Andar todo</button>';
+  thV.innerHTML = nV ? '<button type="button" class="chip-acao btn-etapa" id="btn-vistoria-andar" title="Registra a vistoria da IAC em todos os ambientes do andar">Andar vistoriado ('+nV+')</button>' : '<button type="button" class="chip-acao btn-etapa marcado vist" id="btn-vistoria-andar-desfazer" title="Tocar pra desfazer no andar inteiro">✓ Andar todo</button>';
+  const dP = document.getElementById('btn-pronto-andar-desfazer');
+  if (dP) dP.addEventListener('click', (e) => { e.stopPropagation(); desfazerEtapaAndar(andar, 'pronto'); });
+  const dV = document.getElementById('btn-vistoria-andar-desfazer');
+  if (dV) dV.addEventListener('click', (e) => { e.stopPropagation(); desfazerEtapaAndar(andar, 'vistoria'); });
   const bP = document.getElementById('btn-pronto-andar');
   if (bP) bP.addEventListener('click', (e) => { e.stopPropagation(); bP.disabled = true; prontoVistoriaAndarInteiro(andar).finally(() => { bP.disabled = false; }); });
   const bV = document.getElementById('btn-vistoria-andar');
@@ -3806,6 +3810,29 @@ async function marcarVistoriaAmbiente(andar, tipo, quarto){
     async (d) => { if (await salvarVistoriasAmbiente({ [k]: { em: d, por: usuarioAtual } })) await selecionarRevisao(revisaoSelecionada); },
     atual ? async () => { if (await salvarVistoriasAmbiente({ [k]: null })) await selecionarRevisao(revisaoSelecionada); } : null);
 }
+/* DESFAZER NO ANDAR INTEIRO: tira "Liberado p/ vistoria" ou "Vistoriado pela IAC" de todos os ambientes
+   do andar (a vistoria registrada pelo andar também sai) */
+async function desfazerEtapaAndar(andar, etapa){
+  if (!exigirAdmin()) return;
+  if (!(await garantirUsuario())) return;
+  const pref = andar + '|';
+  if (etapa === 'pronto'){
+    const chaves = Object.keys(prontosVistoria).filter((k) => k.indexOf(pref) === 0);
+    if (!chaves.length){ avisoFlutuante('Nada a desfazer neste andar', 'ok'); return; }
+    if (!window.confirm('Tirar "Liberado p/ vistoria" de ' + chaves.length + ' ambiente(s) do ' + nomeAndarLongo(andar) + '?')) return;
+    const m = {}; chaves.forEach((k) => { m[k] = null; });
+    if (await salvarProntosVistoria(m)){ avisoFlutuante('Desfeito no ' + nomeAndarLongo(andar), 'ok'); await selecionarRevisao(revisaoSelecionada); }
+    return;
+  }
+  const chaves = Object.keys(vistoriasAmbiente).filter((k) => k.indexOf(pref) === 0);
+  const temDoAndar = !!vistoriasIac[andar];
+  if (!chaves.length && !temDoAndar){ avisoFlutuante('Nada a desfazer neste andar', 'ok'); return; }
+  if (!window.confirm('Apagar a vistoria da IAC do ' + nomeAndarLongo(andar) + ' (' + chaves.length + ' ambiente(s))?\n\nOs "IAC não aceitou" calculados a partir dessa vistoria deixam de aparecer.')) return;
+  const m = {}; chaves.forEach((k) => { m[k] = null; });
+  let ok = !chaves.length || await salvarVistoriasAmbiente(m);
+  if (ok && temDoAndar) ok = await salvarVistoriaIac(andar, '');
+  if (ok){ avisoFlutuante('Vistoria apagada no ' + nomeAndarLongo(andar), 'ok'); await selecionarRevisao(revisaoSelecionada); }
+}
 async function marcarVistoriaAndar(andar){
   if (!exigirAdmin()) return;
   if (!(await garantirUsuario())) return;
@@ -4191,7 +4218,8 @@ function renderTorreAndares(){
       const contaDoAndar = itensDoAndar.filter(contaNoTotal);
       const abertoDoAndar = contarEmAberto(contaDoAndar);                             // sem os novos não aceitos
       const saiuDoAndar = (mapaSairam.get(andar) || 0);
-      const totalAndar = contaDoAndar.length + saiuDoAndar;
+      const tuAndar = totalDoAndarUniverso(andar);
+      const totalAndar = tuAndar != null ? Math.max(tuAndar, contaDoAndar.length) : contaDoAndar.length + saiuDoAndar;
       pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
@@ -4289,7 +4317,10 @@ async function renderResumoGeral(recarregarHistorico){
   });
 
   const vdNaPlanilha = itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').length; // a IAC marcou verde em vez de tirar
-  const totalObra = c.total + vdNaPlanilha + sairam;  // o universo: não diminui quando a IAC aceita
+  const andaresUni = Array.from(new Set(itensRevisaoAtual.map((it) => it.andar)));
+  const somaUni = andaresUni.reduce((s, a) => { const v = totalDoAndarUniverso(a); return v == null ? s : s + v; }, 0);
+  const temUni = andaresUni.some((a) => totalDoAndarUniverso(a) != null);
+  const totalObra = temUni ? Math.max(somaUni, c.total + vdNaPlanilha) : (c.total + vdNaPlanilha + sairam);  // desde o início: não diminui quando a IAC aceita
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
   const pctVist = Math.round((iacOk + sairam + vdNaPlanilha)/totalItens*100);
@@ -4642,6 +4673,66 @@ function sairamDaPlanilha(){
     return true;
   });
   return antigos.concat(recentes);
+}
+/* UNIVERSO POR AMBIENTE: todo item que já apareceu em cada quarto/área desde a primeira planilha,
+   com a revisão em que apareceu pela 1ª vez. Guardado em config "universo_ambientes" e completado
+   a cada revisão nova (só lê as revisões que ainda não foram lidas). */
+let universoAmb = null; // { ate: nº da última revisão lida, mapa: { 'andar|TIPO|quarto': { id: revisão } } }
+let montandoUniverso = null;
+function chaveUniverso(andar, tipo, quarto){ return Number(andar) + '|' + chaveAreaDoc(tipo, quarto); }
+async function atualizarUniverso(){
+  if (montandoUniverso) return montandoUniverso;
+  montandoUniverso = (async () => {
+    if (!universoAmb){
+      try{ const d = await store.getDoc('config', 'universo_ambientes'); universoAmb = (d && d.mapa) ? { ate: Number(d.ate) || 0, mapa: d.mapa } : { ate: 0, mapa: {} }; }catch(e){ universoAmb = { ate: 0, mapa: {} }; }
+    }
+    const pendentes = revisoesMeta.filter((r) => r.numero > universoAmb.ate).sort((a,b) => a.numero - b.numero);
+    if (!pendentes.length) return universoAmb;
+    for (const r of pendentes){
+      const docs = await Promise.all((r.andares || []).map((a) => store.getDoc('snapshots', 'R' + r.numero + '_' + a).then((d) => d ? Object.assign({ andar: a }, d) : null).catch(() => null)));
+      docs.filter(Boolean).forEach((d) => (d.itens || []).forEach((it) => {
+        const k = chaveUniverso(d.andar, it.t, quartoCorrigido(d.andar, it.t, it.q ?? null, it.rv || r.numero));
+        const m = universoAmb.mapa[k] || (universoAmb.mapa[k] = {});
+        const rv = Number(it.rv || r.numero);
+        if (!(it.id in m) || rv < m[it.id]) m[it.id] = rv;
+      }));
+      universoAmb.ate = r.numero;
+    }
+    try{ await store.setDoc('config', 'universo_ambientes', { ate: universoAmb.ate, mapa: universoAmb.mapa }); }catch(e){}
+    return universoAmb;
+  })();
+  try{ return await montandoUniverso; } finally { montandoUniverso = null; }
+}
+/* TOTAL DO AMBIENTE desde a primeira planilha (até a revisão aberta): itens que já apareceram ali,
+   com a troca de número contando uma vez e sem os novos ainda não aceitos. null = ainda sem histórico. */
+function totalDoAmbiente(andar, tipo, quarto){
+  if (!universoAmb || !universoAmb.mapa) return null;
+  const m = universoAmb.mapa[chaveUniverso(andar, tipo, quarto)];
+  if (!m) return null;
+  const sel = Number(revisaoSelecionada);
+  const ids = Object.keys(m).filter((id) => m[id] <= sel);
+  const setIds = new Set(ids);
+  const naPlanilha = new Map(itensRevisaoAtual.filter((it) => it.andar === Number(andar) && chaveAreaDoc(it.tipo, it.quarto) === chaveAreaDoc(tipo, quarto)).map((it) => [String(it.idPlanilha || it.id), it]));
+  let n = 0;
+  ids.forEach((id) => {
+    const it = naPlanilha.get(id);
+    if (it && !contaNoTotal(it)) return;                                  // novo ainda não aceito
+    const ac = acompanhamento[it ? it.id : id] || acompanhamento[id] || {};
+    if (ac.herdadoDe && setIds.has(String(ac.herdadoDe))) return;         // troca de número: conta uma vez
+    n++;
+  });
+  return n;
+}
+function totalDoAndarUniverso(andar){
+  if (!universoAmb || !universoAmb.mapa) return null;
+  let soma = 0, achou = false;
+  Object.keys(universoAmb.mapa).forEach((k) => {
+    const [a, tipo, q] = k.split('|');
+    if (Number(a) !== Number(andar)) return;
+    const v = totalDoAmbiente(Number(a), tipo, q === '' ? null : (isNaN(Number(q)) ? q : Number(q)));
+    if (v != null){ soma += v; achou = true; }
+  });
+  return achou ? soma : null;
 }
 function sairamPorAndar(){ const m = new Map(); sairamDaPlanilha().forEach((h) => m.set(Number(h.andar), (m.get(Number(h.andar)) || 0) + 1)); return m; }
 async function carregarIdsResolvidosHist(forcar){
@@ -5683,8 +5774,14 @@ function renderQuartos(){
       '<td class="num-col so-admin" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(nNaoAceitou || '—')+'</td>' +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
-      '<td class="num-col col-fluxo">'+c.total+'</td>' +
-      '<td class="col-centro">'+barraPct(percentualExecutado(itC))+'</td>' +
+      (() => {
+        const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
+        const totalAmb = tu != null ? Math.max(tu, itC.length) : itC.length;
+        const validadosAmb = Math.max(0, totalAmb - itC.length);
+        const abertoAmb = contarEmAberto(itC);
+        return '<td class="num-col col-fluxo" title="'+itC.length+' na planilha atual'+(validadosAmb ? ' + '+validadosAmb+' já validados (a IAC tirou da planilha)' : '')+'">'+totalAmb+'</td>' +
+          '<td class="col-centro">'+barraPct(totalAmb ? Math.round((totalAmb - abertoAmb) / totalAmb * 100) : 0)+'</td>';
+      })() +
       '<td class="col-centro">'+celPronto+'</td><td class="col-centro">'+celVist+'</td>' + '<td hidden style="font-size:12.5px; color:'+(vistoriasIac[l.andar] ? 'var(--vist)' : 'var(--faint)')+';" title="'+(vistoriasIac[l.andar] ? 'IAC vistoriou o '+esc(nomeAndarLongo(l.andar))+' em '+vistoriasIac[l.andar].em.split('-').reverse().join('/') : 'A IAC ainda não vistoriou este andar')+'">'+(vistoriasIac[l.andar] ? vistoriasIac[l.andar].em.split('-').reverse().slice(0,2).join('/') : '—')+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>';
     tbody.appendChild(tr);
@@ -8606,6 +8703,7 @@ async function selecionarRevisao(numeroStr){
   }catch(e){ diffComAnterior = null; }
   baseOriginal = null;
   try{ if (novosAvaliacaoDesde == null) await carregarNovosAvaliacaoDesde(); await carregarBaseOriginal(); await registrarEntradas(); }catch(e){}
+  try{ await atualizarUniverso(); }catch(e){}
   renderTorreAndares();
   await renderResumoGeral(true);
   renderInsightsResumo();
