@@ -1189,7 +1189,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.190';
+const VERSAO_APP = '2026-10-03.191';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4384,7 +4384,7 @@ async function renderResumoGeral(recarregarHistorico){
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
   // executado pela AW e a IAC AINDA NÃO vistoriou: sem os "não aceitos" (já vistoriados) e sem os "a conferir"
-  const aguardandoIac = itensConta.filter((it) => baixaDaAW(it) && !acompanhamento[it.id].iacOkEm && !iacNaoAceitou(it)).length;
+  const aguardandoIac = itensConta.filter(aguardandoValidacaoIac).length;
   const novosVm = naoAceitosNovos.filter((x) => x.status === 'VM').length, novosAm = naoAceitosNovos.filter((x) => x.status === 'AM').length;
   const sub = (n) => '<div class="pct-sub">'+Math.round(n/totalItens*100)+'% do total</div>';
   grid.innerHTML =
@@ -4400,7 +4400,7 @@ async function renderResumoGeral(recarregarHistorico){
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · baixas registradas</div></div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado em ambiente liberado p/ vistoria</div></div>' +
       (() => { const nConf = itensRevisaoAtual.filter(conferirNoQuarto).length;
         return nConf ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+nConf+'</div><div class="rotulo">A conferir no quarto</div><div class="pct-sub">baixas copiadas do número geral</div></div>' : ''; })() +
       '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
@@ -4597,6 +4597,13 @@ function baixaCopiada(idComposto, idBase){
   if (ac.baixaCompartilhada && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS) return true;
   const base = idBase && idBase !== idComposto ? acompanhamento[idBase] : null;
   return !!(base && base.awExecEm && ac.awExecEm === base.awExecEm && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS);
+}
+/* AGUARDANDO VALIDAÇÃO IAC: executado pela AW (baixa real) em ambiente LIBERADO P/ VISTORIA, que a IAC
+   ainda não vistoriou e que não foi liberado p/ operação */
+function aguardandoValidacaoIac(it){
+  if (!baixaDaAW(it) || (acompanhamento[it.id] || {}).iacOkEm || iacNaoAceitou(it)) return false;
+  const k = chaveAreaGlobal(it.andar, it.tipo, it.quarto);
+  return !!prontosVistoria[k] && !ambienteVistoriado(it.andar, it.tipo, it.quarto) && !areasLiberadasRevisaoAtual[k];
 }
 function baixaDaAW(it){ const ac = acompanhamento[it.id]; return !!(ac && ac.awExecEm) && !conferirNoQuarto(it); }
 async function decidirConferencia(ids, confirmar){
@@ -6236,7 +6243,7 @@ function obterItensFiltrados(){
       if (filtroProgresso === 'reinc') return !!(a && a.reincidencias);
       if (filtroProgresso === 'aberto') return (!a || (!a.awExecEm && !a.iacOkEm)) && !novoForaDoAberto(it);
       if (filtroProgresso === 'awExec') return a && a.awExecEm;
-      if (filtroProgresso === 'awSemIac') return baixaDaAW(it) && !a.iacOkEm && !iacNaoAceitou(it);
+      if (filtroProgresso === 'awSemIac') return aguardandoValidacaoIac(it);
       if (filtroProgresso === 'iacOk') return a && a.iacOkEm;
       return true;
     });
