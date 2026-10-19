@@ -1183,7 +1183,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.181';
+const VERSAO_APP = '2026-10-03.182';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3729,7 +3729,14 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
     const usarComposto = vezes.get(base) > 1 || (!acompanhamento[base] && acompanhamento[composto]);
     if (!usarComposto) return;
     it.id = composto; it.idPlanilha = base;
-    if (!acompanhamento[composto] && acompanhamento[base]) acompanhamento[composto] = JSON.parse(JSON.stringify(acompanhamento[base]));
+    if (!acompanhamento[composto] && acompanhamento[base]){
+      // cada quarto tem a SUA baixa: da cópia só vêm fornecedor, disciplina, prioridade e previsão.
+      // Exceção: baixa antiga (antes de 14/10), dada quando o número era um só — fica como "a conferir".
+      const b = acompanhamento[base], copia = JSON.parse(JSON.stringify(b));
+      const baixaAntiga = b.awExecEm && String(b.awExecEm) < DATA_SEPARACAO_QUARTOS;
+      if (!baixaAntiga){ copia.awExecEm = null; copia.awExecPor = null; copia.iacOkEm = null; copia.iacOkPor = null; copia.historico = null; }
+      acompanhamento[composto] = copia;
+    }
     const ac = acompanhamento[composto];
     if (ac && ac.prioridadeOverride) it.status = ac.prioridadeOverride;
   });
