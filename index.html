@@ -744,13 +744,14 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados p/ operação, itens em aberto e previsão de conclusão">PDF liberados p/ operação</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
+    <div class="card card-pad oculto so-admin" id="conferir-quarto-card" style="margin-bottom:14px; border-color:var(--pronto);"></div>
     <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card">
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th class="num-col col-reinc">Reinc.</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -786,6 +787,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="naoBaixadoIac" class="so-admin">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
         <option value="novosAvaliar" class="so-admin">Itens novos</option>
+        <option value="conferirQuarto" class="so-admin">Conferir no quarto</option>
       </select>
       <select id="filtro-item-programacao">
         <option value="">Toda a programação</option>
@@ -1181,7 +1183,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.174';
+const VERSAO_APP = '2026-10-03.180';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3263,6 +3265,20 @@ function liberacoesParaRevisar(){
   return Array.from(grupos.values()).map((g) => Object.assign(g, { locais: Array.from(g.locais.values()).sort((a,b) => a.andar - b.andar || String(a.label).localeCompare(String(b.label), 'pt-BR', { numeric:true })) }))
     .sort((a,b) => b.locais.length - a.locais.length);
 }
+function renderConferirNoQuarto(){
+  const cont = document.getElementById('conferir-quarto-card');
+  if (!cont) return;
+  const lista = itensRevisaoAtual.filter(conferirNoQuarto);
+  if (!lista.length || !ehAdminAtual()){ cont.classList.add('oculto'); cont.innerHTML = ''; return; }
+  const porAndar = new Map();
+  lista.forEach((it) => porAndar.set(it.andar, (porAndar.get(it.andar) || 0) + 1));
+  const andares = Array.from(porAndar.keys()).sort((a,b) => b - a);
+  cont.classList.remove('oculto');
+  cont.innerHTML = '<h2 style="margin-bottom:4px;">Baixas a conferir no quarto · ' + lista.length + ' item(ns)</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Até 14/10, um item com o mesmo número em vários quartos tinha uma baixa só: o clique dado olhando um quarto aparecia em todos. Estes itens receberam a baixa por cópia — confira cada um em campo.</p>' +
+    '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + andares.map((a) => '<button type="button" class="tag-agressor" data-conf-andar="'+a+'" style="border-color:var(--pronto); color:var(--pronto);">' + esc(nomeAndar(a)) + ' <b style="color:var(--pronto);">' + porAndar.get(a) + '</b></button>').join('') + '</div>';
+  cont.querySelectorAll('[data-conf-andar]').forEach((b) => b.addEventListener('click', () => abrirItens({ andar: Number(b.dataset.confAndar), fluxo: 'conferirQuarto' })));
+}
 function renderLiberacoesParaRevisar(){
   const cont = document.getElementById('liberacoes-revisar');
   if (!cont) return;
@@ -3899,8 +3915,11 @@ function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
 function iacManteveExecutado(it){
   const ac = acompanhamento[it.id];
   if (!ac || !ac.awExecEm || ac.iacOkEm || (it.status !== 'AM' && it.status !== 'VM') || !it.atualizadoEmAndar) return false;
+  /* REGRA PELA IMPORTAÇÃO: a AW deu baixa ANTES de chegar a planilha nova do ambiente, e o item continua
+     nela → a IAC não aceitou. Só no ambiente que VEIO nesta revisão (o mantido da anterior não conta). */
+  if (!it.rv && new Date(ac.awExecEm) < new Date(it.atualizadoEmAndar)) return true;
   const dv = dataVistoriaAmbiente(it.andar, it.tipo, it.quarto);
-  if (!dv) return false;                                       // a IAC ainda não vistoriou este ambiente
+  if (!dv) return false;                                       // sem planilha nova nem vistoria registrada
   const v = { em: dv };
   const fimDoDiaVistoria = new Date(v.em + 'T23:59:59');
   return new Date(ac.awExecEm) <= fimDoDiaVistoria                // executado até a vistoria
@@ -4224,9 +4243,15 @@ function renderTorreAndares(){
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
         '<span class="mini-stat novos so-admin'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
-        '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono">'+(awExecDoAndar + saiuDoAndar)+'</span></span>' +
-        '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+saiuDoAndar+' a IAC tirou da planilha">'+(iacOkDoAndar + saiuDoAndar)+'</span></span>' +
-        '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+itensDoAndar.length+' na planilha atual + '+saiuDoAndar+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>' +
+        (() => {
+          const saiuReal = Math.max(0, totalAndar - contaDoAndar.length);
+          const verdesAndar = contaDoAndar.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
+          const awRegA = awRegistradoNoAndar(andar);
+          const awA = awRegA != null ? Math.max(awRegA, awExecDoAndar) : awExecDoAndar;
+          return '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono" title="baixas registradas pela AW">'+awA+'</span></span>' +
+            '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+(saiuReal + verdesAndar)+' a IAC tirou da planilha ou marcou verde">'+(iacOkDoAndar + saiuReal + verdesAndar)+'</span></span>' +
+            '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+contaDoAndar.length+' na planilha atual + '+saiuReal+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>';
+        })() +
         '</span>';
     }
     row.classList.toggle('liberado-total', liberadoTotal);
@@ -4323,7 +4348,10 @@ async function renderResumoGeral(recarregarHistorico){
   const totalObra = temUni ? Math.max(somaUni, c.total + vdNaPlanilha) : (c.total + vdNaPlanilha + sairam);  // desde o início: não diminui quando a IAC aceita
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
-  const pctVist = Math.round((iacOk + sairam + vdNaPlanilha)/totalItens*100);
+  const saidosObra = temUni ? Math.max(0, totalObra - c.total - vdNaPlanilha) : sairam;
+  const awObra = temUni ? Math.max(awExec, andaresUni.reduce((s, a) => { const v = awRegistradoNoAndar(a); return v == null ? s : s + v; }, 0)) : (awExec + sairam + vdNaPlanilha);
+  vdHistorico = saidosObra + vdNaPlanilha;
+  const pctVist = Math.round((iacOk + saidosObra + vdNaPlanilha)/totalItens*100);
   const vmTotal = itensConta.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
@@ -4340,10 +4368,12 @@ async function renderResumoGeral(recarregarHistorico){
     // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(sairam + vdNaPlanilha)+' já validados pela IAC</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+(awExec + sairam + vdNaPlanilha)+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round((awExec + sairam + vdNaPlanilha)/totalItens*100)+'% do total</div></div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · baixas registradas</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado pela AW, a IAC ainda não validou</div></div>' +
+      (() => { const nConf = itensRevisaoAtual.filter(conferirNoQuarto).length;
+        return nConf ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+nConf+'</div><div class="rotulo">A conferir no quarto</div><div class="pct-sub">baixas copiadas do número geral</div></div>' : ''; })() +
       '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
     '</div>' +
 
@@ -4356,7 +4386,7 @@ async function renderResumoGeral(recarregarHistorico){
       (() => {
         const validados = sairamDaPlanilha().map((h) => String(h.id || h._id)).concat(itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').map((it) => it.id));
         const junto = validados.filter((id) => acompanhamento[id] && acompanhamento[id].iacOkEm).length;
-        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde">Validado pela IAC</div><div class="pct-sub">'+junto+' validados junto · '+(validados.length - junto)+' IAC sozinha</div></div>';
+        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde">Validado pela IAC</div><div class="pct-sub">a IAC tirou da planilha ou marcou verde</div></div>';
       })() +
     '</div>' +
 
@@ -4520,6 +4550,32 @@ function novoAAvaliar(it){
 }
 // fora do "em aberto": novo ainda a avaliar OU novo que a IAC precisa corrigir (não foi aceito)
 function contaNoTotal(it){ return !novoForaDoAberto(it); }
+/* CONFERIR NO QUARTO: até 14/10, um número repetido em vários quartos tinha UMA baixa só — o clique dado
+   olhando um quarto aparecia em todos. Quando os quartos ganharam baixa própria, o app COPIOU essa baixa
+   pra cada quarto. Esses itens precisam ser conferidos em campo: confirmar ou reabrir. */
+const DATA_SEPARACAO_QUARTOS = '2026-10-14';
+function conferirNoQuarto(it){
+  const acH = acompanhamento[it.id];
+  if (acH && acH.baixaCompartilhada && acH.awExecEm && !acH.conferidoQuartoEm && String(acH.awExecEm) < DATA_SEPARACAO_QUARTOS) return true;
+  if (!it.idPlanilha || it.id === it.idPlanilha) return false;
+  const ac = acompanhamento[it.id], base = acompanhamento[it.idPlanilha];
+  if (!ac || !ac.awExecEm || ac.conferidoQuartoEm || !base || !base.awExecEm) return false;
+  return ac.awExecEm === base.awExecEm && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS;
+}
+async function decidirConferencia(ids, confirmar){
+  if (!exigirAdmin()) return 0;
+  if (!(await garantirUsuario())) return 0;
+  let feitos = 0; const agora = new Date().toISOString();
+  await comLimiteDeConcorrencia(ids, 4, async (id) => {
+    const atual = acompanhamento[id] || {};
+    const novo = Object.assign({}, atual, { conferidoQuartoEm: agora, conferidoQuartoPor: usuarioAtual });
+    if (!confirmar){ novo.awExecEm = null; novo.awExecPor = null; novo.iacOkEm = null; novo.iacOkPor = null; }
+    novo.historico = historicoDoItem(atual).concat([{ t: confirmar ? 'conferido' : 'reabertoConferencia', em: agora, por: usuarioAtual }]);
+    const r = await salvarAcompanhamentoComRetry(id, novo);
+    if (r.ok){ acompanhamento[id] = novo; feitos++; }
+  });
+  return feitos;
+}
 function novoForaDoAberto(it){
   const ac = acompanhamento[it.id];
   if (ac && ac.novoContestadoEm && infoItemNovo(it) && estaEmAberto(it)) return true; // "IAC precisa corrigir" fica fora
@@ -4636,6 +4692,7 @@ async function herdarStatusDasTrocas(trocas, revAnterior){
     }
     novo.herdadoDe = de;
     novo.herdadoRev = String(x.antigo.rv || revAnterior || '');
+    if (x.compartilhado || (x.antigo.idPlanilha && x.antigo.idPlanilha !== x.antigo.id)) novo.baixaCompartilhada = true; // veio de número repetido
     acompanhamento[idN] = novo;
     herdados++;
     salvarAcompanhamentoComRetry(idN, novo).catch(() => {}); // grava em segundo plano
@@ -4723,6 +4780,31 @@ function totalDoAmbiente(andar, tipo, quarto){
   });
   return n;
 }
+function awRegistradoNoAmbiente(andar, tipo, quarto){
+  if (!universoAmb || !universoAmb.mapa) return null;
+  const m = universoAmb.mapa[chaveUniverso(andar, tipo, quarto)];
+  if (!m) return null;
+  const sel = Number(revisaoSelecionada), local = tipo === 'APTO' ? String(quarto) : (String(tipo).charAt(0) + String(tipo).slice(1).toLowerCase() + ' ' + nomeAndar(andar));
+  const ids = Object.keys(m).filter((id) => m[id] <= sel), setIds = new Set(ids);
+  let n = 0;
+  ids.forEach((id) => {
+    const ac = acompanhamento[id + ' · ' + local] || acompanhamento[id] || {};
+    if (ac.herdadoDe && setIds.has(String(ac.herdadoDe))) return; // troca de número: conta uma vez
+    if (ac.awExecEm) n++;
+  });
+  return n;
+}
+function awRegistradoNoAndar(andar){
+  if (!universoAmb || !universoAmb.mapa) return null;
+  let soma = 0, achou = false;
+  Object.keys(universoAmb.mapa).forEach((k) => {
+    const [a, tipo, q] = k.split('|');
+    if (Number(a) !== Number(andar)) return;
+    const v = awRegistradoNoAmbiente(Number(a), tipo, q === '' ? null : (isNaN(Number(q)) ? q : Number(q)));
+    if (v != null){ soma += v; achou = true; }
+  });
+  return achou ? soma : null;
+}
 function totalDoAndarUniverso(andar){
   if (!universoAmb || !universoAmb.mapa) return null;
   let soma = 0, achou = false;
@@ -4793,15 +4875,28 @@ function compararRevisoes(itensDe, itensPara){
   /* MUDOU DE AMBIENTE (ex.: "ITENS GERAIS 18º" → "APTO 1806"): mesmo andar, MESMA descrição e MESMA
      foto, número novo → é o mesmo item. Um pra um (cada item antigo serve pra um só). */
   const descK = (it) => chaveComparacao(String(it.desc || '')).slice(0, 160);
+  const aindaNaPlanilha = new Set(itensPara.map((x) => x.andar + '|' + localKey(x) + '|' + x.id));
+  // número repetido em vários quartos (item geral) que a IAC renumerou NO MESMO quarto: mesma descrição basta
+  { const r1 = [];
+    resto.forEach((it) => {
+      const k = descK(it);
+      const ant = k ? itensDe.find((a) => a.andar === it.andar && localKey(a) === localKey(it) && a.idPlanilha && a.idPlanilha !== a.id && !usadosCorrecao.has(a) && descK(a) === k && !aindaNaPlanilha.has(a.andar + '|' + localKey(a) + '|' + a.id)) : null;
+      if (ant){ usadosCorrecao.add(ant); diff.trocas.push({ novo: it, antigo: ant, fotoIgual: true, semFoto: false, compartilhado: true }); }
+      else r1.push(it);
+    });
+    resto.length = 0; r1.forEach((x) => resto.push(x)); }
   const restoFinal2 = [];
   resto.forEach((it) => {
     const fN = fotosDe(it), k = descK(it);
     if (!k){ restoFinal2.push(it); return; }
-    const igual = (a) => fN.size && a.andar === it.andar && a.id !== it.id && descK(a) === k && Array.from(fotosDe(a)).some((f) => fN.has(f));
+    // outro ambiente do andar: só é o mesmo item se ele SAIU do ambiente antigo (mudou de lugar);
+    // se o original continua lá, a cópia em outro quarto é NOVA (a IAC espalhou o item)
+    const saiuDoLugar = (a) => !aindaNaPlanilha.has(a.andar + '|' + localKey(a) + '|' + a.id);
+    const igual = (a) => fN.size && a.andar === it.andar && a.id !== it.id && descK(a) === k && Array.from(fotosDe(a)).some((f) => fN.has(f)) && (localKey(a) === localKey(it) || saiuDoLugar(a));
     let ant = itensDe.find((a) => igual(a) && !usadosCorrecao.has(a));
     // item GERAL do andar que a IAC detalhou por quarto: o mesmo item antigo vale pra vários quartos.
     // Aqui basta a MESMA DESCRIÇÃO (a IAC costuma regravar as fotos ao gerar a planilha nova).
-    const geralIgual = (a) => a.andar === it.andar && a.id !== it.id && a.tipo === 'ITENS GERAIS' && it.tipo !== 'ITENS GERAIS' && descK(a) === k;
+    const geralIgual = (a) => a.andar === it.andar && a.id !== it.id && a.tipo === 'ITENS GERAIS' && it.tipo !== 'ITENS GERAIS' && descK(a) === k && saiuDoLugar(a);
     if (!ant) ant = itensDe.find((a) => igual(a) && a.tipo === 'ITENS GERAIS') || itensDe.find(geralIgual);
     if (ant){ usadosCorrecao.add(ant); diff.trocas.push({ novo: it, antigo: ant, fotoIgual: true, semFoto: false, mudouAmbiente: localKey(ant) !== localKey(it) }); }
     else restoFinal2.push(it);
@@ -5729,10 +5824,13 @@ function tagsAgressores(lista, max, attrs){
       (x.parado ? '<span class="parado"></span>' : '') + esc(x.nome) + ' <b>' + x.aberto + '</b></button>').join('') +
     (lista.length > max ? '<span class="tag-agressor" style="cursor:default; background:transparent; border-color:transparent;">+'+(lista.length - max)+'</span>' : '');
 }
+let totalConferirNaTabela = 0;
 function renderQuartos(){
   try{ renderLiberacoesParaRevisar(); }catch(e){ console.warn('liberações', e); }
+  try{ const c = document.getElementById('conferir-quarto-card'); if (c){ c.classList.add('oculto'); c.innerHTML = ''; } }catch(e){}
   try{ renderSituacaoAndarQuartos(); }catch(e){ console.warn('situação do andar', e); }
   const locais = obterLocaisFiltrados();
+  totalConferirNaTabela = 0;
   const tbody = document.getElementById('tbody-quartos');
   tbody.innerHTML = '';
   let linhas = 0;
@@ -5770,8 +5868,19 @@ function renderQuartos(){
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(itC)+'</td>' +
-      '<td class="num-col col-aw">'+awExecDoLocal+'</td><td class="num-col col-iac">'+iacOkDoLocal+'</td>' +
+      (() => {
+        const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
+        const totalAmb = tu != null ? Math.max(tu, itC.length) : itC.length;
+        const saiu = Math.max(0, totalAmb - itC.length);                    // a IAC já tirou da planilha
+        const verdes = itC.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
+        const awReg = awRegistradoNoAmbiente(l.andar, l.tipo, l.quarto);
+        const awAmb = awReg != null ? Math.max(awReg, awExecDoLocal) : awExecDoLocal; // baixas REALMENTE dadas pela AW
+        const iacAmb = iacOkDoLocal + saiu + verdes;
+        return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados junto · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
+      })() +
       '<td class="num-col so-admin" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(nNaoAceitou || '—')+'</td>' +
+      (() => { const nc = l.itens.filter(conferirNoQuarto).length; totalConferirNaTabela += nc;
+        return '<td class="num-col so-admin" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+'; '+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+' title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">'+(nc || '—')+'</td>'; })() +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       (() => {
@@ -5787,6 +5896,7 @@ function renderQuartos(){
     tbody.appendChild(tr);
     linhas++;
   });
+  { const thc = document.getElementById('th-conferir-quartos'); if (thc) thc.innerHTML = 'A conferir' + (totalConferirNaTabela ? '<div style="font-size:11px; font-weight:600;">' + totalConferirNaTabela + '</div>' : ''); }
   document.getElementById('vazio-quartos').classList.toggle('oculto', linhas>0);
   const caixaAgr = document.getElementById('agressores-quartos');
   if (caixaAgr){
@@ -5809,6 +5919,7 @@ function renderQuartos(){
       const tag = e.target.closest('[data-agressor]');
       const tagNA = e.target.closest('[data-nao-aceitou]');
       const tagNovos = e.target.closest('[data-novos]');
+      const celConf = e.target.closest('[data-conferir-quarto]');
       // segue a "história" do usuário: o que ele filtrou em Quartos continua valendo em Itens
       const tipo = tr.dataset.tipo, quarto = tr.dataset.quarto;
       const chaveLocal = tipo === 'APTO' ? ('APTO-'+quarto) : (tipo+'-'+tr.dataset.andar);
@@ -5819,7 +5930,7 @@ function renderQuartos(){
         disciplina: document.getElementById('filtro-disciplina').value,
         fornecedor: tag ? tag.dataset.agressor : document.getElementById('filtro-fornecedor').value,
         status: document.getElementById('filtro-status').value,
-        fluxo: tagNovos ? 'novosRevisao' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
+        fluxo: celConf ? 'conferirQuarto' : tagNovos ? 'novosRevisao' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
       });
     });
     const btnV = tr.querySelector('[data-acao-vist]');
@@ -6046,6 +6157,10 @@ function obterItensFiltrados(){
       return true;
     });
   }
+  if (filtroProgressoSelect === 'conferirQuarto'){
+    const dataLib = (it) => { const l = areasLiberadasRevisaoAtual[chaveAreaGlobal(it.andar, it.tipo, it.quarto)]; return l && l.em ? String(l.em) : '9999'; };
+    itens = itens.filter(conferirNoQuarto).sort((a, b) => dataLib(a).localeCompare(dataLib(b)) || a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
+  } else
   if (filtroProgressoSelect){
     itens = itens.filter((it) => {
       const a = acompanhamento[it.id];
@@ -6055,6 +6170,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
       if (filtroProgressoSelect === 'novosAvaliar') return novoForaDoAberto(it);
+      if (filtroProgressoSelect === 'conferirQuarto') return conferirNoQuarto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
@@ -6083,7 +6199,7 @@ function obterItensFiltrados(){
       (it.desc||'').toLowerCase().indexOf(busca)!==-1
     );
   }
-  itens.sort((a,b) => a.andar - b.andar || (a.status==='VM'?0:1) - (b.status==='VM'?0:1));
+  if (filtroProgressoSelect !== 'conferirQuarto') itens.sort((a,b) => a.andar - b.andar || (a.status==='VM'?0:1) - (b.status==='VM'?0:1)); // "conferir": ordem da liberação
   return itens;
 }
 
@@ -6155,6 +6271,13 @@ function renderItens(){
       '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Validado IAC':'Validado IAC')+'</button>' +
       '<button class="chip-acao so-admin" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
+      (podeTirarDaObra() && conferirNoQuarto(it)
+        ? '<div class="so-admin" style="border:1px solid var(--pronto); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--pronto-soft); margin-bottom:5px;">' +
+            '<span style="font-size:10.5px; color:var(--pronto); text-align:center; line-height:1.3;" title="A baixa foi dada no número compartilhado por vários quartos (antes de cada quarto ter baixa própria) e copiada pra este quarto">Conferir no quarto</span>' +
+            '<button class="chip-acao" data-conferir="ok" data-id="'+esc(it.id)+'" style="font-size:11px;">Confirmado no quarto</button>' +
+            '<button class="chip-acao" data-conferir="reabrir" data-id="'+esc(it.id)+'" style="font-size:11px;">Não foi feito: reabrir</button>' +
+          '</div>'
+        : '') +
       (podeTirarDaObra() && novoForaDoAberto(it)
         ? '<div style="border:1px solid var(--novo); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--novo-soft); margin-bottom:5px;">' +
             '<span class="tag-entrou" style="align-self:center; margin:0;">Item novo</span>' +
@@ -6200,6 +6323,12 @@ function renderItens(){
   if (restantes>0) btnMais.textContent = 'Carregar mais ('+restantes+' restante'+(restantes>1?'s':'')+')';
 
   tbody.querySelectorAll('[data-triar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); triarDivergenciaIac(b.dataset.id, b.dataset.triar); }));
+  tbody.querySelectorAll('[data-conferir]').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const ok = await decidirConferencia([b.dataset.id], b.dataset.conferir === 'ok');
+    if (ok){ avisoFlutuante(b.dataset.conferir === 'ok' ? 'Baixa confirmada no quarto' : 'Reaberto (não foi feito no quarto)', 'ok'); atualizarTelasAposAcompanhamento(); }
+    else b.disabled = false;
+  }));
   tbody.querySelectorAll('[data-novo-acao]').forEach((b) => b.addEventListener('click', async () => {
     b.disabled = true;
     const acao = b.dataset.novoAcao;
@@ -6308,7 +6437,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', novoVoltou:'Item novo voltou para "a avaliar"' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -7200,7 +7329,9 @@ function abrirEdicaoAgrupamento(){
         '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
       '</div>' +
       (podeTirarDaObra()
-        ? '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens novos)</span></label>' +
+        ? '<div class="modal-campo campo-largo"><label for="grupo-conferir">Conferir no quarto <span style="font-weight:400; color:var(--muted);">(só administradores · baixas copiadas do número geral)</span></label>' +
+          '<select id="grupo-conferir"><option value="">— manter como está —</option><option value="ok">Confirmado no quarto (mantém a baixa)</option><option value="reabrir">Não foi feito: reabrir</option></select></div>' +
+          '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens novos)</span></label>' +
           '<select id="grupo-novos"><option value="">— manter como está —</option><option value="aceitar">Aceitar como novo</option><option value="corrigir">IAC precisa corrigir</option><option value="voltar">Voltar para novos a avaliar</option></select></div>' +
           '<div class="modal-campo campo-largo"><label for="grupo-naoaceitou">IAC não aceitou <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens com essa etiqueta)</span></label>' +
           '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC precisa corrigir (continua executado, vai no PDF de cobrança)</option><option value="nossa">Aceitar como aberto (volta pra aberto e conta reincidência)</option></select></div>'
@@ -7250,6 +7381,16 @@ function abrirEdicaoAgrupamento(){
     const modoPrev = document.getElementById('grupo-prev-modo').value, dataPrev = document.getElementById('grupo-prev').value;
     const triagemNA = (document.getElementById('grupo-naoaceitou') || {}).value || '';
     const decisaoNovos = (document.getElementById('grupo-novos') || {}).value || '';
+    const decisaoConf = (document.getElementById('grupo-conferir') || {}).value || '';
+    if (decisaoConf){
+      const idsConf = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && conferirNoQuarto(x); });
+      if (!idsConf.length){ avisoFlutuante('Nenhum dos selecionados está como "Conferir no quarto"', 'erro'); return; }
+      if (!window.confirm((decisaoConf === 'ok' ? 'Confirmar a baixa no quarto em ' : 'Reabrir (não foi feito no quarto) ') + idsConf.length + ' de ' + ids.length + ' item(ns)?')) return;
+      const feitos = await decidirConferencia(idsConf, decisaoConf === 'ok');
+      fecharEdicaoAgrupamento(); itensSelecionados = new Set(); atualizarTelasAposAcompanhamento(); renderItens(); atualizarBarraSelecao();
+      avisoFlutuante(feitos + ' item(ns) ' + (decisaoConf === 'ok' ? 'confirmados no quarto' : 'reabertos'), 'ok');
+      return;
+    }
     const idsNovos = decisaoNovos ? ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); const acx = acompanhamento[id] || {};
       return x && infoItemNovo(x) && (decisaoNovos === 'voltar' ? !!(acx.novoAceitoEm || acx.novoContestadoEm) : estaEmAberto(x)); }) : [];
     if (decisaoNovos){
