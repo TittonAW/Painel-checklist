@@ -751,7 +751,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th class="num-col col-reinc">Reinc.</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th class="num-col so-admin" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1183,7 +1183,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.180';
+const VERSAO_APP = '2026-10-03.181';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5863,8 +5863,7 @@ function renderQuartos(){
     const nNovos = l.itens.filter(novoForaDoAberto).length;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
     tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
-        ((agr.length || nNaoAceitou || nNovos) ? '<div class="agressores">' + (nNovos ? '<button type="button" class="tag-agressor tag-novos so-admin" data-novos="1" title="Itens novos: não existiam na planilha original do andar (troca de número não conta)">Novos <b>'+nNovos+'</b></button>' : '') + (nJunto ? '<button type="button" class="tag-agressor tag-nao-aceitou junto so-admin" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.junto)+'">IAC não aceitou <b>'+nJunto+'</b></button>' : '') +
-          (nSozinha ? '<button type="button" class="tag-agressor tag-nao-aceitou sozinha so-admin" data-nao-aceitou="1" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou <b>'+nSozinha+'</b></button>' : '') + tagsAgressores(agr, 3)+'</div>' : '') + '</td>' +
+        (agr.length ? '<div class="agressores">' + tagsAgressores(agr, 3) + '</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(itC)+'</td>' +
@@ -5878,11 +5877,12 @@ function renderQuartos(){
         const iacAmb = iacOkDoLocal + saiu + verdes;
         return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados junto · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
       })() +
-      '<td class="num-col so-admin" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+';">'+(nNaoAceitou || '—')+'</td>' +
-      (() => { const nc = l.itens.filter(conferirNoQuarto).length; totalConferirNaTabela += nc;
-        return '<td class="num-col so-admin" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+'; '+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+' title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">'+(nc || '—')+'</td>'; })() +
+      '<td class="num-col so-admin" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+'; '+(nNaoAceitou ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNaoAceitou ? 'data-nao-aceitou="1"' : '')+'>'+(nNaoAceitou || '—')+'</td>' +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
+      (() => { const nc = l.itens.filter(conferirNoQuarto).length; totalConferirNaTabela += nc;
+        return '<td class="num-col so-admin" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+'; '+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+' title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">'+(nc || '—')+'</td>'; })() +
+      '<td class="num-col so-admin" style="color:'+(nNovos ? 'var(--novo)' : 'var(--faint)')+'; '+(nNovos ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNovos ? 'data-novos="1"' : '')+'>'+(nNovos || '—')+'</td>' +
       (() => {
         const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
         const totalAmb = tu != null ? Math.max(tu, itC.length) : itC.length;
@@ -5930,7 +5930,7 @@ function renderQuartos(){
         disciplina: document.getElementById('filtro-disciplina').value,
         fornecedor: tag ? tag.dataset.agressor : document.getElementById('filtro-fornecedor').value,
         status: document.getElementById('filtro-status').value,
-        fluxo: celConf ? 'conferirQuarto' : tagNovos ? 'novosRevisao' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
+        fluxo: celConf ? 'conferirQuarto' : tagNovos ? 'novosAvaliar' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
       });
     });
     const btnV = tr.querySelector('[data-acao-vist]');
