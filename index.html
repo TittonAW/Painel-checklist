@@ -1183,7 +1183,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.182';
+const VERSAO_APP = '2026-10-03.183';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4254,7 +4254,7 @@ function renderTorreAndares(){
           const saiuReal = Math.max(0, totalAndar - contaDoAndar.length);
           const verdesAndar = contaDoAndar.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
           const awRegA = awRegistradoNoAndar(andar);
-          const awA = awRegA != null ? Math.max(awRegA, awExecDoAndar) : awExecDoAndar;
+          const awA = awRegA != null ? awRegA : contaDoAndar.filter(baixaDaAW).length;
           return '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono" title="baixas registradas pela AW">'+awA+'</span></span>' +
             '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+(saiuReal + verdesAndar)+' a IAC tirou da planilha ou marcou verde">'+(iacOkDoAndar + saiuReal + verdesAndar)+'</span></span>' +
             '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+contaDoAndar.length+' na planilha atual + '+saiuReal+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>';
@@ -4356,7 +4356,7 @@ async function renderResumoGeral(recarregarHistorico){
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
   const saidosObra = temUni ? Math.max(0, totalObra - c.total - vdNaPlanilha) : sairam;
-  const awObra = temUni ? Math.max(awExec, andaresUni.reduce((s, a) => { const v = awRegistradoNoAndar(a); return v == null ? s : s + v; }, 0)) : (awExec + sairam + vdNaPlanilha);
+  const awObra = temUni ? andaresUni.reduce((s, a) => { const v = awRegistradoNoAndar(a); return v == null ? s : s + v; }, 0) : (itensConta.filter(baixaDaAW).length + sairam + vdNaPlanilha);
   vdHistorico = saidosObra + vdNaPlanilha;
   const pctVist = Math.round((iacOk + saidosObra + vdNaPlanilha)/totalItens*100);
   const vmTotal = itensConta.filter((it) => it.status === 'VM').length;
@@ -4569,6 +4569,14 @@ function conferirNoQuarto(it){
   if (!ac || !ac.awExecEm || ac.conferidoQuartoEm || !base || !base.awExecEm) return false;
   return ac.awExecEm === base.awExecEm && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS;
 }
+function baixaCopiada(idComposto, idBase){
+  const ac = acompanhamento[idComposto];
+  if (!ac || !ac.awExecEm || ac.conferidoQuartoEm) return false;
+  if (ac.baixaCompartilhada && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS) return true;
+  const base = idBase && idBase !== idComposto ? acompanhamento[idBase] : null;
+  return !!(base && base.awExecEm && ac.awExecEm === base.awExecEm && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS);
+}
+function baixaDaAW(it){ const ac = acompanhamento[it.id]; return !!(ac && ac.awExecEm) && !conferirNoQuarto(it); }
 async function decidirConferencia(ids, confirmar){
   if (!exigirAdmin()) return 0;
   if (!(await garantirUsuario())) return 0;
@@ -4795,9 +4803,10 @@ function awRegistradoNoAmbiente(andar, tipo, quarto){
   const ids = Object.keys(m).filter((id) => m[id] <= sel), setIds = new Set(ids);
   let n = 0;
   ids.forEach((id) => {
-    const ac = acompanhamento[id + ' · ' + local] || acompanhamento[id] || {};
+    const idComp = id + ' · ' + local;
+    const ac = acompanhamento[idComp] || acompanhamento[id] || {};
     if (ac.herdadoDe && setIds.has(String(ac.herdadoDe))) return; // troca de número: conta uma vez
-    if (ac.awExecEm) n++;
+    if (ac.awExecEm && !baixaCopiada(acompanhamento[idComp] ? idComp : id, id)) n++; // cópia "a conferir" não é clique da AW
   });
   return n;
 }
@@ -5845,7 +5854,7 @@ function renderQuartos(){
     const status = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
     const itC = l.itens.filter(contaNoTotal); // os novos não aceitos ficam fora das contas
     const c = contarVMAMAbertos(itC);
-    const awExecDoLocal = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+    const awExecDoLocal = itC.filter(baixaDaAW).length;
     const iacOkDoLocal = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
     const b = BADGE_MAP_STATUS[status];
     const tr = document.createElement('tr');
@@ -5880,7 +5889,7 @@ function renderQuartos(){
         const saiu = Math.max(0, totalAmb - itC.length);                    // a IAC já tirou da planilha
         const verdes = itC.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
         const awReg = awRegistradoNoAmbiente(l.andar, l.tipo, l.quarto);
-        const awAmb = awReg != null ? Math.max(awReg, awExecDoLocal) : awExecDoLocal; // baixas REALMENTE dadas pela AW
+        const awAmb = awReg != null ? awReg : awExecDoLocal; // baixas REALMENTE dadas pela AW (sem as cópias "a conferir")
         const iacAmb = iacOkDoLocal + saiu + verdes;
         return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados junto · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
       })() +
