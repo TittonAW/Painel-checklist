@@ -757,7 +757,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th class="num-col so-admin" id="th-sembaixa-quartos" style="color:var(--muted);" title="A IAC tirou da planilha sem nenhuma baixa da AW. Aberto + AW + A conferir + Sem baixa = Total">Sem baixa</th><th class="num-col so-admin" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th class="num-col so-admin" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1189,7 +1189,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.191';
+const VERSAO_APP = '2026-10-03.193';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1575,6 +1575,10 @@ async function extrairImagensDoXlsx(buf){
 
 /* REVISÃO PELO NOME: a IAC às vezes atualiza o nome do arquivo ("..._R31") e esquece o cabeçalho de
    dentro ("REVISÃO 30"). Vale o número do NOME (arquivo, pasta ou zip); a diferença vira aviso. */
+function recemResolvidosSemBaixa(avisos){
+  const l = (avisos && avisos.recemResolvidos) || [];
+  return l.filter((r) => !r.troca && !((acompanhamento[r.id] || {}).awExecEm) && !((acompanhamento[r.id + ' · ' + (r.q ?? '')] || {}).awExecEm)).length;
+}
 function revisaoNoNome(...nomes){
   for (const n of nomes){
     const m = String(n || '').match(/(?:^|[^A-Za-z0-9])R(?:EV(?:IS[AÃ]O)?)?[\s_.\-]*(\d{1,3})(?=[^0-9]|$)/i);
@@ -2143,6 +2147,7 @@ async function salvarLote(grupos, aoProgredir){
   // reenviados — a IAC não marca "resolvido" na planilha dela, só exclui a linha; pra nós,
   // isso é um VD de verdade. Não mexe em nada do fluxo normal de salvar, só observa.
   const recemResolvidosDoLote = [];
+  avisos.recemResolvidos = recemResolvidosDoLote;
   // DESFAZER: cópia do que este envio vai substituir (andares da revisão, registro da revisão)
   // e quais "confirmados pela IAC" ele acrescentou — pra poder voltar tudo como estava
   const desfazer = { snapshots: new Map(), revisoes: new Map(), resolvidosNovos: [] };
@@ -2425,6 +2430,7 @@ async function sincronizarDados(manual){
     if (cfg.some((d) => d._id === 'obra')){ await carregarConfigObra(); renderListaPins(); }
     if (cfg.some((d) => d._id === 'vistorias_iac')){ await carregarVistoriasIac(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'prontos_vistoria')){ await carregarProntosVistoria(); recarregarPorExclusao = true; }
+    if (cfg.some((d) => d._id === 'encerrados_engano')){ await carregarEncerradosEngano(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'vistorias_iac_ambiente')){ await carregarVistoriasAmbiente(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'disciplinas')){ await carregarApelidosDisc(); recarregarPorExclusao = true; }
     if (cfg.some((d) => d._id === 'pins')){ await carregarPins(); renderListaPins(); if (usuarioAtual && !pinVerificadoNesteAparelho(usuarioAtual)) exigirPinDoUsuarioAtual(); }
@@ -3887,6 +3893,15 @@ async function marcarVistoriaAndar(andar){
       if (await salvarVistoriasAmbiente(m)){ avisoFlutuante('Vistoria registrada em ' + locais.length + ' ambiente(s)', 'ok'); await selecionarRevisao(revisaoSelecionada); }
     }, null);
 }
+let encerradosEngano = {}; // 'andar|TIPO|quarto|id' → { em, por }: a IAC tirou porque não era pendência
+async function carregarEncerradosEngano(){ try{ const d = await store.getDoc('config', 'encerrados_engano'); encerradosEngano = (d && d.mapa) || {}; }catch(e){ encerradosEngano = {}; } }
+async function salvarEncerradosEngano(mudancas){
+  const novo = Object.assign({}, encerradosEngano);
+  Object.entries(mudancas).forEach(([k, v]) => { if (v) novo[k] = v; else delete novo[k]; });
+  const r = await store.setDoc('config', 'encerrados_engano', { mapa: novo });
+  if (r && r.ok === false){ avisoFlutuante('Não foi salvo (sem conexão?)', 'erro'); return false; }
+  encerradosEngano = novo; return true;
+}
 async function carregarProntosVistoria(){ try{ const d = await store.getDoc('config', 'prontos_vistoria'); prontosVistoria = (d && d.mapa) || {}; }catch(e){ prontosVistoria = {}; } }
 async function salvarProntosVistoria(mudancas){
   const novo = Object.assign({}, prontosVistoria);
@@ -4399,7 +4414,7 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC</div></div>' +
       '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · baixas registradas</div></div>' +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · '+pdfNum(itensConta.filter(baixaDaAW).length)+' na planilha'+(awObra > itensConta.filter(baixaDaAW).length ? ' + '+pdfNum(awObra - itensConta.filter(baixaDaAW).length)+' já tirados pela IAC' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado em ambiente liberado p/ vistoria</div></div>' +
       (() => { const nConf = itensRevisaoAtual.filter(conferirNoQuarto).length;
         return nConf ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+nConf+'</div><div class="rotulo">A conferir no quarto</div><div class="pct-sub">baixas copiadas do número geral</div></div>' : ''; })() +
@@ -4415,7 +4430,7 @@ async function renderResumoGeral(recarregarHistorico){
       (() => {
         const validados = sairamDaPlanilha().map((h) => String(h.id || h._id)).concat(itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').map((it) => it.id));
         const junto = validados.filter((id) => acompanhamento[id] && acompanhamento[id].iacOkEm).length;
-        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde">Validado pela IAC</div><div class="pct-sub">a IAC tirou da planilha ou marcou verde</div></div>';
+        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde">Validado pela IAC</div><div class="pct-sub">'+(() => { const comAW = Math.max(0, awObra - itensConta.filter(baixaDaAW).length); const semAW = Math.max(0, vdHistorico - comAW); const semClique = listaEncerradosSemClique(false).length; return pdfNum(Math.max(0, vdHistorico - semClique))+' com clique da AW · '+pdfNum(semClique)+' encerrados pela IAC sem clique'; })()+'</div></div>';
       })() +
     '</div>' +
 
@@ -4815,7 +4830,9 @@ function totalDoAmbiente(andar, tipo, quarto){
   const setIds = new Set(ids);
   const naPlanilha = new Map(itensRevisaoAtual.filter((it) => it.andar === Number(andar) && chaveAreaDoc(it.tipo, it.quarto) === chaveAreaDoc(tipo, quarto)).map((it) => [String(it.idPlanilha || it.id), it]));
   let n = 0;
+  const kAmb = chaveUniverso(andar, tipo, quarto);
   ids.forEach((id) => {
+    if (encerradosEngano[kAmb + '|' + id]) return;                          // incluído por engano: não era pendência
     const it = naPlanilha.get(id);
     if (it && !contaNoTotal(it)) return;                                  // novo ainda não aceito
     const ac = acompanhamento[it ? it.id : id] || acompanhamento[id] || {};
@@ -4830,12 +4847,19 @@ function awRegistradoNoAmbiente(andar, tipo, quarto){
   if (!m) return null;
   const sel = Number(revisaoSelecionada), local = tipo === 'APTO' ? String(quarto) : (String(tipo).charAt(0) + String(tipo).slice(1).toLowerCase() + ' ' + nomeAndar(andar));
   const ids = Object.keys(m).filter((id) => m[id] <= sel), setIds = new Set(ids);
+  const kAmb = chaveUniverso(andar, tipo, quarto);
+  const naPlan = new Map(itensRevisaoAtual.filter((it) => it.andar === Number(andar) && chaveAreaDoc(it.tipo, it.quarto) === chaveAreaDoc(tipo, quarto)).map((it) => [String(it.idPlanilha || it.id), it]));
   let n = 0;
   ids.forEach((id) => {
+    if (encerradosEngano[kAmb + '|' + id]) return;
     const idComp = id + ' · ' + local;
     const ac = acompanhamento[idComp] || acompanhamento[id] || {};
     if (ac.herdadoDe && setIds.has(String(ac.herdadoDe))) return; // troca de número: conta uma vez
-    if (ac.awExecEm && !baixaCopiada(acompanhamento[idComp] ? idComp : id, id)) n++; // cópia "a conferir" não é clique da AW
+    const temBaixa = ac.awExecEm && !baixaCopiada(acompanhamento[idComp] ? idComp : id, id); // cópia "a conferir" não é clique
+    const itP = naPlan.get(id);
+    if (temBaixa) n++;
+    else if (!itP && !(ac.awExecEm)) n++;                                   // a IAC encerrou sem clique: conta como executado
+    else if (itP && contaNoTotal(itP) && itP.status !== 'VM' && itP.status !== 'AM' && !ac.awExecEm) n++; // verde na planilha
   });
   return n;
 }
@@ -4849,6 +4873,32 @@ function awRegistradoNoAndar(andar){
     if (v != null){ soma += v; achou = true; }
   });
   return achou ? soma : null;
+}
+function listaEncerradosSemClique(incluirEngano){
+  const out = [];
+  if (!universoAmb || !universoAmb.mapa) return out;
+  const sel = Number(revisaoSelecionada);
+  const herdados = new Set(Object.values(acompanhamento).map((a) => a && a.herdadoDe).filter(Boolean).map(String));
+  const naPlan = new Map(itensRevisaoAtual.map((it) => [it.andar + '|' + chaveAreaDoc(it.tipo, it.quarto) + '|' + String(it.idPlanilha || it.id), it]));
+  Object.keys(universoAmb.mapa).forEach((kAmb) => {
+    const [a, tipo, q] = kAmb.split('|');
+    const quarto = q === '' ? null : (isNaN(Number(q)) ? q : Number(q));
+    const local = tipo === 'APTO' ? String(quarto) : (String(tipo).charAt(0) + String(tipo).slice(1).toLowerCase() + ' ' + nomeAndar(Number(a)));
+    const m = universoAmb.mapa[kAmb];
+    Object.keys(m).forEach((id) => {
+      if (m[id] > sel || herdados.has(id)) return;
+      const engano = !!encerradosEngano[kAmb + '|' + id];
+      if (engano && !incluirEngano) return;
+      const idComp = id + ' · ' + local;
+      const ac = acompanhamento[idComp] || acompanhamento[id] || {};
+      const itP = naPlan.get(kAmb + '|' + id);
+      const semClique = !ac.awExecEm || baixaCopiada(acompanhamento[idComp] ? idComp : id, id);
+      if (!semClique) return;
+      if (!itP) out.push({ kAmb, id, andar: Number(a), tipo, quarto, local, engano, verde: false });
+      else if (contaNoTotal(itP) && itP.status !== 'VM' && itP.status !== 'AM') out.push({ kAmb, id, andar: Number(a), tipo, quarto, local, engano, verde: true, it: itP });
+    });
+  });
+  return out;
 }
 function totalDoAndarUniverso(andar){
   if (!universoAmb || !universoAmb.mapa) return null;
@@ -5927,16 +5977,6 @@ function renderQuartos(){
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       (() => { const nc = l.itens.filter(conferirNoQuarto).length; totalConferirNaTabela += nc;
         return '<td class="num-col so-admin" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+'; '+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+' title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">'+(nc || '—')+'</td>'; })() +
-      (() => {
-        const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
-        const totalAmb = tu != null ? Math.max(tu, itC.length) : itC.length;
-        const awReg = awRegistradoNoAmbiente(l.andar, l.tipo, l.quarto);
-        const awAmb = awReg != null ? awReg : itC.filter(baixaDaAW).length;
-        const conf = l.itens.filter(conferirNoQuarto).length;
-        const sb = Math.max(0, totalAmb - contarEmAberto(itC) - awAmb - conf);
-        totalSemBaixaNaTabela += sb;
-        return '<td class="num-col so-admin" style="color:'+(sb ? 'var(--text-2)' : 'var(--faint)')+';" title="A IAC tirou da planilha sem nenhuma baixa da AW">'+(sb || '—')+'</td>';
-      })() +
       '<td class="num-col so-admin" style="color:'+(nNovos ? 'var(--novo)' : 'var(--faint)')+'; '+(nNovos ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNovos ? 'data-novos="1"' : '')+'>'+(nNovos || '—')+'</td>' +
       (() => {
         const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
@@ -5952,7 +5992,7 @@ function renderQuartos(){
     linhas++;
   });
   { const thc = document.getElementById('th-conferir-quartos'); if (thc) thc.innerHTML = 'A conferir' + (totalConferirNaTabela ? '<div style="font-size:11px; font-weight:600;">' + totalConferirNaTabela + '</div>' : '');
-    const ths = document.getElementById('th-sembaixa-quartos'); if (ths) ths.innerHTML = 'Sem baixa' + (totalSemBaixaNaTabela ? '<div style="font-size:11px; font-weight:600;">' + totalSemBaixaNaTabela + '</div>' : ''); }
+  }
   document.getElementById('vazio-quartos').classList.toggle('oculto', linhas>0);
   const caixaAgr = document.getElementById('agressores-quartos');
   if (caixaAgr){
@@ -6220,7 +6260,7 @@ function obterItensFiltrados(){
   if (filtroProgressoSelect){
     itens = itens.filter((it) => {
       const a = acompanhamento[it.id];
-      if (filtroProgressoSelect === 'awExec') return a && a.awExecEm;
+      if (filtroProgressoSelect === 'awExec') return baixaDaAW(it); // sem as cópias "a conferir"
       if (filtroProgressoSelect === 'iacOk') return a && a.iacOkEm;
       if (filtroProgressoSelect === 'liberadoPend') return classificarItemComContexto(it) === 'LIBERADO_PEND';
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
@@ -6242,7 +6282,7 @@ function obterItensFiltrados(){
       const a = acompanhamento[it.id];
       if (filtroProgresso === 'reinc') return !!(a && a.reincidencias);
       if (filtroProgresso === 'aberto') return (!a || (!a.awExecEm && !a.iacOkEm)) && !novoForaDoAberto(it);
-      if (filtroProgresso === 'awExec') return a && a.awExecEm;
+      if (filtroProgresso === 'awExec') return baixaDaAW(it);
       if (filtroProgresso === 'awSemIac') return aguardandoValidacaoIac(it);
       if (filtroProgresso === 'iacOk') return a && a.iacOkEm;
       return true;
@@ -7672,10 +7712,12 @@ async function executarComparacao(){
 
     '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">mesmo ambiente, mesma descrição e mesma foto — fora da conta</div></div>' +
     '</div>' +
-    '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' + (para === revisaoSelecionada ? '<button type="button" class="btn primario" id="btn-pdf-revisao-cliente" title="Resumo da revisão por andar e por disciplina — pra mandar ao cliente">PDF da revisão</button><button type="button" class="btn fantasma" id="btn-auditar-novos">Auditar itens novos</button>' : '') + '</div>' +
+    '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' + (para === revisaoSelecionada ? '<button type="button" class="btn primario" id="btn-pdf-revisao-cliente" title="Resumo da revisão por andar e por disciplina — pra mandar ao cliente">PDF da revisão</button><button type="button" class="btn fantasma" id="btn-auditar-novos">Auditar itens novos</button><button type="button" class="btn fantasma so-admin" id="btn-encerrados-sem-baixa">Encerrados sem baixa</button>' : '') + '</div>' +
     ((diff.voltaram.length || diff.trocas.length) ? '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><button type="button" class="btn primario" id="btn-pdf-correcoes">PDF: correções para a IAC</button><span class="rodape-nota" style="margin:0; text-align:left;">'+diff.voltaram.length+' que voltaram e '+diff.trocas.length+' trocas de número, com o número antigo de cada um</span></div>' : '');
   const bRel = document.getElementById('btn-pdf-revisao-cliente');
   if (bRel) bRel.addEventListener('click', () => exportarRelatorioRevisaoPdf(diff, de, para));
+  const bEnc = document.getElementById('btn-encerrados-sem-baixa');
+  if (bEnc) bEnc.addEventListener('click', () => abrirEncerradosSemBaixa(false));
   const bAud = document.getElementById('btn-auditar-novos');
   if (bAud) bAud.addEventListener('click', auditarItensNovos);
   const bCorr = document.getElementById('btn-pdf-correcoes');
@@ -8535,6 +8577,12 @@ async function executarSalvamento(grupos, btn, cont){
       (discSemForn.length > 12 ? '<span class="tag-agressor" style="cursor:default;">+'+(discSemForn.length-12)+'</span>' : '') + '</div>' +
       '<button type="button" class="btn fantasma ambar" id="btn-definir-fornecedores" style="padding:4px 12px;">Definir fornecedores</button></div>';
   }
+  // itens que a IAC tirou nesta importação SEM clique da AW (e que não são troca de número)
+  const saiuSemClique = recemResolvidosSemBaixa(avisos);
+  if (saiuSemClique > 0 && ehAdminAtual()){
+    html += '<div class="aviso-ambar"><div style="margin-bottom:6px;"><b style="font-weight:500;">'+saiuSemClique+' item(ns) saíram da planilha sem baixa da AW.</b> Eles contam como executados (encerramento da IAC). Confira se algum foi incluído por engano — esses saem do total.</div>' +
+      '<button type="button" class="btn fantasma ambar" id="btn-revisar-encerrados" style="padding:4px 12px;">Revisar encerrados sem baixa</button></div>';
+  }
   let idRevisaoBtn = 0;
   if ((avisos.ambientesMantidos || []).length){
     html += '<div class="dica">Revisão parcial: ' + avisos.ambientesMantidos.map((m) => esc(nomeAndarLongo(m.andar)) + ' — ' + m.n + ' ambiente(s) não vieram e foram mantidos da ' + esc(m.rv)).join(' · ') + '. Eles aparecem com a etiqueta da revisão de origem.</div>';
@@ -8548,7 +8596,7 @@ async function executarSalvamento(grupos, btn, cont){
   }
   const tudoOk = avisos.gravacaoFalhou.length===0 && avisos.descricaoCortada.length===0 &&
     avisos.fotosFalharam.length===0 && avisos.fotosSemRecurso===0 && avisos.fotosNaoAssociadas.length===0 &&
-    avisos.revisarLiberacao.length===0 && discSemForn.length===0;
+    avisos.revisarLiberacao.length===0 && discSemForn.length===0 && !(saiuSemClique > 0 && ehAdminAtual());
   const resumoFotos = (avisos.fotosEnviadas>0 ? ' '+avisos.fotosEnviadas+' foto(s) nova(s) salva(s).' : '') +
     (avisos.fotosReaproveitadas>0 ? ' '+avisos.fotosReaproveitadas+' foto(s) já existiam e foram reaproveitadas (sem duplicar).' : '');
   if (tudoOk){
@@ -8571,6 +8619,8 @@ async function executarSalvamento(grupos, btn, cont){
     });
     const btnDesf = document.getElementById('btn-desfazer-este-envio');
     if (btnDesf) btnDesf.addEventListener('click', () => executarDesfazerEnvio(cont));
+    const btnEnc = document.getElementById('btn-revisar-encerrados');
+    if (btnEnc) btnEnc.addEventListener('click', async () => { irParaAba('comparacao'); await abrirEncerradosSemBaixa(true); });
     const btnForn = document.getElementById('btn-definir-fornecedores');
     if (btnForn) btnForn.addEventListener('click', () => irParaAba('disciplinas'));
     const btnRev = document.getElementById('btn-revisar-liberacoes');
@@ -9804,6 +9854,73 @@ function nomeArquivoPdf(aba, filtro){
 
 /* PDF DA REVISÃO (pra mandar ao cliente): o que a obra tem, o que a IAC não aceitou e o que entrou de
    novo da revisão anterior pra esta — por andar e por disciplina. Gerado direto dos números. */
+/* ENCERRADOS SEM BAIXA: a IAC tirou da planilha (ou marcou verde) sem clique da AW. Contam como
+   EXECUTADOS (encerramento da IAC). Aqui o administrador marca os que foram "incluídos por engano" —
+   esses saem do total. soDestaRevisao: só os que saíram na revisão aberta (alerta pós-importação). */
+async function abrirEncerradosSemBaixa(soDestaRevisao){
+  if (!exigirAdmin()) return;
+  try{ await atualizarUniverso(); }catch(e){}
+  let hist = [];
+  try{ hist = await store.listCollection('resolvidos_historico'); }catch(e){}
+  const det = new Map();
+  hist.forEach((h) => { const k = Number(h.andar) + '|' + chaveAreaDoc(h.t, h.q ?? null) + '|' + String(h.id).split('@')[0]; if (!det.has(k) || Number(h.revisao) > Number(det.get(k).revisao)) det.set(k, h); });
+  let lista = listaEncerradosSemClique(true).map((x) => {
+    const h = det.get(x.kAmb + '|' + x.id) || {};
+    return Object.assign(x, { desc: x.it ? x.it.desc : (h.descricao || ''), disc: x.it ? x.it.disciplina : (h.disciplina || ''), saiu: x.verde ? 'verde na R' + revisaoSelecionada : (h.revisao ? 'saiu na R' + h.revisao : 'saiu') , revSaida: x.verde ? String(revisaoSelecionada) : String(h.revisao || '') });
+  });
+  // sem registro de saída (revisões antigas): busca a descrição e a última revisão nas planilhas do andar
+  const faltam = lista.filter((x) => !x.desc);
+  if (faltam.length){
+    const porAndar = new Map(); faltam.forEach((x) => { if (!porAndar.has(x.andar)) porAndar.set(x.andar, []); porAndar.get(x.andar).push(x); });
+    for (const [andar, xs] of porAndar){
+      const revs = revisoesMeta.filter((r) => r.numero <= Number(revisaoSelecionada) && (r.andares || []).indexOf(andar) !== -1).sort((a, b) => b.numero - a.numero);
+      const pend = new Map(xs.map((x) => [chaveAreaDoc(x.tipo, x.quarto) + '|' + x.id, x]));
+      for (const r of revs){
+        if (!pend.size) break;
+        let d = null; try{ d = await store.getDoc('snapshots', 'R' + r.numero + '_' + andar); }catch(e){}
+        ((d && d.itens) || []).forEach((it) => {
+          const k = chaveAreaDoc(it.t, quartoCorrigido(andar, it.t, it.q ?? null, it.rv || r.numero)) + '|' + it.id;
+          const x = pend.get(k);
+          if (x){ x.desc = it.x || ''; x.disc = it.d || ''; const prox = revisoesMeta.filter((m) => m.numero > r.numero && (m.andares || []).indexOf(andar) !== -1).sort((a, b) => a.numero - b.numero)[0];
+            if (prox){ x.saiu = 'saiu na R' + prox.numero; x.revSaida = String(prox.numero); } pend.delete(k); }
+        });
+      }
+    }
+  }
+  if (soDestaRevisao) lista = lista.filter((x) => x.revSaida === String(revisaoSelecionada));
+  lista.sort((a, b) => b.andar - a.andar || String(a.local).localeCompare(String(b.local), 'pt-BR', { numeric:true }) || String(a.id).localeCompare(String(b.id), 'pt-BR', { numeric:true }));
+  const fundo = document.createElement('div');
+  fundo.className = 'modal-fundo';
+  const nEng = lista.filter((x) => x.engano).length;
+  fundo.innerHTML = '<div class="modal" style="max-width:980px;">' +
+    '<h2 style="margin-bottom:4px;">Encerrados sem baixa' + (soDestaRevisao ? ' · R' + esc(revisaoSelecionada) : '') + ' — ' + lista.length + ' item(ns)</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;">A IAC tirou da planilha (ou marcou verde) sem clique da AW. Eles <b style="font-weight:500;">contam como executados</b>. Marque só os que foram <b style="font-weight:500;">incluídos por engano</b> — esses saem do total.' + (nEng ? ' · ' + nEng + ' já marcado(s) como engano.' : '') + '</p>' +
+    (lista.length ? '<div style="max-height:55vh; overflow:auto; border:1px solid var(--line); border-radius:10px;"><table><thead><tr><th class="col-centro"><input type="checkbox" id="enc-todos"></th><th>Andar</th><th>Local</th><th>Item</th><th>Disciplina</th><th>Descrição</th><th>Situação</th></tr></thead><tbody>' +
+      lista.map((x, i) => '<tr><td class="col-centro"><input type="checkbox" class="enc-check" data-i="'+i+'"></td><td class="mono">'+esc(nomeAndar(x.andar))+'</td><td>'+esc(x.local)+'</td><td class="mono">'+esc(x.id)+'</td><td style="font-size:12px;">'+esc(x.disc || '—')+'</td><td style="font-size:12.5px;">'+esc(x.desc || '—')+'</td><td style="font-size:12px; white-space:nowrap;">'+esc(x.saiu)+(x.engano ? '<br><span style="color:var(--vm);">incluído por engano</span>' : '')+'</td></tr>').join('') +
+      '</tbody></table></div>' : '<p class="rodape-nota">Nenhum item nesta situação.</p>') +
+    '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">' +
+      (lista.length ? '<button type="button" class="btn primario" id="enc-engano">Incluído por engano (tirar do total)</button><button type="button" class="btn fantasma" id="enc-voltar">Voltar a contar como executado</button>' : '') +
+      '<button type="button" class="btn fantasma" id="enc-fechar">Fechar</button></div></div>';
+  document.body.appendChild(fundo);
+  const fechar = () => fundo.remove();
+  fundo.querySelector('#enc-fechar').addEventListener('click', fechar);
+  fundo.addEventListener('click', (e) => { if (e.target === fundo) fechar(); });
+  const todos = fundo.querySelector('#enc-todos');
+  if (todos) todos.addEventListener('change', () => fundo.querySelectorAll('.enc-check').forEach((c) => { c.checked = todos.checked; }));
+  const marcados = () => Array.from(fundo.querySelectorAll('.enc-check:checked')).map((c) => lista[Number(c.dataset.i)]);
+  const aplicar = async (engano) => {
+    const sel = marcados();
+    if (!sel.length){ avisoFlutuante('Selecione pelo menos um item', 'erro'); return; }
+    if (!(await garantirUsuario())) return;
+    const m = {}; sel.forEach((x) => { m[x.kAmb + '|' + x.id] = engano ? { em: new Date().toISOString(), por: usuarioAtual } : null; });
+    if (await salvarEncerradosEngano(m)){
+      avisoFlutuante(sel.length + ' item(ns) ' + (engano ? 'tirados do total (incluídos por engano)' : 'voltaram a contar como executados'), 'ok');
+      fechar(); await selecionarRevisao(revisaoSelecionada);
+    }
+  };
+  const bE = fundo.querySelector('#enc-engano'); if (bE) bE.addEventListener('click', () => aplicar(true));
+  const bV = fundo.querySelector('#enc-voltar'); if (bV) bV.addEventListener('click', () => aplicar(false));
+}
 async function exportarRelatorioRevisaoPdf(diff, de, para){
   if (!window.jspdf){ avisoFlutuante('Gerador de PDF ainda carregando — tente de novo', 'erro'); return; }
   const { jsPDF } = window.jspdf;
@@ -10143,7 +10260,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais(), carregarVistoriasIac(), carregarProntosVistoria(), carregarVistoriasAmbiente()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais(), carregarVistoriasIac(), carregarProntosVistoria(), carregarVistoriasAmbiente(), carregarEncerradosEngano()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
