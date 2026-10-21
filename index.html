@@ -496,6 +496,7 @@ body.aba-quartos main{ max-width:1900px; }
 #card-quartos tbody tr:last-child td:last-child{ border-bottom-right-radius:var(--r-lg); }
 @media (max-width:640px){ #card-quartos{ overflow-x:auto; } #card-quartos thead th{ position:static !important; } }
 #torre-andares .tag-rv, #tbody-itens .tag-rv{ display:none !important; } /* revisão de origem: só na aba Quartos */
+.pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
 .itens-fixos.preso{ border-bottom:1px solid var(--line); }
 .itens-fixos .linha-toolbar{ margin-bottom:10px; }
@@ -1205,7 +1206,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.209';
+const VERSAO_APP = '2026-10-03.211';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4365,6 +4366,32 @@ function renderResumoDivergenciaIac(){
   box.innerHTML = bloco(nA + nV, 'IAC não aceitou · ' + nV + ' validados junto · ' + nA + ' IAC sozinha', 'naoBaixadoIac');
   box.querySelectorAll('[data-fluxo-div]').forEach((b) => b.addEventListener('click', () => abrirItens({ fluxo: b.dataset.fluxoDiv })));
 }
+/* % AO LADO DOS NÚMEROS do resumo: base = total da obra; na Validação da IAC, "não aceitou" e "validado"
+   são % dos vistoriados; em "Quartos & áreas por status", % do total de ambientes. */
+function porPercentuaisNoResumo(grid){
+  const num = (el) => { const v = parseInt(String(el.dataset.v != null ? el.dataset.v : el.textContent).replace(/\./g, '').replace(/[^0-9-]/g, ''), 10); return isNaN(v) ? null : v; };
+  const labels = Array.from(grid.querySelectorAll('.grupo-label'));
+  let total = null;
+  grid.querySelectorAll('.stat').forEach((s) => { const r = (s.querySelector('.rotulo') || {}).textContent || ''; if (/Itens totais/i.test(r)) total = num(s.querySelector('.valor')); });
+  labels.forEach((lab) => {
+    const caixa = lab.nextElementSibling; if (!caixa || !caixa.classList.contains('resumo-grid')) return;
+    const titulo = lab.textContent.trim();
+    const stats = Array.from(caixa.querySelectorAll('.stat'));
+    let base = total;
+    if (/Quartos & áreas/i.test(titulo)) base = stats.reduce((acc, s) => acc + (num(s.querySelector('.valor')) || 0), 0);
+    let vistoriados = null;
+    if (/Validação da IAC/i.test(titulo)) stats.forEach((s) => { if (/vistoriados/i.test((s.querySelector('.rotulo') || {}).textContent || '')) vistoriados = num(s.querySelector('.valor')); });
+    stats.forEach((s) => {
+      const v = s.querySelector('.valor'), r = ((s.querySelector('.rotulo') || {}).textContent || '');
+      if (!v || v.querySelector('.pct-lado') || /Itens totais/i.test(r) || /\//.test(v.textContent)) return;
+      const n = num(v); if (n == null) return;
+      const b = (/Validação da IAC/i.test(titulo) && !/vistoriados/i.test(r) && vistoriados) ? vistoriados : base;
+      if (!b) return;
+      v.dataset.v = String(n);
+      v.insertAdjacentHTML('beforeend', '<span class="pct-lado">' + Math.round(n / b * 100) + '%</span>');
+    });
+  });
+}
 async function renderResumoGeral(recarregarHistorico){
   try{ renderResumoDivergenciaIac(); }catch(e){}
   const grid = document.getElementById('grid-resumo');
@@ -4483,6 +4510,7 @@ async function renderResumoGeral(recarregarHistorico){
       '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Andares liberados p/ operação</div></div>' +
     '</div>';
 
+  try{ porPercentuaisNoResumo(grid); }catch(e){ console.warn('percentuais', e); }
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
     el.addEventListener('click', () => {
       const ir = el.dataset.ir;
@@ -9520,6 +9548,7 @@ function juntarDadosVisaoGeral(lista){
     if (!andares.has(a.num)){ andares.set(a.num, JSON.parse(JSON.stringify(a))); return; }
     const x = andares.get(a.num);
     x.nums = x.nums.map((v, i) => String((num(v) || 0) + (num(a.nums[i]) || 0)));
+    if (a.novos || x.novos) x.novos = String((num(x.novos) || 0) + (num(a.novos) || 0));
     const tot = num(x.nums[3]) || 0, ab = num(x.nums[0]) || 0;
     x.pct = tot ? Math.round((tot - ab) / tot * 100) : x.pct;
     x.liberadoTotal = x.liberadoTotal && a.liberadoTotal;
@@ -9654,7 +9683,8 @@ async function exportarVisaoGeralPdf(opcoes){
       const stats = Array.from(caixa.querySelectorAll('.stat')).map((s) => {
         const v = s.querySelector('.valor'), r = s.querySelector('.rotulo'), sub = s.querySelector('.pct-sub, .detalhe');
         const corInline = v && v.style.color ? (v.style.color.indexOf('vd') !== -1 ? [31,107,69] : null) : null;
-        return { valor: v ? v.textContent.trim() : '', rotulo: r ? r.textContent.trim() : '', sub: sub ? sub.textContent.trim() : '', cor: corInline || (v && v.classList.contains('col-vd') ? PDF_COR.vd : corClasse(s)) };
+        const pl = v ? v.querySelector('.pct-lado') : null;
+        return { valor: v ? (v.dataset.v != null ? pdfNum(Number(v.dataset.v)) : v.textContent.trim()) : '', pct: pl ? pl.textContent.trim() : '', rotulo: r ? r.textContent.trim() : '', sub: sub ? sub.textContent.trim() : '', cor: corInline || (v && v.classList.contains('col-vd') ? PDF_COR.vd : corClasse(s)) };
       });
       return stats.length ? { titulo: lab.textContent.trim(), stats } : null;
     }).filter(Boolean);
@@ -9663,7 +9693,9 @@ async function exportarVisaoGeralPdf(opcoes){
       const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.exec : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-pronto/.test(cls) ? PDF_COR.pronto : /status-vistoriado/.test(cls) ? PDF_COR.vist : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
       const pctEl = el.querySelector('.pct-barra');
       return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), num: Number(el.dataset.andar), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
-        nums: Array.from(el.querySelectorAll('.mini-stat')).filter((s) => !s.classList.contains('novos')).map((s) => ((s.querySelector('.mini-valor') || {}).textContent || '').trim()).slice(0, 4), liberadoTotal: el.classList.contains('liberado-total') };
+        nums: Array.from(el.querySelectorAll('.mini-stat')).filter((s) => !s.classList.contains('novos')).map((s) => ((s.querySelector('.mini-valor') || {}).textContent || '').trim()).slice(0, 4),
+        novos: (() => { const s = el.querySelector('.mini-stat.novos'); return (s && getComputedStyle(s).display !== 'none' && !s.classList.contains('sem-valor')) ? ((s.querySelector('.mini-valor') || {}).textContent || '').trim() : ''; })(),
+        liberadoTotal: el.classList.contains('liberado-total') };
     }).sort((x, z) => z.num - x.num);
     let andaresPdf = andares;
     if (opcoes && opcoes.dadosPagina1){ andaresPdf = opcoes.dadosPagina1.andares; destaque = opcoes.dadosPagina1.destaque; grupos = opcoes.dadosPagina1.grupos; }
@@ -9680,8 +9712,10 @@ async function exportarVisaoGeralPdf(opcoes){
     const hLeg = 40;
     const rowT = Math.min(26, (hP1 - 32 - hLeg) / Math.max(1, andaresPdf.length));
     let yy = topo + 28;
-    const xBar = M + 40, wBar = 78, xN = xBar + wBar + 18;
-    const rotN = ['Aberto','AW','IAC','Total'], corN = [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
+    const temNovos = andaresPdf.some((a) => a.novos);
+    const xBar = M + 40, wBar = temNovos ? 64 : 78, xN = xBar + wBar + 16, passoN = temNovos ? 27 : 31;
+    const rotN = temNovos ? ['Aberto','Novos','AW','IAC','Total'] : ['Aberto','AW','IAC','Total'];
+    const corN = temNovos ? [PDF_COR.ink, [221,107,30], PDF_COR.az, PDF_COR.vd, PDF_COR.muted] : [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
     andaresPdf.forEach((a) => {
       const hRow = rowT - 3;
       pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+10, yy, wT-20, hRow, 5, 5, 'F');
@@ -9691,9 +9725,11 @@ async function exportarVisaoGeralPdf(opcoes){
       comOpacidade(0.18, () => doc.roundedRect(xBar, cy-4, wBar, 8, 3, 3, 'F'));
       if (a.pct > 0){ doc.setFillColor(a.cor[0], a.cor[1], a.cor[2]); comOpacidade(0.82, () => doc.roundedRect(xBar, cy-4, Math.max(5, wBar*a.pct/100), 8, 3, 3, 'F')); }
       pdfTxt(doc, xBar + wBar - 3, cy+2.2, a.pct+'%', 5.8, a.pct >= 88 ? PDF_COR.white : PDF_COR.ink2, 'right');
-      a.nums.slice(0,4).forEach((nn, j) => {
-        pdfTxt(doc, xN + j*31, cy-2, rotN[j], 4.8, j === 0 ? PDF_COR.ink : PDF_COR.muted, 'center');
-        pdfTxt(doc, xN + j*31, cy+6, nn, 7.2, corN[j], 'center');
+      const valores = temNovos ? [a.nums[0], a.novos || '', a.nums[1], a.nums[2], a.nums[3]] : a.nums.slice(0,4);
+      valores.forEach((nn, j) => {
+        if (rotN[j] === 'Novos' && !nn) return; // na tela, sem novos o espaço fica vazio
+        pdfTxt(doc, xN + j*passoN, cy-2, rotN[j], 4.8, j === 0 ? PDF_COR.ink : (rotN[j] === 'Novos' ? corN[j] : PDF_COR.muted), 'center');
+        pdfTxt(doc, xN + j*passoN, cy+6, nn, 7.2, corN[j], 'center');
       });
       yy += rowT;
     });
@@ -9732,6 +9768,7 @@ async function exportarVisaoGeralPdf(opcoes){
         const x = xR + 16 + j*(cw+gp);
         pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(x, yR, cw, hCardG, 7, 7, 'FD');
         pdfTxt(doc, x+9, yR+19, st.valor, 14, st.cor);
+        if (st.pct) pdfTxt(doc, x+9 + pdfLarg(doc, st.valor, 14) + 4, yR+19, st.pct, 7, PDF_COR.muted);
         const palavras = String(st.rotulo).split(' '), l1 = [], l2 = [];
         palavras.forEach((w) => { if (!l2.length && pdfLarg(doc, l1.concat([w]).join(' '), 6.6) <= cw - 16) l1.push(w); else l2.push(w); });
         pdfTxt(doc, x+9, yR+29, l1.join(' ') || pdfCaber(doc, st.rotulo, 6.6, cw-16), 6.6, PDF_COR.ink2);
@@ -10359,17 +10396,24 @@ async function exportarQuartosPdf(){
   const nums = [['vm','VM',PDF_COR.vm],['am','AM',PDF_COR.am],['aberto','Aberto',PDF_COR.ink],['aw','AW',PDF_COR.az],['iac','IAC',PDF_COR.vd]]
     .concat(admin ? [['naoAceitos','Não aceitos',PDF_COR.am]] : []).concat([['reinc','Reinc.',PDF_COR.vm]])
     .concat(admin ? [['conferir','A conferir',PDF_COR.az],['novos','Novos',[221,107,30]]] : []).concat([['total','Total',PDF_COR.muted]]);
-  const x0 = P + 300, passo = Math.min(48, (CW - P - x0 - 70) / nums.length);
-  const C = { andar:P+14, local:P+44, status:P+220 };
+  const x0 = P + 262, ETAPAS = 150, passo = Math.min(44, (CW - P - x0 - 64 - ETAPAS) / nums.length);
+  const C = { andar:P+14, local:P+44, status:P+196 };
+  const xEt = CW - P - ETAPAS + 6;
   const colunas = [{ rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:C.local }, { rotulo:'Status', x:C.status, align:'center' }]
     .concat(nums.map(([k, r, cor], i) => ({ rotulo:r, x:x0 + i*passo, align:'center', cor })))
-    .concat([{ rotulo:'% exec.', x:CW - P - 30, align:'center' }]);
+    .concat([{ rotulo:'% exec.', x:xEt - 34, align:'center' }, { rotulo:'P/ vistoria', x:xEt + 22, align:'center', cor:PDF_COR.pronto || PDF_COR.az }, { rotulo:'Vistoriado', x:xEt + 72, align:'center', cor:PDF_COR.am }, { rotulo:'Operação', x:xEt + 122, align:'center', cor:PDF_COR.lib }]);
   const linhas = dados.map((d) => ({
-    altura: RH,
+    altura: RH + 6,
     desenhar: (doc, cx, top) => {
-      const b = top + RH/2 + 3;
+      const b = top + (RH + 6)/2 + 1;
       pdfTxt(doc, cx+C.andar, b, nomeAndar(d.l.andar) + '', 8.5, PDF_COR.ink2, 'center');
-      pdfTxt(doc, cx+C.local, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 120), 8.5, PDF_COR.ink);
+      pdfTxt(doc, cx+C.local, b - 3, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 120), 8.5, PDF_COR.ink);
+      const agr = maioresAgressores(d.l.itens).slice(0, 3).map((x) => x.nome + ' ' + x.aberto).join(' · ');
+      if (agr) pdfTxt(doc, cx+C.local, b + 6, pdfCaber(doc, agr, 6.3, 130), 6.3, PDF_COR.muted);
+      const kE = chaveAreaGlobal(d.l.andar, d.l.tipo, d.l.quarto);
+      const vE = dataVistoriaAmbiente(d.l.andar, d.l.tipo, d.l.quarto);
+      const et = [prontosVistoria[kE] ? 'Sim' : '—', vE ? String(vE).slice(0,10).split('-').reverse().slice(0,2).join('/') : '—', areasLiberadasRevisaoAtual[kE] ? 'Sim' : '—'];
+      et.forEach((v, i) => pdfTxt(doc, cx + xEt + 22 + i*50, b, v, 8, v === '—' ? PDF_COR.faint : [PDF_COR.pronto || PDF_COR.az, PDF_COR.am, PDF_COR.lib][i], 'center'));
       const pr = PDF_PRIO[d.status];
       pdfPill(doc, cx+C.status - (pdfLarg(doc, pr.longo, 7.5)+14)/2, b, pr.longo, pr.fg, pr.bg);
       nums.forEach(([k, r, cor], i) => {
@@ -10378,10 +10422,10 @@ async function exportarQuartosPdf(){
         pdfTxt(doc, xx, b - (k === 'naoAceitos' && d.cobrar ? 3 : 0), vazio ? '—' : String(v), 8.5, vazio ? PDF_COR.faint : cor, 'center');
         if (k === 'naoAceitos' && d.cobrar) pdfTxt(doc, xx, b + 6, d.cobrar + ' cobrar IAC', 6, PDF_COR.muted, 'center');
       });
-      const bw = 22, xp = cx + CW - P - 52;
+      const bw = 22, xp = cx + xEt - 60;
       pdfFill(doc, PDF_COR.line); doc.roundedRect(xp, b-5, bw, 4, 2, 2, 'F');
       if (d.pct > 0){ pdfFill(doc, PDF_COR.az); doc.roundedRect(xp, b-5, Math.max(4, bw*d.pct/100), 4, 2, 2, 'F'); }
-      pdfTxt(doc, cx+CW-P, b, d.pct+'%', 7.5, PDF_COR.muted, 'right');
+      pdfTxt(doc, cx + xEt - 12, b, d.pct+'%', 7.5, PDF_COR.muted, 'right');
     }
   }));
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
