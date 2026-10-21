@@ -810,6 +810,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="comReinc">Com reincidência</option>
         <option value="novosAvaliar" class="so-admin">Itens novos</option>
         <option value="conferirQuarto" class="so-admin">Conferir no quarto</option>
+        <option value="naFalta" class="so-admin">Não validados: falta a AW analisar</option>
+        <option value="naCobrar" class="so-admin">Não validados: IAC deve corrigir</option>
+        <option value="naConferir" class="so-admin">Não validados: conferir no quarto</option>
+        <option value="naVoltou" class="so-admin">Não validados: voltou pra aberto</option>
       </select>
       <select id="filtro-item-programacao">
         <option value="">Toda a programação</option>
@@ -1206,7 +1210,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.212';
+const VERSAO_APP = '2026-10-03.213';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4394,6 +4398,12 @@ function porPercentuaisNoResumo(grid){
     });
   });
 }
+function decisaoNaoValidado(x){
+  const a = acompanhamento[x.id] || {};
+  if (iacNaoAceitou(x)){ if (a.divergencia === 'iac') return 'naCobrar'; if (checarNoQuarto(x)) return 'naConferir'; return 'naFalta'; }
+  if (a.divergencia === 'nossa' && contaNoTotal(x)) return 'naVoltou';
+  return '';
+}
 function analiseNaoValidados(){
   const naoAc = itensRevisaoAtual.filter(iacNaoAceitou);
   const confirma = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'iac').length;
@@ -4502,10 +4512,10 @@ async function renderResumoGeral(recarregarHistorico){
 
     (() => { const a = analiseNaoValidados(); return '<div class="grupo-label so-admin" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
     '<div class="resumo-grid so-admin">' +
-      '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
-      '<div class="stat pronto clicavel" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
-      '<div class="stat"><div class="valor" style="color:var(--reinc);">'+a.voltou+'</div><div class="rotulo">AW concordou: voltou pra aberto</div><div class="pct-sub">conta como reincidência</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
+      '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
+      '<div class="stat pronto clicavel" data-ir="itens-fluxo" data-fluxo="naConferir"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
+      '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naVoltou"><div class="valor" style="color:var(--reinc);">'+a.voltou+'</div><div class="rotulo">AW concordou: voltou pra aberto</div><div class="pct-sub">conta como reincidência</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
     '</div>'; })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
@@ -6379,6 +6389,7 @@ function passaFluxo(it, f){
   if (f === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
   if (f === 'novosAvaliar') return novoForaDoAberto(it);
   if (f === 'conferirQuarto') return naListaConferir(it);
+  if (/^na(Falta|Cobrar|Conferir|Voltou)$/.test(f)) return decisaoNaoValidado(it) === f;
   if (f === 'comReinc') return !!(a && a.reincidencias);
   if (f === 'naoBaixadoIac') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
   return true;
@@ -6470,6 +6481,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
       if (filtroProgressoSelect === 'novosAvaliar') return novoForaDoAberto(it);
       if (filtroProgressoSelect === 'conferirQuarto') return naListaConferir(it);
+      if (/^na(Falta|Cobrar|Conferir|Voltou)$/.test(filtroProgressoSelect)) return decisaoNaoValidado(it) === filtroProgressoSelect;
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
