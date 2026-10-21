@@ -494,6 +494,7 @@ body.aba-quartos main{ max-width:1900px; }
 #card-quartos tbody tr:last-child td:first-child{ border-bottom-left-radius:var(--r-lg); }
 #card-quartos tbody tr:last-child td:last-child{ border-bottom-right-radius:var(--r-lg); }
 @media (max-width:640px){ #card-quartos{ overflow-x:auto; } #card-quartos thead th{ position:static !important; } }
+#torre-andares .tag-rv, #tbody-itens .tag-rv{ display:none !important; } /* revisão de origem: só na aba Quartos */
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
 .itens-fixos.preso{ border-bottom:1px solid var(--line); }
 .itens-fixos .linha-toolbar{ margin-bottom:10px; }
@@ -1201,7 +1202,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.204';
+const VERSAO_APP = '2026-10-03.205';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -6012,8 +6013,10 @@ function renderQuartos(){
           (nCob ? '<div style="font-size:10.5px; color:var(--text-2); white-space:nowrap;">'+nCob+' cobrar IAC</div>' : '') + '</td>'; })() +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
-      (() => { const nc = l.itens.filter(conferirNoQuarto).length; totalConferirNaTabela += nc;
-        return '<td class="num-col so-admin" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+'; '+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+' title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">'+(nc || '—')+'</td>'; })() +
+      (() => { const nc = l.itens.filter(naListaConferir).length, nRev = l.itens.filter(checarNoQuarto).length; totalConferirNaTabela += nc;
+        return '<td class="num-col so-admin" data-v="'+nc+'" data-revalidar="'+nRev+'" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+';" title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">' +
+          '<span style="'+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+'>'+(nc || '—')+'</span>' +
+          (nRev ? '<div style="font-size:10.5px; color:var(--muted); white-space:nowrap; margin-top:2px;">'+nRev+' revalidar</div>' : '') + '</td>'; })() +
       '<td class="num-col so-admin" style="color:'+(nNovos ? 'var(--novo)' : 'var(--faint)')+'; '+(nNovos ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNovos ? 'data-novos="1"' : '')+'>'+(nNovos || '—')+'</td>' +
       (() => {
         const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
@@ -6034,12 +6037,14 @@ function renderQuartos(){
       ths.forEach((th, idx) => {
         if (!th.dataset.soma) return;
         let s = 0;
-        let sc = 0;
+        let sc = 0, sr = 0;
         tbody.querySelectorAll('tr').forEach((tr) => { const td = tr.children[idx]; if (td){
           const v = parseInt(String(td.dataset.v != null ? td.dataset.v : td.textContent).replace(/\./g, ''), 10); if (!isNaN(v)) s += v;
-          if (td.dataset.cobrar) sc += Number(td.dataset.cobrar) || 0; } });
+          if (td.dataset.cobrar) sc += Number(td.dataset.cobrar) || 0;
+          if (td.dataset.revalidar) sr += Number(td.dataset.revalidar) || 0; } });
         th.innerHTML = th.dataset.soma + '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + pdfNum(s) + '</div>' +
-          (sc ? '<div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + pdfNum(sc) + ' cobrar IAC</div>' : '');
+          (sc ? '<div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + pdfNum(sc) + ' cobrar IAC</div>' : '') +
+          (sr ? '<div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + pdfNum(sr) + ' revalidar</div>' : '');
       });
     }
   }
@@ -10112,77 +10117,84 @@ async function exportarRelatorioRevisaoPdf(diff, de, para){
   const nome = 'Revisao R' + de + ' para R' + para + ' - ' + nomeDaObra() + '.pdf';
   await compartilharOuBaixarPdf(doc.output('blob'), nome, null);
 }
+// as MESMAS contas da linha da aba Quartos (tela e PDF usam esta função)
+function metricasDoLocal(l){
+  const itC = l.itens.filter(contaNoTotal);
+  const c = contarVMAMAbertos(itC);
+  const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
+  const total = tu != null ? Math.max(tu, itC.length) : itC.length;
+  const awReg = awRegistradoNoAmbiente(l.andar, l.tipo, l.quarto);
+  const aw = awReg != null ? awReg : itC.filter(baixaDaAW).length;
+  const saiu = Math.max(0, total - itC.length);
+  const verdes = itC.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
+  const iac = itC.filter((x) => (acompanhamento[x.id] || {}).iacOkEm).length + saiu + verdes;
+  const aberto = contarEmAberto(itC);
+  return {
+    vm: c.vm, am: c.am, aberto, aw, iac, total,
+    naoAceitos: l.itens.filter(iacNaoAceitou).length,
+    cobrar: l.itens.filter((x) => iacNaoAceitou(x) && (acompanhamento[x.id] || {}).divergencia === 'iac').length,
+    reinc: itC.filter((x) => (acompanhamento[x.id] || {}).reincidencias).length,
+    conferir: l.itens.filter(naListaConferir).length,
+    novos: l.itens.filter(novoForaDoAberto).length,
+    pct: total ? Math.round((total - aberto) / total * 100) : 0
+  };
+}
 async function exportarQuartosPdf(){
   const statusEl = document.getElementById('status-pdf-quartos');
   if (!jsPdfDisponivel()){ statusEl.textContent = 'PDF indisponível no momento (biblioteca não carregou) — tente recarregar a página.'; return; }
   const locais = obterLocaisFiltrados();
   if (locais.length === 0){ statusEl.textContent = 'Nada para exportar com esses filtros.'; return; }
   statusEl.textContent = 'Gerando PDF…';
-
-  const dados = locais.map((l) => {
-    const c = contarVMAMAbertos(l.itens);
-    return {
-      l, status: classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado), vm: c.vm, am: c.am, total: c.total,
-      aberto: contarEmAberto(l.itens),
-      aw: l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length,
-      iac: l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length
-    };
-  });
+  const admin = ehAdminAtual();
+  const dados = locais.map((l) => Object.assign({ l, status: classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) }, metricasDoLocal(l)));
   const soma = (k) => dados.reduce((s, d) => s + d[k], 0);
   const tot = soma('total'), ab = soma('aberto'), aw = soma('aw'), iac = soma('iac');
   const prioridades = {};
   dados.forEach((d) => { prioridades[d.status] = (prioridades[d.status]||0) + 1; });
   const andarFiltrado = document.getElementById('filtro-andar').value;
-
   const ctx = Object.assign(pdfContextoBase('Quartos e áreas'), {
     filtro: descreverFiltros(['filtro-andar','filtro-ambiente','filtro-disciplina','filtro-fornecedor','filtro-status','filtro-progresso'], 'busca-quarto'),
     contagem: dados.length + (dados.length === 1 ? ' local' : ' locais'),
     cartoes: [
-      { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
+      { rotulo:'Total de itens', valor:tot, sub:'desde a 1ª planilha', destaque:true },
+      { rotulo:'Em aberto', valor:ab, sub:pdfPct(ab,tot)+'% do total' },
       { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,tot)+'% do total', cor:PDF_COR.az },
       { rotulo:'Validado IAC', valor:iac, sub:pdfPct(iac,tot)+'% do total', cor:PDF_COR.vd },
-      { rotulo:'Total de itens', valor:tot, sub:'pendências na revisão' },
       { rotulo:'Locais', valor:dados.length, sub:'quartos e áreas' }
     ],
     tituloAndamento: andarFiltrado ? 'Andamento do andar' : 'Andamento',
-    andamento: { aw, iac, total: tot, aberto: ab },
+    andamento: { aw, iac: 0, total: tot, aberto: ab },
     prioridades
   });
-
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
-  const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M, RH = 21;
-  // centros das colunas centralizadas (igual à tela): Andar, Status e os números
-  const C = { andar:P+14, status:P+186, vm:P+252, am:P+282, aberto:P+316, aw:P+348, iac:P+378, reinc:P+408, total:P+440, pct:P+462 };
-  const colunas = [
-    { rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:P+44 }, { rotulo:'Status', x:C.status, align:'center' },
-    { rotulo:'VM', x:C.vm, align:'center', cor:PDF_COR.vm }, { rotulo:'AM', x:C.am, align:'center', cor:PDF_COR.am },
-    { rotulo:'Aberto', x:C.aberto, align:'center', cor:PDF_COR.ink }, { rotulo:'AW', x:C.aw, align:'center', cor:PDF_COR.az },
-    { rotulo:'IAC', x:C.iac, align:'center', cor:PDF_COR.vd }, { rotulo:'Reinc.', x:C.reinc, align:'center', cor:PDF_COR.vm },
-    { rotulo:'Total', x:C.total, align:'center' },
-    { rotulo:'% exec.', x:(C.pct + CW - P)/2, align:'center' }
-  ];
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const P = 14, CW = doc.internal.pageSize.getWidth() - 2*PDF_M, RH = 22;
+  const nums = [['vm','VM',PDF_COR.vm],['am','AM',PDF_COR.am],['aberto','Aberto',PDF_COR.ink],['aw','AW',PDF_COR.az],['iac','IAC',PDF_COR.vd]]
+    .concat(admin ? [['naoAceitos','Não aceitos',PDF_COR.am]] : []).concat([['reinc','Reinc.',PDF_COR.vm]])
+    .concat(admin ? [['conferir','A conferir',PDF_COR.az],['novos','Novos',[221,107,30]]] : []).concat([['total','Total',PDF_COR.muted]]);
+  const x0 = P + 300, passo = Math.min(48, (CW - P - x0 - 70) / nums.length);
+  const C = { andar:P+14, local:P+44, status:P+220 };
+  const colunas = [{ rotulo:'Andar', x:C.andar, align:'center' }, { rotulo:'Quarto / área', x:C.local }, { rotulo:'Status', x:C.status, align:'center' }]
+    .concat(nums.map(([k, r, cor], i) => ({ rotulo:r, x:x0 + i*passo, align:'center', cor })))
+    .concat([{ rotulo:'% exec.', x:CW - P - 30, align:'center' }]);
   const linhas = dados.map((d) => ({
     altura: RH,
     desenhar: (doc, cx, top) => {
       const b = top + RH/2 + 3;
       pdfTxt(doc, cx+C.andar, b, nomeAndar(d.l.andar) + '', 8.5, PDF_COR.ink2, 'center');
-      pdfTxt(doc, cx+P+44, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 80), 8.5, PDF_COR.ink);
-      const p = PDF_PRIO[d.status];
-      pdfPill(doc, cx+C.status - (pdfLarg(doc, p.longo, 7.5)+14)/2, b, p.longo, p.fg, p.bg);
-      pdfTxt(doc, cx+C.vm, b, d.vm, 8.5, PDF_COR.vm, 'center');
-      pdfTxt(doc, cx+C.am, b, d.am, 8.5, PDF_COR.am, 'center');
-      pdfTxt(doc, cx+C.aberto, b, d.aberto, 9, PDF_COR.ink, 'center');
-      pdfTxt(doc, cx+C.aw, b, d.aw, 8.5, PDF_COR.az, 'center');
-      pdfTxt(doc, cx+C.iac, b, d.iac, 8.5, PDF_COR.vd, 'center');
-      const reincLocal = d.l.itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
-      pdfTxt(doc, cx+C.reinc, b, reincLocal ? String(reincLocal) : '—', 8.5, reincLocal ? PDF_COR.vm : PDF_COR.faint, 'center');
-      pdfTxt(doc, cx+C.total, b, d.total, 8.5, PDF_COR.muted, 'center');
-      // % executado: barrinha + número (igual à coluna da tela)
-      const pct = percentualExecutado(d.l.itens), bw = 18;
-      pdfFill(doc, PDF_COR.line); doc.roundedRect(cx+C.pct, b-5, bw, 4, 2, 2, 'F');
-      if (pct > 0){ pdfFill(doc, PDF_COR.az); doc.roundedRect(cx+C.pct, b-5, Math.max(4, bw*pct/100), 4, 2, 2, 'F'); }
-      pdfTxt(doc, cx+CW-P, b, pct+'%', 7.5, PDF_COR.muted, 'right');
+      pdfTxt(doc, cx+C.local, b, pdfCaber(doc, d.l.label.replace(/\u00A0/g,' '), 8.5, 120), 8.5, PDF_COR.ink);
+      const pr = PDF_PRIO[d.status];
+      pdfPill(doc, cx+C.status - (pdfLarg(doc, pr.longo, 7.5)+14)/2, b, pr.longo, pr.fg, pr.bg);
+      nums.forEach(([k, r, cor], i) => {
+        const v = d[k], xx = cx + x0 + i*passo;
+        const vazio = !v && k !== 'vm' && k !== 'am' && k !== 'aberto' && k !== 'aw' && k !== 'iac' && k !== 'total';
+        pdfTxt(doc, xx, b - (k === 'naoAceitos' && d.cobrar ? 3 : 0), vazio ? '—' : String(v), 8.5, vazio ? PDF_COR.faint : cor, 'center');
+        if (k === 'naoAceitos' && d.cobrar) pdfTxt(doc, xx, b + 6, d.cobrar + ' cobrar IAC', 6, PDF_COR.muted, 'center');
+      });
+      const bw = 22, xp = cx + CW - P - 52;
+      pdfFill(doc, PDF_COR.line); doc.roundedRect(xp, b-5, bw, 4, 2, 2, 'F');
+      if (d.pct > 0){ pdfFill(doc, PDF_COR.az); doc.roundedRect(xp, b-5, Math.max(4, bw*d.pct/100), 4, 2, 2, 'F'); }
+      pdfTxt(doc, cx+CW-P, b, d.pct+'%', 7.5, PDF_COR.muted, 'right');
     }
   }));
   pdfTabelaPaginada(doc, ctx, colunas, linhas);
@@ -10214,7 +10226,7 @@ async function exportarItensPdf(listaPronta){
   if (!externo) statusEl.textContent = 'Gerando PDF…';
 
   const ab = contarEmAberto(itens);
-  const aw = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
+  const aw = itens.filter(baixaDaAW).length; // igual à tela: sem as cópias "a conferir"
   const iac = itens.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
   const prioridades = { EXECUTADO: 0 };
   itens.forEach((it) => { const s = classificarItemComContexto(it); prioridades[s] = (prioridades[s]||0) + 1; });
@@ -10278,6 +10290,7 @@ async function exportarItensPdf(listaPronta){
     // fluxo: selo + quem deu cada baixa, com data e hora + previsão
     const fluxLinhas = [];
     if (ac.awExecEm){
+      if (conferirNoQuarto(it)) fluxLinhas.push({ t:'baixa do número geral', cor:PDF_COR.az, s:6.8 });
       fluxLinhas.push({ t:'AW · '+(ac.awExecPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
       fluxLinhas.push({ t:dataHoraCurta(ac.awExecEm), cor:PDF_COR.muted, s:6.8 });
     }
@@ -10289,8 +10302,9 @@ async function exportarItensPdf(listaPronta){
     const tipoNA = tipoNaoAceitou(it);
     if (tipoNA){
       fluxLinhas.push({ t:'IAC não aceitou', cor:PDF_COR.am || PDF_COR.ink2, s:7 });
-      fluxLinhas.push({ t:tipoNA === 'junto' ? 'validado junto' : 'IAC sozinha', cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
+      fluxLinhas.push({ t: ac.divergencia === 'iac' ? 'IAC precisa corrigir' : (checarNoQuarto(it) ? 'revalidar no quarto' : (tipoNA === 'junto' ? 'validado junto' : 'IAC sozinha')), cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
     }
+    if (novoForaDoAberto(it)) fluxLinhas.push({ t: ac.novoContestadoEm ? 'Item novo · IAC precisa corrigir' : 'Item novo · a avaliar', cor:[221,107,30], s:6.8 });
     if (ac.dataPrevista && !ac.awExecEm && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
     const fluxH = 18 + (fluxLinhas.length ? 5 + fluxLinhas.length*LH2 : 0);
     const prioH = 13 + prioNotas.length*LH2 + (prioNotas.length ? 3 : 0);
@@ -10341,6 +10355,7 @@ async function exportarItensPdf(listaPronta){
         // fluxo: selo com a situação, nas cores do painel, e embaixo quem deu cada baixa
         let txt, fg, bg, bd;
         if (ac.iacOkEm){ txt='Validado IAC'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
+        else if (conferirNoQuarto(it)){ txt='Conferir no quarto'; fg=PDF_COR.az; bg=PDF_COR.paper; bd=PDF_COR.az; }
         else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.az; bg=PDF_COR.azs; bd=PDF_COR.az; }
         else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
         const sy = mid - fluxH/2;
