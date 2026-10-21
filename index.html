@@ -496,6 +496,10 @@ body.aba-quartos main{ max-width:1900px; }
 #card-quartos tbody tr:last-child td:last-child{ border-bottom-right-radius:var(--r-lg); }
 @media (max-width:640px){ #card-quartos{ overflow-x:auto; } #card-quartos thead th{ position:static !important; } }
 #torre-andares .tag-rv, #tbody-itens .tag-rv{ display:none !important; } /* revisão de origem: só na aba Quartos */
+.linhas-sub{ margin-top:6px; display:flex; flex-direction:column; gap:2px; font-size:12px; color:var(--muted); }
+.linhas-sub > div{ display:flex; justify-content:space-between; gap:10px; line-height:1.35; }
+.linhas-sub b{ font-weight:500; color:var(--text-2); font-variant-numeric:tabular-nums; }
+.linhas-sub .tom-novo, .linhas-sub .tom-novo b{ color:var(--novo); }
 .pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
 .tag-origem-item.sof{ background:#EFE7F6; color:#6B3FA0; }
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
@@ -1211,7 +1215,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.226';
+const VERSAO_APP = '2026-10-03.227';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4532,6 +4536,11 @@ function analiseNaoValidados(){
   const voltou = itensRevisaoAtual.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'nossa' && contaNoTotal(x) && !iacNaoAceitou(x)).length;
   return { naoAc: naoAc.length, confirma, conferir, falta, voltou, total: naoAc.length + voltou };
 }
+function linhasSub(linhas){
+  const ok = linhas.filter((l) => l && l[1]);
+  if (!ok.length) return '';
+  return '<div class="linhas-sub">' + ok.map(([rot, val, extra]) => '<div'+(extra ? ' '+extra : '')+'><span>'+rot+'</span><b>'+pdfNum(val)+'</b></div>').join('') + '</div>';
+}
 async function renderResumoGeral(recarregarHistorico){
   try{ renderResumoDivergenciaIac(); }catch(e){}
   const grid = document.getElementById('grid-resumo');
@@ -4607,20 +4616,21 @@ async function renderResumoGeral(recarregarHistorico){
     // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC'+(() => { const c = contarPorOrigem(itensConta); return (c.SOFITEL || c.AW || c.outras) ? '<br><span class="so-admin">na planilha: '+textoOrigens(c)+'</span>' : ''; })()+'</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(() => {
-        const ac = itensConta.filter(novoAceitoEmAberto);
-        const porOrigem = {}; ac.forEach((x) => { const o = origemDoItem(x); porOrigem[o] = (porOrigem[o] || 0) + 1; });
+      (() => { const c = contarPorOrigem(itensConta);
+        return '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div>' +
+          linhasSub([['Validados pela IAC', saidosObra + vdNaPlanilha], (c.SOFITEL || c.AW || c.outras) ? ['IAC', c.IAC, 'class="so-admin"'] : null, ['Sofitel', c.SOFITEL, 'class="so-admin"'], ['AW', c.AW, 'class="so-admin"']]) + '</div>'; })() +
+      (() => { const ac = itensConta.filter(novoAceitoEmAberto), cA = contarPorOrigem(ac);
         const nAW = itensConta.filter((x) => x.origem === 'AW' && estaEmAberto(x)).length;
-        const partes = Object.keys(porOrigem).sort((a, b) => (a === 'IAC' ? -1 : b === 'IAC' ? 1 : a.localeCompare(b))).map((o) => porOrigem[o] + ' ' + (o === 'SOFITEL' ? 'Sofitel' : nomeOrigem(o) === o ? o : (o === 'IAC' ? 'IAC' : nomeOrigem(o))));
-        if (nAW) partes.push(nAW + ' AW');
-        return partes.length ? '<br><span class="so-admin" data-ir-novos-aceitos="1" style="color:var(--novo); cursor:pointer;" title="Itens novos já aceitos (no em aberto), por origem">novos já aceitos: '+partes.join(' · ')+'</span>' : '';
-      })()+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · '+pdfNum(itensConta.filter(baixaDaAW).length)+' na planilha'+(awObra > itensConta.filter(baixaDaAW).length ? ' + '+pdfNum(awObra - itensConta.filter(baixaDaAW).length)+' já tirados pela IAC' : '')+'</div></div>' +
-      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado em ambiente liberado p/ vistoria</div></div>' +
+        return '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>' +
+          linhasSub([['Novos aceitos IAC', cA.IAC, 'class="so-admin tom-novo" data-ir-novos-aceitos="1" style="cursor:pointer;"'], ['Novos aceitos Sofitel', cA.SOFITEL, 'class="so-admin tom-novo" data-ir-novos-aceitos="1" style="cursor:pointer;"'], ['Incluídos no app (AW)', nAW, 'class="so-admin"'], ['Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
+      (() => { const naPlan = itensConta.filter(baixaDaAW).length;
+        return '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
+          linhasSub([['Na planilha', naPlan], ['Já tirados pela IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
+      '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length;
-        return (nCop + nRev) ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div><div class="pct-sub">'+[nCop ? nCop+' baixas copiadas do número geral' : '', nRev ? nRev+' não aceitos pra revalidar' : ''].filter(Boolean).join(' · ')+'</div></div>' : ''; })() +
-      '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">a IAC reprovou e o item voltou pra aberto</div></div>' +
+        return (nCop + nRev) ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
+          linhasSub([['Baixas copiadas', nCop], ['P/ revalidar', nRev]]) + '</div>' : ''; })() +
+      '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">voltaram p/ aberto</div></div>' +
     '</div>' +
 
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
@@ -9980,10 +9990,10 @@ async function exportarVisaoGeralPdf(opcoes){
       const caixa = lab.nextElementSibling;
       if (!caixa || !caixa.classList.contains('resumo-grid')) return null;
       const stats = Array.from(caixa.querySelectorAll('.stat')).map((s) => {
-        const v = s.querySelector('.valor'), r = s.querySelector('.rotulo'), sub = s.querySelector('.pct-sub, .detalhe');
+        const v = s.querySelector('.valor'), r = s.querySelector('.rotulo'), sub = s.querySelector('.linhas-sub') || s.querySelector('.pct-sub, .detalhe');
         const corInline = v && v.style.color ? (v.style.color.indexOf('vd') !== -1 ? [31,107,69] : null) : null;
         const pl = v ? v.querySelector('.pct-lado') : null;
-        return { valor: v ? (v.dataset.v != null ? pdfNum(Number(v.dataset.v)) : v.textContent.trim()) : '', pct: pl ? pl.textContent.trim() : '', rotulo: r ? r.textContent.trim() : '', sub: sub ? sub.textContent.trim() : '', cor: corInline || (v && v.classList.contains('col-vd') ? PDF_COR.vd : corClasse(s)) };
+        return { valor: v ? (v.dataset.v != null ? pdfNum(Number(v.dataset.v)) : v.textContent.trim()) : '', pct: pl ? pl.textContent.trim() : '', rotulo: r ? r.textContent.trim() : '', sub: sub ? (sub.classList.contains('linhas-sub') ? Array.from(sub.children).filter((d) => d.offsetParent !== null).map((d) => d.textContent.replace(/\s+/g,' ').trim()).join(' · ') : sub.textContent.trim()) : '', cor: corInline || (v && v.classList.contains('col-vd') ? PDF_COR.vd : corClasse(s)) };
       });
       return stats.length ? { titulo: lab.textContent.trim(), stats } : null;
     }).filter(Boolean);
