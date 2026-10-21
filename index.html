@@ -561,6 +561,16 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   position:fixed; inset:0; background:rgba(10,12,16,.5); backdrop-filter:blur(2px);
   display:flex; align-items:center; justify-content:center; z-index:120; padding:20px;
 }
+/* janelas criadas depois (Filtrar seleção, Encerrados sem baixa…): mesmo visual central das outras */
+.modal-fundo{
+  position:fixed; inset:0; background:rgba(10,12,16,.5); backdrop-filter:blur(2px);
+  display:flex; align-items:center; justify-content:center; z-index:120; padding:20px;
+}
+.modal-fundo > .modal{
+  background:var(--surface); border-radius:var(--r-lg); box-shadow:var(--shadow-lg);
+  width:100%; padding:24px 26px 22px; max-height:88vh; overflow-y:auto; display:flex; flex-direction:column;
+}
+.modal-fundo > .modal h2{ margin:0 0 4px; font-size:17px; font-weight:500; }
 .modal-caixa, .modal-card{
   background:var(--surface); border-radius:var(--r-lg); box-shadow:var(--shadow-lg);
   max-width:440px; width:100%; padding:24px 26px 22px; max-height:88vh; overflow-y:auto;
@@ -1212,7 +1222,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.231';
+const VERSAO_APP = '2026-10-03.232';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
