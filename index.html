@@ -811,7 +811,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="naoBaixadoIac" class="so-admin">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
         <option value="novosAvaliar" class="so-admin">Itens novos</option>
-        <option value="novosAceitos" class="so-admin">Novos já aceitos (em aberto)</option>
+        <option value="novosAceitos" class="so-admin">Novos aceitos</option>
         <option value="conferirQuarto" class="so-admin">Conferir no quarto</option>
         <option value="naFalta" class="so-admin">Não validados: falta a AW analisar</option>
         <option value="naCobrar" class="so-admin">Não validados: IAC deve corrigir</option>
@@ -1215,7 +1215,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.228';
+const VERSAO_APP = '2026-10-03.229';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4518,7 +4518,7 @@ function decisaoNaoValidado(x){
   return '';
 }
 // item novo que já está no em aberto (aceito, ou de antes da avaliação) — continua com a etiqueta "Novo · R.."
-function novoAceitoEmAberto(it){ return !!infoItemNovo(it) && contaNoTotal(it) && estaEmAberto(it); }
+function novoAceitoEmAberto(it){ return !!infoItemNovo(it) && !!(acompanhamento[it.id] || {}).novoAceitoEm && contaNoTotal(it) && estaEmAberto(it); } // só os aceitos por você
 function contarPorOrigem(lista){
   const c = { IAC:0, SOFITEL:0, AW:0, outras:0 };
   lista.forEach((x) => { const o = origemDoItem(x); if (c[o] != null) c[o]++; else c.outras++; });
@@ -4621,10 +4621,9 @@ async function renderResumoGeral(recarregarHistorico){
           // origem do TOTAL: Sofitel e AW (e outras) contados; o resto (inclusive o que a IAC já tirou) é IAC — soma = total
           linhasSub([['IAC', Math.max(0, totalObra - c.SOFITEL - c.AW - c.outras)], ['Sofitel', c.SOFITEL], ['Outras origens', c.outras], ['AW (incluídos no app)', c.AW]]) +
           (() => { const sofAv = itensRevisaoAtual.filter((x) => novoForaDoAberto(x) && origemDoItem(x) === 'SOFITEL').length; return sofAv ? '<div class="pct-sub so-admin" style="color:var(--novo);">+'+sofAv+' Sofitel novos a avaliar (fora do total)</div>' : ''; })() + '</div>'; })() +
-      (() => { const ac = itensConta.filter(novoAceitoEmAberto), cA = contarPorOrigem(ac);
-        const nAW = itensConta.filter((x) => x.origem === 'AW' && estaEmAberto(x)).length;
+      (() => { const nAc = itensConta.filter(novoAceitoEmAberto).length;
         return '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>' +
-          linhasSub([['Novos aceitos IAC', cA.IAC, 'class="so-admin tom-novo" data-ir-novos-aceitos="1" style="cursor:pointer;"'], ['Novos aceitos Sofitel', cA.SOFITEL, 'class="so-admin tom-novo" data-ir-novos-aceitos="1" style="cursor:pointer;"'], ['Incluídos no app (AW)', nAW, 'class="so-admin"'], ['Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
+          linhasSub([['Novos aceitos', nAc, 'class="so-admin tom-novo" data-ir-novos-aceitos="1" style="cursor:pointer;"'], ['Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
       (() => { const naPlan = itensConta.filter(baixaDaAW).length;
         return '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
           linhasSub([['Na planilha', naPlan], ['Já tirados pela IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
