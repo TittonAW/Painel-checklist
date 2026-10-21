@@ -1222,7 +1222,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.237';
+const VERSAO_APP = '2026-10-03.238';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4636,9 +4636,9 @@ async function renderResumoGeral(recarregarHistorico){
         return '<div class="stat aw"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
           linhasSub([['Validados IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
-      (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length;
+      (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length, nHer = itensRevisaoAtual.filter((x) => baixaHerdadaPendente(acompanhamento[x.id])).length;
         return (nCop + nRev) ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
-          linhasSub([['Baixas copiadas', nCop], ['P/ revalidar', nRev]]) + '</div>' : ''; })() +
+          linhasSub([['Baixas copiadas', nCop - nHer], ['Herdadas (troca de nº)', nHer], ['P/ revalidar', nRev]]) + '</div>' : ''; })() +
       (() => { const lr = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias), cR = contarPorOrigem(lr);
         return '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+lr.length+'</div><div class="rotulo">Com reincidência</div>' +
           linhasSub([['IAC', cR.IAC], ['Sofitel', cR.SOFITEL], ['Outras origens', cR.outras], ['AW (incluídos no app)', cR.AW]]) + '</div>'; })() +
@@ -4832,8 +4832,16 @@ function contaNoTotal(it){ return !novoForaDoAberto(it); }
    olhando um quarto aparecia em todos. Quando os quartos ganharam baixa própria, o app COPIOU essa baixa
    pra cada quarto. Esses itens precisam ser conferidos em campo: confirmar ou reabrir. */
 const DATA_SEPARACAO_QUARTOS = '2026-10-14';
+function baixaHerdadaPendente(ac){
+  if (!ac || !ac.awExecEm || !ac.herdadoDe || ac.conferidoQuartoEm || ac.iacOkEm) return false;
+  const h = Array.isArray(ac.historico) ? ac.historico : [];
+  let iTroca = -1, iAw = -1;
+  h.forEach((e, i) => { if (e.t === 'troca') iTroca = i; if (e.t === 'aw') iAw = i; });
+  return iTroca !== -1 && iAw < iTroca; // ninguém deu baixa depois que o número foi trocado
+}
 function conferirNoQuarto(it){
   const acH = acompanhamento[it.id];
+  if (baixaHerdadaPendente(acH)) return true;
   if (acH && acH.baixaCompartilhada && acH.awExecEm && !acH.conferidoQuartoEm && String(acH.awExecEm) < DATA_SEPARACAO_QUARTOS) return true;
   if (!it.idPlanilha || it.id === it.idPlanilha) return false;
   const ac = acompanhamento[it.id], base = acompanhamento[it.idPlanilha];
@@ -4859,6 +4867,7 @@ async function marcarChecarQuarto(ids, por){
 function baixaCopiada(idComposto, idBase){
   const ac = acompanhamento[idComposto];
   if (!ac || !ac.awExecEm || ac.conferidoQuartoEm) return false;
+  if (baixaHerdadaPendente(ac)) return true;
   if (ac.baixaCompartilhada && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS) return true;
   const base = idBase && idBase !== idComposto ? acompanhamento[idBase] : null;
   return !!(base && base.awExecEm && ac.awExecEm === base.awExecEm && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS);
@@ -6832,7 +6841,7 @@ function renderItens(){
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
           : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha so-admin" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
             : (ac.possivelReabertura && estaEmAberto(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal; background:var(--vm-soft); color:var(--vm);" title="Mesma descrição de um item que a AW já tinha executado, com foto diferente (ou sem foto): a IAC pode ter reaberto. Conferir em campo.">Possível reabertura · era '+esc(ac.possivelReabertura)+'</span>' : '')))) +
-      (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">'+(conferirNoQuarto(it) ? 'Baixa do número geral: ' : 'AW: ')+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
+      (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">'+(conferirNoQuarto(it) ? (baixaHerdadaPendente(ac) ? 'Baixa herdada de ' + esc(ac.herdadoDe) + ': ' : 'Baixa do número geral: ') : 'AW: ')+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
     const tr = document.createElement('tr');
