@@ -1216,7 +1216,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.215';
+const VERSAO_APP = '2026-10-03.216';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3685,8 +3685,24 @@ function popularFiltroRevisaoItens(){
   s.innerHTML = '<option value="">Todas as revisões</option>' + revisoesMeta.slice().sort((a, b) => b.numero - a.numero).map((r) => '<option value="'+r.numero+'">Entrou na R'+r.numero+'</option>').join('');
   s.value = atual;
 }
-function origemDoItem(it){ return it.origem === 'AW' ? 'AW' : (it.origemPlanilha || 'IAC'); }
+function origemDoItem(it){
+  if (it.origem === 'AW') return 'AW';
+  const ov = (acompanhamento[it.id] || {}).origemOverride;
+  return ov || it.origemPlanilha || 'IAC';
+}
 const ROTULO_ORIGEM = { IAC:'IAC', AW:'AW', SOFITEL:'SOF' };
+const NOME_ORIGEM = { IAC:'planilha da IAC', AW:'incluído no app (AW)', SOFITEL:'planilha da Sofitel' };
+function lembrarNomesDeOrigem(){ Object.values(acompanhamento).forEach((a) => { if (a && a.origemOverride && a.origemNome && !NOME_ORIGEM[a.origemOverride]) NOME_ORIGEM[a.origemOverride] = a.origemNome; }); }
+function rotuloOrigem(o){ return ROTULO_ORIGEM[o] || String(o).slice(0, 3).toUpperCase(); }
+function nomeOrigem(o){ return NOME_ORIGEM[o] || String(o).charAt(0) + String(o).slice(1).toLowerCase(); }
+function popularFiltroOrigemItens(){
+  const s = document.getElementById('filtro-item-origem'); if (!s) return;
+  lembrarNomesDeOrigem();
+  const atual = s.value;
+  const outras = Array.from(new Set(itensRevisaoAtual.map(origemDoItem))).filter((o) => ['IAC','SOFITEL','AW'].indexOf(o) === -1).sort();
+  s.innerHTML = '<option value="">Todas as origens</option>' + ['IAC','SOFITEL'].concat(outras).concat(['AW']).map((o) => '<option value="'+esc(o)+'">Origem: '+esc(nomeOrigem(o))+'</option>').join('');
+  s.value = atual;
+}
 /* QUARTO COM NÚMERO CORRIGIDO PELA IAC: quando a planilha traz "(ANTIGO 1708)" na disciplina de um
    item do quarto 1707, o 1708 das revisões anteriores era o número ERRADO desse mesmo quarto.
    Nas revisões ANTERIORES à correção, o 1708 passa a ser lido como 1707 (não duplica e a troca de
@@ -6647,7 +6663,7 @@ function renderItens(){
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'SOFITEL' ? 'sof" title="Veio da planilha da Sofitel">SOF' : 'iac" title="Veio da planilha da IAC">IAC'))+'</span>'+esc(it.id) +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+'">'+esc(rotuloOrigem(origemDoItem(it)))))+'</span>'+esc(it.id) +
         (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div class="so-admin"><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
         ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
@@ -6787,7 +6803,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -7734,7 +7750,9 @@ function abrirEdicaoAgrupamento(){
         '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
       '</div>' +
       (podeTirarDaObra()
-        ? '<div class="modal-campo campo-largo"><label for="grupo-conferir">Conferir no quarto <span style="font-weight:400; color:var(--muted);">(só administradores · baixas copiadas do número geral)</span></label>' +
+        ? '<div class="modal-campo campo-largo"><label for="grupo-origem">Origem do item <span style="font-weight:400; color:var(--muted);">(só administradores · de onde veio a pendência)</span></label>' +
+          '<select id="grupo-origem"><option value="">— manter como está —</option><option value="IAC">IAC (consultoria)</option><option value="SOFITEL">Sofitel (cliente)</option><option value="__outra">Outra…</option><option value="__planilha">Voltar à origem da planilha</option></select></div>' +
+          '<div class="modal-campo campo-largo"><label for="grupo-conferir">Conferir no quarto <span style="font-weight:400; color:var(--muted);">(só administradores · baixas copiadas do número geral)</span></label>' +
           '<select id="grupo-conferir"><option value="">— manter como está —</option><option value="ok">Confirmado no quarto (mantém a baixa)</option><option value="reabrir">Não foi feito: reabrir</option></select></div>' +
           '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens novos)</span></label>' +
           '<select id="grupo-novos"><option value="">— manter como está —</option><option value="aceitar">Aceitar como novo</option><option value="corrigir">IAC precisa corrigir</option><option value="voltar">Voltar para novos a avaliar</option></select></div>' +
@@ -7786,6 +7804,32 @@ function abrirEdicaoAgrupamento(){
     const modoPrev = document.getElementById('grupo-prev-modo').value, dataPrev = document.getElementById('grupo-prev').value;
     const triagemNA = (document.getElementById('grupo-naoaceitou') || {}).value || '';
     const decisaoNovos = (document.getElementById('grupo-novos') || {}).value || '';
+    let decisaoOrigem = (document.getElementById('grupo-origem') || {}).value || '';
+    if (decisaoOrigem === '__outra'){
+      const nomeO = (window.prompt('Nome da origem (ex.: Accor, Fiscalização):') || '').trim();
+      if (!nomeO) return;
+      decisaoOrigem = chaveComparacao(nomeO).toUpperCase().replace(/[^A-Z0-9]+/g, '') || '';
+      if (!decisaoOrigem) return;
+      NOME_ORIGEM[decisaoOrigem] = nomeO;
+    }
+    if (decisaoOrigem){
+      const idsO = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && x.origem !== 'AW'; });
+      if (!idsO.length){ avisoFlutuante('Itens incluídos no app (AW) mantêm a origem AW', 'erro'); return; }
+      const rot = decisaoOrigem === '__planilha' ? 'a origem da planilha' : nomeOrigem(decisaoOrigem);
+      if (!window.confirm('Marcar ' + idsO.length + ' item(ns) com origem: ' + rot + '?')) return;
+      if (!(await garantirUsuario())) return;
+      const agoraO = new Date().toISOString(); let feitosO = 0;
+      await comLimiteDeConcorrencia(idsO, 4, async (id) => {
+        const atual = acompanhamento[id] || {};
+        const novo = Object.assign({}, atual, { origemOverride: decisaoOrigem === '__planilha' ? null : decisaoOrigem, origemNome: decisaoOrigem === '__planilha' ? null : nomeOrigem(decisaoOrigem) });
+        novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agoraO, por: usuarioAtual, para: rot, lote: true }]);
+        const r = await salvarAcompanhamentoComRetry(id, novo);
+        if (r.ok){ acompanhamento[id] = novo; feitosO++; }
+      });
+      fecharEdicaoAgrupamento(); itensSelecionados = new Set(); popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento(); renderItens(); atualizarBarraSelecao();
+      avisoFlutuante(feitosO + ' item(ns) com origem: ' + rot, 'ok');
+      return;
+    }
     const decisaoConf = (document.getElementById('grupo-conferir') || {}).value || '';
     if (decisaoConf){
       const idsConf = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && conferirNoQuarto(x); });
@@ -9213,6 +9257,7 @@ async function apagarTudo(){
   renderSeletorRevisao();
   popularSeletoresComparacao();
   try{ popularFiltroRevisaoItens(); }catch(e){}
+  try{ popularFiltroOrigemItens(); }catch(e){}
   await selecionarRevisao(''); // redesenha TODAS as abas (visão geral, quartos, itens, disciplinas) na hora,
                                 // sem precisar recarregar a página manualmente
   document.getElementById('preview-envio').innerHTML = '<div class="dica">Apagando as fotos associadas…</div>';
@@ -10710,6 +10755,7 @@ async function iniciar(){
   renderSeletorRevisao();
   popularSeletoresComparacao();
   try{ popularFiltroRevisaoItens(); }catch(e){}
+  try{ popularFiltroOrigemItens(); }catch(e){}
   renderTorreAndares(); // já mostra o estado vazio certo mesmo sem nenhuma revisão ainda
   if (revisoesMeta.length>0){
     await selecionarRevisao(revisaoSelecionada);
