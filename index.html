@@ -1205,7 +1205,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.208';
+const VERSAO_APP = '2026-10-03.209';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4480,7 +4480,7 @@ async function renderResumoGeral(recarregarHistorico){
 
     '<div class="grupo-label" style="margin-top:22px;">Andares</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Andares liberados p/ operação<span hidden>dência) ou <span style="color:var(--lib);">liberado p/ operação</span></span></div></div>' +
+      '<div class="stat"><div class="valor">'+andaresLiberadosTotal+' / '+andaresTotal+'</div><div class="rotulo">Andares liberados p/ operação</div></div>' +
     '</div>';
 
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
@@ -9512,6 +9512,34 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
    própria tela (espelho) ou calculados com as mesmas funções dela. */
 /* PDF CONSOLIDADO: capa com os dois projetos lado a lado + a Visão geral de Quartos + a de Áreas comuns.
    A outra obra é aberta em segundo plano (iframe), gera o PDF dela e devolve; os três são juntados. */
+// soma os dados da Visão geral de duas obras: andares juntos (mesmo andar = soma) e cartões somados
+function juntarDadosVisaoGeral(lista){
+  const num = (s) => { const v = parseInt(String(s || '').replace(/\./g, '').replace(/[^0-9-]/g, ''), 10); return isNaN(v) ? null : v; };
+  const andares = new Map();
+  lista.forEach((d) => (d && d.andares || []).forEach((a) => {
+    if (!andares.has(a.num)){ andares.set(a.num, JSON.parse(JSON.stringify(a))); return; }
+    const x = andares.get(a.num);
+    x.nums = x.nums.map((v, i) => String((num(v) || 0) + (num(a.nums[i]) || 0)));
+    const tot = num(x.nums[3]) || 0, ab = num(x.nums[0]) || 0;
+    x.pct = tot ? Math.round((tot - ab) / tot * 100) : x.pct;
+    x.liberadoTotal = x.liberadoTotal && a.liberadoTotal;
+  }));
+  const grupos = [];
+  lista.forEach((d) => (d && d.grupos || []).forEach((g) => {
+    let gg = grupos.find((x) => x.titulo === g.titulo);
+    if (!gg){ gg = { titulo: g.titulo, stats: [] }; grupos.push(gg); }
+    g.stats.forEach((s) => {
+      let ss = gg.stats.find((x) => x.rotulo === s.rotulo);
+      if (!ss){ ss = Object.assign({}, s, { sub: '' }); gg.stats.push(ss); return; }
+      if (/\//.test(s.valor) && /\//.test(ss.valor)){ const a1 = ss.valor.split('/').map(num), b1 = s.valor.split('/').map(num); ss.valor = ((a1[0]||0)+(b1[0]||0)) + ' / ' + ((a1[1]||0)+(b1[1]||0)); }
+      else if (num(s.valor) != null && num(ss.valor) != null) ss.valor = String(num(ss.valor) + num(s.valor));
+    });
+  }));
+  const achar = (re) => { for (const g of grupos) for (const s of g.stats) if (re.test(s.rotulo)) return num(s.valor) || 0; return 0; };
+  const total = achar(/Itens totais/i), aw = achar(/^Executado AW/i), iac = achar(/^Validado pela IAC/i);
+  const destaque = total ? [{ valor: Math.round(aw / total * 100) + '%', rot: 'executado pela AW', cor: PDF_COR.az }, { valor: Math.round(iac / total * 100) + '%', rot: 'validado pela IAC', cor: PDF_COR.vd }] : [];
+  return { andares: Array.from(andares.values()).sort((a, b) => b.num - a.num), destaque, grupos };
+}
 function carregarScript(src){ return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => erro(new Error('não carregou ' + src)); document.head.appendChild(s); }); }
 async function gerarPdfConsolidado(){
   if (!ehFundador()){ avisoFlutuante('Só o Fundador gera o PDF consolidado', 'erro'); return; }
@@ -9523,7 +9551,7 @@ async function gerarPdfConsolidado(){
   try{
     irParaAba('visao-geral');
     await new Promise((r) => setTimeout(r, 600));
-    const meu = { obra: obraAtual, nome: nomeDaObra(), revisao: String(revisaoSelecionada || ''), resumo: window.__resumoObra || null, pdf: await exportarVisaoGeralPdf({ retornar: true }) };
+    const meu = { obra: obraAtual, nome: nomeDaObra(), revisao: String(revisaoSelecionada || ''), resumo: window.__resumoObra || null, pdf: await exportarVisaoGeralPdf({ retornar: true }), dados: await exportarVisaoGeralPdf({ soDados: true }) };
     btn.textContent = 'Gerando (2/3)…';
     const dela = await new Promise((ok, erro) => {
       const tempo = setTimeout(() => erro(new Error('a outra obra demorou demais pra responder')), 120000);
@@ -9540,32 +9568,11 @@ async function gerarPdfConsolidado(){
     btn.textContent = 'Gerando (3/3)…';
     if (!window.PDFLib) await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');
     const partes = [meu, dela].sort((a, b) => (a.obra === 'quartos' ? -1 : 1));
-    // capa: os dois projetos lado a lado + total geral
-    const { jsPDF } = window.jspdf;
-    const capa = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-    const PW = capa.internal.pageSize.getWidth();
-    pdfTxt(capa, PDF_M, 60, 'Relatório consolidado — Hotel Sofitel Ipanema', 18, PDF_COR.ink);
-    pdfTxt(capa, PDF_M, 80, partes.map((p) => p.nome + (p.revisao ? ' · R' + p.revisao : '')).join('   |   ') + '   ·   ' + new Date().toLocaleString('pt-BR'), 9, PDF_COR.muted);
-    const linhasCapa = [['Itens totais', 'total'], ['Em aberto', 'aberto'], ['Executado AW', 'aw'], ['Validado pela IAC', 'iac'], ['% executado', 'pct']];
-    const val = (p, k) => { const r = p.resumo || {}; if (k === 'pct') return r.total ? Math.round((r.total - r.aberto) / r.total * 100) + '%' : '—'; return r[k] != null ? pdfNum(r[k]) : '—'; };
-    const geral = (k) => { const s = partes.reduce((acc, p) => acc + ((p.resumo || {})[k] || 0), 0); return s; };
-    const colX = [PDF_M, PDF_M + 230, PDF_M + 430, PDF_M + 630];
-    let y = 130;
-    ['', partes[0].nome, partes[1].nome, 'Total geral'].forEach((h, i) => pdfTxt(capa, colX[i], y, h, 10, PDF_COR.muted));
-    y += 10; pdfFill(capa, PDF_COR.line); capa.rect(PDF_M, y, PW - 2*PDF_M, 0.8, 'F');
-    linhasCapa.forEach(([rot, k]) => {
-      y += 34;
-      pdfTxt(capa, colX[0], y, rot, 11, PDF_COR.ink2);
-      pdfTxt(capa, colX[1], y, val(partes[0], k), 16, PDF_COR.ink);
-      pdfTxt(capa, colX[2], y, val(partes[1], k), 16, PDF_COR.ink);
-      const tg = k === 'pct' ? (geral('total') ? Math.round((geral('total') - geral('aberto')) / geral('total') * 100) + '%' : '—') : pdfNum(geral(k));
-      pdfTxt(capa, colX[3], y, tg, 16, PDF_COR.az);
-      y += 10; pdfFill(capa, PDF_COR.line); capa.rect(PDF_M, y, PW - 2*PDF_M, 0.5, 'F');
-    });
-    pdfTxt(capa, PDF_M, y + 30, 'Nas páginas seguintes: a Visão geral completa de cada projeto.', 9, PDF_COR.muted);
+    // 1ª página: tudo somado (torre do térreo ao último andar + resumo), no desenho da Visão geral
+    const capaBuf = await exportarVisaoGeralPdf({ retornar: true, soPagina1: true, titulo: 'Visão geral consolidada', tituloTorre: 'Andares (Quartos + Áreas comuns)', tituloResumo: 'Resumo dos dois projetos somados', nomeObra: partes.map((p) => p.nome + (p.revisao ? ' (R' + p.revisao + ')' : '')).join(' + '), dadosPagina1: juntarDadosVisaoGeral(partes.map((p) => p.dados)) });
     const { PDFDocument } = window.PDFLib;
     const final = await PDFDocument.create();
-    for (const buf of [capa.output('arraybuffer'), partes[0].pdf, partes[1].pdf]){
+    for (const buf of [capaBuf, partes[0].pdf, partes[1].pdf]){
       const d = await PDFDocument.load(buf);
       const pags = await final.copyPages(d, d.getPageIndices());
       pags.forEach((pg) => final.addPage(pg));
@@ -9583,7 +9590,7 @@ async function gerarPdfConsolidado(){
 }
 async function exportarVisaoGeralPdf(opcoes){
   if (!window.jspdf){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
-  const retornar = !!(opcoes && opcoes.retornar);
+  const retornar = !!(opcoes && (opcoes.retornar || opcoes.soDados));
   protegerTextoPdf();
   const btn = retornar ? { textContent:'', disabled:false } : ((document.activeElement && /btn-pdf-visao-geral/.test(document.activeElement.id)) ? document.activeElement : document.getElementById('btn-pdf-visao-geral'));
   const textoBtn = btn.textContent; btn.disabled = true; btn.textContent = 'Gerando PDF…';
@@ -9624,8 +9631,8 @@ async function exportarVisaoGeralPdf(opcoes){
         pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); doc.roundedRect(M, 18, 70, 27, 6, 6, 'FD');
         if (logos.sofitel){ let lh = 19, lw = lh*logos.sofitel.ratio; if (lw > 58){ lw = 58; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+35-lw/2, 31.5-lh/2, lw, lh); }catch(e){} }
         if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+78, 18, 27, 27); }catch(e){} }
-        pdfTxt(doc, M+116, 31, 'Visão geral da obra', 15, PDF_COR.ink);
-        pdfTxt(doc, M+116, 42, 'Relatório de pendências · Hotel Sofitel Ipanema · ' + nomeDaObra(), 7.5, PDF_COR.muted);
+        pdfTxt(doc, M+116, 31, (opcoes && opcoes.titulo) || 'Visão geral da obra', 15, PDF_COR.ink);
+        pdfTxt(doc, M+116, 42, 'Relatório de pendências · Hotel Sofitel Ipanema · ' + ((opcoes && opcoes.nomeObra) || nomeDaObra()), 7.5, PDF_COR.muted);
         if (base.revisao){ const tt = 'Revisão '+base.revisao, w = pdfLarg(doc, tt, 7.5) + 20; pdfFill(doc, PDF_COR.accs); doc.roundedRect(PW-M-w, 18, w, 15, 7.5, 7.5, 'F'); pdfTxt(doc, PW-M-w/2, 28.5, tt, 7.5, PDF_COR.acc, 'center'); }
         pdfTxt(doc, PW-M, 43, base.dataHora, 7.5, PDF_COR.muted, 'right');
         topo = 56;
@@ -9637,11 +9644,11 @@ async function exportarVisaoGeralPdf(opcoes){
     };
 
     // ---------- dados (lidos da tela, ou com as mesmas funções dela) ----------
-    const destaque = Array.from(document.querySelectorAll('#grid-resumo .destaque-pct > span')).map((s) => {
+    let destaque = Array.from(document.querySelectorAll('#grid-resumo .destaque-pct > span')).map((s) => {
       const g = s.querySelector('.grande'), r = s.querySelector('.rot');
       return { valor: g ? g.textContent.trim() : '', rot: r ? r.textContent.trim() : '', cor: g && g.style.color.indexOf('--vm') !== -1 ? PDF_COR.vm : (g && g.style.color.indexOf('--vd') !== -1 ? PDF_COR.vd : PDF_COR.az) };
     }).filter((d) => d.valor);
-    const grupos = Array.from(document.querySelectorAll('#grid-resumo .grupo-label')).map((lab) => {
+    let grupos = Array.from(document.querySelectorAll('#grid-resumo .grupo-label')).map((lab) => {
       const caixa = lab.nextElementSibling;
       if (!caixa || !caixa.classList.contains('resumo-grid')) return null;
       const stats = Array.from(caixa.querySelectorAll('.stat')).map((s) => {
@@ -9656,8 +9663,11 @@ async function exportarVisaoGeralPdf(opcoes){
       const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.exec : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-pronto/.test(cls) ? PDF_COR.pronto : /status-vistoriado/.test(cls) ? PDF_COR.vist : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
       const pctEl = el.querySelector('.pct-barra');
       return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), num: Number(el.dataset.andar), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
-        nums: Array.from(el.querySelectorAll('.mini-valor')).map((n) => n.textContent.trim()), liberadoTotal: el.classList.contains('liberado-total') };
+        nums: Array.from(el.querySelectorAll('.mini-stat')).filter((s) => !s.classList.contains('novos')).map((s) => ((s.querySelector('.mini-valor') || {}).textContent || '').trim()).slice(0, 4), liberadoTotal: el.classList.contains('liberado-total') };
     }).sort((x, z) => z.num - x.num);
+    let andaresPdf = andares;
+    if (opcoes && opcoes.dadosPagina1){ andaresPdf = opcoes.dadosPagina1.andares; destaque = opcoes.dadosPagina1.destaque; grupos = opcoes.dadosPagina1.grupos; }
+    if (opcoes && opcoes.soDados) return { andares, destaque, grupos };
 
     // ================= PÁGINA 1: torre (coluna estreita) + resumo =================
     pagina(true);
@@ -9665,14 +9675,14 @@ async function exportarVisaoGeralPdf(opcoes){
     const wT = 262, xR = M + wT + GAP, wR = CW - wT - GAP;
     // --- torre
     cartao(M, topo, wT, hP1);
-    const tituloTorre = (document.getElementById('titulo-torre-andares') || {}).textContent || 'Andares';
+    const tituloTorre = (opcoes && opcoes.tituloTorre) || (document.getElementById('titulo-torre-andares') || {}).textContent || 'Andares';
     pdfTxt(doc, M+14, topo+20, tituloTorre, 10, PDF_COR.ink);
     const hLeg = 40;
-    const rowT = Math.min(26, (hP1 - 32 - hLeg) / Math.max(1, andares.length));
+    const rowT = Math.min(26, (hP1 - 32 - hLeg) / Math.max(1, andaresPdf.length));
     let yy = topo + 28;
     const xBar = M + 40, wBar = 78, xN = xBar + wBar + 18;
     const rotN = ['Aberto','AW','IAC','Total'], corN = [PDF_COR.ink, PDF_COR.az, PDF_COR.vd, PDF_COR.muted];
-    andares.forEach((a) => {
+    andaresPdf.forEach((a) => {
       const hRow = rowT - 3;
       pdfFill(doc, a.liberadoTotal ? PDF_COR.libs : PAPER2); doc.roundedRect(M+10, yy, wT-20, hRow, 5, 5, 'F');
       const cy = yy + hRow/2;
@@ -9699,7 +9709,7 @@ async function exportarVisaoGeralPdf(opcoes){
     });
     // --- resumo
     cartao(xR, topo, wR, hP1);
-    pdfTxt(doc, xR+16, topo+20, 'Resumo da revisão selecionada', 10, PDF_COR.ink);
+    pdfTxt(doc, xR+16, topo+20, (opcoes && opcoes.tituloResumo) || 'Resumo da revisão selecionada', 10, PDF_COR.ink);
     let yR = topo + 30;
     if (destaque.length){
       let dx = xR + 16;
@@ -9713,7 +9723,7 @@ async function exportarVisaoGeralPdf(opcoes){
     }
     // altura de cada grupo ajustada pra caber tudo
     const hLab = 15, gapG = 7;
-    const hCardG = Math.max(40, Math.min(54, (topo + hP1 - 12 - yR - grupos.length*(hLab + gapG)) / Math.max(1, grupos.length)));
+    const hCardG = Math.max(48, Math.min(58, (topo + hP1 - 12 - yR - grupos.length*(hLab + gapG)) / Math.max(1, grupos.length)));
     grupos.forEach((g) => {
       pdfTxt(doc, xR+16, yR+10, g.titulo, 7.8, PDF_COR.muted);
       yR += hLab;
@@ -9722,12 +9732,16 @@ async function exportarVisaoGeralPdf(opcoes){
         const x = xR + 16 + j*(cw+gp);
         pdfFill(doc, PAPER2); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(x, yR, cw, hCardG, 7, 7, 'FD');
         pdfTxt(doc, x+9, yR+19, st.valor, 14, st.cor);
-        pdfTxt(doc, x+9, yR+30, pdfCaber(doc, st.rotulo, 6.6, cw-16), 6.6, PDF_COR.ink2);
-        if (st.sub && hCardG >= 44) pdfTxt(doc, x+9, yR+39, pdfCaber(doc, st.sub, 5.6, cw-16), 5.6, PDF_COR.faint);
+        const palavras = String(st.rotulo).split(' '), l1 = [], l2 = [];
+        palavras.forEach((w) => { if (!l2.length && pdfLarg(doc, l1.concat([w]).join(' '), 6.6) <= cw - 16) l1.push(w); else l2.push(w); });
+        pdfTxt(doc, x+9, yR+29, l1.join(' ') || pdfCaber(doc, st.rotulo, 6.6, cw-16), 6.6, PDF_COR.ink2);
+        if (l2.length) pdfTxt(doc, x+9, yR+37, pdfCaber(doc, l2.join(' '), 6.6, cw-16), 6.6, PDF_COR.ink2);
+        if (st.sub && hCardG >= 44) pdfTxt(doc, x+9, yR + (l2.length ? 45 : 39), pdfCaber(doc, st.sub, 5.6, cw-16), 5.6, PDF_COR.faint);
       });
       yR += hCardG + gapG;
     });
 
+    if (opcoes && opcoes.soPagina1){ pdfRodape(doc, 1, 1); return doc.output('arraybuffer'); }
     // ================= PÁGINA 2: evolução + variações =================
     const pontos = calcularEvolucaoPendencias(30);
     const ordenado = revisoesMeta.slice().sort((a,b) => a.numero - b.numero);
@@ -9881,7 +9895,7 @@ async function exportarVisaoGeralPdf(opcoes){
       pend.forEach((it) => { const k = chave(it) || 'Sem fornecedor definido'; if (!m.has(k)) m.set(k, []); m.get(k).push(it); });
       return Array.from(m.entries()).map(([nome, l]) => ({ nome, total: l.length, aberto: l.filter(estaEmAberto).length })).sort((a,b) => b.aberto - a.aberto || b.total - a.total);
     };
-    const forn = ranking(fornecedorEfetivo), disc = ranking(disciplinaEfetiva);
+    const forn = ranking(fornecedorEfetivo).slice(0, 14), disc = ranking(disciplinaEfetiva).slice(0, 14); // igual à tela
     const wCol = (CW - GAP) / 2, rowK = 17, hCabK = 40;
     const desenharColuna = (x, yTopo, h, titulo, lista, de, ate, cor, maxT, comNota) => {
       cartao(x, yTopo, wCol, h);
@@ -10601,7 +10615,8 @@ async function iniciar(){
       irParaAba('visao-geral');
       await new Promise((r) => setTimeout(r, 2500)); // deixa a torre e os gráficos terminarem
       const buf = await exportarVisaoGeralPdf({ retornar: true });
-      window.parent.postMessage({ tipo:'pdf-consolidado', obra: OBRA || 'quartos', nome: nomeDaObra(), revisao: String(revisaoSelecionada || ''), resumo: window.__resumoObra || null, pdf: buf }, (location.protocol === 'file:' ? '*' : location.origin));
+      const dados = await exportarVisaoGeralPdf({ soDados: true });
+      window.parent.postMessage({ tipo:'pdf-consolidado', obra: OBRA || 'quartos', nome: nomeDaObra(), revisao: String(revisaoSelecionada || ''), resumo: window.__resumoObra || null, dados, pdf: buf }, (location.protocol === 'file:' ? '*' : location.origin));
     }catch(e){ window.parent.postMessage({ tipo:'pdf-consolidado', erro: String(e && e.message || e) }, (location.protocol === 'file:' ? '*' : location.origin)); }
   }
 
