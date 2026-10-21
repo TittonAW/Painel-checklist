@@ -699,7 +699,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
           <span style="white-space:nowrap;"><span class="badge pronto">●</span> <span style="color:var(--pronto);">Liberado p/ vistoria</span></span>
           <span style="white-space:nowrap;"><span class="badge vistoriado">●</span> <span style="color:var(--vist);">Vistoriado pela IAC</span></span>
           <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--lib);">Liberado p/ operação</span></span>
-          <span style="white-space:nowrap;"><span class="badge concluido">●</span> <span class="col-vd">VD (verde)</span></span>
           <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
         </div>
       </div>
@@ -1216,7 +1215,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.216';
+const VERSAO_APP = '2026-10-03.217';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3371,9 +3370,12 @@ function renderLiberacoesParaRevisar(){
       '</div>' +
     '</div>').join('');
   const idsVm = new Set(gVm.flatMap((g) => Array.from(g.ids).map(String)));
+  const idsPorLocal = new Map();
+  gAm.forEach((g) => Array.from(g.ids).forEach((id) => { const it = itensRevisaoAtual.find((x) => x.id === id); if (!it) return;
+    const k = it.andar + '|' + localKey(it); if (!idsPorLocal.has(k)) idsPorLocal.set(k, []); idsPorLocal.get(k).push(String(it.idPlanilha || it.id)); }));
   const aplicar = async (locais, manter, botao, soAm) => {
     (botao.closest('.grupo-liberacao') || cont).querySelectorAll('button').forEach((b) => b.disabled = true);
-    for (const l of locais) await resolverRevisaoLiberacao(revisaoSelecionada, l.andar, l.tipo, l.quarto, manter, soAm ? idsVm : null);
+    for (const l of locais) await resolverRevisaoLiberacao(revisaoSelecionada, l.andar, l.tipo, l.quarto, manter, soAm ? idsVm : null, soAm ? (idsPorLocal.get(l.andar + '|' + localKey(l)) || []) : null);
     avisoFlutuante(locais.length + ' ambiente(s) ' + (manter ? 'mantido(s) liberado(s)' : 'voltaram para pendente'), 'ok');
     await selecionarRevisao(revisaoSelecionada);
   };
@@ -3386,7 +3388,7 @@ function renderLiberacoesParaRevisar(){
     aplicar(g.locais, b.dataset.libTodos === 'manter', b);
   }));
 }
-async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter, idsDeFora){
+async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter, idsDeFora, idsExtras){
   const docId = docIdDoAndar(revisaoStr, andar);
   const doc = await store.getDoc('snapshots', docId);
   if (!doc) return;
@@ -3396,6 +3398,7 @@ async function resolverRevisaoLiberacao(revisaoStr, andar, tipo, quarto, manter,
     let idsAgora = Array.from(new Set((doc.itens||[]).filter((it) => chaveAreaDoc(it.t, it.q) === chave).map((it) => it.id).concat(idsDoAmbienteNaTela(andar, chave))));
     const antes = atual[chave] || {};
     if (idsDeFora && idsDeFora.size) idsAgora = idsAgora.filter((id) => !idsDeFora.has(String(id)) || (antes.itens || []).indexOf(id) !== -1); // o "Ciente" dos AM não aceita os VM
+    if (idsExtras && idsExtras.length) idsAgora = Array.from(new Set(idsAgora.concat(idsExtras))); // exatamente os que o alerta mostrou
     atual[chave] = Object.assign({}, antes, { em: antes.em || new Date().toISOString(), confirmadoEm: new Date().toISOString(), itens: idsAgora }); // confirma e atualiza a lista conhecida (mantém a data da liberação)
   } else {
     delete atual[chave]; // volta pra pendente (amarelo)
@@ -9841,7 +9844,7 @@ async function exportarVisaoGeralPdf(opcoes){
     });
     // legenda
     let lx = M+12, ly = yy + 6;
-    [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['AM (amarelo)', PDF_COR.am, PDF_COR.ams], ['Liberado p/ operação', PDF_COR.lib, PDF_COR.libs], ['VD (verde)', PDF_COR.vd, PDF_COR.vds]].forEach(([r, c, cs]) => {
+    [['VM (vermelho)', PDF_COR.vm, PDF_COR.vms], ['Em execução', PDF_COR.ink2, PDF_COR.line], ['Liberado p/ vistoria', PDF_COR.az, PDF_COR.azs], ['Vistoriado pela IAC', PDF_COR.am, PDF_COR.ams], ['Liberado p/ operação', PDF_COR.lib, PDF_COR.libs]].forEach(([r, c, cs]) => { // igual à legenda da tela
       const w = pdfLarg(doc, r, 6.5) + 20;
       if (lx + w > M + wT - 10){ lx = M+12; ly += 16; }
       pdfFill(doc, cs); doc.roundedRect(lx, ly, w, 13, 6.5, 6.5, 'F');
