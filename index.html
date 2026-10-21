@@ -497,6 +497,7 @@ body.aba-quartos main{ max-width:1900px; }
 @media (max-width:640px){ #card-quartos{ overflow-x:auto; } #card-quartos thead th{ position:static !important; } }
 #torre-andares .tag-rv, #tbody-itens .tag-rv{ display:none !important; } /* revisão de origem: só na aba Quartos */
 .pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
+.tag-origem-item.sof{ background:#EFE7F6; color:#6B3FA0; }
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
 .itens-fixos.preso{ border-bottom:1px solid var(--line); }
 .itens-fixos .linha-toolbar{ margin-bottom:10px; }
@@ -809,6 +810,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="naoBaixadoIac" class="so-admin">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
         <option value="novosAvaliar" class="so-admin">Itens novos</option>
+        <option value="novosAceitos" class="so-admin">Novos já aceitos (em aberto)</option>
         <option value="conferirQuarto" class="so-admin">Conferir no quarto</option>
         <option value="naFalta" class="so-admin">Não validados: falta a AW analisar</option>
         <option value="naCobrar" class="so-admin">Não validados: IAC deve corrigir</option>
@@ -824,8 +826,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <select id="filtro-item-origem">
         <option value="">Todas as origens</option>
         <option value="IAC">Origem: planilha da IAC</option>
+        <option value="SOFITEL">Origem: planilha da Sofitel</option>
         <option value="AW">Origem: incluído no app (AW)</option>
       </select>
+      <select id="filtro-item-revisao"><option value="">Todas as revisões</option></select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
       <button class="btn fantasma" id="btn-filtro-multi" type="button" title="Vários andares e vários fluxos ao mesmo tempo">Filtrar seleção</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
@@ -939,6 +943,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </div>
       <div id="status-espaco-fotos" style="font-size:.85rem; color:var(--muted); margin-top:2px;"></div>
       <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais, áreas do térreo — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
+      <label style="display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:13.5px;">Origem destas planilhas:
+        <select id="origem-envio" style="max-width:220px;"><option value="IAC">IAC (consultoria)</option><option value="SOFITEL">Sofitel (cliente)</option></select></label>
       <div class="dropzone" id="dropzone">
         <strong>Arraste os arquivos .xlsx, PDF ou um .zip aqui</strong><br>ou clique para escolher
       </div>
@@ -1210,7 +1216,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.213';
+const VERSAO_APP = '2026-10-03.215';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1871,6 +1877,7 @@ function paraCompacto(it){
   // INTEIRA por padrão — só é recortada (em ajustarTamanho) se o andar tiver itens demais.
   const reg = { id: it.id, q: it.quarto, t: it.tipo, d: it.disciplina, s: it.status, x: it.desc||'' };
   if (it.fotoAssetIds && it.fotoAssetIds.length) reg.fs = it.fotoAssetIds;
+  if (it.origemPlanilha && it.origemPlanilha !== 'IAC') reg.o = it.origemPlanilha; // origem diferente da IAC (ex.: Sofitel)
   return reg;
 }
 
@@ -3665,7 +3672,21 @@ let itensManuais = [];
 async function carregarItensManuais(){
   try{ itensManuais = await store.listCollection('itens_manuais'); }catch(e){ itensManuais = []; }
 }
-function origemDoItem(it){ return it.origem === 'AW' ? 'AW' : 'IAC'; }
+// revisão em que o item apareceu pela 1ª vez no ambiente dele
+function revisaoDeEntrada(it){
+  if (it.origem === 'AW') return null;
+  const n = infoItemNovo(it); if (n && n.rev) return String(n.rev);
+  try{ const m = universoAmb && universoAmb.mapa[chaveUniverso(it.andar, it.tipo, it.quarto)]; const r = m && m[String(it.idPlanilha || it.id)]; if (r) return String(r); }catch(e){}
+  return it.rv || null;
+}
+function popularFiltroRevisaoItens(){
+  const s = document.getElementById('filtro-item-revisao'); if (!s) return;
+  const atual = s.value;
+  s.innerHTML = '<option value="">Todas as revisões</option>' + revisoesMeta.slice().sort((a, b) => b.numero - a.numero).map((r) => '<option value="'+r.numero+'">Entrou na R'+r.numero+'</option>').join('');
+  s.value = atual;
+}
+function origemDoItem(it){ return it.origem === 'AW' ? 'AW' : (it.origemPlanilha || 'IAC'); }
+const ROTULO_ORIGEM = { IAC:'IAC', AW:'AW', SOFITEL:'SOF' };
 /* QUARTO COM NÚMERO CORRIGIDO PELA IAC: quando a planilha traz "(ANTIGO 1708)" na disciplina de um
    item do quarto 1707, o 1708 das revisões anteriores era o número ERRADO desse mesmo quarto.
    Nas revisões ANTERIORES à correção, o 1708 passa a ser lido como 1707 (não duplica e a troca de
@@ -3765,7 +3786,8 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
         status: ((acompanhamento[it.id] || {}).prioridadeOverride) || it.s, statusOriginal: it.s, desc: it.x || '',
         fotos: it.fs || (it.f ? [it.f] : []), // "fs" é o formato novo; "f" é de itens salvos antes (1 foto só)
         atualizadoEmAndar: snap.atualizadoEm || null, // quando ESSE andar (não a revisão toda) foi salvo
-        rv: it.rv || (snap._veioDeAnterior ? String(snap.revisao) : null) // revisão de origem, se veio de uma anterior
+        rv: it.rv || (snap._veioDeAnterior ? String(snap.revisao) : null), // revisão de origem, se veio de uma anterior
+        origemPlanilha: it.o || 'IAC'
       });
     });
     Object.keys(snap.areasLiberadas || {}).forEach((chave) => {
@@ -4404,6 +4426,8 @@ function decisaoNaoValidado(x){
   if (a.divergencia === 'nossa' && contaNoTotal(x)) return 'naVoltou';
   return '';
 }
+// item novo que já está no em aberto (aceito, ou de antes da avaliação) — continua com a etiqueta "Novo · R.."
+function novoAceitoEmAberto(it){ return !!infoItemNovo(it) && contaNoTotal(it) && estaEmAberto(it); }
 function analiseNaoValidados(){
   const naoAc = itensRevisaoAtual.filter(iacNaoAceitou);
   const confirma = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'iac').length;
@@ -4489,7 +4513,7 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(() => { const nAc = itensConta.filter(novoAceitoEmAberto).length; return nAc ? '<br><span class="so-admin" data-ir-novos-aceitos="1" style="color:var(--novo); cursor:pointer;">'+nAc+' são novos já aceitos</span>' : ''; })()+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · '+pdfNum(itensConta.filter(baixaDaAW).length)+' na planilha'+(awObra > itensConta.filter(baixaDaAW).length ? ' + '+pdfNum(awObra - itensConta.filter(baixaDaAW).length)+' já tirados pela IAC' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado em ambiente liberado p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length;
@@ -4539,6 +4563,7 @@ async function renderResumoGeral(recarregarHistorico){
     '</div>';
 
   try{ porPercentuaisNoResumo(grid); }catch(e){ console.warn('percentuais', e); }
+  grid.querySelectorAll('[data-ir-novos-aceitos]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); abrirItens({ fluxo: 'novosAceitos' }); }));
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
     el.addEventListener('click', () => {
       const ir = el.dataset.ir;
@@ -6390,6 +6415,7 @@ function passaFluxo(it, f){
   if (f === 'novosAvaliar') return novoForaDoAberto(it);
   if (f === 'conferirQuarto') return naListaConferir(it);
   if (/^na(Falta|Cobrar|Conferir|Voltou)$/.test(f)) return decisaoNaoValidado(it) === f;
+  if (f === 'novosAceitos') return novoAceitoEmAberto(it);
   if (f === 'comReinc') return !!(a && a.reincidencias);
   if (f === 'naoBaixadoIac') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
   return true;
@@ -6448,6 +6474,8 @@ function obterItensFiltrados(){
   if (filtroAndar) itens = itens.filter((it) => String(it.andar) === filtroAndar);
   if (filtroMulti.andares.length){ const s = new Set(filtroMulti.andares); itens = itens.filter((it) => s.has(String(it.andar))); }
   if (filtroMulti.fluxos.length) itens = itens.filter((it) => filtroMulti.fluxos.some((f) => passaFluxo(it, f)));
+  const filtroRev = (document.getElementById('filtro-item-revisao') || {}).value || '';
+  if (filtroRev) itens = itens.filter((it) => String(revisaoDeEntrada(it) || '') === filtroRev);
   const filtroOrigem = (document.getElementById('filtro-item-origem') || {}).value || '';
   if (filtroOrigem) itens = itens.filter((it) => origemDoItem(it) === filtroOrigem);
   if (filtroAmbiente) itens = itens.filter((it) => passaFiltroAmbiente(it.tipo, localKey(it), filtroAmbiente));
@@ -6482,6 +6510,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'novosAvaliar') return novoForaDoAberto(it);
       if (filtroProgressoSelect === 'conferirQuarto') return naListaConferir(it);
       if (/^na(Falta|Cobrar|Conferir|Voltou)$/.test(filtroProgressoSelect)) return decisaoNaoValidado(it) === filtroProgressoSelect;
+      if (filtroProgressoSelect === 'novosAceitos') return novoAceitoEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
@@ -6618,7 +6647,7 @@ function renderItens(){
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : 'iac" title="Veio da planilha da IAC">IAC')+'</span>'+esc(it.id) +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'SOFITEL' ? 'sof" title="Veio da planilha da Sofitel">SOF' : 'iac" title="Veio da planilha da IAC">IAC'))+'</span>'+esc(it.id) +
         (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div class="so-admin"><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
         ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride?' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>':'')+'</td>' +
@@ -8727,6 +8756,7 @@ function incluirNoAcumulado(resultados){
     // chegando agora é um pdf, mantém o xlsx — nunca deixa o pdf substituir por acidente.
     if (existente && existente.formato === 'xlsx' && r.formato === 'pdf'){ pdfsIgnoradosPorXlsx++; return; }
     resultadosAcumulados = resultadosAcumulados.filter((x) => identidadeConteudo(x) !== id);
+    { const og = (document.getElementById('origem-envio') || {}).value || 'IAC'; r.origemPlanilha = og; (r.itens || []).forEach((i) => { i.origemPlanilha = og; }); }
     resultadosAcumulados.push(r);
   });
 }
@@ -9182,6 +9212,7 @@ async function apagarTudo(){
   revisaoSelecionada = '';
   renderSeletorRevisao();
   popularSeletoresComparacao();
+  try{ popularFiltroRevisaoItens(); }catch(e){}
   await selecionarRevisao(''); // redesenha TODAS as abas (visão geral, quartos, itens, disciplinas) na hora,
                                 // sem precisar recarregar a página manualmente
   document.getElementById('preview-envio').innerHTML = '<div class="dica">Apagando as fotos associadas…</div>';
@@ -10501,7 +10532,7 @@ async function exportarItensPdf(listaPronta){
   if (!externo && textoFiltroMulti()) extras.push(textoFiltroMulti());
 
   const ctx = Object.assign(pdfContextoBase(externo ? (listaPronta.titulo || 'Itens') : 'Itens'), {
-    filtro: externo ? listaPronta.filtro : descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso','filtro-item-programacao','filtro-item-origem'], 'busca-item', extras),
+    filtro: externo ? listaPronta.filtro : descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso','filtro-item-programacao','filtro-item-origem','filtro-item-revisao'], 'busca-item', extras),
     contagem: itens.length + (itens.length === 1 ? ' item' : ' itens'),
     cartoes: [
       { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
@@ -10678,6 +10709,7 @@ async function iniciar(){
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
   popularSeletoresComparacao();
+  try{ popularFiltroRevisaoItens(); }catch(e){}
   renderTorreAndares(); // já mostra o estado vazio certo mesmo sem nenhuma revisão ainda
   if (revisoesMeta.length>0){
     await selecionarRevisao(revisaoSelecionada);
@@ -10763,6 +10795,7 @@ async function iniciar(){
   document.getElementById('filtro-item-status').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-progresso').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-programacao').addEventListener('change', limparFiltroLocalEAtualizar);
+  document.getElementById('filtro-item-revisao').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-filtro-multi').addEventListener('click', abrirFiltroMultiplo);
   // escolher um andar ou um fluxo no filtro normal desliga a seleção múltipla daquele grupo
   document.getElementById('filtro-item-andar').addEventListener('change', (e) => { if (e.target.value && filtroMulti.andares.length){ filtroMulti.andares = []; atualizarBotaoMulti(); } });
@@ -10792,6 +10825,7 @@ async function iniciar(){
     document.getElementById('filtro-item-status').value = '';
     document.getElementById('filtro-item-progresso').value = '';
     document.getElementById('filtro-item-programacao').value = '';
+    document.getElementById('filtro-item-revisao').value = '';
     filtroMulti = { andares: [], fluxos: [] }; atualizarBotaoMulti();
     document.getElementById('filtro-item-origem').value = '';
     popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar'); // volta pro modo categoria (sem andar)
