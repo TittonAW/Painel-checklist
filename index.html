@@ -482,6 +482,13 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 
 .linha-toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
 /* aba Itens: filtros, barra de seleção e resumo ficam presos no topo enquanto a lista rola */
+/* ABA QUARTOS: mais larga, colunas compactas e cabeçalho da tabela preso ao rolar */
+body.aba-quartos main{ max-width:1900px; }
+#card-quartos{ overflow:visible; }
+#card-quartos.rolagem{ overflow-x:auto; }
+#card-quartos th, #card-quartos td{ padding-left:8px; padding-right:8px; }
+#card-quartos:not(.rolagem) thead th{ position:sticky; top:calc(var(--altura-cabecalho, 0px) + var(--topo-fixo, 0px)); z-index:6; background:var(--surface); box-shadow:inset 0 -1px 0 var(--line); }
+@media (max-width:640px){ #card-quartos{ overflow-x:auto; } #card-quartos thead th{ position:static !important; } }
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
 .itens-fixos.preso{ border-bottom:1px solid var(--line); }
 .itens-fixos .linha-toolbar{ margin-bottom:10px; }
@@ -753,7 +760,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card card-pad oculto so-admin" id="conferir-quarto-card" style="margin-bottom:14px; border-color:var(--pronto);"></div>
     <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
-    <div class="card">
+    <div class="card" id="card-quartos">
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
@@ -1189,7 +1196,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.201';
+const VERSAO_APP = '2026-10-03.203';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -6032,6 +6039,7 @@ function renderQuartos(){
     }
   }
   document.getElementById('vazio-quartos').classList.toggle('oculto', linhas>0);
+  requestAnimationFrame(() => { const c = document.getElementById('card-quartos'); if (!c) return; c.classList.remove('rolagem'); const tb = c.querySelector('table'); if (tb && tb.scrollWidth > c.clientWidth + 2) c.classList.add('rolagem'); });
   const caixaAgr = document.getElementById('agressores-quartos');
   if (caixaAgr){
     const agrSel = maioresAgressores(locais.flatMap((l) => l.itens));
@@ -6133,6 +6141,7 @@ function renderBotaoVoltar(){
   const bi = document.getElementById('btn-voltar-itens');
   if (bi){ bi.hidden = !topo; if (topo) bi.textContent = '‹ ' + topo.rotulo; }
   document.body.classList.toggle('aba-itens', abaAtual() === 'itens');
+  document.body.classList.toggle('aba-quartos', abaAtual() === 'quartos');
   if (topo){
     b.textContent = '‹ Voltar para ' + topo.rotulo;
     document.getElementById('btn-voltar-fixo').textContent = b.textContent;
@@ -6145,8 +6154,11 @@ function atualizarVoltarFixo(){
   const fixa = document.getElementById('barra-voltar-fixa');
   if (fixa) fixa.hidden = !(pilhaNavegacao.length && !voltarNormalVisivel);
   document.body.classList.toggle('aba-itens', abaAtual() === 'itens');
+  document.body.classList.toggle('aba-quartos', abaAtual() === 'quartos');
   const alt = (fixa && !fixa.hidden && abaAtual() !== 'itens') ? Math.round(fixa.getBoundingClientRect().height) : 0;
   document.documentElement.style.setProperty('--topo-fixo', alt + 'px');
+  const cab = document.querySelector('.cabecalho-fixo');
+  document.documentElement.style.setProperty('--altura-cabecalho', (cab && getComputedStyle(cab).position === 'sticky' ? Math.round(cab.getBoundingClientRect().height) : 0) + 'px');
   const caixa = document.getElementById('itens-fixos');
   if (caixa) caixa.classList.toggle('preso', caixa.getBoundingClientRect().top <= alt + 1 && window.scrollY > 40);
 }
@@ -9026,6 +9038,7 @@ function irParaAba(nome){
   if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
   document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
+  try{ atualizarVoltarFixo(); }catch(e){}
 }
 
 /* banner fixo de progresso — fica visível em QUALQUER aba, pra você poder sair de "Enviar
