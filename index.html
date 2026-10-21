@@ -1215,7 +1215,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.227';
+const VERSAO_APP = '2026-10-03.228';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4618,7 +4618,9 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="resumo-grid">' +
       (() => { const c = contarPorOrigem(itensConta);
         return '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div>' +
-          linhasSub([['Validados pela IAC', saidosObra + vdNaPlanilha], (c.SOFITEL || c.AW || c.outras) ? ['IAC', c.IAC, 'class="so-admin"'] : null, ['Sofitel', c.SOFITEL, 'class="so-admin"'], ['AW', c.AW, 'class="so-admin"']]) + '</div>'; })() +
+          // origem do TOTAL: Sofitel e AW (e outras) contados; o resto (inclusive o que a IAC já tirou) é IAC — soma = total
+          linhasSub([['IAC', Math.max(0, totalObra - c.SOFITEL - c.AW - c.outras)], ['Sofitel', c.SOFITEL], ['Outras origens', c.outras], ['AW (incluídos no app)', c.AW]]) +
+          (() => { const sofAv = itensRevisaoAtual.filter((x) => novoForaDoAberto(x) && origemDoItem(x) === 'SOFITEL').length; return sofAv ? '<div class="pct-sub so-admin" style="color:var(--novo);">+'+sofAv+' Sofitel novos a avaliar (fora do total)</div>' : ''; })() + '</div>'; })() +
       (() => { const ac = itensConta.filter(novoAceitoEmAberto), cA = contarPorOrigem(ac);
         const nAW = itensConta.filter((x) => x.origem === 'AW' && estaEmAberto(x)).length;
         return '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>' +
