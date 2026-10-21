@@ -256,6 +256,7 @@ main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
 /* USUÁRIO QUE NÃO É ADMINISTRADOR: vê só o que está em aberto (sem novos em aprovação, sem "IAC não aceitou",
    sem comparação entre revisões) — as decisões são do administrador */
 body.nao-admin .so-admin{ display:none !important; }
+body:not(.fundador) .so-fundador{ display:none !important; }
 @media (max-width:640px){
   #caixa-revisao{ flex-direction:column; align-items:flex-end; }
   #nota-revisao-mista{ position:static !important; display:block; text-align:right; margin-top:3px; }
@@ -686,7 +687,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <div class="card card-pad">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:4px;">
           <h2 id="titulo-torre-andares" style="margin:0;">Andares</h2>
-          <button type="button" class="chip-acao" id="btn-pdf-visao-geral" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
+          <span style="display:flex; gap:6px; flex-wrap:wrap;"><button type="button" class="chip-acao so-fundador" id="btn-pdf-consolidado" title="Quartos + Áreas comuns num PDF só, com um resumo dos dois na 1ª página">PDF consolidado (Quartos + Áreas comuns)</button><button type="button" class="chip-acao" id="btn-pdf-visao-geral" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button></span>
         </div>
         <div class="torre" id="torre-andares"></div>
         <div class="vazio oculto" id="vazio-torre-andares">Nenhum andar enviado ainda — suba a primeira planilha na aba "Enviar planilhas" pra começar.</div>
@@ -758,9 +759,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="liberado">Liberado (sem pendência)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
-      <button class="btn primario" id="btn-foco-andar">🎯 Foco em finalizar</button>
+      <button class="btn fantasma" id="btn-filtro-multi-q" type="button" title="Vários andares e várias situações ao mesmo tempo">Filtrar seleção</button>
       <button class="btn fantasma" id="btn-pdf-quartos">Gerar PDF</button>
       <button class="btn fantasma" id="btn-pdf-liberados" title="Relatório pro cliente: ambientes liberados p/ operação, itens em aberto e previsão de conclusão">PDF liberados p/ operação</button>
+      <button class="btn primario" id="btn-foco-andar">🎯 Foco em finalizar</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto so-admin" id="conferir-quarto-card" style="margin-bottom:14px; border-color:var(--pronto);"></div>
@@ -820,6 +822,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="AW">Origem: incluído no app (AW)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-itens">Limpar filtros</button>
+      <button class="btn fantasma" id="btn-filtro-multi" type="button" title="Vários andares e vários fluxos ao mesmo tempo">Filtrar seleção</button>
       <button class="btn fantasma" id="btn-pdf-itens">Gerar PDF</button>
       <button class="btn primario so-admin" id="btn-novo-item">+ Novo item</button>
     </div>
@@ -1202,7 +1205,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.205';
+const VERSAO_APP = '2026-10-03.208';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2539,6 +2542,8 @@ function atualizarTelasAposAcompanhamento(){
 const CHAVE_USUARIO = 'obra_usuario_nome' + (OBRA ? '__' + OBRA : ''); // cada obra lembra o próprio usuário
 let usuarioAtual = '';
 function lerUsuarioSalvo(){
+  // segundo plano do PDF consolidado: usa quem pediu o PDF na outra obra (só leitura)
+  try{ const q = new URLSearchParams(location.search); if (q.get('consolidado') === '1' && window.parent !== window && q.get('usuario')) return String(q.get('usuario')).trim(); }catch(e){}
   try{ return (localStorage.getItem(CHAVE_USUARIO) || '').trim(); }catch(e){ return usuarioAtual; }
 }
 function normalizarNome(s){
@@ -2708,6 +2713,7 @@ function renderUsuarioTopo(){
   try{ atualizarBotaoTirarLote(); renderListaExcluidos(); renderListaPins(); }catch(e){}
   const eraNaoAdmin = document.body.classList.contains('nao-admin');
   document.body.classList.toggle('nao-admin', !ehAdminAtual());
+  document.body.classList.toggle('fundador', ehFundador());
   document.querySelectorAll('option.so-admin').forEach((o) => { o.hidden = !ehAdminAtual(); o.disabled = !ehAdminAtual(); }); // iPhone ignora display:none em <option>
   if (eraNaoAdmin !== document.body.classList.contains('nao-admin')){
     // mudou o perfil: o filtro de fluxo não pode ficar numa opção que sumiu, e as telas são redesenhadas
@@ -2844,8 +2850,9 @@ async function definirUsuario(nome){
   if (resolverPedidoNome){ resolverPedidoNome(usuarioAtual); resolverPedidoNome = null; }
 }
 /* quem já estava identificado sem PIN (ou teve o PIN apagado): pede antes de liberar */
+const MODO_CONSOLIDADO = new URLSearchParams(location.search).get('consolidado') === '1' && window.parent && window.parent !== window;
 async function exigirPinDoUsuarioAtual(){
-  if (!usuarioAtual || pinVerificadoNesteAparelho(usuarioAtual)) return true;
+  if (!usuarioAtual || pinVerificadoNesteAparelho(usuarioAtual) || MODO_CONSOLIDADO) return true; // segundo plano do PDF consolidado: só leitura
   const ok = await pedirPin(usuarioAtual);
   if (ok) return true;
   usuarioAtual = '';
@@ -4408,7 +4415,8 @@ async function renderResumoGeral(recarregarHistorico){
   const andaresUni = Array.from(new Set(itensRevisaoAtual.map((it) => it.andar)));
   const somaUni = andaresUni.reduce((s, a) => { const v = totalDoAndarUniverso(a); return v == null ? s : s + v; }, 0);
   const temUni = andaresUni.some((a) => totalDoAndarUniverso(a) != null);
-  const totalObra = temUni ? Math.max(somaUni, c.total + vdNaPlanilha) : (c.total + vdNaPlanilha + sairam);  // desde o início: não diminui quando a IAC aceita
+  const totalObra = temUni ? Math.max(somaUni, c.total + vdNaPlanilha) : (c.total + vdNaPlanilha + sairam);
+  setTimeout(() => { try{ window.__resumoObra = { total: totalObra, aberto: emAberto, aw: (typeof awObra !== 'undefined' ? awObra : 0), iac: vdHistorico, novos: novosEmAberto }; }catch(e){} }, 0);  // desde o início: não diminui quando a IAC aceita
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
   const saidosObra = temUni ? Math.max(0, totalObra - c.total - vdNaPlanilha) : sairam;
@@ -5738,6 +5746,40 @@ const BADGE_MAP_STATUS = {
   CONCLUIDO:['concluido','VD (verde)']
 };
 
+let filtroMultiQ = { andares: [], status: [] };
+function abrirFiltroMultiploQuartos(){
+  const andares = Array.from(new Set(itensRevisaoAtual.map((x) => x.andar))).sort((a, b) => a - b);
+  const sits = Array.from(document.querySelectorAll('#filtro-status option')).filter((o) => o.value).map((o) => [o.value, o.textContent]);
+  const fundo = document.createElement('div');
+  fundo.className = 'modal-fundo';
+  const chk = (grupo, v, rot, marcado) => '<label style="display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); border-radius:999px; font-size:13px; cursor:pointer;"><input type="checkbox" data-grupo="'+grupo+'" value="'+esc(v)+'"'+(marcado ? ' checked' : '')+'> '+esc(rot)+'</label>';
+  fundo.innerHTML = '<div class="modal" style="max-width:620px;"><h2 style="margin-bottom:4px;">Filtrar seleção</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 12px;">Marque quantos quiser. Entre as situações vale “qualquer uma delas”. Os outros filtros da tela continuam valendo.</p>' +
+    '<div class="grupo-label" style="margin:0 0 6px;">Andares</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">' + andares.map((a) => chk('andar', a, nomeAndar(a), filtroMultiQ.andares.indexOf(String(a)) !== -1)).join('') + '</div>' +
+    '<div class="grupo-label" style="margin:0 0 6px;">Situação do ambiente</div><div style="display:flex; gap:6px; flex-wrap:wrap;">' + sits.map(([v, r]) => chk('status', v, r, filtroMultiQ.status.indexOf(v) !== -1)).join('') + '</div>' +
+    '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;"><button type="button" class="btn primario" id="multiq-aplicar">Aplicar</button><button type="button" class="btn fantasma" id="multiq-limpar">Limpar seleção</button><button type="button" class="btn fantasma" id="multiq-fechar">Fechar</button></div></div>';
+  document.body.appendChild(fundo);
+  const fechar = () => fundo.remove();
+  fundo.addEventListener('click', (e) => { if (e.target === fundo) fechar(); });
+  fundo.querySelector('#multiq-fechar').addEventListener('click', fechar);
+  const aplicar = (limpar) => {
+    filtroMultiQ = limpar ? { andares: [], status: [] } : {
+      andares: Array.from(fundo.querySelectorAll('input[data-grupo="andar"]:checked')).map((c) => c.value),
+      status: Array.from(fundo.querySelectorAll('input[data-grupo="status"]:checked')).map((c) => c.value)
+    };
+    if (filtroMultiQ.andares.length) document.getElementById('filtro-andar').value = '';
+    if (filtroMultiQ.status.length) document.getElementById('filtro-status').value = '';
+    fechar(); atualizarBotaoMultiQ(); renderQuartos();
+  };
+  fundo.querySelector('#multiq-aplicar').addEventListener('click', () => aplicar(false));
+  fundo.querySelector('#multiq-limpar').addEventListener('click', () => aplicar(true));
+}
+function atualizarBotaoMultiQ(){
+  const b = document.getElementById('btn-filtro-multi-q'); if (!b) return;
+  const n = filtroMultiQ.andares.length + filtroMultiQ.status.length;
+  b.textContent = n ? 'Filtrar seleção (' + [filtroMultiQ.andares.length ? filtroMultiQ.andares.length + ' andar(es)' : '', filtroMultiQ.status.length ? filtroMultiQ.status.length + ' situação(ões)' : ''].filter(Boolean).join(' · ') + ')' : 'Filtrar seleção';
+  b.classList.toggle('marcado', !!n);
+}
 function obterLocaisFiltrados(){
   const busca = (document.getElementById('busca-quarto').value || '').toLowerCase().trim();
   const filtroAndar = document.getElementById('filtro-andar').value;
@@ -5755,10 +5797,12 @@ function obterLocaisFiltrados(){
   locais.sort((a,b) => a.andar - b.andar || a.label.localeCompare(b.label, 'pt-BR', {numeric:true}));
   return locais.filter((l) => {
     if (filtroAndar && String(l.andar) !== filtroAndar) return false;
+    if (filtroMultiQ.andares.length && filtroMultiQ.andares.indexOf(String(l.andar)) === -1) return false;
     if (!passaFiltroAmbiente(l.tipo, l.key, filtroAmbiente)) return false;
     if (busca && l.label.toLowerCase().replace(/\u00A0/g,' ').indexOf(busca) === -1) return false;
     const status = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado);
     if (filtroStatus && status !== filtroStatus) return false;
+    if (filtroMultiQ.status.length && filtroMultiQ.status.indexOf(status) === -1) return false;
     if (filtroProgressoSelect){
       if (filtroProgressoSelect === 'liberadoPend' && status !== 'LIBERADO_PEND') return false;
       if (filtroProgressoSelect === 'liberado' && status !== 'CONCLUIDO') return false;
@@ -6281,6 +6325,57 @@ function fecharLightbox(){
   document.getElementById('lightbox-imagem-el').src = '';
 }
 
+let filtroMulti = { andares: [], fluxos: [] }; // seleção múltipla (aba Itens)
+function passaFluxo(it, f){
+  const a = acompanhamento[it.id];
+  if (f === 'awExec') return baixaDaAW(it);
+  if (f === 'iacOk') return !!(a && a.iacOkEm);
+  if (f === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
+  if (f === 'novosAvaliar') return novoForaDoAberto(it);
+  if (f === 'conferirQuarto') return naListaConferir(it);
+  if (f === 'comReinc') return !!(a && a.reincidencias);
+  if (f === 'naoBaixadoIac') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
+  return true;
+}
+function abrirFiltroMultiplo(){
+  const andares = Array.from(new Set(itensRevisaoAtual.map((x) => x.andar))).sort((a, b) => a - b);
+  const fluxos = Array.from(document.querySelectorAll('#filtro-item-progresso option')).filter((o) => o.value && !o.hidden && !o.disabled).map((o) => [o.value, o.textContent]);
+  const fundo = document.createElement('div');
+  fundo.className = 'modal-fundo';
+  const chk = (grupo, v, rot, marcado) => '<label style="display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); border-radius:999px; font-size:13px; cursor:pointer;"><input type="checkbox" data-grupo="'+grupo+'" value="'+esc(v)+'"'+(marcado ? ' checked' : '')+'> '+esc(rot)+'</label>';
+  fundo.innerHTML = '<div class="modal" style="max-width:620px;"><h2 style="margin-bottom:4px;">Filtrar seleção</h2>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 12px;">Marque quantos quiser. Entre os fluxos vale “qualquer um deles” (ex.: em aberto <b style="font-weight:500;">ou</b> a conferir). Os outros filtros da tela continuam valendo.</p>' +
+    '<div class="grupo-label" style="margin:0 0 6px;">Andares</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">' + andares.map((a) => chk('andar', a, nomeAndar(a), filtroMulti.andares.indexOf(String(a)) !== -1)).join('') + '</div>' +
+    '<div class="grupo-label" style="margin:0 0 6px;">Fluxos</div><div style="display:flex; gap:6px; flex-wrap:wrap;">' + fluxos.map(([v, r]) => chk('fluxo', v, r, filtroMulti.fluxos.indexOf(v) !== -1)).join('') + '</div>' +
+    '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;"><button type="button" class="btn primario" id="multi-aplicar">Aplicar</button><button type="button" class="btn fantasma" id="multi-limpar">Limpar seleção</button><button type="button" class="btn fantasma" id="multi-fechar">Fechar</button></div></div>';
+  document.body.appendChild(fundo);
+  const fechar = () => fundo.remove();
+  fundo.addEventListener('click', (e) => { if (e.target === fundo) fechar(); });
+  fundo.querySelector('#multi-fechar').addEventListener('click', fechar);
+  const aplicar = (limpar) => {
+    filtroMulti = limpar ? { andares: [], fluxos: [] } : {
+      andares: Array.from(fundo.querySelectorAll('input[data-grupo="andar"]:checked')).map((c) => c.value),
+      fluxos: Array.from(fundo.querySelectorAll('input[data-grupo="fluxo"]:checked')).map((c) => c.value)
+    };
+    if (filtroMulti.andares.length) document.getElementById('filtro-item-andar').value = '';
+    if (filtroMulti.fluxos.length) document.getElementById('filtro-item-progresso').value = '';
+    fechar(); atualizarBotaoMulti(); renderItens();
+  };
+  fundo.querySelector('#multi-aplicar').addEventListener('click', () => aplicar(false));
+  fundo.querySelector('#multi-limpar').addEventListener('click', () => aplicar(true));
+}
+function atualizarBotaoMulti(){
+  const b = document.getElementById('btn-filtro-multi'); if (!b) return;
+  const n = filtroMulti.andares.length + filtroMulti.fluxos.length;
+  b.textContent = n ? 'Filtrar seleção (' + [filtroMulti.andares.length ? filtroMulti.andares.length + ' andar(es)' : '', filtroMulti.fluxos.length ? filtroMulti.fluxos.length + ' fluxo(s)' : ''].filter(Boolean).join(' · ') + ')' : 'Filtrar seleção';
+  b.classList.toggle('marcado', !!n);
+}
+function textoFiltroMulti(){
+  const partes = [];
+  if (filtroMulti.andares.length) partes.push(filtroMulti.andares.map((a) => nomeAndar(Number(a))).join(', '));
+  if (filtroMulti.fluxos.length){ const nomes = {}; document.querySelectorAll('#filtro-item-progresso option').forEach((o) => { nomes[o.value] = o.textContent; }); partes.push(filtroMulti.fluxos.map((f) => nomes[f] || f).join(' ou ')); }
+  return partes.join(' · ');
+}
 function obterItensFiltrados(){
   const busca = (document.getElementById('busca-item').value || '').toLowerCase().trim();
   const filtroAndar = document.getElementById('filtro-item-andar').value;
@@ -6294,6 +6389,8 @@ function obterItensFiltrados(){
     itens = itens.filter((it) => it.tipo === filtroItemLocal.tipo && (it.quarto ?? null) === (filtroItemLocal.quarto ?? null));
   }
   if (filtroAndar) itens = itens.filter((it) => String(it.andar) === filtroAndar);
+  if (filtroMulti.andares.length){ const s = new Set(filtroMulti.andares); itens = itens.filter((it) => s.has(String(it.andar))); }
+  if (filtroMulti.fluxos.length) itens = itens.filter((it) => filtroMulti.fluxos.some((f) => passaFluxo(it, f)));
   const filtroOrigem = (document.getElementById('filtro-item-origem') || {}).value || '';
   if (filtroOrigem) itens = itens.filter((it) => origemDoItem(it) === filtroOrigem);
   if (filtroAmbiente) itens = itens.filter((it) => passaFiltroAmbiente(it.tipo, localKey(it), filtroAmbiente));
@@ -9413,10 +9510,82 @@ async function compartilharOuBaixarPdf(blob, nomeArquivo, statusEl){
    A4 em pé, legível no celular. Cada bloco é desenhado INTEIRO: se não couber no que resta da
    página, vai pra próxima — nada fica partido entre duas páginas. Os números são lidos da
    própria tela (espelho) ou calculados com as mesmas funções dela. */
-async function exportarVisaoGeralPdf(){
+/* PDF CONSOLIDADO: capa com os dois projetos lado a lado + a Visão geral de Quartos + a de Áreas comuns.
+   A outra obra é aberta em segundo plano (iframe), gera o PDF dela e devolve; os três são juntados. */
+function carregarScript(src){ return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => erro(new Error('não carregou ' + src)); document.head.appendChild(s); }); }
+async function gerarPdfConsolidado(){
+  if (!ehFundador()){ avisoFlutuante('Só o Fundador gera o PDF consolidado', 'erro'); return; }
+  const btn = document.getElementById('btn-pdf-consolidado'), txt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Gerando (1/3)…';
+  const obraAtual = OBRA || 'quartos', outra = obraAtual === 'quartos' ? 'areas-comuns' : 'quartos';
+  const chaveObra = 'obra_painel_atual', obraGuardada = (() => { try{ return localStorage.getItem(chaveObra); }catch(e){ return null; } })();
+  let iframe = null;
+  try{
+    irParaAba('visao-geral');
+    await new Promise((r) => setTimeout(r, 600));
+    const meu = { obra: obraAtual, nome: nomeDaObra(), revisao: String(revisaoSelecionada || ''), resumo: window.__resumoObra || null, pdf: await exportarVisaoGeralPdf({ retornar: true }) };
+    btn.textContent = 'Gerando (2/3)…';
+    const dela = await new Promise((ok, erro) => {
+      const tempo = setTimeout(() => erro(new Error('a outra obra demorou demais pra responder')), 120000);
+      const ouvir = (e) => { if ((e.origin !== location.origin && location.protocol !== 'file:') || !e.data || e.data.tipo !== 'pdf-consolidado') return;
+        window.removeEventListener('message', ouvir); clearTimeout(tempo);
+        if (e.data.erro) erro(new Error(e.data.erro)); else ok(e.data); };
+      window.addEventListener('message', ouvir);
+      iframe = document.createElement('iframe');
+      const q = new URLSearchParams(location.search); q.set('obra', outra); q.set('consolidado', '1'); if (usuarioAtual) q.set('usuario', usuarioAtual);
+      iframe.src = location.pathname + '?' + q.toString();
+      iframe.style.cssText = 'position:fixed; left:-10000px; top:0; width:1440px; height:900px; border:0; opacity:0;';
+      document.body.appendChild(iframe);
+    });
+    btn.textContent = 'Gerando (3/3)…';
+    if (!window.PDFLib) await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');
+    const partes = [meu, dela].sort((a, b) => (a.obra === 'quartos' ? -1 : 1));
+    // capa: os dois projetos lado a lado + total geral
+    const { jsPDF } = window.jspdf;
+    const capa = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+    const PW = capa.internal.pageSize.getWidth();
+    pdfTxt(capa, PDF_M, 60, 'Relatório consolidado — Hotel Sofitel Ipanema', 18, PDF_COR.ink);
+    pdfTxt(capa, PDF_M, 80, partes.map((p) => p.nome + (p.revisao ? ' · R' + p.revisao : '')).join('   |   ') + '   ·   ' + new Date().toLocaleString('pt-BR'), 9, PDF_COR.muted);
+    const linhasCapa = [['Itens totais', 'total'], ['Em aberto', 'aberto'], ['Executado AW', 'aw'], ['Validado pela IAC', 'iac'], ['% executado', 'pct']];
+    const val = (p, k) => { const r = p.resumo || {}; if (k === 'pct') return r.total ? Math.round((r.total - r.aberto) / r.total * 100) + '%' : '—'; return r[k] != null ? pdfNum(r[k]) : '—'; };
+    const geral = (k) => { const s = partes.reduce((acc, p) => acc + ((p.resumo || {})[k] || 0), 0); return s; };
+    const colX = [PDF_M, PDF_M + 230, PDF_M + 430, PDF_M + 630];
+    let y = 130;
+    ['', partes[0].nome, partes[1].nome, 'Total geral'].forEach((h, i) => pdfTxt(capa, colX[i], y, h, 10, PDF_COR.muted));
+    y += 10; pdfFill(capa, PDF_COR.line); capa.rect(PDF_M, y, PW - 2*PDF_M, 0.8, 'F');
+    linhasCapa.forEach(([rot, k]) => {
+      y += 34;
+      pdfTxt(capa, colX[0], y, rot, 11, PDF_COR.ink2);
+      pdfTxt(capa, colX[1], y, val(partes[0], k), 16, PDF_COR.ink);
+      pdfTxt(capa, colX[2], y, val(partes[1], k), 16, PDF_COR.ink);
+      const tg = k === 'pct' ? (geral('total') ? Math.round((geral('total') - geral('aberto')) / geral('total') * 100) + '%' : '—') : pdfNum(geral(k));
+      pdfTxt(capa, colX[3], y, tg, 16, PDF_COR.az);
+      y += 10; pdfFill(capa, PDF_COR.line); capa.rect(PDF_M, y, PW - 2*PDF_M, 0.5, 'F');
+    });
+    pdfTxt(capa, PDF_M, y + 30, 'Nas páginas seguintes: a Visão geral completa de cada projeto.', 9, PDF_COR.muted);
+    const { PDFDocument } = window.PDFLib;
+    const final = await PDFDocument.create();
+    for (const buf of [capa.output('arraybuffer'), partes[0].pdf, partes[1].pdf]){
+      const d = await PDFDocument.load(buf);
+      const pags = await final.copyPages(d, d.getPageIndices());
+      pags.forEach((pg) => final.addPage(pg));
+    }
+    const bytes = await final.save();
+    await compartilharOuBaixarPdf(new Blob([bytes], { type:'application/pdf' }), NOME_APP_ARQUIVO + ' - Consolidado Quartos e Áreas comuns.pdf', null);
+  }catch(e){
+    console.error('PDF consolidado', e);
+    avisoFlutuante('Não consegui gerar o PDF consolidado: ' + (e && e.message || e), 'erro');
+  }finally{
+    if (iframe) iframe.remove();
+    try{ if (obraGuardada != null) localStorage.setItem(chaveObra, obraGuardada); }catch(e){}
+    btn.disabled = false; btn.textContent = txt;
+  }
+}
+async function exportarVisaoGeralPdf(opcoes){
   if (!window.jspdf){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
+  const retornar = !!(opcoes && opcoes.retornar);
   protegerTextoPdf();
-  const btn = (document.activeElement && /btn-pdf-visao-geral/.test(document.activeElement.id)) ? document.activeElement : document.getElementById('btn-pdf-visao-geral');
+  const btn = retornar ? { textContent:'', disabled:false } : ((document.activeElement && /btn-pdf-visao-geral/.test(document.activeElement.id)) ? document.activeElement : document.getElementById('btn-pdf-visao-geral'));
   const textoBtn = btn.textContent; btn.disabled = true; btn.textContent = 'Gerando PDF…';
   try{
     /* FOLHA DEITADA (A4 paisagem), no formato da tela do computador:
@@ -9763,9 +9932,11 @@ async function exportarVisaoGeralPdf(){
 
     const total = doc.internal.getNumberOfPages();
     for (let i = 1; i <= total; i++){ doc.setPage(i); pdfRodape(doc, i, total); }
+    if (retornar) return doc.output('arraybuffer');
     await compartilharOuBaixarPdf(doc.output('blob'), NOME_APP_ARQUIVO + ' - Visão geral' + (base.revisao ? ' - ' + base.revisao : '') + '.pdf', null);
   }catch(e){
     console.error('PDF da Visão geral', e);
+    if (retornar) throw e;
     avisoFlutuante('Não consegui gerar o PDF', 'erro');
   }finally{
     btn.disabled = false; btn.textContent = textoBtn;
@@ -10153,7 +10324,9 @@ async function exportarQuartosPdf(){
   dados.forEach((d) => { prioridades[d.status] = (prioridades[d.status]||0) + 1; });
   const andarFiltrado = document.getElementById('filtro-andar').value;
   const ctx = Object.assign(pdfContextoBase('Quartos e áreas'), {
-    filtro: descreverFiltros(['filtro-andar','filtro-ambiente','filtro-disciplina','filtro-fornecedor','filtro-status','filtro-progresso'], 'busca-quarto'),
+    filtro: [descreverFiltros(['filtro-andar','filtro-ambiente','filtro-disciplina','filtro-fornecedor','filtro-status','filtro-progresso'], 'busca-quarto'),
+      filtroMultiQ.andares.length ? filtroMultiQ.andares.map((a) => nomeAndar(Number(a))).join(', ') : '',
+      filtroMultiQ.status.length ? filtroMultiQ.status.map((s) => (PDF_PRIO[s] || {}).longo || s).join(' ou ') : ''].filter((x) => x && x !== 'Sem filtros').join(' · ') || 'Sem filtros',
     contagem: dados.length + (dados.length === 1 ? ' local' : ' locais'),
     cartoes: [
       { rotulo:'Total de itens', valor:tot, sub:'desde a 1ª planilha', destaque:true },
@@ -10237,6 +10410,7 @@ async function exportarItensPdf(listaPronta){
   }
   if (filtroProgresso) extras.push({ aberto:'Em aberto', awExec:'Executado AW', iacOk:'Validado IAC' }[filtroProgresso] || '');
   if (filtroStatusBrutoAdHoc) extras.push(filtroStatusBrutoAdHoc);
+  if (!externo && textoFiltroMulti()) extras.push(textoFiltroMulti());
 
   const ctx = Object.assign(pdfContextoBase(externo ? (listaPronta.titulo || 'Itens') : 'Itens'), {
     filtro: externo ? listaPronta.filtro : descreverFiltros(['filtro-item-andar','filtro-item-ambiente','filtro-item-disciplina','filtro-item-fornecedor','filtro-item-status','filtro-item-progresso','filtro-item-programacao','filtro-item-origem'], 'busca-item', extras),
@@ -10422,6 +10596,14 @@ async function iniciar(){
   } else {
     irParaAba('enviar');
   }
+  if (new URLSearchParams(location.search).get('consolidado') === '1' && window.parent && window.parent !== window){
+    try{
+      irParaAba('visao-geral');
+      await new Promise((r) => setTimeout(r, 2500)); // deixa a torre e os gráficos terminarem
+      const buf = await exportarVisaoGeralPdf({ retornar: true });
+      window.parent.postMessage({ tipo:'pdf-consolidado', obra: OBRA || 'quartos', nome: nomeDaObra(), revisao: String(revisaoSelecionada || ''), resumo: window.__resumoObra || null, pdf: buf }, (location.protocol === 'file:' ? '*' : location.origin));
+    }catch(e){ window.parent.postMessage({ tipo:'pdf-consolidado', erro: String(e && e.message || e) }, (location.protocol === 'file:' ? '*' : location.origin)); }
+  }
 
   document.querySelectorAll('nav.abas button[data-aba]').forEach((b) => {
     b.addEventListener('click', () => { limparNavegacao(); irParaAba(b.dataset.aba); });
@@ -10492,10 +10674,18 @@ async function iniciar(){
   document.getElementById('filtro-item-status').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-progresso').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-programacao').addEventListener('change', limparFiltroLocalEAtualizar);
+  document.getElementById('btn-filtro-multi').addEventListener('click', abrirFiltroMultiplo);
+  // escolher um andar ou um fluxo no filtro normal desliga a seleção múltipla daquele grupo
+  document.getElementById('filtro-item-andar').addEventListener('change', (e) => { if (e.target.value && filtroMulti.andares.length){ filtroMulti.andares = []; atualizarBotaoMulti(); } });
+  document.getElementById('filtro-item-progresso').addEventListener('change', (e) => { if (e.target.value && filtroMulti.fluxos.length){ filtroMulti.fluxos = []; atualizarBotaoMulti(); renderItens(); } });
   document.getElementById('filtro-item-origem').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-novo-item').addEventListener('click', abrirNovoItem);
   try{ iniciarChat(); }catch(e){ console.warn('chat', e); }
+  document.getElementById('btn-filtro-multi-q').addEventListener('click', abrirFiltroMultiploQuartos);
+  document.getElementById('filtro-andar').addEventListener('change', (e) => { if (e.target.value && filtroMultiQ.andares.length){ filtroMultiQ.andares = []; atualizarBotaoMultiQ(); } });
+  document.getElementById('filtro-status').addEventListener('change', (e) => { if (e.target.value && filtroMultiQ.status.length){ filtroMultiQ.status = []; atualizarBotaoMultiQ(); renderQuartos(); } });
   document.getElementById('btn-limpar-filtro-quartos').addEventListener('click', () => {
+    filtroMultiQ = { andares: [], status: [] }; atualizarBotaoMultiQ();
     document.getElementById('busca-quarto').value = '';
     document.getElementById('filtro-andar').value = '';
     document.getElementById('filtro-disciplina').value = '';
@@ -10513,6 +10703,7 @@ async function iniciar(){
     document.getElementById('filtro-item-status').value = '';
     document.getElementById('filtro-item-progresso').value = '';
     document.getElementById('filtro-item-programacao').value = '';
+    filtroMulti = { andares: [], fluxos: [] }; atualizarBotaoMulti();
     document.getElementById('filtro-item-origem').value = '';
     popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar'); // volta pro modo categoria (sem andar)
     filtroItemLocal = null;
@@ -10546,8 +10737,9 @@ async function iniciar(){
   document.getElementById('btn-foco-andar').addEventListener('click', abrirFocoAndar);
   document.getElementById('btn-pdf-liberados').addEventListener('click', exportarRelatorioLiberados);
   document.getElementById('btn-pdf-itens').addEventListener('click', exportarItensPdf);
-  document.getElementById('btn-pdf-visao-geral').addEventListener('click', exportarVisaoGeralPdf);
-  document.getElementById('btn-pdf-visao-geral-nav').addEventListener('click', exportarVisaoGeralPdf);
+  document.getElementById('btn-pdf-visao-geral').addEventListener('click', () => exportarVisaoGeralPdf());
+  document.getElementById('btn-pdf-consolidado').addEventListener('click', gerarPdfConsolidado);
+  document.getElementById('btn-pdf-visao-geral-nav').addEventListener('click', () => exportarVisaoGeralPdf());
 
   const navTendencia = document.querySelector('nav.abas button[data-aba="tendencia"]');
   navTendencia.addEventListener('click', renderTendencia);
