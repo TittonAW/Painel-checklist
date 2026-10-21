@@ -1222,7 +1222,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.236';
+const VERSAO_APP = '2026-10-03.237';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -6624,6 +6624,7 @@ function textoFiltroMulti(){
   if (filtroMulti.fluxos.length){ const nomes = {}; document.querySelectorAll('#filtro-item-progresso option').forEach((o) => { nomes[o.value] = o.textContent; }); partes.push(filtroMulti.fluxos.map((f) => nomes[f] || f).join(' ou ')); }
   return partes.join(' · ');
 }
+const gruposItensFechados = new Set(); // grupos recolhidos na lista da aba Itens
 function grupoDecisao(it){
   if (decisaoNaoValidado(it) === 'naFalta' || conferirNoQuarto(it)) return 0;  // falta decidir
   if (checarNoQuarto(it)) return 1;                                              // já mandado conferir no quarto
@@ -6749,14 +6750,19 @@ function renderItens(){
   // que o editor vai oferecer, já que disciplina é dado do cliente, não posso criar uma nova
   const discsConhecidas = Array.from(new Set(itensRevisaoAtual.map((it) => it.disciplina))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
-  const comGrupos = listaComDecisoes(); let grupoAnt = null;
   const nomesGrupo = ['Falta decidir', 'Já mandados conferir no quarto', 'Já decididos (cobrar IAC)', 'Voltaram para aberto'];
-  const contGrupo = comGrupos ? todosFiltrados.reduce((m, x) => { const g = grupoDecisao(x); m[g] = (m[g] || 0) + 1; return m; }, {}) : {};
+  const contGrupo = listaComDecisoes() ? todosFiltrados.reduce((m, x) => { const g = grupoDecisao(x); m[g] = (m[g] || 0) + 1; return m; }, {}) : {};
+  const comGrupos = Object.keys(contGrupo).length > 1; // só separa quando há mais de um tipo
+  let grupoAnt = null;
   itens.forEach((it) => {
-    if (comGrupos){ const g = grupoDecisao(it); if (g !== grupoAnt){ grupoAnt = g;
-      const sep = document.createElement('tr'); sep.className = 'linha-grupo';
-      sep.innerHTML = '<td colspan="20" style="background:var(--paper-2); font-size:12.5px; font-weight:600; color:'+(g === 0 ? 'var(--novo)' : 'var(--muted)')+'; padding:8px 14px;">'+nomesGrupo[g]+' · '+(contGrupo[g] || 0)+'</td>';
-      tbody.appendChild(sep); } }
+    const gIt = comGrupos ? grupoDecisao(it) : null;
+    if (comGrupos && gIt !== grupoAnt){ grupoAnt = gIt;
+      const fechado = gruposItensFechados.has(gIt);
+      const sep = document.createElement('tr'); sep.className = 'linha-grupo'; sep.dataset.grupo = gIt;
+      sep.innerHTML = '<td colspan="20" style="background:var(--paper-2); font-size:12.5px; font-weight:600; color:'+(gIt === 0 ? 'var(--novo)' : 'var(--muted)')+'; padding:8px 14px; cursor:pointer; user-select:none;" title="Tocar pra recolher ou abrir">'+(fechado ? '▸ ' : '▾ ')+nomesGrupo[gIt]+' · '+(contGrupo[gIt] || 0)+'</td>';
+      sep.addEventListener('click', () => { if (gruposItensFechados.has(gIt)) gruposItensFechados.delete(gIt); else gruposItensFechados.add(gIt); renderItens(); });
+      tbody.appendChild(sep); }
+    if (comGrupos && gruposItensFechados.has(gIt)) return; // grupo recolhido
     const label = it.tipo === 'APTO' ? String(it.quarto) : (it.tipo.charAt(0)+it.tipo.slice(1).toLowerCase());
     const ac = acompanhamento[it.id] || {};
     // "Validado IAC" pinta o item de verde na hora, por cima do status real da planilha —
@@ -8093,6 +8099,11 @@ function abrirEdicaoAgrupamento(){
         if (novaPrio === '__planilha__') delete novo.prioridadeOverride;
         else if (novaPrio) novo.prioridadeOverride = novaPrio;
         if (novoFluxo === 'aw' || novoFluxo === 'iac'){
+          const itC = itensRevisaoAtual.find((y) => y.id === id);
+          if (itC && conferirNoQuarto(itC)){ // baixa copiada do número geral: agora é baixa de verdade, dada neste quarto
+            novo.awExecEm = agora; novo.awExecPor = por; novo.conferidoQuartoEm = agora; novo.conferidoQuartoPor = por;
+            hist.push({ t:'conferido', em:agora, por, lote:true }); hist.push({ t:'aw', em:agora, por, lote:true });
+          }
           if (!novo.awExecEm){ novo.awExecEm = agora; novo.awExecPor = por; hist.push({ t:'aw', em:agora, por, lote:true }); }
           if (novoFluxo === 'iac' && !novo.iacOkEm){ novo.iacOkEm = agora; novo.iacOkPor = por; hist.push({ t:'iac', em:agora, por, lote:true }); }
         } else if (novoFluxo === 'aberto' && (novo.awExecEm || novo.iacOkEm)){
