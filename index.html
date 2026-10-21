@@ -749,7 +749,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="PRONTO_VISTORIA">Liberado p/ vistoria</option>
         <option value="VISTORIADO_IAC">Vistoriado pela IAC</option>
         <option value="LIBERADO_PEND">Liberado p/ operação</option>
-        <option value="CONCLUIDO">VD (verde)</option>
       </select>
       <select id="filtro-progresso">
         <option value="">Todos os fluxos</option>
@@ -799,7 +798,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="PRONTO_VISTORIA">Liberado p/ vistoria</option>
         <option value="VISTORIADO_IAC">Vistoriado pela IAC</option>
         <option value="LIBERADO_PEND">Liberado p/ operação</option>
-        <option value="CONCLUIDO">VD (verde)</option>
       </select>
       <select id="filtro-item-progresso">
         <option value="">Todos os fluxos</option>
@@ -1213,7 +1211,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.220';
+const VERSAO_APP = '2026-10-03.226';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1274,6 +1272,42 @@ function iniciarVerificacaoDeVersao(){
   document.addEventListener('change', aoAgir, true);
 }
 
+/* CACHE NO APARELHO (IndexedDB), transparente: o resultado é sempre o mesmo da nuvem.
+   - planilhas (snapshots): só são baixadas de novo se mudaram (confere a data de cada uma, consulta leve);
+   - acompanhamento: baixa só os itens alterados desde a última abertura; conferência completa 1x/dia. */
+const cacheIdb = {
+  _db: null,
+  async db(){
+    if (this._db) return this._db;
+    if (!window.indexedDB) return null;
+    this._db = await new Promise((ok) => { try{ const r = indexedDB.open('checklist-cache', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => ok(r.result); r.onerror = () => ok(null); }catch(e){ ok(null); } });
+    return this._db;
+  },
+  async get(k){ const d = await this.db(); if (!d) return null; return new Promise((ok) => { try{ const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); }catch(e){ ok(null); } }); },
+  async set(k, v){ const d = await this.db(); if (!d) return; return new Promise((ok) => { try{ const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => ok(); tx.onerror = () => ok(); }catch(e){ ok(); } }); },
+  async del(k){ const d = await this.db(); if (!d) return; return new Promise((ok) => { try{ const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = () => ok(); tx.onerror = () => ok(); }catch(e){ ok(); } }); }
+};
+let acompCacheSujo = false; // gravou/apagou acompanhamento nesta sessão: a próxima leitura completa refaz o cache
+let indiceSnapshots = null, indiceSnapshotsEm = 0; // doc_id → updated_at (consulta leve, refeita a cada 60 s)
+async function datasDasPlanilhas(colR){
+  if (indiceSnapshots && indiceSnapshots.col === colR && Date.now() - indiceSnapshotsEm < 60000) return indiceSnapshots.mapa;
+  const linhas = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, updated_at').eq('collection', colR));
+  const mapa = {}; linhas.forEach((r) => { mapa[r.doc_id] = r.updated_at; });
+  indiceSnapshots = { col: colR, mapa }; indiceSnapshotsEm = Date.now();
+  return mapa;
+}
+async function planilhaDoCache(colR, id){
+  const datas = await datasDasPlanilhas(colR);
+  if (!(id in datas)) return null;
+  const k = 'snap:' + colR + ':' + id, c = await cacheIdb.get(k);
+  if (c && c.u === datas[id]) return c.data;
+  const { data, error } = await supa.from('app_data').select('data, updated_at').eq('collection', colR).eq('doc_id', id).maybeSingle();
+  if (error) throw error;
+  if (data){ cacheIdb.set(k, { u: data.updated_at, data: data.data }); return data.data; }
+  return null;
+}
 const store = {
   backend: 'local',
   mem: {},
@@ -1301,6 +1335,9 @@ const store = {
   },
   async getDoc(col, id){
     col = colReal(col);
+    if (this.backend === 'cloud' && /snapshots$/.test(col)){
+      try{ return await planilhaDoCache(col, id); }catch(e){ /* cai no caminho normal */ }
+    }
     if (this.backend === 'cloud'){
       try{
         const { data, error } = await supa.from('app_data').select('data').eq('collection', col).eq('doc_id', id).maybeSingle();
@@ -1318,6 +1355,8 @@ const store = {
       try{
         const { error } = await supa.from('app_data').upsert({ collection: col, doc_id: id, data: data, updated_at: new Date().toISOString() });
         if (error) return { ok:false, codigo: error.code, erro: error.message };
+        if (/snapshots$/.test(col)){ indiceSnapshots = null; cacheIdb.del('snap:' + col + ':' + id); }
+        if (/acompanhamento$/.test(col)) acompCacheSujo = true;
         return { ok:true };
       }catch(e){
         return { ok:false, erro: (e && e.message) || String(e) };
@@ -1335,6 +1374,8 @@ const store = {
     if (this.backend === 'cloud'){
       try{
         const { error } = await supa.from('app_data').delete().eq('collection', col).eq('doc_id', id);
+        if (/snapshots$/.test(col)){ indiceSnapshots = null; cacheIdb.del('snap:' + col + ':' + id); }
+        if (/acompanhamento$/.test(col)) acompCacheSujo = true;
         return !error;
       }catch(e){ return false; }
     }
@@ -1345,6 +1386,25 @@ const store = {
   },
   async listCollection(col, jaMapeada){
     if (!jaMapeada) col = colReal(col);
+    if (this.backend === 'cloud' && /acompanhamento$/.test(col)){
+      try{
+        const k = 'col:' + col, c = await cacheIdb.get(k);
+        const umDia = 24*3600*1000;
+        if (c && c.docs && c.maxU && !acompCacheSujo && (Date.now() - (c.completoEm || 0)) < umDia){
+          const novos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col).gte('updated_at', c.maxU));
+          let maxU = c.maxU;
+          novos.forEach((r) => { c.docs[r.doc_id] = r.data; if (r.updated_at > maxU) maxU = r.updated_at; });
+          c.maxU = maxU; cacheIdb.set(k, c);
+          return Object.keys(c.docs).map((id) => Object.assign({ _id: id }, c.docs[id]));
+        }
+        const todos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col));
+        const docs = {}; let maxU = '';
+        todos.forEach((r) => { docs[r.doc_id] = r.data; if (r.updated_at > maxU) maxU = r.updated_at; });
+        acompCacheSujo = false;
+        cacheIdb.set(k, { docs, maxU, completoEm: Date.now() });
+        return todos.map((r) => Object.assign({ _id: r.doc_id }, r.data));
+      }catch(e){ /* cai no caminho normal */ }
+    }
     if (this.backend === 'cloud'){
       try{
         const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col));
@@ -1356,6 +1416,15 @@ const store = {
   },
   async queryRevisao(col, revisaoStr){
     col = colReal(col);
+    if (this.backend === 'cloud' && /snapshots$/.test(col)){
+      try{
+        const datas = await datasDasPlanilhas(col);
+        const ids = Object.keys(datas).filter((id) => id.indexOf('R' + revisaoStr + '_') === 0);
+        const docs = await Promise.all(ids.map((id) => planilhaDoCache(col, id).then((d) => d ? Object.assign({ _id: id }, d) : null)));
+        const ok = docs.filter(Boolean).filter((d) => String(d.revisao) === String(revisaoStr));
+        if (ok.length === ids.length) return ok;
+      }catch(e){ /* cai no caminho normal */ }
+    }
     if (this.backend === 'cloud'){
       try{
         const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col).eq('data->>revisao', revisaoStr));
@@ -2450,6 +2519,7 @@ async function sincronizarDados(manual){
       if (JSON.stringify(acompanhamento[d._id]) !== JSON.stringify(novo)){ acompanhamento[d._id] = novo; mudou++; }
     });
     let recarregarPorExclusao = false;
+    if ((snaps && snaps.length) || (rev && rev.length)) indiceSnapshots = null; // outra planilha entrou: confere as datas de novo
     if (cfg.some((d) => d._id === 'fornecedores')){ await carregarFornecedores(); mudou++; }
     if (cfg.some((d) => d._id === 'pessoas')) await carregarPessoas();
     if (cfg.some((d) => d._id === 'obra')){ await carregarConfigObra(); renderListaPins(); renderUsuarioTopo(); } // virou (ou deixou de ser) administrador: aplica na hora
@@ -4445,6 +4515,14 @@ function decisaoNaoValidado(x){
 }
 // item novo que já está no em aberto (aceito, ou de antes da avaliação) — continua com a etiqueta "Novo · R.."
 function novoAceitoEmAberto(it){ return !!infoItemNovo(it) && contaNoTotal(it) && estaEmAberto(it); }
+function contarPorOrigem(lista){
+  const c = { IAC:0, SOFITEL:0, AW:0, outras:0 };
+  lista.forEach((x) => { const o = origemDoItem(x); if (c[o] != null) c[o]++; else c.outras++; });
+  return c;
+}
+function textoOrigens(c, curto){
+  return [c.IAC ? (curto ? 'IAC ' : 'IAC ') + pdfNum(c.IAC) : '', c.SOFITEL ? (curto ? 'SOF ' : 'Sofitel ') + pdfNum(c.SOFITEL) : '', c.AW ? 'AW ' + pdfNum(c.AW) : '', c.outras ? 'outras ' + pdfNum(c.outras) : ''].filter(Boolean).join(' · ');
+}
 function analiseNaoValidados(){
   const naoAc = itensRevisaoAtual.filter(iacNaoAceitou);
   const confirma = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'iac').length;
@@ -4529,8 +4607,15 @@ async function renderResumoGeral(recarregarHistorico){
     // na ordem do fluxo: aberto → AW executou → aguarda IAC → (reabre = reincidência)
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC</div></div>' +
-      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(() => { const nAc = itensConta.filter(novoAceitoEmAberto).length; return nAc ? '<br><span class="so-admin" data-ir-novos-aceitos="1" style="color:var(--novo); cursor:pointer;">'+nAc+' são novos já aceitos</span>' : ''; })()+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div><div class="pct-sub">inclui '+(saidosObra + vdNaPlanilha)+' já validados pela IAC'+(() => { const c = contarPorOrigem(itensConta); return (c.SOFITEL || c.AW || c.outras) ? '<br><span class="so-admin">na planilha: '+textoOrigens(c)+'</span>' : ''; })()+'</div></div>' +
+      '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div><div class="pct-sub">'+Math.round(emAberto/totalItens*100)+'% do total'+(() => {
+        const ac = itensConta.filter(novoAceitoEmAberto);
+        const porOrigem = {}; ac.forEach((x) => { const o = origemDoItem(x); porOrigem[o] = (porOrigem[o] || 0) + 1; });
+        const nAW = itensConta.filter((x) => x.origem === 'AW' && estaEmAberto(x)).length;
+        const partes = Object.keys(porOrigem).sort((a, b) => (a === 'IAC' ? -1 : b === 'IAC' ? 1 : a.localeCompare(b))).map((o) => porOrigem[o] + ' ' + (o === 'SOFITEL' ? 'Sofitel' : nomeOrigem(o) === o ? o : (o === 'IAC' ? 'IAC' : nomeOrigem(o))));
+        if (nAW) partes.push(nAW + ' AW');
+        return partes.length ? '<br><span class="so-admin" data-ir-novos-aceitos="1" style="color:var(--novo); cursor:pointer;" title="Itens novos já aceitos (no em aberto), por origem">novos já aceitos: '+partes.join(' · ')+'</span>' : '';
+      })()+(novosEmAberto ? '<br><span class="txt-novo so-admin" data-ir-novos="1" title="Itens novos ainda sem decisão — tocar pra avaliar">+'+novosEmAberto+' novos a avaliar</span>' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div><div class="pct-sub">'+Math.round(awObra/totalItens*100)+'% do total · '+pdfNum(itensConta.filter(baixaDaAW).length)+' na planilha'+(awObra > itensConta.filter(baixaDaAW).length ? ' + '+pdfNum(awObra - itensConta.filter(baixaDaAW).length)+' já tirados pela IAC' : '')+'</div></div>' +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">executado em ambiente liberado p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length;
@@ -4957,9 +5042,13 @@ async function atualizarUniverso(){
   if (montandoUniverso) return montandoUniverso;
   montandoUniverso = (async () => {
     if (!universoAmb){
-      try{ const d = await store.getDoc('config', 'universo_ambientes'); universoAmb = (d && d.mapa) ? { ate: Number(d.ate) || 0, mapa: d.mapa } : { ate: 0, mapa: {} }; }catch(e){ universoAmb = { ate: 0, mapa: {} }; }
+      try{ const d = await store.getDoc('config', 'universo_ambientes'); universoAmb = (d && d.mapa) ? { ate: Number(d.ate) || 0, mapa: d.mapa, lidos: d.lidos || {} } : { ate: 0, mapa: {}, lidos: {} }; }catch(e){ universoAmb = { ate: 0, mapa: {}, lidos: {} }; }
     }
-    const pendentes = revisoesMeta.filter((r) => r.numero > universoAmb.ate).sort((a,b) => a.numero - b.numero);
+    // revisão reimportada (planilha nova numa revisão já lida) também é lida de novo
+    let datas = null;
+    try{ if (store.backend === 'cloud') datas = await datasDasPlanilhas(colReal('snapshots')); }catch(e){}
+    const maisNova = (n) => { if (!datas) return ''; let m = ''; Object.keys(datas).forEach((id) => { if (id.indexOf('R' + n + '_') === 0 && datas[id] > m) m = datas[id]; }); return m; };
+    const pendentes = revisoesMeta.filter((r) => r.numero > universoAmb.ate || (datas && maisNova(r.numero) > (universoAmb.lidos[r.numero] || ''))).sort((a,b) => a.numero - b.numero);
     if (!pendentes.length) return universoAmb;
     for (const r of pendentes){
       const docs = await Promise.all((r.andares || []).map((a) => store.getDoc('snapshots', 'R' + r.numero + '_' + a).then((d) => d ? Object.assign({ andar: a }, d) : null).catch(() => null)));
@@ -4969,9 +5058,10 @@ async function atualizarUniverso(){
         const rv = Number(it.rv || r.numero);
         if (!(it.id in m) || rv < m[it.id]) m[it.id] = rv;
       }));
-      universoAmb.ate = r.numero;
+      universoAmb.ate = Math.max(universoAmb.ate, r.numero);
+      if (datas) universoAmb.lidos[r.numero] = maisNova(r.numero);
     }
-    try{ await store.setDoc('config', 'universo_ambientes', { ate: universoAmb.ate, mapa: universoAmb.mapa }); }catch(e){}
+    try{ await store.setDoc('config', 'universo_ambientes', { ate: universoAmb.ate, mapa: universoAmb.mapa, lidos: universoAmb.lidos || {} }); }catch(e){}
     return universoAmb;
   })();
   try{ return await montandoUniverso; } finally { montandoUniverso = null; }
@@ -5612,6 +5702,24 @@ function renderEvolucaoPendencias(){
     svg += '<circle cx="'+ph[0].toFixed(1)+'" cy="'+ph[1].toFixed(1)+'" r="3.6" style="fill:'+s.cor+'; stroke:#fff; stroke-width:1.5;"/>';
   });
   // cursor
+  // MARCAS DE ENTRADA: em que dia entraram itens novos (e de qual origem) — uma linha por revisão
+  try{
+    const porRev = new Map();
+    itensRevisaoAtual.forEach((x) => {
+      const nv = infoItemNovo(x), o = origemDoItem(x), rv = nv && nv.rev ? String(nv.rev) : (o === 'SOFITEL' ? revisaoDeEntrada(x) : null);
+      if (!rv) return;
+      if (!porRev.has(rv)) porRev.set(rv, { novos: 0, sof: 0 });
+      const g = porRev.get(rv); if (nv) g.novos++; if (o === 'SOFITEL') g.sof++;
+    });
+    porRev.forEach((g, rv) => {
+      const meta = revisoesMeta.find((r) => String(r.numero) === rv); if (!meta) return;
+      const quando = meta.dataRegistro || meta.atualizadoEm; if (!quando) return;
+      const idx = pontos.findIndex((pt) => pt.data === chaveDiaLocal(new Date(quando))); if (idx < 0) return;
+      const x = xAt(idx);
+      svg += '<g class="so-admin"><line x1="'+x+'" x2="'+x+'" y1="'+padT+'" y2="'+yBase+'" style="stroke:var(--novo); stroke-width:1; stroke-dasharray:3 3; opacity:.8;"/>' +
+        '<text x="'+(x+4)+'" y="'+(padT+10)+'" style="font-size:'+(fs-1)+'px; fill:var(--novo);">R'+esc(rv)+(g.novos ? ' · +'+g.novos+' novos' : '')+(g.sof ? ' · '+g.sof+' Sofitel' : '')+'</text></g>';
+    });
+  }catch(e){}
   svg += '<g id="evo-cursor" style="display:none;"><line id="evo-cursor-linha" y1="'+padT+'" y2="'+yBase+'" style="stroke:var(--text); stroke-width:1.2;"/>';
   SERIES_EVOLUCAO.forEach((s) => { svg += '<circle id="evo-cursor-'+s.chave+'" r="4.5" style="fill:'+s.cor+'; stroke:#fff; stroke-width:2;"/>'; });
   svg += '</g>';
@@ -6202,6 +6310,7 @@ function renderQuartos(){
         th.innerHTML = th.dataset.soma + '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + pdfNum(s) + '</div>' +
           (sc ? '<div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + pdfNum(sc) + ' cobrar IAC</div>' : '') +
           (sr ? '<div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + pdfNum(sr) + ' revalidar</div>' : '');
+        if (th.dataset.soma === 'Total' && ehAdminAtual()){ const cO = contarPorOrigem(locais.flatMap((l) => l.itens.filter(contaNoTotal))); if (cO.SOFITEL || cO.AW || cO.outras) th.insertAdjacentHTML('beforeend', '<div style="font-size:9.5px; font-weight:400; color:var(--muted); white-space:nowrap;">'+textoOrigens(cO, true)+'</div>'); }
       });
     }
   }
@@ -7822,6 +7931,7 @@ function abrirEdicaoAgrupamento(){
     const triagemNA = (document.getElementById('grupo-naoaceitou') || {}).value || '';
     const decisaoNovos = (document.getElementById('grupo-novos') || {}).value || '';
     let decisaoOrigem = (document.getElementById('grupo-origem') || {}).value || '';
+    let origemAplicada = ''; // a origem é gravada e o salvar CONTINUA com os outros campos (previsão etc.)
     if (decisaoOrigem === '__outra'){
       const nomeO = (window.prompt('Nome da origem (ex.: Accor, Fiscalização):') || '').trim();
       if (!nomeO) return;
@@ -7843,9 +7953,8 @@ function abrirEdicaoAgrupamento(){
         const r = await salvarAcompanhamentoComRetry(id, novo);
         if (r.ok){ acompanhamento[id] = novo; feitosO++; }
       });
-      fecharEdicaoAgrupamento(); itensSelecionados = new Set(); popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento(); renderItens(); atualizarBarraSelecao();
-      avisoFlutuante(feitosO + ' item(ns) com origem: ' + rot, 'ok');
-      return;
+      popularFiltroOrigemItens();
+      origemAplicada = feitosO + ' item(ns) com origem: ' + rot;
     }
     const decisaoConf = (document.getElementById('grupo-conferir') || {}).value || '';
     if (decisaoConf){
@@ -7882,7 +7991,11 @@ function abrirEdicaoAgrupamento(){
     }
     if (modoPrev === 'data' && !dataPrev){ document.getElementById('grupo-prev').focus(); avisoFlutuante('Escolha a data da previsão', 'erro'); return; }
     const mudaPrev = modoPrev === 'data' || modoPrev === 'remover';
-    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo && !mudaPrev && !triagemNA && !decisaoNovos){ fecharEdicaoAgrupamento(); return; }
+    if (!novaDisc && novoForn === null && !novaPrio && !novoFluxo && !mudaPrev && !triagemNA && !decisaoNovos){
+      fecharEdicaoAgrupamento();
+      if (origemAplicada){ itensSelecionados = new Set(); atualizarTelasAposAcompanhamento(); renderItens(); atualizarBarraSelecao(); avisoFlutuante(origemAplicada, 'ok'); }
+      return;
+    }
     if (mudaPrev){
       const abertos = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && estaEmAberto(x); }).length;
       if (!window.confirm((modoPrev === 'data' ? 'Pôr previsão ' + dataPrev.split('-').reverse().join('/') : 'Remover a previsão') + ' em ' + abertos + ' de ' + ids.length + ' item(ns) selecionado(s)?' + (abertos < ids.length ? '\n\nOs outros ' + (ids.length - abertos) + ' já foram executados e ficam como estão.' : ''))) return;
@@ -9745,7 +9858,65 @@ async function gerarPdfConsolidado(){
     btn.disabled = false; btn.textContent = txt;
   }
 }
+/* PDF DA VISÃO GERAL COMO "FOTOGRAFIA" DA TELA: cada parte (torre, resumo, gráfico, variações,
+   fornecedores e disciplinas) é capturada em alta resolução — mesma fonte, cores e gráficos da tela. */
+async function exportarVisaoGeralPdfImagem(opcoes){
+  const retornar = !!(opcoes && opcoes.retornar);
+  if (!window.jspdf){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
+  const btn = retornar ? { textContent:'', disabled:false } : (document.getElementById('btn-pdf-visao-geral-nav') || { textContent:'', disabled:false });
+  const textoBtn = btn.textContent; btn.disabled = true; btn.textContent = 'Gerando PDF…';
+  try{
+    if (!window.html2canvas) await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    if (abaAtual() !== 'visao-geral'){ irParaAba('visao-geral'); await new Promise((r) => setTimeout(r, 700)); }
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const card = (id) => { const el = document.getElementById(id); return el ? (el.closest('.card') || el) : null; };
+    const fundo = getComputedStyle(document.body).backgroundColor || '#ffffff';
+    const foto = async (el) => {
+      if (!el || !el.offsetParent) return null;
+      const c = await window.html2canvas(el, { scale: 2, backgroundColor: fundo, useCORS: true, logging: false, windowWidth: Math.max(1440, document.documentElement.clientWidth) });
+      return { url: c.toDataURL('image/jpeg', 0.92), w: c.width, h: c.height };
+    };
+    const blocos = [
+      [card('torre-andares'), card('grid-resumo')],
+      [card('grafico-evolucao'), card('resumo-insights')],
+      [card('ranking-fornecedor'), card('ranking-disciplina')]
+    ];
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+    const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = 24, TOPO = 46;
+    const base = pdfContextoBase('Visão geral');
+    let primeira = true;
+    for (const grupo of blocos){
+      const imgs = (await Promise.all(grupo.map(foto))).filter(Boolean);
+      if (!imgs.length) continue;
+      if (!primeira) doc.addPage(); primeira = false;
+      pdfTxt(doc, M, 26, ((opcoes && opcoes.titulo) || 'Visão geral da obra') + ' · ' + ((opcoes && opcoes.nomeObra) || nomeDaObra()), 12, PDF_COR.ink);
+      pdfTxt(doc, PW - M, 26, (base.revisao ? 'Revisão ' + base.revisao + ' · ' : '') + base.dataHora, 8, PDF_COR.muted, 'right');
+      // escolhe lado a lado ou um embaixo do outro — o que deixar as partes maiores na página
+      const gap = 12, LU = PW - 2*M, AU = PH - TOPO - M;
+      const lado = (() => { const soma = imgs.reduce((s, im) => s + im.w / im.h, 0); const alt = Math.min(AU, (LU - gap*(imgs.length-1)) / soma); return { area: imgs.reduce((s, im) => s + alt*alt*im.w/im.h, 0), alt }; })();
+      const pilha = (() => { const somaInv = imgs.reduce((s, im) => s + im.h / im.w, 0); const larg = Math.min(LU, (AU - gap*(imgs.length-1)) / somaInv); return { area: imgs.reduce((s, im) => s + larg*larg*im.h/im.w, 0), larg }; })();
+      if (lado.area >= pilha.area){
+        let x = M + (LU - (lado.alt * imgs.reduce((s, im) => s + im.w / im.h, 0) + gap*(imgs.length - 1))) / 2;
+        imgs.forEach((im) => { const w = lado.alt * im.w / im.h; doc.addImage(im.url, 'JPEG', x, TOPO, w, lado.alt); x += w + gap; });
+      } else {
+        let y = TOPO; const x = M + (LU - pilha.larg) / 2;
+        imgs.forEach((im) => { const h = pilha.larg * im.h / im.w; doc.addImage(im.url, 'JPEG', x, y, pilha.larg, h); y += h + gap; });
+      }
+    }
+    const total = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= total; i++){ doc.setPage(i); pdfTxt(doc, M, PH - 10, 'Checklist · AW — Sofitel Ipanema · ' + nomeDaObra(), 7, PDF_COR.muted); pdfTxt(doc, PW - M, PH - 10, 'Página ' + i + ' de ' + total, 7, PDF_COR.muted, 'right'); }
+    if (retornar) return doc.output('arraybuffer');
+    await compartilharOuBaixarPdf(doc.output('blob'), NOME_APP_ARQUIVO + ' - Visão geral' + (base.revisao ? ' - ' + base.revisao : '') + '.pdf', null);
+  }catch(e){
+    console.error('PDF da Visão geral (imagem)', e);
+    if (retornar) throw e;
+    avisoFlutuante('Não consegui gerar o PDF', 'erro');
+  }finally{ btn.disabled = false; btn.textContent = textoBtn; }
+}
 async function exportarVisaoGeralPdf(opcoes){
+  // padrão: fotografia da tela (igual ao que se vê); o desenho antigo fica só pra capa consolidada e pra ler os dados
+  if (!(opcoes && (opcoes.soDados || opcoes.soPagina1))) return exportarVisaoGeralPdfImagem(opcoes);
   if (!window.jspdf){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
   const retornar = !!(opcoes && (opcoes.retornar || opcoes.soDados));
   protegerTextoPdf();
