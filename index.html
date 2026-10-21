@@ -757,7 +757,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th class="num-col col-vm">VM</th><th class="num-col col-am">AM</th><th class="num-col col-aberto">Aberto</th><th class="num-col col-aw">AW</th><th class="num-col col-iac">IAC</th><th class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th class="num-col col-reinc">Reinc.</th><th class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th class="num-col so-admin" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col so-admin" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1189,7 +1189,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.198';
+const VERSAO_APP = '2026-10-03.201';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4272,7 +4272,9 @@ function renderTorreAndares(){
       const itensDoAndar = registro ? registro.itens : [];
       const locaisDoAndar = todosLocais.filter((l) => l.andar === andar);
       const c = contarVMAM(itensDoAndar);
-      const pior = piorStatusEntreLocais(locaisDoAndar);
+      // a cor do andar segue só os QUARTOS: corredor, hall e outras áreas não seguram a etapa do andar
+      const locaisCor = locaisDoAndar.some((l) => l.tipo === 'APTO') ? locaisDoAndar.filter((l) => l.tipo === 'APTO') : locaisDoAndar;
+      const pior = piorStatusEntreLocais(locaisCor);
       statusClasse = STATUS_PARA_BARRA[pior];
       contagemTxt = String(c.total);
       // andar "liberado por inteiro": nenhuma área ainda crítica ou pendente sem liberar —
@@ -4384,7 +4386,8 @@ async function renderResumoGeral(recarregarHistorico){
   const andaresTotal = andaresNestaRevisao.size;
   andaresNestaRevisao.forEach((andar) => {
     const locaisDoAndar = locais.filter((l) => l.andar === andar);
-    const pior = piorStatusEntreLocais(locaisDoAndar);
+    const locaisCor = locaisDoAndar.some((l) => l.tipo === 'APTO') ? locaisDoAndar.filter((l) => l.tipo === 'APTO') : locaisDoAndar; // só os quartos
+    const pior = piorStatusEntreLocais(locaisCor);
     if (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO') andaresLiberadosTotal++;
   });
 
@@ -5992,7 +5995,9 @@ function renderQuartos(){
         const iacAmb = iacOkDoLocal + saiu + verdes;
         return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados junto · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
       })() +
-      '<td class="num-col so-admin" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+'; '+(nNaoAceitou ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNaoAceitou ? 'data-nao-aceitou="1"' : '')+'>'+(nNaoAceitou || '—')+'</td>' +
+      (() => { const nCob = itC.filter((x) => iacNaoAceitou(x) && (acompanhamento[x.id] || {}).divergencia === 'iac').length;
+        return '<td class="num-col so-admin" data-v="'+nNaoAceitou+'" data-cobrar="'+nCob+'" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+'; '+(nNaoAceitou ? 'cursor:pointer;' : '')+'" '+(nNaoAceitou ? 'data-nao-aceitou="1"' : '')+'><span style="'+(nNaoAceitou ? 'text-decoration:underline dotted;' : '')+'">'+(nNaoAceitou || '—')+'</span>' +
+          (nCob ? '<div style="font-size:10.5px; color:var(--text-2); white-space:nowrap;">'+nCob+' cobrar IAC</div>' : '') + '</td>'; })() +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       (() => { const nc = l.itens.filter(conferirNoQuarto).length; totalConferirNaTabela += nc;
@@ -6011,7 +6016,20 @@ function renderQuartos(){
     tbody.appendChild(tr);
     linhas++;
   });
-  { const thc = document.getElementById('th-conferir-quartos'); if (thc) thc.innerHTML = 'A conferir' + (totalConferirNaTabela ? '<div style="font-size:11px; font-weight:600;">' + totalConferirNaTabela + '</div>' : '');
+  { const tr0 = document.getElementById('th-conferir-quartos'); const cab = tr0 ? tr0.parentNode : null;
+    if (cab){
+      const ths = Array.from(cab.children);
+      ths.forEach((th, idx) => {
+        if (!th.dataset.soma) return;
+        let s = 0;
+        let sc = 0;
+        tbody.querySelectorAll('tr').forEach((tr) => { const td = tr.children[idx]; if (td){
+          const v = parseInt(String(td.dataset.v != null ? td.dataset.v : td.textContent).replace(/\./g, ''), 10); if (!isNaN(v)) s += v;
+          if (td.dataset.cobrar) sc += Number(td.dataset.cobrar) || 0; } });
+        th.innerHTML = th.dataset.soma + '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + pdfNum(s) + '</div>' +
+          (sc ? '<div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + pdfNum(sc) + ' cobrar IAC</div>' : '');
+      });
+    }
   }
   document.getElementById('vazio-quartos').classList.toggle('oculto', linhas>0);
   const caixaAgr = document.getElementById('agressores-quartos');
