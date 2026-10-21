@@ -759,8 +759,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
         <option value="iacOk">Validado IAC</option>
-        <option value="liberadoPend">Liberado p/ operação</option>
-        <option value="liberado">Liberado (sem pendência)</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
       <button class="btn fantasma" id="btn-filtro-multi-q" type="button" title="Vários andares e várias situações ao mesmo tempo">Filtrar seleção</button>
@@ -811,10 +809,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="naoBaixadoIac" class="so-admin">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
         <option value="novosAvaliar" class="so-admin">Itens novos</option>
-        <option value="novosAceitos" class="so-admin">Novos aceitos</option>
         <option value="conferirQuarto" class="so-admin">Conferir no quarto</option>
-        <option value="naFalta" class="so-admin">Não validados: falta a AW analisar</option>
-        <option value="naCobrar" class="so-admin">Não validados: IAC deve corrigir</option>
+        <option value="naFalta" class="so-admin">IAC não aceitou: falta analisar</option>
+        <option value="naCobrar" class="so-admin">IAC não aceitou: cobrar IAC</option>
       </select>
       <select id="filtro-item-programacao">
         <option value="">Toda a programação</option>
@@ -1215,7 +1212,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.229';
+const VERSAO_APP = '2026-10-03.231';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4617,16 +4614,17 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="grupo-label">Andamento dos itens</div>' +
     '<div class="resumo-grid">' +
       (() => { const c = contarPorOrigem(itensConta);
-        return '<div class="stat clicavel" data-ir="itens" data-status=""><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div>' +
+        return '<div class="stat"><div class="valor">'+totalObra+'</div><div class="rotulo">Itens totais da obra</div>' +
           // origem do TOTAL: Sofitel e AW (e outras) contados; o resto (inclusive o que a IAC já tirou) é IAC — soma = total
           linhasSub([['IAC', Math.max(0, totalObra - c.SOFITEL - c.AW - c.outras)], ['Sofitel', c.SOFITEL], ['Outras origens', c.outras], ['AW (incluídos no app)', c.AW]]) +
-          (() => { const sofAv = itensRevisaoAtual.filter((x) => novoForaDoAberto(x) && origemDoItem(x) === 'SOFITEL').length; return sofAv ? '<div class="pct-sub so-admin" style="color:var(--novo);">+'+sofAv+' Sofitel novos a avaliar (fora do total)</div>' : ''; })() + '</div>'; })() +
+          (() => { const av = contarPorOrigem(itensRevisaoAtual.filter(novoForaDoAberto)); const n = av.IAC + av.SOFITEL + av.AW + av.outras;
+            return n ? '<div class="so-admin" style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">' + linhasSub([['+ Novos a avaliar', n, 'class="tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"'], ['IAC', av.IAC, 'class="tom-novo"'], ['Sofitel', av.SOFITEL, 'class="tom-novo"'], ['Outras origens', av.outras, 'class="tom-novo"']]) + '</div>' : ''; })() + '</div>'; })() +
       (() => { const nAc = itensConta.filter(novoAceitoEmAberto).length;
         return '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>' +
-          linhasSub([['Novos aceitos', nAc, 'class="so-admin tom-novo" data-ir-novos-aceitos="1" style="cursor:pointer;"'], ['Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
+          linhasSub([['+ Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
       (() => { const naPlan = itensConta.filter(baixaDaAW).length;
-        return '<div class="stat aw clicavel" data-ir="itens" data-progresso="awExec"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
-          linhasSub([['Na planilha', naPlan], ['Já tirados pela IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
+        return '<div class="stat aw"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
+          linhasSub([['Na planilha', naPlan, 'data-ir-awexec="1" style="cursor:pointer; text-decoration:underline dotted;"'], ['Já tirados pela IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length;
         return (nCop + nRev) ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
@@ -4639,7 +4637,7 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="resumo-grid so-admin">' +
       '<div class="stat"><div class="valor">'+(vdHistorico + analiseNaoValidados().total)+'</div><div class="rotulo">Itens vistoriados pela IAC</div><div class="pct-sub">validados + não validados</div></div>' +
 
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+analiseNaoValidados().total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
+      '<div class="stat am"><div class="valor">'+analiseNaoValidados().total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
       (() => {
         const validados = sairamDaPlanilha().map((h) => String(h.id || h._id)).concat(itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').map((it) => it.id));
         const junto = validados.filter((id) => acompanhamento[id] && acompanhamento[id].iacOkEm).length;
@@ -4650,8 +4648,8 @@ async function renderResumoGeral(recarregarHistorico){
     (() => { const a = analiseNaoValidados(); return '<div class="grupo-label so-admin" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
     '<div class="resumo-grid so-admin">' +
       '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
-      '<div class="stat pronto clicavel" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
-      '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="comReinc"><div class="valor" style="color:var(--reinc);">'+a.voltou+'</div><div class="rotulo">Reincidência: AW concordou com a IAC</div><div class="pct-sub">era executado e voltou pra aberto</div></div>' +
+      '<div class="stat pronto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
+      '<div class="stat"><div class="valor" style="color:var(--reinc);">'+a.voltou+'</div><div class="rotulo">Reincidência: AW concordou com a IAC</div><div class="pct-sub">era executado e voltou pra aberto</div></div>' +
       '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
     '</div>'; })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
@@ -4667,7 +4665,7 @@ async function renderResumoGeral(recarregarHistorico){
       '<div class="stat pronto clicavel" data-ir="quartos" data-status="PRONTO_VISTORIA"><div class="valor">'+prontosVist+'</div><div class="rotulo">Liberados p/ vistoria</div></div>' +
       '<div class="stat vistoriado clicavel" data-ir="quartos" data-status="VISTORIADO_IAC"><div class="valor">'+vistoriadosIac+'</div><div class="rotulo">Vistoriados pela IAC</div></div>' +
       '<div class="stat liberadopend clicavel" data-ir="quartos" data-status="LIBERADO_PEND"><div class="valor">'+liberadosPend+'</div><div class="rotulo">Liberados p/ operação</div></div>' +
-      '<div class="stat vd clicavel" data-ir="quartos" data-status="CONCLUIDO"><div class="valor">'+concluidos+'</div><div class="rotulo">VD (verde)</div></div>' +
+      '<div class="stat vd"><div class="valor">'+concluidos+'</div><div class="rotulo">VD (verde)</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Andares</div>' +
@@ -4676,6 +4674,7 @@ async function renderResumoGeral(recarregarHistorico){
     '</div>';
 
   try{ porPercentuaisNoResumo(grid); }catch(e){ console.warn('percentuais', e); }
+  grid.querySelectorAll('[data-ir-awexec]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); abrirItens({ fluxo: 'awExec' }); }));
   grid.querySelectorAll('[data-ir-novos-aceitos]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); abrirItens({ fluxo: 'novosAceitos' }); }));
   grid.querySelectorAll('.stat.clicavel').forEach((el) => {
     el.addEventListener('click', () => {
