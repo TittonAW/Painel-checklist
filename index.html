@@ -487,7 +487,12 @@ body.aba-quartos main{ max-width:1900px; }
 #card-quartos{ overflow:visible; }
 #card-quartos.rolagem{ overflow-x:auto; }
 #card-quartos th, #card-quartos td{ padding-left:8px; padding-right:8px; }
-#card-quartos:not(.rolagem) thead th{ position:sticky; top:calc(var(--altura-cabecalho, 0px) + var(--topo-fixo, 0px)); z-index:6; background:var(--surface); box-shadow:inset 0 -1px 0 var(--line); }
+#card-quartos:not(.rolagem) thead th{ position:sticky; top:calc(var(--altura-cabecalho, 0px) + var(--topo-fixo, 0px)); z-index:6; background:var(--surface); border-bottom:0; box-shadow:inset 0 -1px 0 var(--line); }
+/* cantos arredondados mesmo sem o recorte do cartão */
+#card-quartos thead th:first-child{ border-top-left-radius:var(--r-lg); }
+#card-quartos thead th:last-child{ border-top-right-radius:var(--r-lg); }
+#card-quartos tbody tr:last-child td:first-child{ border-bottom-left-radius:var(--r-lg); }
+#card-quartos tbody tr:last-child td:last-child{ border-bottom-right-radius:var(--r-lg); }
 @media (max-width:640px){ #card-quartos{ overflow-x:auto; } #card-quartos thead th{ position:static !important; } }
 .itens-fixos{ position:sticky; top:var(--topo-fixo, 0px); z-index:80; background:var(--paper); margin:0 -8px; padding:10px 8px 2px; box-shadow:0 0 0 100vmax var(--paper); clip-path:inset(0 -100vmax); } /* fundo estende até as bordas da tela */
 .itens-fixos.preso{ border-bottom:1px solid var(--line); }
@@ -1196,7 +1201,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.203';
+const VERSAO_APP = '2026-10-03.204';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
