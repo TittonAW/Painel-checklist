@@ -1206,7 +1206,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.211';
+const VERSAO_APP = '2026-10-03.212';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3034,6 +3034,7 @@ async function alternarAcompanhamento(itemId, campo, modo){
       novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
       novo.awExecPor = null; novo.iacOkPor = null;
       novo.checarQuartoEm = null; novo.checarQuartoPor = null; // reaberto: sai da lista de conferir
+      try{ const itNA = itensRevisaoAtual.find((x) => x.id === itemId); if (itNA && iacNaoAceitou(itNA) && !foiEngano){ novo.divergencia = 'nossa'; novo.divergenciaPor = usuarioAtual; novo.divergenciaEm = new Date().toISOString(); } }catch(e){}
       if (foiEngano){
         for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i); break; } }
         msg = 'Marcação desfeita';
@@ -4385,12 +4386,22 @@ function porPercentuaisNoResumo(grid){
       const v = s.querySelector('.valor'), r = ((s.querySelector('.rotulo') || {}).textContent || '');
       if (!v || v.querySelector('.pct-lado') || /Itens totais/i.test(r) || /\//.test(v.textContent)) return;
       const n = num(v); if (n == null) return;
-      const b = (/Validação da IAC/i.test(titulo) && !/vistoriados/i.test(r) && vistoriados) ? vistoriados : base;
+      let b = (/Validação da IAC/i.test(titulo) && !/vistoriados/i.test(r) && vistoriados) ? vistoriados : base;
+    if (/Não validados pela IAC/i.test(titulo)){ const a = analiseNaoValidados(); b = a.total; }
       if (!b) return;
       v.dataset.v = String(n);
       v.insertAdjacentHTML('beforeend', '<span class="pct-lado">' + Math.round(n / b * 100) + '%</span>');
     });
   });
+}
+function analiseNaoValidados(){
+  const naoAc = itensRevisaoAtual.filter(iacNaoAceitou);
+  const confirma = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'iac').length;
+  const conferir = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia !== 'iac' && checarNoQuarto(x)).length;
+  const falta = naoAc.length - confirma - conferir;
+  // a AW concordou com a IAC e voltou pra aberto (ainda na planilha)
+  const voltou = itensRevisaoAtual.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'nossa' && contaNoTotal(x) && !iacNaoAceitou(x)).length;
+  return { naoAc: naoAc.length, confirma, conferir, falta, voltou, total: naoAc.length + voltou };
 }
 async function renderResumoGeral(recarregarHistorico){
   try{ renderResumoDivergenciaIac(); }catch(e){}
@@ -4479,9 +4490,9 @@ async function renderResumoGeral(recarregarHistorico){
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
     '<div class="grupo-label so-admin" style="margin-top:22px;">Validação da IAC</div>' +
     '<div class="resumo-grid so-admin">' +
-      '<div class="stat"><div class="valor">'+(vdHistorico + itensConta.filter(iacNaoAceitou).length)+'</div><div class="rotulo">Itens vistoriados pela IAC</div><div class="pct-sub">aceitos + não aceitos</div></div>' +
+      '<div class="stat"><div class="valor">'+(vdHistorico + analiseNaoValidados().total)+'</div><div class="rotulo">Itens vistoriados pela IAC</div><div class="pct-sub">validados + não validados</div></div>' +
 
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+itensRevisaoAtual.filter(iacNaoAceitou).length+'</div><div class="rotulo">IAC não aceitou</div><div class="pct-sub">'+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'junto').length+' validados junto · '+itensRevisaoAtual.filter((x) => tipoNaoAceitou(x) === 'sozinha').length+' IAC sozinha</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+analiseNaoValidados().total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
       (() => {
         const validados = sairamDaPlanilha().map((h) => String(h.id || h._id)).concat(itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').map((it) => it.id));
         const junto = validados.filter((id) => acompanhamento[id] && acompanhamento[id].iacOkEm).length;
@@ -4489,6 +4500,13 @@ async function renderResumoGeral(recarregarHistorico){
       })() +
     '</div>' +
 
+    (() => { const a = analiseNaoValidados(); return '<div class="grupo-label so-admin" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
+    '<div class="resumo-grid so-admin">' +
+      '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
+      '<div class="stat pronto clicavel" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
+      '<div class="stat"><div class="valor" style="color:var(--reinc);">'+a.voltou+'</div><div class="rotulo">AW concordou: voltou pra aberto</div><div class="pct-sub">conta como reincidência</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naoBaixadoIac"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
+    '</div>'; })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span class="so-admin" style="color:var(--vm); font-weight:600;">+'+novosVm+' novos<br></span>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
