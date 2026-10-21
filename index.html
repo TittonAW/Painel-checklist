@@ -1222,7 +1222,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.232';
+const VERSAO_APP = '2026-10-03.236';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4541,7 +4541,7 @@ function analiseNaoValidados(){
   const falta = naoAc.length - confirma - conferir;
   // a AW concordou com a IAC e voltou pra aberto (ainda na planilha)
   const voltou = itensRevisaoAtual.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'nossa' && contaNoTotal(x) && !iacNaoAceitou(x)).length;
-  return { naoAc: naoAc.length, confirma, conferir, falta, voltou, total: naoAc.length + voltou };
+  return { naoAc: naoAc.length, confirma, conferir, falta, voltou, total: naoAc.length };
 }
 function linhasSub(linhas){
   const ok = linhas.filter((l) => l && l[1]);
@@ -4634,18 +4634,20 @@ async function renderResumoGeral(recarregarHistorico){
           linhasSub([['+ Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
       (() => { const naPlan = itensConta.filter(baixaDaAW).length;
         return '<div class="stat aw"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
-          linhasSub([['Na planilha', naPlan, 'data-ir-awexec="1" style="cursor:pointer; text-decoration:underline dotted;"'], ['Já tirados pela IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
+          linhasSub([['Validados IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length;
         return (nCop + nRev) ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
           linhasSub([['Baixas copiadas', nCop], ['P/ revalidar', nRev]]) + '</div>' : ''; })() +
-      '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length+'</div><div class="rotulo">Com reincidência</div><div class="pct-sub">voltaram p/ aberto</div></div>' +
+      (() => { const lr = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias), cR = contarPorOrigem(lr);
+        return '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+lr.length+'</div><div class="rotulo">Com reincidência</div>' +
+          linhasSub([['IAC', cR.IAC], ['Sofitel', cR.SOFITEL], ['Outras origens', cR.outras], ['AW (incluídos no app)', cR.AW]]) + '</div>'; })() +
     '</div>' +
 
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
     '<div class="grupo-label so-admin" style="margin-top:22px;">Validação da IAC</div>' +
     '<div class="resumo-grid so-admin">' +
-      '<div class="stat"><div class="valor">'+(vdHistorico + analiseNaoValidados().total)+'</div><div class="rotulo">Itens vistoriados pela IAC</div><div class="pct-sub">validados + não validados</div></div>' +
+      (() => { const a = analiseNaoValidados(); return '<div class="stat"><div class="valor">'+(vdHistorico + a.total + a.voltou)+'</div><div class="rotulo">Itens vistoriados pela IAC</div>' + linhasSub([['Validados', vdHistorico], ['Não validados', a.total], ['Reincidência', a.voltou]]) + '</div>'; })() +
 
       '<div class="stat am"><div class="valor">'+analiseNaoValidados().total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
       (() => {
@@ -4659,7 +4661,6 @@ async function renderResumoGeral(recarregarHistorico){
     '<div class="resumo-grid so-admin">' +
       '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
       '<div class="stat pronto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
-      '<div class="stat"><div class="valor" style="color:var(--reinc);">'+a.voltou+'</div><div class="rotulo">Reincidência: AW concordou com a IAC</div><div class="pct-sub">era executado e voltou pra aberto</div></div>' +
       '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
     '</div>'; })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
@@ -5633,8 +5634,22 @@ function renderEvolucaoPendencias(){
   // desenha na largura real do cartão: no celular o texto fica legível em vez de encolher
   const W = Math.max(320, Math.round(cont.clientWidth || 960));
   const pequeno = W < 600;
-  const H = pequeno ? 286 : 346;
-  const padL = pequeno ? 38 : 44, padR = pequeno ? 22 : 26, padT = 16, padB = 80;
+  // itens que ENTRARAM em cada dia (pela data da revisão importada): novos da IAC e itens da Sofitel
+  const entradasDia = {};
+  try{
+    itensRevisaoAtual.forEach((x) => {
+      const o = origemDoItem(x), nv = infoItemNovo(x);
+      const rv = o === 'SOFITEL' ? revisaoDeEntrada(x) : (nv && nv.rev ? String(nv.rev) : null);
+      if (!rv) return;
+      const meta = revisoesMeta.find((r) => String(r.numero) === String(rv)); const quando = meta && (meta.dataRegistro || meta.atualizadoEm); if (!quando) return;
+      const dia = chaveDiaLocal(new Date(quando));
+      const e = entradasDia[dia] || (entradasDia[dia] = { iac: 0, sof: 0 });
+      if (o === 'SOFITEL') e.sof++; else e.iac++;
+    });
+  }catch(e){}
+  const temSof = Object.values(entradasDia).some((e) => e.sof);
+  const H = (pequeno ? 286 : 346) + 16 + (temSof ? 16 : 0);
+  const padL = pequeno ? 38 : 44, padR = pequeno ? 22 : 26, padT = 16, padB = 80 + 16 + (temSof ? 16 : 0);
   const yBase = H - padB;
   const diasEixo = n + diasProj;
   const ox = pequeno ? 20 : 26; // folga entre o eixo e o 1º dia, pra caber "AW"/"IAC" sem encostar no número
@@ -5681,6 +5696,8 @@ function renderEvolucaoPendencias(){
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#7C5CC9">AW</text>';
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#39976A">IAC</text>';
   svg += '<text x="'+(padL-6)+'" y="'+(yBase+66)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#D1443F">Reinc.</text>';
+  svg += '<text x="'+(padL-6)+'" y="'+(yBase+82)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:var(--novo)">Novos</text>';
+  if (temSof) svg += '<text x="'+(padL-6)+'" y="'+(yBase+98)+'" font-size="'+(fs-0.5)+'" text-anchor="end" style="fill:#6B3FA0">Sofitel</text>';
   todos.forEach((p,i) => {
     const passado = i < n;
     if ((i - (n-1)) % passoRot !== 0) return; // conta a partir de hoje, pra hoje nunca sumir
@@ -5692,6 +5709,11 @@ function renderEvolucaoPendencias(){
     svg += '<text x="'+x+'" y="'+(yBase+34)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.awDia?corAw:'#C4C8CF')+'">'+(p.awDia?pre+pdfNum(p.awDia):'—')+'</text>';
     svg += '<text x="'+x+'" y="'+(yBase+50)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.iacDia?corIac:'#C4C8CF')+'">'+(p.iacDia?pre+pdfNum(p.iacDia):'—')+'</text>';
     if (passado) svg += '<text x="'+x+'" y="'+(yBase+66)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(p.reincDia?'#D1443F':'#C4C8CF')+'">'+(p.reincDia?pdfNum(p.reincDia):'—')+'</text>';
+    if (passado){ // soma também os dias que não aparecem no eixo (quando o eixo pula dias), pra nenhuma entrada sumir
+      const e = { iac: 0, sof: 0 };
+      for (let k = Math.max(0, i - passoRot + 1); k <= i; k++){ const d = todos[k] && entradasDia[todos[k].data]; if (d){ e.iac += d.iac; e.sof += d.sof; } }
+      svg += '<text x="'+x+'" y="'+(yBase+82)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(e.iac?'var(--novo)':'#C4C8CF')+'">'+(e.iac?'+'+pdfNum(e.iac):'—')+'</text>';
+      if (temSof) svg += '<text x="'+x+'" y="'+(yBase+98)+'" font-size="'+(fs-0.5)+'" text-anchor="middle" style="fill:'+(e.sof?'#6B3FA0':'#C4C8CF')+'">'+(e.sof?'+'+pdfNum(e.sof):'—')+'</text>'; }
   });
 
   const ordemDesenho = ['total','aberto','aw','iac'];
@@ -5722,24 +5744,6 @@ function renderEvolucaoPendencias(){
     svg += '<circle cx="'+ph[0].toFixed(1)+'" cy="'+ph[1].toFixed(1)+'" r="3.6" style="fill:'+s.cor+'; stroke:#fff; stroke-width:1.5;"/>';
   });
   // cursor
-  // MARCAS DE ENTRADA: em que dia entraram itens novos (e de qual origem) — uma linha por revisão
-  try{
-    const porRev = new Map();
-    itensRevisaoAtual.forEach((x) => {
-      const nv = infoItemNovo(x), o = origemDoItem(x), rv = nv && nv.rev ? String(nv.rev) : (o === 'SOFITEL' ? revisaoDeEntrada(x) : null);
-      if (!rv) return;
-      if (!porRev.has(rv)) porRev.set(rv, { novos: 0, sof: 0 });
-      const g = porRev.get(rv); if (nv) g.novos++; if (o === 'SOFITEL') g.sof++;
-    });
-    porRev.forEach((g, rv) => {
-      const meta = revisoesMeta.find((r) => String(r.numero) === rv); if (!meta) return;
-      const quando = meta.dataRegistro || meta.atualizadoEm; if (!quando) return;
-      const idx = pontos.findIndex((pt) => pt.data === chaveDiaLocal(new Date(quando))); if (idx < 0) return;
-      const x = xAt(idx);
-      svg += '<g class="so-admin"><line x1="'+x+'" x2="'+x+'" y1="'+padT+'" y2="'+yBase+'" style="stroke:var(--novo); stroke-width:1; stroke-dasharray:3 3; opacity:.8;"/>' +
-        '<text x="'+(x+4)+'" y="'+(padT+10)+'" style="font-size:'+(fs-1)+'px; fill:var(--novo);">R'+esc(rv)+(g.novos ? ' · +'+g.novos+' novos' : '')+(g.sof ? ' · '+g.sof+' Sofitel' : '')+'</text></g>';
-    });
-  }catch(e){}
   svg += '<g id="evo-cursor" style="display:none;"><line id="evo-cursor-linha" y1="'+padT+'" y2="'+yBase+'" style="stroke:var(--text); stroke-width:1.2;"/>';
   SERIES_EVOLUCAO.forEach((s) => { svg += '<circle id="evo-cursor-'+s.chave+'" r="4.5" style="fill:'+s.cor+'; stroke:#fff; stroke-width:2;"/>'; });
   svg += '</g>';
@@ -6620,6 +6624,17 @@ function textoFiltroMulti(){
   if (filtroMulti.fluxos.length){ const nomes = {}; document.querySelectorAll('#filtro-item-progresso option').forEach((o) => { nomes[o.value] = o.textContent; }); partes.push(filtroMulti.fluxos.map((f) => nomes[f] || f).join(' ou ')); }
   return partes.join(' · ');
 }
+function grupoDecisao(it){
+  if (decisaoNaoValidado(it) === 'naFalta' || conferirNoQuarto(it)) return 0;  // falta decidir
+  if (checarNoQuarto(it)) return 1;                                              // já mandado conferir no quarto
+  if (iacNaoAceitou(it)) return 2;                                               // já decidido (ex.: cobrar IAC)
+  return 3;
+}
+function listaComDecisoes(){
+  const f = (document.getElementById('filtro-item-progresso') || {}).value || '';
+  const fl = ['naoBaixadoIac', 'naFalta', 'naCobrar', 'conferirQuarto'];
+  return fl.indexOf(f) !== -1 || filtroMulti.fluxos.some((x) => fl.indexOf(x) !== -1);
+}
 function obterItensFiltrados(){
   const busca = (document.getElementById('busca-item').value || '').toLowerCase().trim();
   const filtroAndar = document.getElementById('filtro-item-andar').value;
@@ -6701,6 +6716,7 @@ function obterItensFiltrados(){
     );
   }
   if (filtroProgressoSelect !== 'conferirQuarto') itens.sort((a,b) => a.andar - b.andar || (a.status==='VM'?0:1) - (b.status==='VM'?0:1)); // "conferir": ordem da liberação
+  if (listaComDecisoes()){ const pos = new Map(itens.map((x, i) => [x.id, i])); itens.sort((a, b) => grupoDecisao(a) - grupoDecisao(b) || pos.get(a.id) - pos.get(b.id)); }
   return itens;
 }
 
@@ -6733,7 +6749,14 @@ function renderItens(){
   // que o editor vai oferecer, já que disciplina é dado do cliente, não posso criar uma nova
   const discsConhecidas = Array.from(new Set(itensRevisaoAtual.map((it) => it.disciplina))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
+  const comGrupos = listaComDecisoes(); let grupoAnt = null;
+  const nomesGrupo = ['Falta decidir', 'Já mandados conferir no quarto', 'Já decididos (cobrar IAC)', 'Voltaram para aberto'];
+  const contGrupo = comGrupos ? todosFiltrados.reduce((m, x) => { const g = grupoDecisao(x); m[g] = (m[g] || 0) + 1; return m; }, {}) : {};
   itens.forEach((it) => {
+    if (comGrupos){ const g = grupoDecisao(it); if (g !== grupoAnt){ grupoAnt = g;
+      const sep = document.createElement('tr'); sep.className = 'linha-grupo';
+      sep.innerHTML = '<td colspan="20" style="background:var(--paper-2); font-size:12.5px; font-weight:600; color:'+(g === 0 ? 'var(--novo)' : 'var(--muted)')+'; padding:8px 14px;">'+nomesGrupo[g]+' · '+(contGrupo[g] || 0)+'</td>';
+      tbody.appendChild(sep); } }
     const label = it.tipo === 'APTO' ? String(it.quarto) : (it.tipo.charAt(0)+it.tipo.slice(1).toLowerCase());
     const ac = acompanhamento[it.id] || {};
     // "Validado IAC" pinta o item de verde na hora, por cima do status real da planilha —
