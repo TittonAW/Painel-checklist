@@ -1189,7 +1189,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.196';
+const VERSAO_APP = '2026-10-03.197';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3012,6 +3012,7 @@ async function alternarAcompanhamento(itemId, campo, modo){
       }
       novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
       novo.awExecPor = null; novo.iacOkPor = null;
+      novo.checarQuartoEm = null; novo.checarQuartoPor = null; // reaberto: sai da lista de conferir
       if (foiEngano){
         for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i); break; } }
         msg = 'Marcação desfeita';
@@ -3062,6 +3063,7 @@ async function triarDivergenciaIac(itemId, tipo){
   let msg = '';
   if (tipo === 'iac'){
     novo.divergencia = 'iac'; novo.divergenciaPor = por; novo.divergenciaEm = agora;
+    novo.checarQuartoEm = null; novo.checarQuartoPor = null;
     msg = 'Marcado: a IAC precisa corrigir a planilha';
   } else if (tipo === 'nossa'){
     if (!window.confirm('Aceitar como aberto o item '+itemId+'?\n\nO item volta para EM ABERTO e conta como REINCIDÊNCIA. Sai do PDF de cobrança da IAC.')) return;
@@ -4607,6 +4609,22 @@ function conferirNoQuarto(it){
   const ac = acompanhamento[it.id], base = acompanhamento[it.idPlanilha];
   if (!ac || !ac.awExecEm || ac.conferidoQuartoEm || !base || !base.awExecEm) return false;
   return ac.awExecEm === base.awExecEm && String(ac.awExecEm) < DATA_SEPARACAO_QUARTOS;
+}
+// "IAC não aceitou" que o administrador mandou a equipe conferir no quarto (baixa real: continua em AW)
+function checarNoQuarto(it){ const ac = acompanhamento[it.id]; return !!(ac && ac.checarQuartoEm && ac.awExecEm && ac.divergencia !== 'iac'); }
+function naListaConferir(it){ return conferirNoQuarto(it) || checarNoQuarto(it); }
+async function marcarChecarQuarto(ids, por){
+  if (!exigirAdmin()) return 0;
+  if (!(await garantirUsuario())) return 0;
+  let n = 0; const agora = new Date().toISOString();
+  await comLimiteDeConcorrencia(ids, 4, async (id) => {
+    const atual = acompanhamento[id] || {};
+    const novo = Object.assign({}, atual, por ? { checarQuartoEm: agora, checarQuartoPor: usuarioAtual } : { checarQuartoEm: null, checarQuartoPor: null });
+    novo.historico = historicoDoItem(atual).concat([{ t: por ? 'checarQuarto' : 'checarQuartoSaiu', em: agora, por: usuarioAtual }]);
+    const r = await salvarAcompanhamentoComRetry(id, novo);
+    if (r.ok){ acompanhamento[id] = novo; n++; }
+  });
+  return n;
 }
 function baixaCopiada(idComposto, idBase){
   const ac = acompanhamento[idComposto];
@@ -6257,7 +6275,7 @@ function obterItensFiltrados(){
   }
   if (filtroProgressoSelect === 'conferirQuarto'){
     const dataLib = (it) => { const l = areasLiberadasRevisaoAtual[chaveAreaGlobal(it.andar, it.tipo, it.quarto)]; return l && l.em ? String(l.em) : '9999'; };
-    itens = itens.filter(conferirNoQuarto).sort((a, b) => dataLib(a).localeCompare(dataLib(b)) || a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
+    itens = itens.filter(naListaConferir).sort((a, b) => dataLib(a).localeCompare(dataLib(b)) || a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
   } else
   if (filtroProgressoSelect){
     itens = itens.filter((it) => {
@@ -6268,7 +6286,7 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'liberado') return classificarItemComContexto(it) === 'CONCLUIDO';
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
       if (filtroProgressoSelect === 'novosAvaliar') return novoForaDoAberto(it);
-      if (filtroProgressoSelect === 'conferirQuarto') return conferirNoQuarto(it);
+      if (filtroProgressoSelect === 'conferirQuarto') return naListaConferir(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
       if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
@@ -6373,8 +6391,7 @@ function renderItens(){
       dataHtml +
       (podeTirarDaObra() && conferirNoQuarto(it)
         ? '<div class="so-admin" style="border:1px solid var(--pronto); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--pronto-soft); margin-bottom:5px;">' +
-            '<span style="font-size:10.5px; color:var(--pronto); text-align:center; line-height:1.3;" title="A baixa foi dada no número compartilhado por vários quartos (antes de cada quarto ter baixa própria) e copiada pra este quarto">Conferir no quarto</span>' +
-            '<button class="chip-acao" data-conferir="ok" data-id="'+esc(it.id)+'" style="font-size:11px;">Confirmado no quarto</button>' +
+            '<span style="font-size:10.5px; color:var(--pronto); text-align:center; line-height:1.3;" title="A baixa foi dada no número compartilhado por vários quartos (antes de cada quarto ter baixa própria) e copiada pra este quarto. Feito? Toque em Executado AW.">Conferir no quarto</span>' +
             '<button class="chip-acao" data-conferir="reabrir" data-id="'+esc(it.id)+'" style="font-size:11px;">Não foi feito: reabrir</button>' +
           '</div>'
         : '') +
@@ -6393,7 +6410,9 @@ function renderItens(){
             (ac.divergencia === 'iac'
               ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
               : '<button class="chip-acao" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
-            '<button class="chip-acao ambar" data-triar="nossa" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Volta para aberto e conta como reincidência">Aceitar como aberto</button>' +
+            (ac.checarQuartoEm
+              ? '<span style="font-size:11px; color:var(--pronto);">✓ Na lista Conferir no quarto</span><button class="chip-acao" data-checar="tirar" data-id="'+esc(it.id)+'" style="font-size:10.5px;">tirar da lista</button>'
+              : '<button class="chip-acao" data-checar="por" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Manda pra lista da equipe ir olhar no quarto. Não foi feito? Desmarque o Executado AW.">Conferir no quarto</button>') +
           '</div>'
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
           : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha so-admin" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
@@ -6424,6 +6443,12 @@ function renderItens(){
 
   tbody.querySelectorAll('[data-triar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); triarDivergenciaIac(b.dataset.id, b.dataset.triar); }));
   tbody.querySelectorAll('[data-reverter-reinc]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); reverterReincidencia(b.dataset.reverterReinc); }));
+  tbody.querySelectorAll('[data-checar]').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const por = b.dataset.checar === 'por';
+    if (await marcarChecarQuarto([b.dataset.id], por)){ avisoFlutuante(por ? 'Na lista "Conferir no quarto"' : 'Saiu da lista "Conferir no quarto"', 'ok'); atualizarTelasAposAcompanhamento(); }
+    else b.disabled = false;
+  }));
   tbody.querySelectorAll('[data-conferir]').forEach((b) => b.addEventListener('click', async () => {
     b.disabled = true;
     const ok = await decidirConferencia([b.dataset.id], b.dataset.conferir === 'ok');
@@ -6538,7 +6563,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -7490,7 +7515,7 @@ function abrirEdicaoAgrupamento(){
           '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens novos)</span></label>' +
           '<select id="grupo-novos"><option value="">— manter como está —</option><option value="aceitar">Aceitar como novo</option><option value="corrigir">IAC precisa corrigir</option><option value="voltar">Voltar para novos a avaliar</option></select></div>' +
           '<div class="modal-campo campo-largo"><label for="grupo-naoaceitou">IAC não aceitou <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens com essa etiqueta)</span></label>' +
-          '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC precisa corrigir (continua executado, vai no PDF de cobrança)</option><option value="nossa">Aceitar como aberto (volta pra aberto e conta reincidência)</option></select></div>'
+          '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC precisa corrigir (continua executado, vai no PDF de cobrança)</option><option value="checar">Conferir no quarto (manda pra lista da equipe)</option><option value="nossa">Aceitar como aberto (volta pra aberto e conta reincidência)</option></select></div>'
         : '') +
       (podeTirarDaObra()
         ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
@@ -7554,6 +7579,14 @@ function abrirEdicaoAgrupamento(){
       if (!window.confirm(({ aceitar:'Aceitar como novo ', corrigir:'Marcar "IAC precisa corrigir" em ', voltar:'Voltar para "novos a avaliar" ' })[decisaoNovos] + idsNovos.length + ' de ' + ids.length + ' item(ns) selecionado(s)?')) return;
     }
     const idsNA = triagemNA ? ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && iacNaoAceitou(x); }) : [];
+    if (triagemNA === 'checar'){
+      if (!idsNA.length){ avisoFlutuante('Nenhum dos selecionados está como "IAC não aceitou"', 'erro'); return; }
+      if (!window.confirm('Mandar ' + idsNA.length + ' item(ns) pra lista "Conferir no quarto"?')) return;
+      const n = await marcarChecarQuarto(idsNA, true);
+      fecharEdicaoAgrupamento(); itensSelecionados = new Set(); atualizarTelasAposAcompanhamento(); renderItens(); atualizarBarraSelecao();
+      avisoFlutuante(n + ' item(ns) na lista "Conferir no quarto"', 'ok');
+      return;
+    }
     if (triagemNA){
       if (!idsNA.length){ avisoFlutuante('Nenhum dos selecionados está como "IAC não aceitou"', 'erro'); return; }
       if (!window.confirm((triagemNA === 'iac' ? 'Marcar "IAC precisa corrigir"' : 'Aceitar como aberto (reincidência)') + ' em ' + idsNA.length + ' de ' + ids.length + ' item(ns) selecionado(s)?' +
