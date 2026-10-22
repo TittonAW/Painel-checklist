@@ -939,7 +939,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <h2 style="margin-bottom:4px;">Cronograma de entrega</h2>
       <p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Datas por andar. O prazo da lista da IAC é calculado pra você ter <b>5 dias úteis</b> (mínimo 4) de execução até a revistoria — domingos e feriados contam com rendimento menor.</p>
       <div style="overflow-x:auto;"><table class="tabela-cronograma"><thead><tr>
-        <th>Andar</th><th>Lista da IAC</th><th>Prazo da lista</th><th>Revistoria IAC</th><th>Entrega final</th><th>Em aberto</th><th>Situação</th>
+        <th>Andar</th><th>Lista da IAC (1ª vistoria)</th><th>Lista completa?</th><th>Revistoria IAC</th><th>Entrega final</th><th>Em aberto</th><th>Situação</th>
       </tr></thead><tbody id="tbody-cronograma"></tbody></table></div>
     </div>
     <div class="card card-pad" style="margin-bottom:16px;">
@@ -1246,7 +1246,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.248';
+const VERSAO_APP = '2026-10-03.250';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2149,7 +2149,42 @@ async function fotoJaExiste(nomeBase){
 }
 const fotosDesteEnvio = new Map(); // a mesma foto repetida dentro do mesmo envio sobe uma vez só
 
+/* FOTO DO RELATÓRIO ACCOR: as fotos que vêm da Sofitel trazem, embaixo, uma faixa branca com o texto
+   "Foto do relatório Accor de dd/mm/aaaa". Detecta essa faixa (sem IA, só pelos pixels): a última faixa
+   da imagem é quase toda branca, com texto escuro no meio, e logo acima é foto (não é branco). */
+async function temFaixaAccor(blobOuUrl){
+  try{
+    let bmp;
+    if (typeof blobOuUrl === 'string'){ const r = await fetch(blobOuUrl, { mode:'cors' }); if (!r.ok) return false; bmp = await createImageBitmap(await r.blob()); }
+    else bmp = await createImageBitmap(blobOuUrl);
+    const W = 240, H = Math.max(40, Math.round(bmp.height * W / bmp.width));
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(bmp, 0, 0, W, H);
+    const faixa = (y0, y1) => { const d = cx.getImageData(0, y0, W, Math.max(1, y1 - y0)).data; let br = 0, esc = 0, n = d.length / 4;
+      for (let i = 0; i < d.length; i += 4){ const l = (d[i] + d[i+1] + d[i+2]) / 3; if (l > 225) br++; else if (l < 90) esc++; } return { br: br / n, esc: esc / n }; };
+    // procura a faixa nos últimos 4–14% da altura
+    for (const fr of [0.07, 0.09, 0.11, 0.13]){
+      const yb = Math.round(H * (1 - fr)), baixo = faixa(yb, H), cima = faixa(Math.round(H * (1 - fr - 0.08)), yb - 1);
+      if (baixo.br >= 0.62 && baixo.esc >= 0.03 && baixo.esc <= 0.35 && cima.br < 0.45){
+        // faixa de legenda de verdade: margens de cima e de baixo da faixa são brancas lisas (o texto fica no meio)
+        const hB = H - yb, mTop = faixa(yb + 1, yb + Math.max(2, Math.round(hB * 0.18))), mBase = faixa(H - Math.max(2, Math.round(hB * 0.15)), H);
+        if (mTop.br >= 0.85 && mBase.br >= 0.85) return true;
+      }
+    }
+    return false;
+  }catch(e){ return false; }
+}
+function descricaoDaAccor(desc){ return /\baccor\b|relat[óo]rio\s+accor|apontad[oa]s?\s+pela\s+accor/i.test(String(desc || '')); }
 async function subirFotosDoLote(itens, avisos, aoProgredir){
+  // origem Sofitel reconhecida sozinha: foto com a faixa "relatório Accor" ou descrição que cita a Accor
+  try{
+    await comLimiteDeConcorrencia(itens.map((it, i) => i), 4, async (i) => {
+      const it = itens[i]; if (it.origemPlanilha === 'SOFITEL') return;
+      let sof = descricaoDaAccor(it.desc);
+      if (!sof) for (const b of (it.fotosBlob || [])){ if (await temFaixaAccor(b)){ sof = true; break; } }
+      if (sof){ itens[i] = Object.assign({}, it, { origemPlanilha: 'SOFITEL', origemDetectada: true }); avisos.origemSofitelDetectada = (avisos.origemSofitelDetectada || 0) + 1; }
+    });
+  }catch(e){}
   // achata em (item, foto) pra poder subir todas com o mesmo limite de concorrência,
   // mesmo quando um item tem mais de uma foto
   const tarefas = [];
@@ -2688,6 +2723,21 @@ async function categorizarAntigosComIA(){
   const andamento = (feitos, total, ok) => { if (b) b.textContent = 'Categorizando ' + feitos + '/' + total + ' · ' + ok + ' categorizados · tocar pra parar'; };
   try{ await categorizarNovosAutomaticamente(alvos, andamento); }
   finally{ if (b) b.textContent = txt; try{ renderDisciplinas(); }catch(e){} }
+}
+async function detectarSofitelNosExistentes(){
+  if (!ehAdminAtual() || !usuarioAtual || modoVisualizador()) return;
+  const alvos = itensRevisaoAtual.filter((it) => { const ac = acompanhamento[it.id] || {}; return it.origem !== 'AW' && !ac.origemOverride && !ac.accorConferidoEm && origemDoItem(it) === 'IAC'; });
+  if (!alvos.length) return;
+  let n = 0; const agora = new Date().toISOString();
+  await comLimiteDeConcorrencia(alvos, 4, async (it) => {
+    let sof = descricaoDaAccor(it.desc);
+    if (!sof && it.fotoAssetIds && it.fotoAssetIds[0]) sof = await temFaixaAccor(urlDaFoto(it.fotoAssetIds[0]));
+    const atual = acompanhamento[it.id] || {};
+    const novo = Object.assign({}, atual, { accorConferidoEm: agora });
+    if (sof){ novo.origemOverride = 'SOFITEL'; novo.origemNome = 'Sofitel'; novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (foto/descrição do relatório Accor)', para: 'planilha da Sofitel' }]); }
+    const r = await salvarAcompanhamentoComRetry(it.id, novo); if (r.ok){ acompanhamento[it.id] = novo; if (sof) n++; }
+  });
+  if (n){ popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento(); avisoFlutuante(n + ' item(ns) reconhecido(s) como origem Sofitel (relatório Accor)', 'ok'); }
 }
 function naoTocado(it){
   if (it.origem === 'AW') return false;
@@ -7768,6 +7818,12 @@ function inicioParaTer(dias, fimChave){ // último dia de início que ainda dá 
   for (let i = 0; i < 40; i++){ s += fatorDoDia(d); if (s >= dias - 1e-9) return chaveDia(d); d.setDate(d.getDate()-1); }
   return chaveDia(d);
 }
+function fimParaTer(dias, iniChave){ // primeiro dia em que, começando em ini, já se somam "dias" de rendimento
+  let s = 0, d = deChave(iniChave);
+  for (let i = 0; i < 60; i++){ s += fatorDoDia(d); if (s >= dias - 1e-9) return chaveDia(d); d.setDate(d.getDate()+1); }
+  return chaveDia(d);
+}
+function diaDepois(ch){ const d = deChave(ch); d.setDate(d.getDate()+1); return chaveDia(d); }
 function diaAntes(ch){ const d = deChave(ch); d.setDate(d.getDate()-1); return chaveDia(d); }
 function dataCurta(ch){ if (!ch) return '—'; const [y, m, d] = ch.split('-'); return d + '/' + m; }
 async function carregarCronograma(){
@@ -7793,7 +7849,8 @@ function referenciaItensPorQuarto(){
 }
 function situacaoDoAndar(andar){
   const c = cronograma.andares[andar] || {}, hoje = chaveDia(new Date());
-  const alvo = c.revistoria || c.entregaFinal; if (!alvo) return null;
+  const alvo0 = c.revistoria || c.entregaFinal; if (!alvo0) return null;
+  let alvo = alvo0;
   const emAberto = itensRevisaoAtual.filter((x) => x.andar === andar && contaNoTotal(x) && estaEmAberto(x)).length;
   const inicioIdeal = inicioParaTer(5, alvo), inicioMin = inicioParaTer(4, alvo);
   const prazoIdeal = diaAntes(inicioIdeal), prazoMin = diaAntes(inicioMin);
@@ -7801,17 +7858,31 @@ function situacaoDoAndar(andar){
   // lista dada como completa: confirmada por alguém, ou o andar já teve vistoria/liberação registrada (execução já começou com a lista)
   const jaEmExecucao = itensRevisaoAtual.some((x) => x.andar === andar && (ambienteVistoriado(x.andar, x.tipo, x.quarto) || areasLiberadasRevisaoAtual[chaveAreaGlobal(x.andar, x.tipo, x.quarto)] || prontosVistoria[chaveAreaGlobal(x.andar, x.tipo, x.quarto)]));
   const listaOk = !!c.listaCompletaEm || jaEmExecucao;
+  // PERCURSO AJUSTADO: se a lista não chegou na data prevista (ou foi confirmada depois dela), a execução só começa
+  // no dia seguinte à lista completa → a revistoria ajustada garante 5 dias de rendimento (mínimo 4)
+  let inicioReal = null;
+  if (c.listaCompletaEm && c.listaPrevista && chaveDia(new Date(c.listaCompletaEm)) > c.listaPrevista) inicioReal = diaDepois(chaveDia(new Date(c.listaCompletaEm)));
+  else if (!listaOk && c.listaPrevista && hoje > c.listaPrevista) inicioReal = diaDepois(hoje);
+  let revAjustada = null, revAjustadaMin = null;
+  if (inicioReal){ const i5 = fimParaTer(5, inicioReal), i4 = fimParaTer(4, inicioReal); if (!c.revistoria || i4 > c.revistoria || i5 > c.revistoria){ revAjustada = i5; revAjustadaMin = i4; } }
   let estado, texto;
-  if (!listaOk){
+  if (revAjustada) alvo = revAjustada;
+  if (revAjustada){
+    estado = revAjustada > (c.entregaFinal || revAjustada) ? 'atraso' : 'alerta';
+    texto = (c.listaCompletaEm ? 'Lista completa só em ' + dataCurta(chaveDia(new Date(c.listaCompletaEm))) : 'A lista não chegou em ' + dataCurta(c.listaPrevista)) +
+      ' → revistoria ajustada ' + dataCurta(revAjustada) + ' (mín. ' + dataCurta(revAjustadaMin) + ')' + (c.revistoria ? ', era ' + dataCurta(c.revistoria) : '') +
+      (c.entregaFinal && revAjustadaMin > c.entregaFinal ? ' — passa da entrega final ' + dataCurta(c.entregaFinal) : '');
+  } else if (!listaOk){
     if (hoje > prazoMin){ estado = 'atraso'; texto = 'Lista atrasada: o prazo mínimo era ' + dataCurta(prazoMin); }
     else if (hoje >= prazoIdeal){ estado = 'alerta'; texto = 'Cobrar a lista: ideal ' + dataCurta(prazoIdeal) + ' · limite ' + dataCurta(prazoMin); }
-    else { estado = 'ok'; texto = 'Lista até ' + dataCurta(prazoIdeal) + ' (limite ' + dataCurta(prazoMin) + ')'; }
+    else if (c.listaPrevista && c.listaPrevista > prazoMin){ estado = 'alerta'; texto = 'A lista prevista (' + dataCurta(c.listaPrevista) + ') passa do limite ' + dataCurta(prazoMin) + ' — não dá 4 dias de execução'; }
+    else { estado = 'ok'; texto = c.listaPrevista ? 'Lista prevista ' + dataCurta(c.listaPrevista) + ' (limite ' + dataCurta(prazoMin) + ')' : 'Lista até ' + dataCurta(prazoIdeal) + ' (limite ' + dataCurta(prazoMin) + ')'; }
   } else {
     const restante = hoje <= alvo ? diasUteisEntre(hoje, alvo) : 0;
     estado = emAberto === 0 ? 'ok' : (restante <= 0 ? 'atraso' : 'execucao');
     texto = emAberto === 0 ? 'Sem pendências em aberto' : (restante <= 0 ? 'Prazo vencido com ' + emAberto + ' em aberto' : Math.round(restante*10)/10 + ' dias de rendimento até ' + dataCurta(alvo));
   }
-  return { andar, c, alvo, emAberto, prazoIdeal, prazoMin, temItens, listaOk, jaEmExecucao, estado, texto };
+  return { andar, c, alvo, emAberto, prazoIdeal, prazoMin, temItens, listaOk, jaEmExecucao, estado, texto, revAjustada, revAjustadaMin };
 }
 function ordemDosAndares(){
   const base = (OBRA || 'quartos') === 'quartos' ? SEQUENCIA_QUARTOS : [];
@@ -7825,11 +7896,13 @@ function renderCronograma(){
     const s = situacaoDoAndar(a) || { c: cronograma.andares[a] || {}, estado:'ok', texto:'sem data', emAberto: '—', prazoIdeal:'', prazoMin:'' };
     const c = s.c || {};
     const inp = (campo) => adm ? '<input type="date" data-crono="'+campo+'" data-andar="'+a+'" value="'+(c[campo] || '')+'">' : dataCurta(c[campo]);
+    const colPrev = inp('listaPrevista') + (!s.listaOk ? '<div style="font-size:11px; color:var(--muted);">ideal até '+dataCurta(s.prazoIdeal)+' · limite '+dataCurta(s.prazoMin)+'</div>' : '');
+    const colRev = inp('revistoria') + (s.revAjustada ? '<div class="crono-alerta" style="font-size:11px;">ajustada: '+dataCurta(s.revAjustada)+' (mín. '+dataCurta(s.revAjustadaMin)+')</div>' : '');
     const lista = c.listaCompletaEm ? '<span class="crono-ok" title="Confirmada por '+esc(c.listaCompletaPor || '')+'">✓ completa</span>' + (adm ? ' <a href="#" data-crono-lista="'+a+'" data-v="0" style="font-size:11px;">desfazer</a>' : '')
       : s.jaEmExecucao ? '<span class="crono-ok" title="O andar já teve vistoria ou liberação registrada">✓ em execução</span>'
       : (adm ? '<button type="button" class="chip-acao" data-crono-lista="'+a+'" data-v="1">marcar completa</button>' : 'pendente');
     const cls = { ok:'crono-ok', alerta:'crono-alerta', atraso:'crono-atraso', execucao:'' }[s.estado] || '';
-    return '<tr><td><b>'+nomeAndar(a)+'</b></td><td>'+lista+'</td><td>'+(s.listaOk ? '—' : dataCurta(s.prazoIdeal) + ' <span style="color:var(--muted); font-size:11px;">(limite '+dataCurta(s.prazoMin)+')</span>')+'</td><td>'+inp('revistoria')+'</td><td>'+inp('entregaFinal')+'</td><td>'+s.emAberto+'</td><td class="'+cls+'">'+esc(s.texto)+'</td></tr>';
+    return '<tr><td><b>'+nomeAndar(a)+'</b></td><td>'+colPrev+'</td><td>'+lista+'</td><td>'+colRev+'</td><td>'+inp('entregaFinal')+'</td><td>'+s.emAberto+'</td><td class="'+cls+'">'+esc(s.texto)+'</td></tr>';
   }).join('');
 }
 // ritmo real: baixas da AW por dia (últimos 14 dias), por fornecedor e por andar
@@ -7872,6 +7945,7 @@ function cartoesDoCronograma(){
   if (!cronograma) return [];
   const out = [];
   ordemDosAndares().forEach((a) => { const s = situacaoDoAndar(a); if (!s) return;
+    if (s.revAjustada){ out.push({ tipo: 'ajuste', s }); return; }
     if (!s.listaOk && (s.estado === 'alerta' || s.estado === 'atraso')) out.push({ tipo: 'lista', s });
     else if (!s.listaOk && s.temItens && itensPorQuartoDoAndar(a) > 0 && diasUteisEntre(chaveDia(new Date()), s.prazoIdeal) <= 5) out.push({ tipo: 'completa', s });
   });
@@ -7884,6 +7958,8 @@ function htmlCronogramaChat(){
   const ref = referenciaItensPorQuarto();
   h += '<div class="rec-titulo">Prazos das listas da IAC</div>' + cs.map((c) => {
     const s = c.s;
+    if (c.tipo === 'ajuste') return '<div class="rec-card pergunta"><b>' + nomeAndarLongo(s.andar) + ':</b> ' + esc(s.texto) + '.' +
+      (!s.listaOk ? '<div class="rec-sub">Cobre a IAC. Quando a lista completa chegar, marque abaixo.</div><div class="rec-botoes"><button type="button" class="chip-acao rec-ok" data-crono-lista="' + s.andar + '" data-v="1">A lista chegou e está completa</button></div>' : '') + '</div>';
     if (c.tipo === 'lista') return '<div class="rec-card ' + (s.estado === 'atraso' ? 'pergunta' : '') + '"><b>' + nomeAndarLongo(s.andar) + ':</b> ' + (s.estado === 'atraso' ? 'a lista da IAC está <b>atrasada</b>' : 'a lista da IAC precisa chegar') + ' — ideal <b>' + dataCurta(s.prazoIdeal) + '</b>, limite <b>' + dataCurta(s.prazoMin) + '</b>, pra ter 5 (mín. 4) dias de execução até ' + (s.c.revistoria ? 'a revistoria' : 'a entrega') + ' em ' + dataCurta(s.alvo) + '. Cobre a IAC.' +
       '<div class="rec-botoes"><button type="button" class="chip-acao" data-crono-lista="' + s.andar + '" data-v="1">A lista já chegou e está completa</button></div></div>';
     const ipq = itensPorQuartoDoAndar(s.andar);
@@ -11553,6 +11629,7 @@ async function iniciar(){
     irParaAba('enviar');
   }
   setTimeout(() => { atualizarRecomendacoes().then(() => atualizarCronogramaEPlano()).catch(() => {}); }, 2000);
+  setTimeout(() => { if (!MODO_CONSOLIDADO) detectarSofitelNosExistentes().catch(() => {}); }, 4500);
   setTimeout(() => { try{ if (!MODO_CONSOLIDADO) categorizarNovosAutomaticamente(null, (feitos, total) => {
     let el = document.getElementById('aviso-categorizando');
     if (!el){ el = document.createElement('div'); el.id = 'aviso-categorizando'; el.style.cssText = 'position:fixed; left:16px; bottom:16px; z-index:90; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:12px; color:var(--muted); box-shadow:var(--shadow-lg);'; document.body.appendChild(el); }
