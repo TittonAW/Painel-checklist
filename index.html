@@ -502,6 +502,20 @@ body.aba-quartos main{ max-width:1900px; }
 .linhas-sub .tom-novo, .linhas-sub .tom-novo b{ color:var(--novo); }
 .pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
 .tag-origem-item.sof{ background:#EFE7F6; color:#6B3FA0; }
+.tabela-cronograma{ width:100%; border-collapse:collapse; font-size:13px; }
+.tabela-cronograma th{ text-align:left; font-weight:500; color:var(--muted); font-size:11.5px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+.tabela-cronograma td{ padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+.tabela-cronograma input[type=date]{ font-size:12.5px; padding:3px 6px; }
+.crono-ok{ color:var(--vd-forte, #2E7D5B); } .crono-alerta{ color:var(--novo); font-weight:500; } .crono-atraso{ color:var(--vm, #D1443F); font-weight:600; }
+.chat-badge{ position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; border-radius:9px; background:var(--novo); color:#fff; font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+#btn-chat{ position:fixed; }
+.rec-titulo{ font-size:12px; color:var(--muted); margin:2px 0 8px; }
+.rec-card{ border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:13px; background:var(--surface); }
+.rec-card.pergunta{ border-color:var(--novo); }
+.rec-sub{ font-size:12px; color:var(--muted); margin-top:4px; }
+.rec-botoes{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.rec-botoes .chip-acao{ font-size:11.5px; }
+.rec-botoes .rec-ok{ border-color:var(--primary, #5A8C80); color:var(--primary, #5A8C80); font-weight:500; }
 .tag-auto{ display:inline-block; font-size:9.5px; padding:0 5px; border-radius:6px; background:#E8EEFB; color:#3B6FD4; vertical-align:1px; }
 .sugestao-cat{ margin-top:6px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:11px; color:var(--azul, #3B6FD4); }
 .sugestao-cat .chip-acao{ font-size:10.5px; padding:1px 7px; }
@@ -921,6 +935,13 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 
   <!-- TENDÊNCIA -->
   <section class="secao" id="secao-tendencia">
+    <div class="card card-pad" id="card-cronograma" style="margin-bottom:16px;">
+      <h2 style="margin-bottom:4px;">Cronograma de entrega</h2>
+      <p class="rodape-nota" style="text-align:left; margin:0 0 10px;">Datas por andar. O prazo da lista da IAC é calculado pra você ter <b>5 dias úteis</b> (mínimo 4) de execução até a revistoria — domingos e feriados contam com rendimento menor.</p>
+      <div style="overflow-x:auto;"><table class="tabela-cronograma"><thead><tr>
+        <th>Andar</th><th>Lista da IAC</th><th>Prazo da lista</th><th>Revistoria IAC</th><th>Entrega final</th><th>Em aberto</th><th>Situação</th>
+      </tr></thead><tbody id="tbody-cronograma"></tbody></table></div>
+    </div>
     <div class="card card-pad" style="margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
         <div>
@@ -1225,7 +1246,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.244';
+const VERSAO_APP = '2026-10-03.248';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2656,18 +2677,36 @@ function sugestaoDoItem(it){
   S.cache.set(it.id, res);
   return res;
 }
-function alvoCategorizacao(it){
-  if (it.origem === 'AW' || !infoItemNovo(it)) return false;
+async function categorizarAntigosComIA(){
+  if (!ehFundador()){ avisoFlutuante('Só o Fundador roda a categorização dos itens antigos', 'erro'); return; }
+  if (categorizandoAgora){ pararCategorizacao = true; avisoFlutuante('Parando depois do lote atual…', 'ok'); return; }
+  const alvos = itensRevisaoAtual.filter(naoTocado);
+  if (!alvos.length){ avisoFlutuante('Não há itens sem categorização manual pra categorizar', 'ok'); return; }
+  if (!window.confirm('Categorizar com IA ' + alvos.length + ' item(ns) que ninguém recategorizou (inclusive já executados)?\n\n' +
+    '• Os que você ou a equipe categorizaram à mão NÃO mudam.\n• Cada item recebe o selo "auto" e fica no histórico.\n• Custo estimado: ~US$ ' + Math.max(1, Math.round(alvos.length / 25 * 0.04)) + ' (uma vez só).\n• Dá pra parar no meio e retomar depois.')) return;
+  const b = document.getElementById('btn-categorizar-antigos'), txt = b ? b.textContent : '';
+  const andamento = (feitos, total, ok) => { if (b) b.textContent = 'Categorizando ' + feitos + '/' + total + ' · ' + ok + ' categorizados · tocar pra parar'; };
+  try{ await categorizarNovosAutomaticamente(alvos, andamento); }
+  finally{ if (b) b.textContent = txt; try{ renderDisciplinas(); }catch(e){} }
+}
+function naoTocado(it){
+  if (it.origem === 'AW') return false;
   const ac = acompanhamento[it.id] || {};
   return !ac.disciplinaOverride && !ac.fornecedorOverride && !ac.catAutoEm && !ac.catAutoTentadoEm;
 }
+function alvoCategorizacao(it){ return naoTocado(it); } // passados e novos: tudo que ninguém categorizou à mão
+let pararCategorizacao = false;
 let categorizandoAgora = false;
-async function categorizarNovosAutomaticamente(){
+async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
   if (categorizandoAgora || !ehAdminAtual() || !usuarioAtual || modoVisualizador()) return;
-  const alvos = itensRevisaoAtual.filter(alvoCategorizacao);
+  const alvos = alvosDados || itensRevisaoAtual.filter(alvoCategorizacao);
   if (!alvos.length) return;
-  categorizandoAgora = true;
-  let porHist = 0, porIA = 0;
+  try{ const tv = await store.getDoc('config', 'categorizacao_em_andamento');
+    if (tv && tv.por && tv.por !== usuarioAtual && (Date.now() - new Date(tv.em).getTime()) < 10*60*1000) return; }catch(e){}
+  const renovarTrava = () => store.setDoc('config', 'categorizacao_em_andamento', { por: usuarioAtual, em: new Date().toISOString() }).catch(() => {});
+  await renovarTrava();
+  categorizandoAgora = true; pararCategorizacao = false;
+  let porHist = 0, porIA = 0, falhouIA = false;
   try{
     const agora = new Date().toISOString();
     const gravar = async (it, disc, forn, fonte, motivo) => {
@@ -2700,6 +2739,9 @@ async function categorizarNovosAutomaticamente(){
         id:{ type:'string' }, disciplina:{ type:'string', description:'uma das disciplinas da lista' }, fornecedor:{ type:'string', description:'um dos fornecedores da lista, ou vazio se não souber' },
         confianca:{ type:'string', enum:['alta','media','baixa'] }, motivo:{ type:'string', description:'até 8 palavras' } }, required:['id','disciplina','confianca'] } } }, required:['itens'] } }];
       for (let i = 0; i < semHist.length; i += 25){
+        if (pararCategorizacao) break;
+        if (aoAndar) aoAndar(Math.min(i, semHist.length), semHist.length, porHist + porIA);
+        if (i % 250 === 0) renovarTrava();
         const lote = semHist.slice(i, i + 25);
         const pedido = 'Tarefa interna de CATEGORIZAÇÃO (não é conversa). Para cada item de pendência de obra abaixo, escolha a disciplina e o fornecedor mais prováveis, ' +
           'usando a descrição, o andar, a disciplina que veio na planilha e os exemplos já categorizados pelo administrador. Use SOMENTE valores das listas. ' +
@@ -2715,6 +2757,7 @@ async function categorizarNovosAutomaticamente(){
         }catch(e){ resp = null; }
         const uso = resp && Array.isArray(resp.content) ? resp.content.find((b) => b.type === 'tool_use' && b.name === 'registrar_categorias') : null;
         const lista = uso && uso.input && Array.isArray(uso.input.itens) ? uso.input.itens : [];
+        if (!uso){ falhouIA = true; break; } // sem resposta (sem créditos, sem conexão…): não marca nada, tenta de novo na próxima abertura
         for (const it of lote){
           const r = lista.find((x) => String(x.id) === String(it.id));
           const discOk = r && discs.indexOf(r.disciplina) !== -1 ? r.disciplina : null;
@@ -2726,6 +2769,8 @@ async function categorizarNovosAutomaticamente(){
     }
   }finally{
     categorizandoAgora = false; sugestoesIdx = null;
+    store.setDoc('config', 'categorizacao_em_andamento', { por: '', em: new Date(0).toISOString() }).catch(() => {});
+    if (falhouIA) avisoFlutuante('A IA não respondeu (créditos da API ou conexão) — os itens restantes serão categorizados na próxima abertura', 'erro');
     if (porHist + porIA){ atualizarTelasAposAcompanhamento(); if (abaAtual() === 'itens') renderItens();
       avisoFlutuante('Itens novos categorizados automaticamente: ' + (porHist ? porHist + ' pelo seu histórico' : '') + (porHist && porIA ? ' · ' : '') + (porIA ? porIA + ' pela IA' : ''), 'ok'); }
   }
@@ -2772,7 +2817,9 @@ function avisoFlutuante(texto, tipo){
 /* depois de qualquer marcação, redesenha tudo que mostra contagem de AW/IAC/Aberto —
    antes só a aba Itens e o resumo eram atualizados, e a torre de andares e a aba Quartos
    ficavam com o número antigo até recarregar a página */
+let tRecs = null;
 function atualizarTelasAposAcompanhamento(){
+  clearTimeout(tRecs); tRecs = setTimeout(() => { atualizarRecomendacoes().catch(() => {}); }, 1500);
   renderItens();
   renderTorreAndares();
   renderQuartos();
@@ -6816,6 +6863,7 @@ function obterItensFiltrados(){
   }
   if (filtroAndar) itens = itens.filter((it) => String(it.andar) === filtroAndar);
   if (filtroMulti.andares.length){ const s = new Set(filtroMulti.andares); itens = itens.filter((it) => s.has(String(it.andar))); }
+  if (filtroIdsRec) itens = itens.filter((it) => filtroIdsRec.ids.has(it.id));
   if (filtroMulti.fluxos.length) itens = itens.filter((it) => filtroMulti.fluxos.some((f) => passaFluxo(it, f)));
   const filtroRev = (document.getElementById('filtro-item-revisao') || {}).value || '';
   if (filtroRev) itens = itens.filter((it) => String(revisaoDeEntrada(it) || '') === filtroRev);
@@ -6907,10 +6955,10 @@ function renderItens(){
   const resumoEl = document.getElementById('resumo-filtro-itens');
   if (resumoEl){
     const vmAbertos = todosFiltrados.filter((it) => it.status === 'VM' && estaEmAberto(it)).length;
-    resumoEl.innerHTML = todosFiltrados.length
+    resumoEl.innerHTML = (filtroIdsRec ? '<span class="tag-auto" style="font-size:11px; padding:2px 8px; margin-right:6px;">Recomendação: ' + esc(filtroIdsRec.rotulo) + '… <a href="#" id="limpar-filtro-rec" style="color:inherit;">limpar</a></span>' : '') + (todosFiltrados.length
       ? '<b>'+pdfNum(todosFiltrados.length)+'</b> '+(todosFiltrados.length===1?'item':'itens')+' · <b>'+percentualExecutado(todosFiltrados)+'%</b> executados pela AW' +
         (vmAbertos ? ' · <span style="color:var(--vm);">'+vmAbertos+' VM em aberto</span>' : '')
-      : '';
+      : '');
   }
 
   // disciplinas que EXISTEM na planilha (não inclui nada inventado) — é a lista fechada
@@ -7146,7 +7194,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', catAuto:'Categorizado automaticamente', sugestao:'Sugestão do app aceita', naoNovo:'Não é novo (vistoria em andamento)', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', recomendacao:'Decisão por recomendação', catAuto:'Categorizado automaticamente', sugestao:'Sugestão do app aceita', naoNovo:'Não é novo (vistoria em andamento)', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -7699,6 +7747,322 @@ function chatPedirConfirmacao(propostas){
   });
 }
 let renderChatAnexos = () => {};
+/* ===================== CRONOGRAMA, PRAZOS E PLANO DIÁRIO =====================
+   Calendário: seg–sáb = 100%; domingos e feriados = 80%; dias especiais com o rendimento informado.
+   Prazo da lista da IAC = véspera do último dia em que ainda dá pra começar e ter 5 dias de execução
+   (ideal) ou 4 (mínimo) até a revistoria — ou, sem revistoria marcada, até a entrega final. */
+const SEQUENCIA_QUARTOS = [8, 9, 10, 18, 17, 16, 15, 14, 13, 19, 20, 12, 11, 7, 6, 5];
+const CRONO_PADRAO_QUARTOS = { 8:'2026-10-31', 9:'2026-10-31', 10:'2026-10-31', 18:'2026-10-31', 17:'2026-10-31', 16:'2026-10-31',
+  15:'2026-11-07', 14:'2026-11-07', 13:'2026-11-07', 19:'2026-11-07', 20:'2026-11-07', 12:'2026-11-13', 11:'2026-11-13', 7:'2026-11-13', 6:'2026-11-13', 5:'2026-11-13' };
+const FERIADOS_BR = { '2026-10-12':'Nossa Sra. Aparecida', '2026-11-02':'Finados', '2026-11-15':'Proclamação da República', '2026-11-20':'Consciência Negra', '2026-12-25':'Natal', '2027-01-01':'Ano-novo', '2027-01-20':'São Sebastião (Rio)' };
+const DIAS_ESPECIAIS = { '2026-10-25':{ f:0.5, nome:'eleição' }, '2026-11-01':{ f:0.7, nome:'parada elétrica' }, '2026-11-02':{ f:0.7, nome:'Finados' } };
+let cronograma = null; // { andares: { [andar]: { entregaFinal, revistoria, listaCompletaEm, listaCompletaPor } } }
+function chaveDia(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function deChave(s){ const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m-1, d); }
+function fatorDoDia(d){ const k = chaveDia(d); if (DIAS_ESPECIAIS[k]) return DIAS_ESPECIAIS[k].f; if (FERIADOS_BR[k] || d.getDay() === 0) return 0.8; return 1; }
+function diasUteisEntre(iniChave, fimChave){ // de ini até fim (inclusive), em "dias de rendimento"
+  let s = 0; for (let d = deChave(iniChave); d <= deChave(fimChave); d.setDate(d.getDate()+1)) s += fatorDoDia(d); return s;
+}
+function inicioParaTer(dias, fimChave){ // último dia de início que ainda dá "dias" de rendimento até fim
+  let s = 0, d = deChave(fimChave);
+  for (let i = 0; i < 40; i++){ s += fatorDoDia(d); if (s >= dias - 1e-9) return chaveDia(d); d.setDate(d.getDate()-1); }
+  return chaveDia(d);
+}
+function diaAntes(ch){ const d = deChave(ch); d.setDate(d.getDate()-1); return chaveDia(d); }
+function dataCurta(ch){ if (!ch) return '—'; const [y, m, d] = ch.split('-'); return d + '/' + m; }
+async function carregarCronograma(){
+  try{ const d = await store.getDoc('config', 'cronograma_andares'); cronograma = (d && d.andares) ? d : null; }catch(e){ cronograma = null; }
+  if (!cronograma){
+    cronograma = { andares: {} };
+    if ((OBRA || 'quartos') === 'quartos') Object.keys(CRONO_PADRAO_QUARTOS).forEach((a) => { cronograma.andares[a] = { entregaFinal: CRONO_PADRAO_QUARTOS[a] }; });
+  }
+}
+async function salvarCronograma(){ try{ await store.setDoc('config', 'cronograma_andares', cronograma); }catch(e){} }
+// referência de itens por quarto nos andares já fechados (pra suspeitar de lista incompleta)
+function itensPorQuartoDoAndar(andar){
+  const its = itensRevisaoAtual.filter((x) => x.andar === andar && x.tipo === 'APTO' && contaNoTotal(x));
+  const quartos = new Set(its.map((x) => x.quarto)).size;
+  const tot = its.length + its.reduce((s, x) => s, 0);
+  const uni = (typeof totalDoAndarUniverso === 'function') ? totalDoAndarUniverso(andar) : null;
+  return quartos ? (Math.max(tot, uni || 0) / Math.max(1, quartos)) : 0;
+}
+function referenciaItensPorQuarto(){
+  const vals = andaresConhecidos.filter((a) => (cronograma.andares[a] || {}).listaCompletaEm).map(itensPorQuartoDoAndar).filter((v) => v > 0);
+  if (!vals.length) return null;
+  vals.sort((a, b) => a - b); return vals[Math.floor(vals.length / 2)];
+}
+function situacaoDoAndar(andar){
+  const c = cronograma.andares[andar] || {}, hoje = chaveDia(new Date());
+  const alvo = c.revistoria || c.entregaFinal; if (!alvo) return null;
+  const emAberto = itensRevisaoAtual.filter((x) => x.andar === andar && contaNoTotal(x) && estaEmAberto(x)).length;
+  const inicioIdeal = inicioParaTer(5, alvo), inicioMin = inicioParaTer(4, alvo);
+  const prazoIdeal = diaAntes(inicioIdeal), prazoMin = diaAntes(inicioMin);
+  const temItens = itensRevisaoAtual.some((x) => x.andar === andar);
+  // lista dada como completa: confirmada por alguém, ou o andar já teve vistoria/liberação registrada (execução já começou com a lista)
+  const jaEmExecucao = itensRevisaoAtual.some((x) => x.andar === andar && (ambienteVistoriado(x.andar, x.tipo, x.quarto) || areasLiberadasRevisaoAtual[chaveAreaGlobal(x.andar, x.tipo, x.quarto)] || prontosVistoria[chaveAreaGlobal(x.andar, x.tipo, x.quarto)]));
+  const listaOk = !!c.listaCompletaEm || jaEmExecucao;
+  let estado, texto;
+  if (!listaOk){
+    if (hoje > prazoMin){ estado = 'atraso'; texto = 'Lista atrasada: o prazo mínimo era ' + dataCurta(prazoMin); }
+    else if (hoje >= prazoIdeal){ estado = 'alerta'; texto = 'Cobrar a lista: ideal ' + dataCurta(prazoIdeal) + ' · limite ' + dataCurta(prazoMin); }
+    else { estado = 'ok'; texto = 'Lista até ' + dataCurta(prazoIdeal) + ' (limite ' + dataCurta(prazoMin) + ')'; }
+  } else {
+    const restante = hoje <= alvo ? diasUteisEntre(hoje, alvo) : 0;
+    estado = emAberto === 0 ? 'ok' : (restante <= 0 ? 'atraso' : 'execucao');
+    texto = emAberto === 0 ? 'Sem pendências em aberto' : (restante <= 0 ? 'Prazo vencido com ' + emAberto + ' em aberto' : Math.round(restante*10)/10 + ' dias de rendimento até ' + dataCurta(alvo));
+  }
+  return { andar, c, alvo, emAberto, prazoIdeal, prazoMin, temItens, listaOk, jaEmExecucao, estado, texto };
+}
+function ordemDosAndares(){
+  const base = (OBRA || 'quartos') === 'quartos' ? SEQUENCIA_QUARTOS : [];
+  const extra = Object.keys(cronograma.andares).map(Number).filter((a) => base.indexOf(a) === -1).sort((a, b) => a - b);
+  return base.concat(extra).filter((a) => cronograma.andares[a] || andaresConhecidos.indexOf(a) !== -1);
+}
+function renderCronograma(){
+  const tb = document.getElementById('tbody-cronograma'); if (!tb || !cronograma) return;
+  const adm = ehAdminAtual();
+  tb.innerHTML = ordemDosAndares().map((a) => {
+    const s = situacaoDoAndar(a) || { c: cronograma.andares[a] || {}, estado:'ok', texto:'sem data', emAberto: '—', prazoIdeal:'', prazoMin:'' };
+    const c = s.c || {};
+    const inp = (campo) => adm ? '<input type="date" data-crono="'+campo+'" data-andar="'+a+'" value="'+(c[campo] || '')+'">' : dataCurta(c[campo]);
+    const lista = c.listaCompletaEm ? '<span class="crono-ok" title="Confirmada por '+esc(c.listaCompletaPor || '')+'">✓ completa</span>' + (adm ? ' <a href="#" data-crono-lista="'+a+'" data-v="0" style="font-size:11px;">desfazer</a>' : '')
+      : s.jaEmExecucao ? '<span class="crono-ok" title="O andar já teve vistoria ou liberação registrada">✓ em execução</span>'
+      : (adm ? '<button type="button" class="chip-acao" data-crono-lista="'+a+'" data-v="1">marcar completa</button>' : 'pendente');
+    const cls = { ok:'crono-ok', alerta:'crono-alerta', atraso:'crono-atraso', execucao:'' }[s.estado] || '';
+    return '<tr><td><b>'+nomeAndar(a)+'</b></td><td>'+lista+'</td><td>'+(s.listaOk ? '—' : dataCurta(s.prazoIdeal) + ' <span style="color:var(--muted); font-size:11px;">(limite '+dataCurta(s.prazoMin)+')</span>')+'</td><td>'+inp('revistoria')+'</td><td>'+inp('entregaFinal')+'</td><td>'+s.emAberto+'</td><td class="'+cls+'">'+esc(s.texto)+'</td></tr>';
+  }).join('');
+}
+// ritmo real: baixas da AW por dia (últimos 14 dias), por fornecedor e por andar
+function ritmoReal(){
+  const hoje = new Date(), ini = new Date(hoje); ini.setDate(ini.getDate() - 14);
+  const kIni = chaveDia(ini), kHoje = chaveDia(hoje), dias = Math.max(1, diasUteisEntre(kIni, kHoje));
+  const porForn = {}, porAndar = {};
+  itensRevisaoAtual.forEach((x) => { const a = acompanhamento[x.id]; if (!a || !a.awExecEm || !baixaDaAW(x)) return;
+    const k = chaveDia(new Date(a.awExecEm)); if (k < kIni) return;
+    const f = fornecedorEfetivo(x) || 'Sem fornecedor'; porForn[f] = (porForn[f] || 0) + 1; porAndar[x.andar] = (porAndar[x.andar] || 0) + 1; });
+  Object.keys(porForn).forEach((f) => { porForn[f] = porForn[f] / dias; }); Object.keys(porAndar).forEach((a) => { porAndar[a] = porAndar[a] / dias; });
+  return { porForn, porAndar };
+}
+function planoDoAndar(s, ritmo){
+  const abertos = itensRevisaoAtual.filter((x) => x.andar === s.andar && contaNoTotal(x) && estaEmAberto(x));
+  const hoje = chaveDia(new Date()); const restante = hoje <= s.alvo ? diasUteisEntre(hoje, s.alvo) : 0.5;
+  const porForn = {}; abertos.forEach((x) => { const f = fornecedorEfetivo(x) || 'Sem fornecedor'; porForn[f] = (porForn[f] || 0) + 1; });
+  const fornecedores = Object.keys(porForn).map((f) => { const r = ritmo.porForn[f] || 0; const precisa = porForn[f] / Math.max(0.5, restante);
+    return { f, abertos: porForn[f], ritmo: Math.round(r*10)/10, precisa: Math.round(precisa*10)/10, folga: r >= precisa }; }).sort((a, b) => (a.folga - b.folga) || (b.abertos - a.abertos));
+  const porQuarto = {}; abertos.forEach((x) => { const q = String(localLabel(x)).replace(/\u00A0/g, ' '); porQuarto[q] = (porQuarto[q] || 0) + 1; });
+  const quartos = Object.keys(porQuarto).map((q) => ({ q, n: porQuarto[q] })).sort((a, b) => b.n - a.n);
+  return { andar: s.andar, alvo: s.alvo, restante: Math.round(restante*10)/10, abertos: abertos.length, precisaDia: Math.round(abertos.length / Math.max(0.5, restante)*10)/10, ritmoAndar: Math.round((ritmo.porAndar[s.andar] || 0)*10)/10, fornecedores: fornecedores.slice(0, 8), quartosMais: quartos.slice(0, 5), quartosQuase: quartos.filter((x) => x.n <= 2).slice(0, 5) };
+}
+let insightDoDia = null; // { data, texto }
+async function gerarInsightDoDia(planos){
+  const hoje = chaveDia(new Date());
+  try{ const d = await store.getDoc('config', 'insight_diario'); if (d && d.data === hoje && d.texto){ insightDoDia = d; return; } }catch(e){}
+  if (!planos.length || !supa || !supa.functions) return;
+  const pedido = 'Tarefa interna: escreva o PLANO DO DIA para os gestores da obra (português, direto, até 12 linhas, em tópicos curtos). ' +
+    'Use SOMENTE os números abaixo (já calculados pelo sistema; não invente). Para cada andar: se fecha no prazo no ritmo atual, quanto precisa por dia, quais fornecedores estão abaixo do necessário ' +
+    '(sugira reforço ou usar a AW Finalização como coringa só se o fornecedor dono não der conta), por quais quartos começar e quais quartos estão quase prontos para fechar e liberar para vistoria. ' +
+    'Domingos e feriados rendem 80%; hoje é ' + hoje + '. DADOS: ' + JSON.stringify(planos);
+  try{
+    const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }], contexto: 'Plano diário (texto, sem ferramentas).', ferramentas: [] } });
+    const texto = !error && data && Array.isArray(data.content) ? data.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim() : '';
+    if (texto){ insightDoDia = { data: hoje, texto }; store.setDoc('config', 'insight_diario', insightDoDia).catch(() => {}); }
+  }catch(e){}
+}
+function cartoesDoCronograma(){
+  if (!cronograma) return [];
+  const out = [];
+  ordemDosAndares().forEach((a) => { const s = situacaoDoAndar(a); if (!s) return;
+    if (!s.listaOk && (s.estado === 'alerta' || s.estado === 'atraso')) out.push({ tipo: 'lista', s });
+    else if (!s.listaOk && s.temItens && itensPorQuartoDoAndar(a) > 0 && diasUteisEntre(chaveDia(new Date()), s.prazoIdeal) <= 5) out.push({ tipo: 'completa', s });
+  });
+  return out;
+}
+function htmlCronogramaChat(){
+  const cs = cartoesDoCronograma(); let h = '';
+  if (insightDoDia && insightDoDia.texto) h += '<div class="rec-titulo">Plano do dia · ' + dataCurta(insightDoDia.data) + '</div><div class="rec-card">' + mdParaHtml(insightDoDia.texto) + '</div>';
+  if (!cs.length) return h;
+  const ref = referenciaItensPorQuarto();
+  h += '<div class="rec-titulo">Prazos das listas da IAC</div>' + cs.map((c) => {
+    const s = c.s;
+    if (c.tipo === 'lista') return '<div class="rec-card ' + (s.estado === 'atraso' ? 'pergunta' : '') + '"><b>' + nomeAndarLongo(s.andar) + ':</b> ' + (s.estado === 'atraso' ? 'a lista da IAC está <b>atrasada</b>' : 'a lista da IAC precisa chegar') + ' — ideal <b>' + dataCurta(s.prazoIdeal) + '</b>, limite <b>' + dataCurta(s.prazoMin) + '</b>, pra ter 5 (mín. 4) dias de execução até ' + (s.c.revistoria ? 'a revistoria' : 'a entrega') + ' em ' + dataCurta(s.alvo) + '. Cobre a IAC.' +
+      '<div class="rec-botoes"><button type="button" class="chip-acao" data-crono-lista="' + s.andar + '" data-v="1">A lista já chegou e está completa</button></div></div>';
+    const ipq = itensPorQuartoDoAndar(s.andar);
+    const suspeita = ref && ipq < ref * 0.5;
+    return '<div class="rec-card"><b>' + nomeAndarLongo(s.andar) + ':</b> a vistoria aconteceu? A lista está completa?' +
+      '<div class="rec-sub">Hoje: ' + Math.round(ipq) + ' itens por quarto' + (ref ? ' · andares fechados: ' + Math.round(ref) : '') + (suspeita ? ' — <b>parece incompleta</b>' : '') + '. Lista parcial não conta.</div>' +
+      '<div class="rec-botoes"><button type="button" class="chip-acao rec-ok" data-crono-lista="' + s.andar + '" data-v="1">Sim, completa</button><button type="button" class="chip-acao" data-crono-adiar="' + s.andar + '">Ainda não</button></div></div>';
+  }).join('');
+  return h;
+}
+async function atualizarCronogramaEPlano(){
+  if (!cronograma) await carregarCronograma();
+  renderCronograma();
+  if (!recebeRecomendacoes()) return;
+  const ritmo = ritmoReal();
+  const planos = ordemDosAndares().map(situacaoDoAndar).filter((s) => s && s.listaOk && s.emAberto > 0 && chaveDia(new Date()) <= s.alvo).map((s) => planoDoAndar(s, ritmo));
+  await gerarInsightDoDia(planos);
+  marcarBadgeChat(recomendacoesAtuais.length + cartoesDoCronograma().length);
+}
+async function tratarCliqueCronograma(e){
+  const bl = e.target.closest('[data-crono-lista]'), ad = e.target.closest('[data-crono-adiar]');
+  if (!bl && !ad) return false;
+  e.preventDefault();
+  if (ad){ ad.closest('.rec-card').remove(); return true; }
+  if (!exigirAdmin() || !(await garantirUsuario())) return true;
+  const a = bl.dataset.cronoLista, v = bl.dataset.v === '1';
+  cronograma.andares[a] = Object.assign({}, cronograma.andares[a] || {}, v ? { listaCompletaEm: new Date().toISOString(), listaCompletaPor: usuarioAtual } : { listaCompletaEm: null, listaCompletaPor: null });
+  await salvarCronograma(); renderCronograma();
+  const caixa = document.getElementById('chat-cronograma'); if (caixa) caixa.innerHTML = htmlCronogramaChat();
+  marcarBadgeChat(recomendacoesAtuais.length + cartoesDoCronograma().length);
+  avisoFlutuante(nomeAndarLongo(Number(a)) + (v ? ': lista completa' : ': lista volta a pendente'), 'ok');
+  return true;
+}
+
+/* ===================== RECOMENDAÇÕES (aprendem com as suas decisões) =====================
+   Para cada pendência de decisão (IAC não aceitou: falta analisar · conferir no quarto · item novo a avaliar),
+   procura itens IGUAIS (mesma descrição e, se houver, mesma foto) que já foram decididos — com peso maior
+   para o Fundador e para o mesmo tipo de quarto (final do número). Só propõe quando o histórico é
+   claro; quando há decisões diferentes, PERGUNTA. Nada é aplicado sem "Confirmar". */
+const RECOMENDACOES_PARA = { 'quartos': ['Guilherme Titton', 'Marcel Camilo'], 'areas-comuns': ['Rafael Gentil', 'Gabriel Cecche'] };
+const ROTULO_DECISAO = { cobrar:'IAC precisa corrigir', conferir:'Conferir no quarto', aberto:'Aceitar como aberto (reincidência)', confirmar:'Confirmar a baixa (Executado AW)', reabrir:'Não foi feito: reabrir', aceitar:'Aceitar como novo', naonovo:'Não é novo (continuação)', contestar:'IAC precisa corrigir (item novo)' };
+let recomendacoesAtuais = [], recomendacoesIgnoradas = null, filtroIdsRec = null;
+function recebeRecomendacoes(){ const l = RECOMENDACOES_PARA[OBRA || 'quartos'] || []; return ehAdminAtual() && l.indexOf(usuarioAtual) !== -1; }
+function decisaoTomada(it){
+  const a = acompanhamento[it.id] || {};
+  if (a.divergencia === 'iac' && a.divergenciaPor) return { dom:'na', lab:'cobrar', por:a.divergenciaPor };
+  if (a.checarQuartoEm && a.checarQuartoPor) return { dom:'na', lab:'conferir', por:a.checarQuartoPor };
+  if (a.divergencia === 'nossa' && a.divergenciaPor) return { dom:'na', lab:'aberto', por:a.divergenciaPor };
+  if (a.conferidoQuartoEm && a.conferidoQuartoPor){ const h = (a.historico || []).slice().reverse().find((e) => e.t === 'conferido' || e.t === 'reabertoConferencia'); return { dom:'conf', lab: h && h.t === 'reabertoConferencia' ? 'reabrir' : 'confirmar', por:a.conferidoQuartoPor }; }
+  if (a.novoAceitoEm && a.novoAceitoPor) return { dom:'novo', lab:'aceitar', por:a.novoAceitoPor };
+  if (a.naoNovoEm && a.naoNovoPor) return { dom:'novo', lab:'naonovo', por:a.naoNovoPor };
+  if (a.novoContestadoEm && a.novoContestadoPor) return { dom:'novo', lab:'contestar', por:a.novoContestadoPor };
+  return null;
+}
+function pendenciaDeDecisao(it){
+  const a = acompanhamento[it.id] || {};
+  if (decisaoNaoValidado(it) === 'naFalta') return 'na';
+  if (conferirNoQuarto(it)) return 'conf';
+  if (novoForaDoAberto(it) && !a.novoContestadoEm) return 'novo';
+  return null;
+}
+function chaveIgual(it){ const f = (it.fotoAssetIds && it.fotoAssetIds[0]) || ''; return chaveComparacao(it.desc) + '|' + f; }
+function pesoDe(por){ if (por === 'Guilherme Titton') return 1; if ((RECOMENDACOES_PARA[OBRA || 'quartos'] || []).indexOf(por) !== -1) return 0.6; return 0.3; }
+function calcularRecomendacoes(){
+  const decididos = new Map(); // dom|chave → [{lab, peso, sufixo, por}]
+  const decididosDesc = new Map();
+  itensRevisaoAtual.forEach((it) => {
+    const d = decisaoTomada(it); if (!d) return;
+    const reg = { lab: d.lab, peso: pesoDe(d.por), sufixo: it.quarto != null ? it.quarto % 100 : null, por: d.por };
+    const k1 = d.dom + '|' + chaveIgual(it), k2 = d.dom + '|' + chaveComparacao(it.desc);
+    (decididos.get(k1) || decididos.set(k1, []).get(k1)).push(reg);
+    (decididosDesc.get(k2) || decididosDesc.set(k2, []).get(k2)).push(reg);
+  });
+  const grupos = new Map();
+  itensRevisaoAtual.forEach((it) => {
+    const dom = pendenciaDeDecisao(it); if (!dom) return;
+    let viz = decididos.get(dom + '|' + chaveIgual(it)) || decididosDesc.get(dom + '|' + chaveComparacao(it.desc)) || [];
+    if (!viz.length) return;
+    const suf = it.quarto != null ? it.quarto % 100 : null;
+    const mesmoTipo = viz.filter((v) => v.sufixo === suf);
+    if (mesmoTipo.reduce((s, v) => s + v.peso, 0) >= 2) viz = mesmoTipo; // o mesmo tipo de quarto pesa mais (ex.: as salas x11)
+    const placar = {}; let tot = 0;
+    viz.forEach((v) => { placar[v.lab] = (placar[v.lab] || 0) + v.peso; tot += v.peso; });
+    const ordem = Object.keys(placar).sort((a, b) => placar[b] - placar[a]);
+    const melhor = ordem[0], fatia = placar[melhor] / tot, temFundador = viz.some((v) => v.por === 'Guilherme Titton' && v.lab === melhor);
+    let tipo = null;
+    if (tot >= 2 && fatia >= 0.9 && temFundador) tipo = 'propor';
+    else if (tot >= 1 && ordem.length > 1) tipo = 'perguntar';
+    else if (tot >= 1.2 && fatia >= 0.9) tipo = 'perguntar'; // só decisões de outros: confirma com o Fundador
+    if (!tipo) return;
+    const kg = tipo + '|' + dom + '|' + (tipo === 'propor' ? melhor : ordem.join(',')) + '|' + chaveComparacao(it.desc) + '|' + (mesmoTipo.length && viz === mesmoTipo ? 'x' + String(suf).padStart(2, '0') : '');
+    if (!grupos.has(kg)) grupos.set(kg, { chave: kg, tipo, dom, melhor, opcoes: ordem, placar, desc: it.desc, sufixo: viz === mesmoTipo ? suf : null, ids: [], base: viz.length });
+    grupos.get(kg).ids.push(it.id);
+  });
+  const ign = recomendacoesIgnoradas || {};
+  return Array.from(grupos.values()).filter((g) => !ign[g.chave]).filter((g) => g.tipo === 'propor' || ehFundador() || OBRA === 'areas-comuns')
+    .sort((a, b) => (a.tipo === 'propor' ? 0 : 1) - (b.tipo === 'propor' ? 0 : 1) || b.ids.length - a.ids.length).slice(0, 20);
+}
+async function atualizarRecomendacoes(){
+  if (!recebeRecomendacoes()){ recomendacoesAtuais = []; marcarBadgeChat(0); return; }
+  if (!recomendacoesIgnoradas){ try{ recomendacoesIgnoradas = ((await store.getDoc('config', 'recomendacoes_ignoradas')) || {}).mapa || {}; }catch(e){ recomendacoesIgnoradas = {}; } }
+  recomendacoesAtuais = calcularRecomendacoes();
+  marcarBadgeChat(recomendacoesAtuais.length + (cronograma ? cartoesDoCronograma().length : 0));
+}
+function marcarBadgeChat(n){
+  const b = document.getElementById('btn-chat'); if (!b) return;
+  let s = b.querySelector('.chat-badge');
+  if (!n){ if (s) s.remove(); return; }
+  if (!s){ s = document.createElement('span'); s.className = 'chat-badge'; b.appendChild(s); }
+  s.textContent = n > 9 ? '9+' : String(n);
+}
+const DOM_TXT = { na:'que a IAC não aceitou (falta analisar)', conf:'a conferir no quarto', novo:'novos a avaliar' };
+function htmlRecomendacoes(){
+  if (!recomendacoesAtuais.length) return '';
+  return '<div class="rec-titulo">Recomendações · aprendidas com as suas decisões</div>' + recomendacoesAtuais.map((g, i) => {
+    const onde = g.sufixo != null ? ' nos quartos com final ' + String(g.sufixo).padStart(2, '0') : '';
+    const desc = '<b>“' + esc(String(g.desc).slice(0, 90)) + (String(g.desc).length > 90 ? '…' : '') + '”</b>';
+    if (g.tipo === 'propor'){
+      return '<div class="rec-card"><div>' + g.ids.length + ' item(ns) ' + DOM_TXT[g.dom] + ': ' + desc + onde + '.</div>' +
+        '<div class="rec-sub">Em ' + g.base + ' iguais você decidiu <b>' + esc(ROTULO_DECISAO[g.melhor]) + '</b>.</div>' +
+        '<div class="rec-botoes"><button type="button" class="chip-acao rec-ok" data-rec="' + i + '" data-acao="' + g.melhor + '">Confirmar: ' + esc(ROTULO_DECISAO[g.melhor]) + '</button>' +
+        '<button type="button" class="chip-acao" data-rec="' + i + '" data-acao="ver">Ver os itens</button><button type="button" class="chip-acao" data-rec="' + i + '" data-acao="ignorar">Ignorar</button></div></div>';
+    }
+    const placar = g.opcoes.map((o) => esc(ROTULO_DECISAO[o]) + ' (' + Math.round(g.placar[o] * 10) / 10 + ')').join(' · ');
+    return '<div class="rec-card pergunta"><div><b>Pergunta:</b> ' + g.ids.length + ' item(ns) ' + DOM_TXT[g.dom] + ': ' + desc + onde + '.</div>' +
+      '<div class="rec-sub">Em itens iguais houve decisões diferentes ou só de outros usuários: ' + placar + '. O que faço com estes?</div>' +
+      '<div class="rec-botoes">' + g.opcoes.map((o) => '<button type="button" class="chip-acao" data-rec="' + i + '" data-acao="' + o + '">' + esc(ROTULO_DECISAO[o]) + '</button>').join('') +
+      '<button type="button" class="chip-acao" data-rec="' + i + '" data-acao="ver">Ver os itens</button><button type="button" class="chip-acao" data-rec="' + i + '" data-acao="ignorar">Ignorar</button></div></div>';
+  }).join('');
+}
+async function aplicarDecisaoEmLote(ids, acao){
+  if (!exigirAdmin() || !(await garantirUsuario())) return 0;
+  if (acao === 'conferir') return marcarChecarQuarto(ids, true);
+  if (acao === 'confirmar') return decidirConferencia(ids, true);
+  if (acao === 'reabrir') return decidirConferencia(ids, false);
+  if (acao === 'aceitar') return decidirItemNovo(ids, true, false);
+  if (acao === 'contestar') return decidirItemNovo(ids, false, true);
+  if (acao === 'naonovo') return marcarNaoNovo(ids);
+  let n = 0; const agora = new Date().toISOString(), por = usuarioAtual;
+  await comLimiteDeConcorrencia(ids, 4, async (id) => {
+    const anterior = acompanhamento[id] || {};
+    const novo = Object.assign({}, anterior), hist = historicoDoItem(anterior).slice();
+    if (acao === 'cobrar'){ novo.divergencia = 'iac'; novo.divergenciaPor = por; novo.divergenciaEm = agora; novo.checarQuartoEm = null; novo.checarQuartoPor = null; hist.push({ t:'recomendacao', em:agora, por, para:'IAC precisa corrigir' }); }
+    else if (acao === 'aberto'){
+      novo.antesReinc = (anterior.antesReinc || []).concat([{ awExecEm: anterior.awExecEm || null, awExecPor: anterior.awExecPor || null, iacOkEm: anterior.iacOkEm || null, iacOkPor: anterior.iacOkPor || null, em: agora }]);
+      novo.divergencia = 'nossa'; novo.divergenciaPor = por; novo.divergenciaEm = agora;
+      novo.awExecEm = null; novo.awExecPor = null; novo.iacOkEm = null; novo.iacOkPor = null;
+      novo.reincidencias = (anterior.reincidencias || 0) + 1;
+      hist.push({ t:'reinc', em:agora, por, origem:'IAC não aceitou (recomendação)' });
+    } else return;
+    novo.historico = hist;
+    const r = await salvarAcompanhamentoComRetry(id, novo);
+    if (r.ok){ acompanhamento[id] = novo; n++; }
+  });
+  return n;
+}
+async function tratarCliqueRecomendacao(btn){
+  const g = recomendacoesAtuais[Number(btn.dataset.rec)]; if (!g) return;
+  const acao = btn.dataset.acao;
+  if (acao === 'ver'){
+    filtroIdsRec = { ids: new Set(g.ids), rotulo: String(g.desc).slice(0, 40) };
+    filtroMulti = { andares: [], fluxos: [] }; try{ atualizarBotaoMulti(); }catch(e){}
+    ['filtro-item-revisao','filtro-item-origem','filtro-item-programacao','busca-item'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const fechar = document.getElementById('chat-fechar'); if (fechar) fechar.click();
+    abrirItens({}); return;
+  }
+  if (acao === 'ignorar'){
+    recomendacoesIgnoradas[g.chave] = { por: usuarioAtual, em: new Date().toISOString() };
+    store.setDoc('config', 'recomendacoes_ignoradas', { mapa: recomendacoesIgnoradas }).catch(() => {});
+  } else {
+    if (!window.confirm(ROTULO_DECISAO[acao] + ' em ' + g.ids.length + ' item(ns)?\n\nFica no histórico de cada item, no seu nome.')) return;
+    btn.disabled = true; btn.textContent = 'Aplicando…';
+    const n = await aplicarDecisaoEmLote(g.ids, acao);
+    avisoFlutuante(n + ' item(ns): ' + ROTULO_DECISAO[acao], 'ok');
+    atualizarTelasAposAcompanhamento();
+  }
+  await atualizarRecomendacoes();
+  const caixa = document.getElementById('chat-recomendacoes'); if (caixa) caixa.innerHTML = htmlRecomendacoes() || '<div class="rec-sub">Nenhuma recomendação pendente.</div>';
+}
 function iniciarChat(){
   const b = document.createElement('button');
   b.type = 'button'; b.id = 'btn-chat'; b.title = 'Assistente'; b.setAttribute('aria-label', 'Abrir o assistente');
@@ -7729,7 +8093,12 @@ function iniciarChat(){
       '</div></div>';
   document.body.appendChild(p);
   const $ = (id) => document.getElementById(id);
-  const abrir = () => { p.classList.remove('oculto'); document.body.classList.add('chat-aberto'); document.documentElement.classList.add('chat-aberto'); setTimeout(() => $('chat-texto').focus(), 60); };
+  const abrir = () => { try{ const lista = document.getElementById('chat-mensagens'); if (lista && recebeRecomendacoes()){ let c = document.getElementById('chat-recomendacoes'); if (!c){ c = document.createElement('div'); c.id = 'chat-recomendacoes'; lista.prepend(c);
+      c.addEventListener('click', (e) => { const b = e.target.closest('[data-rec]'); if (b) tratarCliqueRecomendacao(b); }); }
+      c.innerHTML = htmlRecomendacoes();
+      let cc = document.getElementById('chat-cronograma'); if (!cc){ cc = document.createElement('div'); cc.id = 'chat-cronograma'; lista.prepend(cc); cc.addEventListener('click', (e) => { tratarCliqueCronograma(e); }); }
+      cc.innerHTML = htmlCronogramaChat(); } }catch(e){}
+    p.classList.remove('oculto'); document.body.classList.add('chat-aberto'); document.documentElement.classList.add('chat-aberto'); setTimeout(() => $('chat-texto').focus(), 60); };
   const fechar = () => { p.classList.add('oculto'); document.body.classList.remove('chat-aberto'); document.documentElement.classList.remove('chat-aberto'); };
   // iPhone: gesto que começa no cabeçalho ou no rodapé não "vaza" pro painel de trás
   ['touchmove'].forEach((ev) => p.addEventListener(ev, (e) => { if (!e.target.closest('#chat-rolagem') && !e.target.closest('textarea')) e.preventDefault(); }, { passive:false }));
@@ -8593,6 +8962,7 @@ async function carregarMetaPlano(){
   try{ const d = await store.getDoc('config', 'plano'); planoMeta = (d && d.meta) || ''; }catch(e){ planoMeta = ''; }
 }
 async function renderTendencia(){
+  try{ if (!cronograma) await carregarCronograma(); renderCronograma(); }catch(e){}
   if (!planoMeta) await carregarMetaPlano();
   const inpMeta = document.getElementById('plano-meta');
   if (inpMeta && !inpMeta.dataset.ligado){
@@ -11182,7 +11552,12 @@ async function iniciar(){
   } else {
     irParaAba('enviar');
   }
-  setTimeout(() => { try{ if (!MODO_CONSOLIDADO) categorizarNovosAutomaticamente(); }catch(e){} }, 3000);
+  setTimeout(() => { atualizarRecomendacoes().then(() => atualizarCronogramaEPlano()).catch(() => {}); }, 2000);
+  setTimeout(() => { try{ if (!MODO_CONSOLIDADO) categorizarNovosAutomaticamente(null, (feitos, total) => {
+    let el = document.getElementById('aviso-categorizando');
+    if (!el){ el = document.createElement('div'); el.id = 'aviso-categorizando'; el.style.cssText = 'position:fixed; left:16px; bottom:16px; z-index:90; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:12px; color:var(--muted); box-shadow:var(--shadow-lg);'; document.body.appendChild(el); }
+    el.textContent = '✦ Categorizando itens com IA… ' + feitos + '/' + total;
+  }).finally(() => { const el = document.getElementById('aviso-categorizando'); if (el) el.remove(); }); }catch(e){} }, 3000);
   if (new URLSearchParams(location.search).get('consolidado') === '1' && window.parent && window.parent !== window){
     try{
       irParaAba('visao-geral');
@@ -11264,6 +11639,14 @@ async function iniciar(){
   document.getElementById('filtro-item-programacao').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-revisao').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-filtro-multi').addEventListener('click', abrirFiltroMultiplo);
+  document.getElementById('tbody-cronograma').addEventListener('click', (e) => { tratarCliqueCronograma(e); });
+  document.getElementById('tbody-cronograma').addEventListener('change', async (e) => {
+    const inp = e.target.closest('[data-crono]'); if (!inp) return;
+    if (!exigirAdmin() || !(await garantirUsuario())){ renderCronograma(); return; }
+    const a = inp.dataset.andar; cronograma.andares[a] = Object.assign({}, cronograma.andares[a] || {}, { [inp.dataset.crono]: inp.value || null });
+    await salvarCronograma(); renderCronograma(); avisoFlutuante('Cronograma salvo', 'ok');
+  });
+  document.getElementById('resumo-filtro-itens').addEventListener('click', (e) => { if (e.target && e.target.id === 'limpar-filtro-rec'){ e.preventDefault(); filtroIdsRec = null; renderItens(); } });
 
   // escolher um andar ou um fluxo no filtro normal desliga a seleção múltipla daquele grupo
   document.getElementById('filtro-item-andar').addEventListener('change', (e) => { if (e.target.value && filtroMulti.andares.length){ filtroMulti.andares = []; atualizarBotaoMulti(); } });
@@ -11294,7 +11677,7 @@ async function iniciar(){
     document.getElementById('filtro-item-progresso').value = '';
     document.getElementById('filtro-item-programacao').value = '';
     document.getElementById('filtro-item-revisao').value = '';
-    filtroMulti = { andares: [], fluxos: [] }; atualizarBotaoMulti();
+    filtroMulti = { andares: [], fluxos: [] }; atualizarBotaoMulti(); filtroIdsRec = null;
     document.getElementById('filtro-item-origem').value = '';
     popularFiltroAmbiente('filtro-item-ambiente', 'filtro-item-andar'); // volta pro modo categoria (sem andar)
     filtroItemLocal = null;
