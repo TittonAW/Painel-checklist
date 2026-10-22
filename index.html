@@ -701,7 +701,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="quartos">Quartos &amp; áreas</button>
   <button data-aba="itens">Itens</button>
   <button data-aba="disciplinas">Disciplinas &amp; fornecedores</button>
-  <button data-aba="comparacao" class="so-admin">Comparação</button>
+  <button data-aba="comparacao">Comparação</button>
   <button data-aba="tendencia">Plano</button>
   <button data-aba="enviar" class="so-admin">Enviar planilhas</button>
   <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
@@ -745,7 +745,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <div class="vazio oculto" id="vazio-evolucao">Ainda não há itens nesta revisão para montar a evolução.</div>
     </div>
 
-    <div class="card card-pad so-admin" style="margin-top:18px;">
+    <div class="card card-pad" style="margin-top:18px;">
       <h2>Últimas variações (vs. revisão anterior)</h2>
       <div id="resumo-insights"></div>
     </div>
@@ -794,14 +794,14 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <button class="btn primario" id="btn-foco-andar">🎯 Foco em finalizar</button>
     </div>
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
-    <div class="card card-pad oculto so-admin" id="conferir-quarto-card" style="margin-bottom:14px; border-color:var(--pronto);"></div>
+    <div class="card card-pad oculto" id="conferir-quarto-card" style="margin-bottom:14px; border-color:var(--pronto);"></div>
     <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card" id="card-quartos">
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col so-admin" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col so-admin" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col so-admin" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -833,12 +833,12 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
         <option value="iacOk">Validado IAC</option>
-        <option value="naoBaixadoIac" class="so-admin">IAC não aceitou</option>
+        <option value="naoBaixadoIac">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
-        <option value="novosAvaliar" class="so-admin">Itens novos</option>
-        <option value="conferirQuarto" class="so-admin">Conferir no quarto</option>
-        <option value="naFalta" class="so-admin">IAC não aceitou: falta analisar</option>
-        <option value="naCobrar" class="so-admin">IAC não aceitou: cobrar IAC</option>
+        <option value="novosAvaliar">Itens novos</option>
+        <option value="conferirQuarto">Conferir no quarto</option>
+        <option value="naFalta">IAC não aceitou: falta analisar</option>
+        <option value="naCobrar">IAC não aceitou: cobrar IAC</option>
       </select>
       <select id="filtro-item-programacao">
         <option value="">Toda a programação</option>
@@ -1246,7 +1246,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.250';
+const VERSAO_APP = '2026-10-03.253';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4691,7 +4691,7 @@ function renderTorreAndares(){
       pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
-        '<span class="mini-stat novos so-admin'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
+        '<span class="mini-stat novos'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
         (() => {
           const saiuReal = Math.max(0, totalAndar - contaDoAndar.length);
           const verdesAndar = contaDoAndar.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
@@ -4882,16 +4882,16 @@ async function renderResumoGeral(recarregarHistorico){
           // origem do TOTAL: Sofitel e AW (e outras) contados; o resto (inclusive o que a IAC já tirou) é IAC — soma = total
           linhasSub([['IAC', Math.max(0, totalObra - c.SOFITEL - c.AW - c.outras)], ['Sofitel', c.SOFITEL], ['Outras origens', c.outras], ['AW (incluídos no app)', c.AW]]) +
           (() => { const av = contarPorOrigem(itensRevisaoAtual.filter(novoForaDoAberto)); const n = av.IAC + av.SOFITEL + av.AW + av.outras;
-            return n ? '<div class="so-admin" style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">' + linhasSub([['+ Novos a avaliar', n, 'class="tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"'], ['IAC', av.IAC, 'class="tom-novo"'], ['Sofitel', av.SOFITEL, 'class="tom-novo"'], ['Outras origens', av.outras, 'class="tom-novo"']]) + '</div>' : ''; })() + '</div>'; })() +
+            return n ? '<div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--line);">' + linhasSub([['+ Novos a avaliar', n, 'class="tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"'], ['IAC', av.IAC, 'class="tom-novo"'], ['Sofitel', av.SOFITEL, 'class="tom-novo"'], ['Outras origens', av.outras, 'class="tom-novo"']]) + '</div>' : ''; })() + '</div>'; })() +
       (() => { const nAc = itensConta.filter(novoAceitoEmAberto).length;
         return '<div class="stat clicavel" data-ir="itens" data-progresso="aberto"><div class="valor">'+emAberto+'</div><div class="rotulo">Em aberto</div>' +
-          linhasSub([['+ Novos a avaliar', novosEmAberto, 'class="so-admin tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
+          linhasSub([['+ Novos a avaliar', novosEmAberto, 'class="tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
       (() => { const naPlan = itensConta.filter(baixaDaAW).length;
         return '<div class="stat aw"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
           linhasSub([['Validados IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length, nHer = itensRevisaoAtual.filter((x) => baixaHerdadaPendente(acompanhamento[x.id])).length;
-        return (nCop + nRev) ? '<div class="stat pronto clicavel so-admin" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
+        return (nCop + nRev) ? '<div class="stat pronto clicavel" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
           linhasSub([['Baixas copiadas', nCop - nHer], ['Herdadas', nHer], ['P/ revalidar', nRev]]) + '</div>' : ''; })() +
       (() => { const lr = itensRevisaoAtual.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias), cR = contarPorOrigem(lr);
         return '<div class="stat reinc clicavel" data-ir="itens" data-progresso="reinc"><div class="valor">'+lr.length+'</div><div class="rotulo">Com reincidência</div>' +
@@ -4899,8 +4899,8 @@ async function renderResumoGeral(recarregarHistorico){
     '</div>' +
 
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
-    '<div class="grupo-label so-admin" style="margin-top:22px;">Validação da IAC</div>' +
-    '<div class="resumo-grid so-admin">' +
+    '<div class="grupo-label" style="margin-top:22px;">Validação da IAC</div>' +
+    '<div class="resumo-grid">' +
       (() => { const a = analiseNaoValidados(); return '<div class="stat"><div class="valor">'+(vdHistorico + a.total + a.voltou)+'</div><div class="rotulo">Itens vistoriados pela IAC</div>' + linhasSub([['Validados', vdHistorico], ['Não validados', a.total], ['Reincidência', a.voltou]]) + '</div>'; })() +
 
       '<div class="stat am"><div class="valor">'+analiseNaoValidados().total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
@@ -4911,16 +4911,16 @@ async function renderResumoGeral(recarregarHistorico){
       })() +
     '</div>' +
 
-    (() => { const a = analiseNaoValidados(); return '<div class="grupo-label so-admin" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
-    '<div class="resumo-grid so-admin">' +
+    (() => { const a = analiseNaoValidados(); return '<div class="grupo-label" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
+    '<div class="resumo-grid">' +
       '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
       '<div class="stat pronto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
       '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
     '</div>'; })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span class="so-admin" style="color:var(--vm); font-weight:600;">+'+novosVm+' novos<br></span>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div><div class="pct-sub">'+Math.round(c.am/totalItens*100)+'% do total'+(novosAm ? '<span class="so-admin"><br><span style="color:var(--aviso-cor); font-weight:600;">+'+novosAm+' novos</span></span>' : '')+'</div></div>' +
+      '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span style="color:var(--vm); font-weight:600;">+'+novosVm+' novos<br></span>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens" data-status-bruto="AM" data-progresso="aberto"><div class="valor">'+c.am+'</div><div class="rotulo">AM em aberto (amarelo)</div><div class="pct-sub">'+Math.round(c.am/totalItens*100)+'% do total'+(novosAm ? '<span><br><span style="color:var(--aviso-cor); font-weight:600;">+'+novosAm+' novos</span></span>' : '')+'</div></div>' +
     '</div>' +
 
     '<div class="grupo-label" style="margin-top:22px;">Quartos & áreas por status</div>' +
@@ -5134,8 +5134,7 @@ function aguardandoValidacaoIac(it){
   return !!prontosVistoria[k] && !ambienteVistoriado(it.andar, it.tipo, it.quarto) && !areasLiberadasRevisaoAtual[k];
 }
 function baixaDaAW(it){ const ac = acompanhamento[it.id]; return !!(ac && ac.awExecEm) && !conferirNoQuarto(it); }
-async function decidirConferencia(ids, confirmar){
-  if (!exigirAdmin()) return 0;
+async function decidirConferencia(ids, confirmar){ // a conferência é feita pela equipe no quarto — qualquer usuário identificado
   if (!(await garantirUsuario())) return 0;
   let feitos = 0; const agora = new Date().toISOString();
   await comLimiteDeConcorrencia(ids, 4, async (id) => {
@@ -6561,15 +6560,15 @@ function renderQuartos(){
         return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados junto · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
       })() +
       (() => { const nCob = itC.filter((x) => iacNaoAceitou(x) && (acompanhamento[x.id] || {}).divergencia === 'iac').length;
-        return '<td class="num-col so-admin" data-v="'+nNaoAceitou+'" data-cobrar="'+nCob+'" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+'; '+(nNaoAceitou ? 'cursor:pointer;' : '')+'" '+(nNaoAceitou ? 'data-nao-aceitou="1"' : '')+'><span style="'+(nNaoAceitou ? 'text-decoration:underline dotted;' : '')+'">'+(nNaoAceitou || '—')+'</span>' +
+        return '<td class="num-col" data-v="'+nNaoAceitou+'" data-cobrar="'+nCob+'" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+'; '+(nNaoAceitou ? 'cursor:pointer;' : '')+'" '+(nNaoAceitou ? 'data-nao-aceitou="1"' : '')+'><span style="'+(nNaoAceitou ? 'text-decoration:underline dotted;' : '')+'">'+(nNaoAceitou || '—')+'</span>' +
           (nCob ? '<div style="font-size:10.5px; color:var(--text-2); white-space:nowrap;">'+nCob+' cobrar IAC</div>' : '') + '</td>'; })() +
       (function(){ const r = itC.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].reincidencias).length;
         return '<td class="num-col '+(r ? 'col-reinc' : '')+'" '+(r ? '' : 'style="color:var(--faint);"')+'>'+(r || '—')+'</td>'; })() +
       (() => { const nc = l.itens.filter(naListaConferir).length, nRev = l.itens.filter(checarNoQuarto).length; totalConferirNaTabela += nc;
-        return '<td class="num-col so-admin" data-v="'+nc+'" data-revalidar="'+nRev+'" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+';" title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">' +
+        return '<td class="num-col" data-v="'+nc+'" data-revalidar="'+nRev+'" style="color:'+(nc ? 'var(--pronto)' : 'var(--faint)')+';" title="'+(nc ? 'Tocar pra ver os itens a conferir' : '')+'">' +
           '<span style="'+(nc ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nc ? 'data-conferir-quarto="1"' : '')+'>'+(nc || '—')+'</span>' +
           (nRev ? '<div style="font-size:10.5px; color:var(--muted); white-space:nowrap; margin-top:2px;">'+nRev+' revalidar</div>' : '') + '</td>'; })() +
-      '<td class="num-col so-admin" style="color:'+(nNovos ? 'var(--novo)' : 'var(--faint)')+'; '+(nNovos ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNovos ? 'data-novos="1"' : '')+'>'+(nNovos || '—')+'</td>' +
+      '<td class="num-col" style="color:'+(nNovos ? 'var(--novo)' : 'var(--faint)')+'; '+(nNovos ? 'cursor:pointer; text-decoration:underline dotted;' : '')+'" '+(nNovos ? 'data-novos="1"' : '')+'>'+(nNovos || '—')+'</td>' +
       (() => {
         const tu = totalDoAmbiente(l.andar, l.tipo, l.quarto);
         const totalAmb = tu != null ? Math.max(tu, itC.length) : itC.length;
@@ -7069,8 +7068,8 @@ function renderItens(){
       '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Validado IAC':'Validado IAC')+'</button>' +
       '<button class="chip-acao so-admin" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
-      (podeTirarDaObra() && conferirNoQuarto(it)
-        ? '<div class="so-admin" style="border:1px solid var(--pronto); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--pronto-soft); margin-bottom:5px;">' +
+      (conferirNoQuarto(it)
+        ? '<div style="border:1px solid var(--pronto); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--pronto-soft); margin-bottom:5px;">' +
             '<span style="font-size:10.5px; color:var(--pronto); text-align:center; line-height:1.3;" title="A baixa foi dada no número compartilhado por vários quartos (antes de cada quarto ter baixa própria) e copiada pra este quarto. Feito? Toque em Executado AW.">Conferir no quarto</span>' +
             '<button class="chip-acao" data-conferir="reabrir" data-id="'+esc(it.id)+'" style="font-size:11px;">Não foi feito: reabrir</button>' +
           '</div>'
@@ -7086,17 +7085,17 @@ function renderItens(){
           '</div>'
         : '') +
       (iacNaoAceitou(it)
-        ? '<div class="so-admin" style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
+        ? '<div style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
             '<span class="badge-nao-aceitou '+tipoNaoAceitou(it)+'" title="'+esc(DICA_NAO_ACEITOU[tipoNaoAceitou(it)] || '')+'">IAC não aceitou</span>' +
             (ac.divergencia === 'iac'
-              ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
-              : '<button class="chip-acao" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
+              ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao so-admin" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
+              : '<button class="chip-acao so-admin" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
             (ac.checarQuartoEm
-              ? '<span style="font-size:11px; color:var(--pronto);">✓ Na lista Conferir no quarto</span><button class="chip-acao" data-checar="tirar" data-id="'+esc(it.id)+'" style="font-size:10.5px;">tirar da lista</button>'
-              : '<button class="chip-acao" data-checar="por" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Manda pra lista da equipe ir olhar no quarto. Não foi feito? Desmarque o Executado AW.">Conferir no quarto</button>') +
+              ? '<span style="font-size:11px; color:var(--pronto);">✓ Na lista Conferir no quarto</span><button class="chip-acao so-admin" data-checar="tirar" data-id="'+esc(it.id)+'" style="font-size:10.5px;">tirar da lista</button>'
+              : '<button class="chip-acao so-admin" data-checar="por" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Manda pra lista da equipe ir olhar no quarto. Não foi feito? Desmarque o Executado AW.">Conferir no quarto</button>') +
           '</div>'
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
-          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha so-admin" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
+          : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
             : (ac.possivelReabertura && estaEmAberto(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal; background:var(--vm-soft); color:var(--vm);" title="Mesma descrição de um item que a AW já tinha executado, com foto diferente (ou sem foto): a IAC pode ter reaberto. Conferir em campo.">Possível reabertura · era '+esc(ac.possivelReabertura)+'</span>' : '')))) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">'+(conferirNoQuarto(it) ? (baixaHerdadaPendente(ac) ? 'Baixa herdada de ' + esc(ac.herdadoDe) + ': ' : 'Baixa do número geral: ') : 'AW: ')+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
       (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
@@ -7105,7 +7104,7 @@ function renderItens(){
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
       '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+'">'+esc(rotuloOrigem(origemDoItem(it)))))+'</span>'+esc(it.id) +
-        (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div class="so-admin"><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
+        (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
         ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride ? (ac.catAutoEm && ac.disciplinaOverride ? ' <span class="tag-auto" title="Categorizado automaticamente ('+(ac.catAutoFonte === 'ia' ? 'IA' : 'pelo seu histórico')+') — edite se precisar">auto</span>' : ' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>') : '')+'</td>' +
       '<td>'+esc(forn||'—')+fornTagHtml+'</td>' +
@@ -8874,7 +8873,7 @@ async function executarComparacao(){
 
     '<div class="stat"><div class="valor" style="color:var(--muted);">'+diff.trocas.length+'</div><div class="rotulo">↔ Trocas de número</div><div class="pct-sub">mesmo ambiente, mesma descrição e mesma foto — fora da conta</div></div>' +
     '</div>' +
-    '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' + (para === revisaoSelecionada ? '<button type="button" class="btn primario" id="btn-pdf-revisao-cliente" title="Resumo da revisão por andar e por disciplina — pra mandar ao cliente">PDF da revisão</button><button type="button" class="btn fantasma" id="btn-auditar-novos">Auditar itens novos</button><button type="button" class="btn fantasma so-admin" id="btn-encerrados-sem-baixa">Encerrados sem baixa</button>' : '') + '</div>' +
+    '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' + (para === revisaoSelecionada ? '<button type="button" class="btn primario" id="btn-pdf-revisao-cliente" title="Resumo da revisão por andar e por disciplina — pra mandar ao cliente">PDF da revisão</button><button type="button" class="btn fantasma so-admin" id="btn-auditar-novos">Auditar itens novos</button><button type="button" class="btn fantasma so-admin" id="btn-encerrados-sem-baixa">Encerrados sem baixa</button>' : '') + '</div>' +
     ((diff.voltaram.length || diff.trocas.length) ? '<div style="margin:10px 0 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><button type="button" class="btn primario" id="btn-pdf-correcoes">PDF: correções para a IAC</button><span class="rodape-nota" style="margin:0; text-align:left;">'+diff.voltaram.length+' que voltaram e '+diff.trocas.length+' trocas de número, com o número antigo de cada um</span></div>' : '');
   const bRel = document.getElementById('btn-pdf-revisao-cliente');
   if (bRel) bRel.addEventListener('click', () => exportarRelatorioRevisaoPdf(diff, de, para));
