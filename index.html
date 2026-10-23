@@ -788,7 +788,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="">Todos os fluxos</option>
         <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
-        <option value="iacOk">Validado IAC</option>
+        <option value="iacOk">Validado gestão AW</option>
       </select>
       <button class="btn fantasma" id="btn-limpar-filtro-quartos">Limpar filtros</button>
       <button class="btn fantasma" id="btn-filtro-multi-q" type="button" title="Vários andares e várias situações ao mesmo tempo">Filtrar seleção</button>
@@ -835,7 +835,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="">Todos os fluxos</option>
         <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
-        <option value="iacOk">Validado IAC</option>
+        <option value="iacOk">Validado gestão AW</option>
         <option value="naoBaixadoIac">IAC não aceitou</option>
         <option value="comReinc">Com reincidência</option>
         <option value="novosAvaliar">Itens novos</option>
@@ -1249,7 +1249,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.256';
+const VERSAO_APP = '2026-10-03.258';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2799,22 +2799,29 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
         const lote = semHist.slice(i, i + LOTE);
         const pedido = 'Tarefa interna de CATEGORIZAÇÃO (não é conversa). Para cada item de pendência de obra abaixo, escolha a disciplina e o fornecedor mais prováveis, ' +
           'usando a descrição, o andar, a disciplina que veio na planilha e os exemplos já categorizados pelo administrador. Use SOMENTE valores das listas. ' +
-          'Responda chamando a ferramenta registrar_categorias uma única vez, com todos os itens.\n\nDISCIPLINAS: ' + JSON.stringify(discs) +
+          'RESPONDA APENAS COM JSON VÁLIDO, sem nenhum texto antes ou depois, sem explicações, no formato exato: ' +
+          '{"itens":[{"id":"<id>","disciplina":"<uma da lista>","fornecedor":"<um da lista ou vazio>","confianca":"alta|media|baixa"}]} — um objeto por item, todos os itens.\n\nDISCIPLINAS: ' + JSON.stringify(discs) +
           '\nFORNECEDORES POR DISCIPLINA (com quantos itens cada): ' + JSON.stringify(fornPorDisc) +
           '\nFORNECEDOR JÁ DEFINIDO POR ANDAR E DISCIPLINA: ' + JSON.stringify(fornAndar) +
           '\nEXEMPLOS JÁ CATEGORIZADOS: ' + JSON.stringify(exemplos) +
           '\nITENS: ' + JSON.stringify(lote.map((x) => ({ id: x.id, andar: x.andar, local: String(localLabel(x)).replace(/\u00A0/g, ' '), disc_planilha: x.disciplina, desc: String(x.desc).slice(0, 300) })));
         let resp = null;
         try{
-          const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }], contexto: 'Categorização automática de itens novos (resposta só pela ferramenta).', ferramentas: ferr } });
+          const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }], contexto: 'Tarefa interna de categorização: responda somente o JSON pedido, sem conversa.', ferramentas: [] } });
           if (error){ let det = ''; try{ det = await error.context.text(); }catch(e){} motivoFalhaIA = (error.message || 'erro') + (det ? ' — ' + det.slice(0, 160) : ''); }
           else if (data && data.type === 'error') motivoFalhaIA = (data.error && data.error.message) || 'erro da IA';
           else resp = data;
         }catch(e){ motivoFalhaIA = String(e && e.message || e); }
         let uso = resp && Array.isArray(resp.content) ? resp.content.find((b) => b.type === 'tool_use' && b.name === 'registrar_categorias') : null;
         if (!uso && resp && Array.isArray(resp.content)){ // às vezes a IA responde em texto: aproveita o JSON se vier
-          try{ const txt = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join(''); const m = txt.match(/\{[\s\S]*"itens"[\s\S]*\}/); if (m) uso = { input: JSON.parse(m[0]) }; }catch(e){}
-          if (!uso) motivoFalhaIA = 'a IA respondeu sem a lista (' + (resp.stop_reason || 'sem motivo') + ')';
+          const txt = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+          try{
+            const limpo = txt.replace(/```json|```/g, '');
+            const a = limpo.indexOf('{'), z = limpo.lastIndexOf('}');
+            if (a !== -1 && z > a){ const obj = JSON.parse(limpo.slice(a, z + 1)); if (obj && Array.isArray(obj.itens)) uso = { input: obj }; }
+            if (!uso){ const a2 = limpo.indexOf('['), z2 = limpo.lastIndexOf(']'); if (a2 !== -1 && z2 > a2){ const arr = JSON.parse(limpo.slice(a2, z2 + 1)); if (Array.isArray(arr)) uso = { input: { itens: arr } }; } }
+          }catch(e){}
+          if (!uso){ motivoFalhaIA = 'a IA respondeu sem a lista (' + (resp.stop_reason || 'sem motivo') + ')'; console.warn('Resposta da IA (categorização):', txt.slice(0, 600)); }
         }
         const lista = uso && uso.input && Array.isArray(uso.input.itens) ? uso.input.itens : [];
         if (!uso){ falhouIA = true; break; } // sem resposta: não marca nada, tenta de novo na próxima abertura
@@ -3365,6 +3372,7 @@ function fecharReprovado(valor){
    e conta uma REINCIDÊNCIA — exceto se for desmarcado em até 15 minutos depois de marcar,
    que aí é tratado como correção de engano (marcou o item errado) e some do histórico. */
 async function alternarAcompanhamento(itemId, campo, modo){
+  if (campo === 'iacOkEm' && !podeValidarGestao()){ avisoFlutuante('Só a gestão da AW valida (diretor, gerente do contrato e gerente da obra)', 'erro'); return; }
   if (!(await garantirUsuario())) return;
   const por = usuarioAtual;
   const anterior = acompanhamento[itemId];
@@ -4373,7 +4381,7 @@ function contarEmAberto(itens){ return itens.filter(estaEmAberto).length; }
    antes da vistoria da IAC que gerou a revisão — e a IAC manteve o item na lista dela */
 function iacManteveExecutado(it){
   const ac = acompanhamento[it.id];
-  if (!ac || !ac.awExecEm || ac.iacOkEm || (it.status !== 'AM' && it.status !== 'VM') || !it.atualizadoEmAndar) return false;
+  if (!ac || !ac.awExecEm || (it.status !== 'AM' && it.status !== 'VM') || !it.atualizadoEmAndar) return false; // a validação da gestão não apaga a recusa da IAC
   if (conferirNoQuarto(it)) return false; // baixa copiada do número geral: não houve baixa real pra IAC recusar
   // só vale onde a passagem da IAC foi REGISTRADA (vistoria do ambiente/andar ou liberação p/ operação)
   const dv = dataVistoriaAmbiente(it.andar, it.tipo, it.quarto);
@@ -4391,7 +4399,7 @@ function iacNaoAceitou(it){ return iacNaoDeuBaixa(it) || iacManteveExecutado(it)
 // 'sozinha' = a IAC vistoriou sozinha e manteve o que a AW executou → divergência de campo
 function tipoNaoAceitou(it){ return iacNaoDeuBaixa(it) ? 'junto' : (iacManteveExecutado(it) ? 'sozinha' : ''); }
 const DICA_NAO_ACEITOU = {
-  junto: 'IAC não aceitou — contorno contínuo: validamos junto, ela aceitou, mas não tirou o item da planilha (erro de planilha da IAC).',
+  junto: 'IAC não aceitou — contorno contínuo: a gestão da AW validou, mas a IAC manteve o item na planilha.',
   sozinha: 'IAC não aceitou — contorno tracejado: a IAC vistoriou sozinha e manteve o que a AW executou (divergência de campo).'
 };
 function iacNaoDeuBaixa(it){
@@ -4711,7 +4719,7 @@ function renderTorreAndares(){
           const awRegA = awRegistradoNoAndar(andar);
           const awA = awRegA != null ? awRegA : contaDoAndar.filter(baixaDaAW).length;
           return '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono" title="baixas registradas pela AW">'+awA+'</span></span>' +
-            '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="'+iacOkDoAndar+' validados junto · '+(saiuReal + verdesAndar)+' a IAC tirou da planilha ou marcou verde">'+(iacOkDoAndar + saiuReal + verdesAndar)+'</span></span>' +
+            '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="A IAC tirou da planilha ou marcou verde'+(iacOkDoAndar ? ' · '+iacOkDoAndar+' validados pela gestão AW (não contam aqui)' : '')+'">'+(saiuReal + verdesAndar)+'</span></span>' +
             '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+contaDoAndar.length+' na planilha atual + '+saiuReal+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>';
         })() +
         '</span>';
@@ -4755,7 +4763,7 @@ function renderResumoDivergenciaIac(){
   if (!box) return;
   const nV = itensRevisaoAtual.filter(iacNaoDeuBaixa).length, nA = itensRevisaoAtual.filter(iacManteveExecutado).length;
   const bloco = (n, rot, fluxo) => '<button type="button" class="stat clicavel" data-fluxo-div="'+fluxo+'" style="all:unset; cursor:pointer;"><div style="font-size:22px; color:var(--'+(n ? 'am' : 'muted')+');">'+n+'</div><div style="font-size:12px; color:var(--muted);">'+rot+'</div></button>';
-  box.innerHTML = bloco(nA + nV, 'IAC não aceitou · ' + nV + ' validados junto · ' + nA + ' IAC sozinha', 'naoBaixadoIac');
+  box.innerHTML = bloco(nA + nV, 'IAC não aceitou · ' + nV + ' validados pela gestão · ' + nA + ' IAC sozinha', 'naoBaixadoIac');
   box.querySelectorAll('[data-fluxo-div]').forEach((b) => b.addEventListener('click', () => abrirItens({ fluxo: b.dataset.fluxoDiv })));
 }
 /* % AO LADO DOS NÚMEROS do resumo: base = total da obra; na Validação da IAC, "não aceitou" e "validado"
@@ -4872,7 +4880,7 @@ async function renderResumoGeral(recarregarHistorico){
   const saidosObra = temUni ? Math.max(0, totalObra - c.total - vdNaPlanilha) : sairam;
   const awObra = temUni ? andaresUni.reduce((s, a) => { const v = awRegistradoNoAndar(a); return v == null ? s : s + v; }, 0) : (itensConta.filter(baixaDaAW).length + sairam + vdNaPlanilha);
   vdHistorico = saidosObra + vdNaPlanilha;
-  const pctVist = Math.round((iacOk + saidosObra + vdNaPlanilha)/totalItens*100);
+  const pctVist = Math.round((saidosObra + vdNaPlanilha)/totalItens*100); // só o que a IAC tirou ou marcou verde
   const vmTotal = itensConta.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
@@ -4902,6 +4910,8 @@ async function renderResumoGeral(recarregarHistorico){
       (() => { const naPlan = itensConta.filter(baixaDaAW).length;
         return '<div class="stat aw"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
           linhasSub([['Validados IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
+      (() => { const nG = itensConta.filter((x) => (acompanhamento[x.id] || {}).iacOkEm).length;
+        return '<div class="stat clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor" style="color:var(--vd-forte);">'+nG+'</div><div class="rotulo">Validado pelo gestor AW</div><div class="pct-sub">conferência da gestão sobre a baixa</div></div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
       (() => { const nCop = itensRevisaoAtual.filter(conferirNoQuarto).length, nRev = itensRevisaoAtual.filter(checarNoQuarto).length, nHer = itensRevisaoAtual.filter((x) => baixaHerdadaPendente(acompanhamento[x.id])).length;
         return (nCop + nRev) ? '<div class="stat pronto clicavel" data-ir="itens-fluxo" data-fluxo="conferirQuarto"><div class="valor">'+(nCop + nRev)+'</div><div class="rotulo">A conferir no quarto</div>' +
@@ -5802,7 +5812,7 @@ function calcularEvolucaoPendencias(limiteDias){
       for (const e of ev){
         if (e.dia > dia) break;
         if (e.t === 'aw'){ ex = true; if (e.dia === dia) awDia++; }
-        else if (e.t === 'iac'){ ex = true; vi = true; if (e.dia === dia) iacDia++; }
+        else if (e.t === 'iac'){ ex = true; } // validação da gestão AW: conta como executado; a linha da IAC é só o que ela tirou
         else if (e.t === 'reinc'){ ex = false; vi = false; if (e.dia === dia) reincDia++; }
         else if (e.t === 'reaberto'){ ex = false; vi = false; }
       }
@@ -6569,8 +6579,8 @@ function renderQuartos(){
         const verdes = itC.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
         const awReg = awRegistradoNoAmbiente(l.andar, l.tipo, l.quarto);
         const awAmb = awReg != null ? awReg : awExecDoLocal; // baixas REALMENTE dadas pela AW (sem as cópias "a conferir")
-        const iacAmb = iacOkDoLocal + saiu + verdes;
-        return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados junto · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
+        const iacAmb = saiu + verdes; // IAC = só o que ela tirou da planilha ou marcou verde
+        return '<td class="num-col col-aw" title="Baixas registradas pela AW: '+awExecDoLocal+' em itens da planilha atual'+(awAmb > awExecDoLocal ? ' + '+(awAmb - awExecDoLocal)+' em itens que a IAC já tirou' : '')+((totalAmb - contarEmAberto(itC) - awAmb) > 0 ? ' · '+(totalAmb - contarEmAberto(itC) - awAmb)+' a IAC encerrou sem baixa da AW' : '')+'">'+awAmb+'</td><td class="num-col col-iac" title="'+(iacOkDoLocal ? iacOkDoLocal+' validados pela gestão · ' : '')+(saiu + verdes)+' a IAC tirou da planilha ou marcou verde">'+iacAmb+'</td>';
       })() +
       (() => { const nCob = itC.filter((x) => iacNaoAceitou(x) && (acompanhamento[x.id] || {}).divergencia === 'iac').length;
         return '<td class="num-col" data-v="'+nNaoAceitou+'" data-cobrar="'+nCob+'" style="color:'+(nNaoAceitou ? 'var(--aviso-cor)' : 'var(--faint)')+'; '+(nNaoAceitou ? 'cursor:pointer;' : '')+'" '+(nNaoAceitou ? 'data-nao-aceitou="1"' : '')+'><span style="'+(nNaoAceitou ? 'text-decoration:underline dotted;' : '')+'">'+(nNaoAceitou || '—')+'</span>' +
@@ -7078,7 +7088,7 @@ function renderItens(){
       (conferirNoQuarto(it)
         ? '<button class="chip-acao" data-conferir="ok" data-id="'+esc(it.id)+'" title="A baixa veio do número geral — tocar confirma a execução neste quarto">Executado AW</button>'
         : '<button class="chip-acao'+(ac.awExecEm?' marcado':'')+'" data-acomp="awExecEm" data-id="'+esc(it.id)+'"'+(ac.awExecEm?' title="Desmarcar devolve o item para aberto e conta uma reincidência (em até 15 min depois de marcar, conta só como correção de engano)"':'')+'>'+(ac.awExecEm?'✓ Executado AW':'Executado AW')+'</button>') +
-      '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado?' disabled title="Marque \'Executado AW\' primeiro"':'')+'>'+(ac.iacOkEm?'✓ Validado IAC':'Validado IAC')+'</button>' +
+      '<button class="chip-acao'+(ac.iacOkEm?' marcado iac':'')+'" data-acomp="iacOkEm" data-id="'+esc(it.id)+'"'+(iacDesabilitado ? ' disabled title="Marque \'Executado AW\' primeiro"' : (!podeValidarGestao() ? ' disabled title="Só a gestão da AW valida (diretor, gerente do contrato e gerente da obra)"' : ' title="Conferência da gestão da AW sobre a baixa"'))+'>'+(ac.iacOkEm?'✓ Validado gestão':'Validado gestão')+'</button>' +
       '<button class="chip-acao so-admin" data-editar-item="'+esc(it.id)+'">Editar</button>' +
       dataHtml +
       (conferirNoQuarto(it)
@@ -7111,7 +7121,7 @@ function renderItens(){
           : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
             : (ac.possivelReabertura && estaEmAberto(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal; background:var(--vm-soft); color:var(--vm);" title="Mesma descrição de um item que a AW já tinha executado, com foto diferente (ou sem foto): a IAC pode ter reaberto. Conferir em campo.">Possível reabertura · era '+esc(ac.possivelReabertura)+'</span>' : '')))) +
       (ac.awExecEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">'+(conferirNoQuarto(it) ? (baixaHerdadaPendente(ac) ? 'Baixa herdada de ' + esc(ac.herdadoDe) + ': ' : 'Baixa do número geral: ') : 'AW: ')+esc(ac.awExecPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.awExecEm)+'</span></div>' : '') +
-      (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">IAC: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
+      (ac.iacOkEm ? '<div style="font-size:10.5px; color:var(--muted); line-height:1.35;">Gestão: '+esc(ac.iacOkPor||'—')+'<br><span style="color:var(--faint);">'+dataHoraCurta(ac.iacOkEm)+'</span></div>' : '') +
       '</div>';
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
@@ -7166,7 +7176,7 @@ function renderItens(){
       // continua visível? então marcar/desmarcar resolve — sem aviso
       if (document.querySelector('#tbody-itens tr[data-item="' + CSS.escape(id) + '"]')) return;
       const it = itensRevisaoAtual.find((x) => x.id === id);
-      const nome = (campo === 'awExecEm' ? 'Executado AW' : 'Validado IAC') + (depois[campo] ? '' : ' desmarcado');
+      const nome = (campo === 'awExecEm' ? 'Executado AW' : 'Validado gestão AW') + (depois[campo] ? '' : ' desmarcado');
       mostrarDesfazer(nome + ' · ' + (it ? String(localLabel(it)).replace(/\u00A0/g,' ') + ' (' + id + ')' : id) + ' saiu da lista', async () => {
         await restaurarAcompanhamentos(antes);
         atualizarTelasAposAcompanhamento();
@@ -7256,7 +7266,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado IAC', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', recomendacao:'Decisão por recomendação', catAuto:'Categorizado automaticamente', sugestao:'Sugestão do app aceita', naoNovo:'Não é novo (vistoria em andamento)', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado gestão AW', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', recomendacao:'Decisão por recomendação', catAuto:'Categorizado automaticamente', sugestao:'Sugestão do app aceita', naoNovo:'Não é novo (vistoria em andamento)', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -7466,7 +7476,7 @@ const CHAT_FERRAMENTAS = [
       prioridade:{ type:'string', enum:['VM','AM'] }, descricao:{ type:'string' } }, required:['andar','disciplina','prioridade','descricao'] } },
   { name:'editar_itens', description:'Propõe trocar disciplina, fornecedor e/ou prioridade dos itens do filtro.', input_schema:{ type:'object', properties:{
       filtro: CHAT_FILTRO, disciplina:{ type:'string' }, fornecedor:{ type:'string' }, prioridade:{ type:'string', enum:['VM','AM'] } }, required:['filtro'] } },
-  { name:'mudar_fluxo', description:'Propõe mudar o fluxo dos itens do filtro (só administradores): aw = Executado AW, iac = Validado IAC (inclui AW), aberto = voltar para em aberto (engano, sem reincidência).', input_schema:{ type:'object', properties:{
+  { name:'mudar_fluxo', description:'Propõe mudar o fluxo dos itens do filtro (só administradores): aw = Executado AW, iac = Validado gestão AW (inclui AW), aberto = voltar para em aberto (engano, sem reincidência).', input_schema:{ type:'object', properties:{
       filtro: CHAT_FILTRO, fluxo:{ type:'string', enum:['aw','iac','aberto'] } }, required:['filtro','fluxo'] } },
   { name:'definir_previsao', description:'Propõe pôr data prevista de execução (AAAA-MM-DD) nos itens em aberto do filtro (por andar, quarto, disciplina, fornecedor…). Item já executado não recebe.', input_schema:{ type:'object', properties:{
       filtro: CHAT_FILTRO, data:{ type:'string' } }, required:['filtro','data'] } },
@@ -7551,7 +7561,7 @@ function chatMontarProposta(nome, inp){
   }
   if (nome === 'mudar_fluxo'){
     if (!podeTirarDaObra()) return { erro: 'Mudar o fluxo em lote é só para administradores.' };
-    const rot = { aw:'Executado AW', iac:'Validado IAC', aberto:'em aberto (engano, sem reincidência)' }[inp.fluxo];
+    const rot = { aw:'Executado AW', iac:'Validado gestão AW', aberto:'em aberto (engano, sem reincidência)' }[inp.fluxo];
     return { tipo: nome, ids: itens.map((x) => x.id), itens, fluxo: inp.fluxo, texto: 'Mudar ' + itens.length + ' item(ns) para ' + rot, mudancas: [['Fluxo', '', rot]] };
   }
   if (nome === 'definir_previsao'){
@@ -8005,6 +8015,12 @@ async function tratarCliqueCronograma(e){
   avisoFlutuante(nomeAndarLongo(Number(a)) + (v ? ': lista completa' : ': lista volta a pendente'), 'ok');
   return true;
 }
+
+/* VALIDAÇÃO DA GESTÃO AW: a IAC não valida mais junto com a gente (a baixa da IAC é só o que ela TIRA
+   da planilha). O antigo botão "Validado IAC" de cada item passa a ser a conferência da gestão da AW
+   sobre a baixa dos mestres — feita só pelo diretor, pelo gerente do contrato e pelo gerente da obra. */
+const VALIDADORES_GESTAO = { 'quartos': ['Guilherme Titton', 'Marcel Camilo', 'Rodrigo Costa'], 'areas-comuns': ['Guilherme Titton', 'Rafael Gentil', 'Gabriel Cecche'] };
+function podeValidarGestao(){ return (VALIDADORES_GESTAO[OBRA || 'quartos'] || []).indexOf(usuarioAtual) !== -1; }
 
 /* ===================== RECOMENDAÇÕES (aprendem com as suas decisões) =====================
    Para cada pendência de decisão (IAC não aceitou: falta analisar · conferir no quarto · item novo a avaliar),
@@ -8561,7 +8577,7 @@ function abrirEdicaoAgrupamento(){
         : '') +
       (podeTirarDaObra()
         ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
-          '<select id="grupo-fluxo"><option value="">— manter o de cada item —</option><option value="aw">Marcar Executado AW</option><option value="iac">Marcar Validado IAC (inclui Executado AW)</option><option value="aberto">Voltar para em aberto (marcado por engano — sem reincidência)</option></select></div>'
+          '<select id="grupo-fluxo"><option value="">— manter o de cada item —</option><option value="aw">Marcar Executado AW</option><option value="iac">Marcar Validado gestão AW (inclui Executado AW)</option><option value="aberto">Voltar para em aberto (marcado por engano — sem reincidência)</option></select></div>'
         : '') +
       '</div>' + // fim das 2 colunas
       (podeTirarDaObra() ? '<div class="modal-campo" style="margin-top:4px;"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
@@ -8674,6 +8690,7 @@ function abrirEdicaoAgrupamento(){
       const abertos = ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && estaEmAberto(x); }).length;
       if (!window.confirm((modoPrev === 'data' ? 'Pôr previsão ' + dataPrev.split('-').reverse().join('/') : 'Remover a previsão') + ' em ' + abertos + ' de ' + ids.length + ' item(ns) selecionado(s)?' + (abertos < ids.length ? '\n\nOs outros ' + (ids.length - abertos) + ' já foram executados e ficam como estão.' : ''))) return;
     }
+    if (novoFluxo === 'iac' && !podeValidarGestao()){ avisoFlutuante('Só a gestão da AW marca "Validado gestão AW"', 'erro'); return; }
     if (novoFluxo && !window.confirm('Mudar o fluxo de '+ids.length+' item(ns) para "'+({ aw:'Executado AW', iac:'Validado IAC', aberto:'em aberto' })[novoFluxo]+'"?\n\nFica registrado no histórico de cada item, com o seu nome.')) return;
     const btn = document.getElementById('grupo-salvar');
     btn.disabled = true; btn.textContent = 'Salvando… 0/'+ids.length;
@@ -9254,8 +9271,8 @@ async function renderTendencia(){
   const add = (ico, html, txt) => linhasResumo.push({ ico, html, txt });
   add('📋', '<b>Checklist '+esc(rev)+'</b> · faltam <b>'+pdfNum(emAberto)+'</b> itens em aberto ('+pdfPct(emAberto, totalPend)+'% do total)',
       '*Checklist '+rev+'* · faltam *'+pdfNum(emAberto)+'* itens em aberto ('+pdfPct(emAberto, totalPend)+'% do total)');
-  add('🟣', 'Executado AW: <b>'+pdfNum(exec)+'</b> ('+pdfPct(exec, totalPend)+'%) · Validado IAC: <b>'+pdfNum(vist)+'</b> ('+pdfPct(vist, totalPend)+'%)',
-      'Executado AW: '+pdfNum(exec)+' ('+pdfPct(exec, totalPend)+'%) · Validado IAC: '+pdfNum(vist)+' ('+pdfPct(vist, totalPend)+'%)');
+  add('🟣', 'Executado AW: <b>'+pdfNum(exec)+'</b> ('+pdfPct(exec, totalPend)+'%) · Validado gestão AW: <b>'+pdfNum(vist)+'</b> ('+pdfPct(vist, totalPend)+'%)',
+      'Executado AW: '+pdfNum(exec)+' ('+pdfPct(exec, totalPend)+'%) · Validado gestão AW: '+pdfNum(vist)+' ('+pdfPct(vist, totalPend)+'%)');
   add('⚡', 'Ritmo (7 dias): <b>'+pdfNum(Math.round(ritmoAw))+'/dia</b> AW · <b>'+pdfNum(Math.round(ritmoIac))+'/dia</b> IAC',
       'Ritmo (7 dias): '+pdfNum(Math.round(ritmoAw))+'/dia AW · '+pdfNum(Math.round(ritmoIac))+'/dia IAC');
   add('📅', previsao ? 'Previsão no ritmo atual: <b>'+fmtData(previsao)+'</b>' : 'Sem execuções nos últimos 7 dias — sem previsão',
@@ -11333,7 +11350,7 @@ function metricasDoLocal(l){
   const aw = awReg != null ? awReg : itC.filter(baixaDaAW).length;
   const saiu = Math.max(0, total - itC.length);
   const verdes = itC.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
-  const iac = itC.filter((x) => (acompanhamento[x.id] || {}).iacOkEm).length + saiu + verdes;
+  const iac = saiu + verdes;
   const aberto = contarEmAberto(itC);
   return {
     vm: c.vm, am: c.am, aberto, aw, iac, total,
@@ -11450,7 +11467,7 @@ async function exportarItensPdf(listaPronta){
     const ex = itens[0];
     extras.push(filtroItemLocal.tipo === 'APTO' ? String(filtroItemLocal.quarto) : labelTipo(filtroItemLocal.tipo) + (ex ? ' '+nomeAndar(ex.andar) + '' : ''));
   }
-  if (filtroProgresso) extras.push({ aberto:'Em aberto', awExec:'Executado AW', iacOk:'Validado IAC' }[filtroProgresso] || '');
+  if (filtroProgresso) extras.push({ aberto:'Em aberto', awExec:'Executado AW', iacOk:'Validado gestão AW' }[filtroProgresso] || '');
   if (filtroStatusBrutoAdHoc) extras.push(filtroStatusBrutoAdHoc);
   if (!externo && textoFiltroMulti()) extras.push(textoFiltroMulti());
 
@@ -11460,7 +11477,7 @@ async function exportarItensPdf(listaPronta){
     cartoes: [
       { rotulo:'Em aberto', valor:ab, sub:'falta executar', destaque:true },
       { rotulo:'Executado AW', valor:aw, sub:pdfPct(aw,itens.length)+'% dos itens', cor:PDF_COR.az },
-      { rotulo:'Validado IAC', valor:iac, sub:pdfPct(iac,itens.length)+'% dos itens', cor:PDF_COR.vd },
+      { rotulo:'Validado gestão AW', valor:iac, sub:pdfPct(iac,itens.length)+'% dos itens', cor:PDF_COR.vd },
       { rotulo:'Total de itens', valor:itens.length, sub:'no filtro aplicado' }
     ],
     tituloAndamento: (!externo && document.getElementById('filtro-item-andar').value) ? 'Andamento do andar' : 'Andamento',
@@ -11518,7 +11535,7 @@ async function exportarItensPdf(listaPronta){
     const tipoNA = tipoNaoAceitou(it);
     if (tipoNA){
       fluxLinhas.push({ t:'IAC não aceitou', cor:PDF_COR.am || PDF_COR.ink2, s:7 });
-      fluxLinhas.push({ t: ac.divergencia === 'iac' ? 'IAC precisa corrigir' : (checarNoQuarto(it) ? 'revalidar no quarto' : (tipoNA === 'junto' ? 'validado junto' : 'IAC sozinha')), cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
+      fluxLinhas.push({ t: ac.divergencia === 'iac' ? 'IAC precisa corrigir' : (checarNoQuarto(it) ? 'revalidar no quarto' : (tipoNA === 'junto' ? 'validado pela gestão' : 'IAC sozinha')), cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
     }
     if (novoForaDoAberto(it)) fluxLinhas.push({ t: ac.novoContestadoEm ? 'Item novo · IAC precisa corrigir' : 'Item novo · a avaliar', cor:[221,107,30], s:6.8 });
     if (ac.dataPrevista && !ac.awExecEm && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
@@ -11570,7 +11587,7 @@ async function exportarItensPdf(listaPronta){
         }
         // fluxo: selo com a situação, nas cores do painel, e embaixo quem deu cada baixa
         let txt, fg, bg, bd;
-        if (ac.iacOkEm){ txt='Validado IAC'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
+        if (ac.iacOkEm){ txt='Validado gestão'; fg=PDF_COR.vd; bg=PDF_COR.vds; bd=PDF_COR.vd; }
         else if (conferirNoQuarto(it)){ txt='Conferir no quarto'; fg=PDF_COR.az; bg=PDF_COR.paper; bd=PDF_COR.az; }
         else if (ac.awExecEm){ txt='Executado AW'; fg=PDF_COR.az; bg=PDF_COR.azs; bd=PDF_COR.az; }
         else { txt='Em aberto'; fg=PDF_COR.ink; bg=PDF_COR.paper; bd=PDF_COR.line; }
@@ -11794,7 +11811,7 @@ async function iniciar(){
     const lista = itensRevisaoAtual.filter(iacNaoAceitou).concat(contestados).sort((a,b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
     if (!lista.length){ avisoFlutuante('Nenhum item com "IAC não aceitou" nesta revisão', 'ok'); return; }
     const nJ = lista.filter((x) => tipoNaoAceitou(x) === 'junto').length;
-    exportarItensPdf({ itens: lista, titulo: 'Itens - IAC nao aceitou', filtro: 'IAC não aceitou: '+lista.length+' itens — '+nJ+' validados junto (erro de planilha da IAC) · '+(lista.length-nJ)+' IAC sozinha (divergência de campo)' });
+    exportarItensPdf({ itens: lista, titulo: 'Itens - IAC nao aceitou', filtro: 'IAC não aceitou: '+lista.length+' itens — '+nJ+' validados pela gestão (erro de planilha da IAC) · '+(lista.length-nJ)+' IAC sozinha (divergência de campo)' });
   });
   document.getElementById('btn-pdf-quartos').addEventListener('click', exportarQuartosPdf);
   document.getElementById('btn-foco-andar').addEventListener('click', abrirFocoAndar);
