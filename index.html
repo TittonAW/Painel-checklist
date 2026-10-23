@@ -615,14 +615,17 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .modal-acoes{ display:flex; gap:10px; justify-content:flex-end; margin-top:6px; flex:none; flex-wrap:wrap; }
 .modal-acoes .btn{ border-radius:11px; padding:10px 18px; }
 
-.lightbox-overlay{ position:fixed; inset:0; background:rgba(8,9,10,.82); display:flex; align-items:center; justify-content:center; z-index:110; padding:28px; }
-.lightbox-imagem{ max-width:100%; max-height:calc(100vh - 56px); border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,.5); }
+.lightbox-overlay{ position:fixed; inset:0; background:rgba(8,9,10,.86); display:flex; align-items:center; justify-content:center; z-index:110;
+  padding:calc(env(safe-area-inset-top, 0px) + 64px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px); }
+.lightbox-imagem{ max-width:100%; max-height:100%; object-fit:contain; border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,.5); }
+/* no celular o "X" fica abaixo da barra de status / Dynamic Island (área segura), maior e com mais contraste */
 .lightbox-fechar{
-  position:absolute; top:16px; right:20px; width:38px; height:38px; border-radius:50%; z-index:5;
-  background:rgba(20,20,20,.55); color:#fff; border:1px solid rgba(255,255,255,.25);
-  font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  position:fixed; top:calc(env(safe-area-inset-top, 0px) + 12px); right:calc(env(safe-area-inset-right, 0px) + 14px);
+  width:44px; height:44px; border-radius:50%; z-index:111;
+  background:rgba(255,255,255,.92); color:#111; border:none; box-shadow:0 2px 10px rgba(0,0,0,.35);
+  font-size:26px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer;
 }
-@media (hover:hover) and (pointer:fine){ .lightbox-fechar:hover{ background:rgba(20,20,20,.8); } }
+@media (hover:hover) and (pointer:fine){ .lightbox-fechar:hover{ background:#fff; } }
 
 .puxar-atualizar{
   position:fixed; left:50%; top:calc(env(safe-area-inset-top,0px) + 8px); z-index:160;
@@ -1246,7 +1249,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.253';
+const VERSAO_APP = '2026-10-03.256';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2756,7 +2759,7 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
   const renovarTrava = () => store.setDoc('config', 'categorizacao_em_andamento', { por: usuarioAtual, em: new Date().toISOString() }).catch(() => {});
   await renovarTrava();
   categorizandoAgora = true; pararCategorizacao = false;
-  let porHist = 0, porIA = 0, falhouIA = false;
+  let porHist = 0, porIA = 0, falhouIA = false, motivoFalhaIA = '';
   try{
     const agora = new Date().toISOString();
     const gravar = async (it, disc, forn, fonte, motivo) => {
@@ -2787,12 +2790,13 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
       const exemplos = itensRevisaoAtual.filter((x) => { const ac = acompanhamento[x.id]; return ac && (ac.disciplinaOverride || ac.fornecedorOverride); }).slice(-60).map((x) => ({ desc: String(x.desc).slice(0, 140), andar: x.andar, disc_planilha: x.disciplina, disciplina: disciplinaEfetiva(x), fornecedor: fornecedorEfetivo(x) }));
       const ferr = [{ name:'registrar_categorias', description:'Registra a disciplina e o fornecedor de cada item.', input_schema:{ type:'object', properties:{ itens:{ type:'array', items:{ type:'object', properties:{
         id:{ type:'string' }, disciplina:{ type:'string', description:'uma das disciplinas da lista' }, fornecedor:{ type:'string', description:'um dos fornecedores da lista, ou vazio se não souber' },
-        confianca:{ type:'string', enum:['alta','media','baixa'] }, motivo:{ type:'string', description:'até 8 palavras' } }, required:['id','disciplina','confianca'] } } }, required:['itens'] } }];
-      for (let i = 0; i < semHist.length; i += 25){
+        confianca:{ type:'string', enum:['alta','media','baixa'] }, motivo:{ type:'string', description:'até 4 palavras' } }, required:['id','disciplina','confianca'] } } }, required:['itens'] } }];
+      const LOTE = 8;
+      for (let i = 0; i < semHist.length; i += LOTE){
         if (pararCategorizacao) break;
         if (aoAndar) aoAndar(Math.min(i, semHist.length), semHist.length, porHist + porIA);
         if (i % 250 === 0) renovarTrava();
-        const lote = semHist.slice(i, i + 25);
+        const lote = semHist.slice(i, i + LOTE);
         const pedido = 'Tarefa interna de CATEGORIZAÇÃO (não é conversa). Para cada item de pendência de obra abaixo, escolha a disciplina e o fornecedor mais prováveis, ' +
           'usando a descrição, o andar, a disciplina que veio na planilha e os exemplos já categorizados pelo administrador. Use SOMENTE valores das listas. ' +
           'Responda chamando a ferramenta registrar_categorias uma única vez, com todos os itens.\n\nDISCIPLINAS: ' + JSON.stringify(discs) +
@@ -2803,11 +2807,17 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
         let resp = null;
         try{
           const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }], contexto: 'Categorização automática de itens novos (resposta só pela ferramenta).', ferramentas: ferr } });
-          if (!error) resp = data;
-        }catch(e){ resp = null; }
-        const uso = resp && Array.isArray(resp.content) ? resp.content.find((b) => b.type === 'tool_use' && b.name === 'registrar_categorias') : null;
+          if (error){ let det = ''; try{ det = await error.context.text(); }catch(e){} motivoFalhaIA = (error.message || 'erro') + (det ? ' — ' + det.slice(0, 160) : ''); }
+          else if (data && data.type === 'error') motivoFalhaIA = (data.error && data.error.message) || 'erro da IA';
+          else resp = data;
+        }catch(e){ motivoFalhaIA = String(e && e.message || e); }
+        let uso = resp && Array.isArray(resp.content) ? resp.content.find((b) => b.type === 'tool_use' && b.name === 'registrar_categorias') : null;
+        if (!uso && resp && Array.isArray(resp.content)){ // às vezes a IA responde em texto: aproveita o JSON se vier
+          try{ const txt = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join(''); const m = txt.match(/\{[\s\S]*"itens"[\s\S]*\}/); if (m) uso = { input: JSON.parse(m[0]) }; }catch(e){}
+          if (!uso) motivoFalhaIA = 'a IA respondeu sem a lista (' + (resp.stop_reason || 'sem motivo') + ')';
+        }
         const lista = uso && uso.input && Array.isArray(uso.input.itens) ? uso.input.itens : [];
-        if (!uso){ falhouIA = true; break; } // sem resposta (sem créditos, sem conexão…): não marca nada, tenta de novo na próxima abertura
+        if (!uso){ falhouIA = true; break; } // sem resposta: não marca nada, tenta de novo na próxima abertura
         for (const it of lote){
           const r = lista.find((x) => String(x.id) === String(it.id));
           const discOk = r && discs.indexOf(r.disciplina) !== -1 ? r.disciplina : null;
@@ -2820,7 +2830,10 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
   }finally{
     categorizandoAgora = false; sugestoesIdx = null;
     store.setDoc('config', 'categorizacao_em_andamento', { por: '', em: new Date(0).toISOString() }).catch(() => {});
-    if (falhouIA) avisoFlutuante('A IA não respondeu (créditos da API ou conexão) — os itens restantes serão categorizados na próxima abertura', 'erro');
+    if (falhouIA){ console.warn('Categorização: IA não respondeu —', motivoFalhaIA);
+      let jaAvisou = false; const kAv = 'aviso_ia_falhou_' + chaveDia(new Date());
+      try{ jaAvisou = !!localStorage.getItem(kAv); localStorage.setItem(kAv, motivoFalhaIA || '1'); }catch(e){}
+      if (!jaAvisou && ehFundador()) avisoFlutuante('A IA não categorizou agora (' + (/credit|balance|billing/i.test(motivoFalhaIA) ? 'sem créditos na API da Anthropic' : (motivoFalhaIA || 'sem resposta').slice(0, 120)) + ') — tenta de novo na próxima abertura', 'erro'); }
     if (porHist + porIA){ atualizarTelasAposAcompanhamento(); if (abaAtual() === 'itens') renderItens();
       avisoFlutuante('Itens novos categorizados automaticamente: ' + (porHist ? porHist + ' pelo seu histórico' : '') + (porHist && porIA ? ' · ' : '') + (porIA ? porIA + ' pela IA' : ''), 'ok'); }
   }
@@ -9451,7 +9464,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
