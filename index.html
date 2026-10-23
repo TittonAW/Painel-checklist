@@ -516,6 +516,10 @@ body.aba-quartos main{ max-width:1900px; }
 .rec-botoes{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
 .rec-botoes .chip-acao{ font-size:11.5px; }
 .rec-botoes .rec-ok{ border-color:var(--primary, #5A8C80); color:var(--primary, #5A8C80); font-weight:500; }
+.grupo-label.grupo-sofitel{ color:#6B3FA0; }
+.mini-stat.novos-s .mini-rotulo, .mini-stat.novos-s .mini-valor{ color:#6B3FA0; }
+.mini-stat.novos{ width:auto; min-width:26px; } .mini-stat.novos .mini-rotulo{ white-space:nowrap; }
+@media (max-width: 700px){ .mini-stat.novos .rot-longo{ display:none; } .mini-stat.novos{ min-width:16px; } } /* no celular: só "I" e "S" (com a cor) */
 .tag-auto{ display:inline-block; font-size:9.5px; padding:0 5px; border-radius:6px; background:#E8EEFB; color:#3B6FD4; vertical-align:1px; }
 .sugestao-cat{ margin-top:6px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:11px; color:var(--azul, #3B6FD4); }
 .sugestao-cat .chip-acao{ font-size:10.5px; padding:1px 7px; }
@@ -1249,7 +1253,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.258';
+const VERSAO_APP = '2026-10-03.259';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4704,6 +4708,7 @@ function renderTorreAndares(){
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const novosAbertosDoAndar = itensDoAndar.filter(novoAAvaliar).length;          // novos ainda sem decisão
+      const novosS = itensDoAndar.filter((x) => novoAAvaliar(x) && origemDoItem(x) === 'SOFITEL').length, novosI = novosAbertosDoAndar - novosS;
       const contaDoAndar = itensDoAndar.filter(contaNoTotal);
       const abertoDoAndar = contarEmAberto(contaDoAndar);                             // sem os novos não aceitos
       const saiuDoAndar = (mapaSairam.get(andar) || 0);
@@ -4712,7 +4717,8 @@ function renderTorreAndares(){
       pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
-        '<span class="mini-stat novos'+(novosAbertosDoAndar ? '' : ' sem-valor')+'" title="Itens novos a avaliar (ainda não aceitos como abertos)"><span class="mini-rotulo">Novos</span><span class="mini-valor mono">'+(novosAbertosDoAndar || 0)+'</span></span>' +
+        '<span class="mini-stat novos'+(novosI ? '' : ' sem-valor')+'" title="Itens novos a avaliar vindos da IAC"><span class="mini-rotulo"><span class="rot-longo">Novos </span>I</span><span class="mini-valor mono">'+(novosI || 0)+'</span></span>' +
+        '<span class="mini-stat novos novos-s'+(novosS ? '' : ' sem-valor')+'" title="Itens novos a avaliar vindos da Sofitel"><span class="mini-rotulo"><span class="rot-longo">Novos </span>S</span><span class="mini-valor mono">'+(novosS || 0)+'</span></span>' +
         (() => {
           const saiuReal = Math.max(0, totalAndar - contaDoAndar.length);
           const verdesAndar = contaDoAndar.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
@@ -4786,7 +4792,9 @@ function porPercentuaisNoResumo(grid){
       if (!v || v.querySelector('.pct-lado') || /Itens totais/i.test(r) || /\//.test(v.textContent)) return;
       const n = num(v); if (n == null) return;
       let b = (/Validação da IAC/i.test(titulo) && !/vistoriados/i.test(r) && vistoriados) ? vistoriados : base;
-    if (/Não validados pela IAC/i.test(titulo)){ const a = analiseNaoValidados(); b = a.total; }
+    if (/Não validados pela IAC/i.test(titulo)){ const a = analiseNaoValidados('IAC'); b = a.total; }
+    if (/Não validados pela Sofitel/i.test(titulo)){ const a = analiseNaoValidados('SOFITEL'); b = a.total; }
+    if (/Validação da Sofitel/i.test(titulo)){ const vv = stats.find((s) => /vistoriados/i.test((s.querySelector('.rotulo') || {}).textContent || '')); if (vv && !/vistoriados/i.test(r)) b = num(vv.querySelector('.valor')) || b; }
       if (!b) return;
       v.dataset.v = String(n);
       v.insertAdjacentHTML('beforeend', '<span class="pct-lado">' + Math.round(n / b * 100) + '%</span>');
@@ -4809,13 +4817,22 @@ function contarPorOrigem(lista){
 function textoOrigens(c, curto){
   return [c.IAC ? (curto ? 'IAC ' : 'IAC ') + pdfNum(c.IAC) : '', c.SOFITEL ? (curto ? 'SOF ' : 'Sofitel ') + pdfNum(c.SOFITEL) : '', c.AW ? 'AW ' + pdfNum(c.AW) : '', c.outras ? 'outras ' + pdfNum(c.outras) : ''].filter(Boolean).join(' · ');
 }
-function analiseNaoValidados(){
-  const naoAc = itensRevisaoAtual.filter(iacNaoAceitou);
+function origemDoRemovido(h){ const ac = acompanhamento[String(h._id || h.id)] || {}; return ac.origemOverride || h.o || 'IAC'; }
+// validação feita por quem originou o item: IAC (padrão) ou Sofitel
+function validadosPorOrigem(org){
+  const sof = (o) => o === 'SOFITEL';
+  const removidos = sairamDaPlanilha().filter((h) => org === 'SOFITEL' ? sof(origemDoRemovido(h)) : !sof(origemDoRemovido(h))).length;
+  const verdes = itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM' && (org === 'SOFITEL' ? sof(origemDoItem(it)) : !sof(origemDoItem(it)))).length;
+  return removidos + verdes;
+}
+function analiseNaoValidados(org){
+  const daOrigem = (x) => !org ? true : (org === 'SOFITEL' ? origemDoItem(x) === 'SOFITEL' : origemDoItem(x) !== 'SOFITEL');
+  const naoAc = itensRevisaoAtual.filter((x) => iacNaoAceitou(x) && daOrigem(x));
   const confirma = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'iac').length;
   const conferir = naoAc.filter((x) => (acompanhamento[x.id] || {}).divergencia !== 'iac' && checarNoQuarto(x)).length;
   const falta = naoAc.length - confirma - conferir;
   // a AW concordou com a IAC e voltou pra aberto (ainda na planilha)
-  const voltou = itensRevisaoAtual.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'nossa' && contaNoTotal(x) && !iacNaoAceitou(x)).length;
+  const voltou = itensRevisaoAtual.filter((x) => (acompanhamento[x.id] || {}).divergencia === 'nossa' && contaNoTotal(x) && !iacNaoAceitou(x) && daOrigem(x)).length;
   return { naoAc: naoAc.length, confirma, conferir, falta, voltou, total: naoAc.length };
 }
 function linhasSub(linhas){
@@ -4924,22 +4941,40 @@ async function renderResumoGeral(recarregarHistorico){
     // os três resultados da vistoria, lado a lado: validou → (não tirou da lista | tirou da lista)
     '<div class="grupo-label" style="margin-top:22px;">Validação da IAC</div>' +
     '<div class="resumo-grid">' +
-      (() => { const a = analiseNaoValidados(); return '<div class="stat"><div class="valor">'+(vdHistorico + a.total + a.voltou)+'</div><div class="rotulo">Itens vistoriados pela IAC</div>' + linhasSub([['Validados', vdHistorico], ['Não validados', a.total], ['Reincidência', a.voltou]]) + '</div>'; })() +
+      (() => { const a = analiseNaoValidados('IAC'), vI = Math.max(0, vdHistorico - validadosPorOrigem('SOFITEL')); return '<div class="stat"><div class="valor">'+(vI + a.total + a.voltou)+'</div><div class="rotulo">Itens vistoriados pela IAC</div>' + linhasSub([['Validados', vI], ['Não validados', a.total], ['Reincidência', a.voltou]]) + '</div>'; })() +
 
-      '<div class="stat am"><div class="valor">'+analiseNaoValidados().total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
+      '<div class="stat am"><div class="valor">'+analiseNaoValidados('IAC').total+'</div><div class="rotulo">Não validado pela IAC</div><div class="pct-sub">a IAC manteve na planilha · análise da AW abaixo</div></div>' +
       (() => {
         const validados = sairamDaPlanilha().map((h) => String(h.id || h._id)).concat(itensRevisaoAtual.filter((it) => it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM').map((it) => it.id));
         const junto = validados.filter((id) => acompanhamento[id] && acompanhamento[id].iacOkEm).length;
-        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vdHistorico+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde">Validado pela IAC</div><div class="pct-sub">'+(() => { const comAW = Math.max(0, awObra - itensConta.filter(baixaDaAW).length); const semAW = Math.max(0, vdHistorico - comAW); const semClique = listaEncerradosSemClique(false).length; return pdfNum(Math.max(0, vdHistorico - semClique))+' com clique da AW · '+pdfNum(semClique)+' encerrados pela IAC sem clique'; })()+'</div></div>';
+        return '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+Math.max(0, vdHistorico - validadosPorOrigem('SOFITEL'))+'</div><div class="rotulo" title="A IAC tirou da planilha ou marcou verde (itens da IAC)">Validado pela IAC</div><div class="pct-sub">'+(() => { const comAW = Math.max(0, awObra - itensConta.filter(baixaDaAW).length); const semAW = Math.max(0, vdHistorico - comAW); const semClique = listaEncerradosSemClique(false).length; return pdfNum(Math.max(0, vdHistorico - semClique))+' com clique da AW · '+pdfNum(semClique)+' encerrados pela IAC sem clique'; })()+'</div></div>';
       })() +
     '</div>' +
 
-    (() => { const a = analiseNaoValidados(); return '<div class="grupo-label" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
+    (() => { const a = analiseNaoValidados('IAC'); return '<div class="grupo-label" style="margin-top:22px;">Não validados pela IAC — análise da AW</div>' +
     '<div class="resumo-grid">' +
-      '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
+      '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar" data-origem="IAC"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a IAC deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
       '<div class="stat pronto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
-      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
+      '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta" data-origem="IAC"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
     '</div>'; })() +
+    // ===== a mesma visão para a SOFITEL (aparece quando há itens dela) =====
+    (() => {
+      const temSof = itensRevisaoAtual.some((x) => origemDoItem(x) === 'SOFITEL') || validadosPorOrigem('SOFITEL') > 0;
+      if (!temSof) return '';
+      const a = analiseNaoValidados('SOFITEL'), vS = validadosPorOrigem('SOFITEL');
+      return '<div class="grupo-label grupo-sofitel" style="margin-top:22px;">Validação da Sofitel</div>' +
+      '<div class="resumo-grid">' +
+        '<div class="stat"><div class="valor">'+(vS + a.total + a.voltou)+'</div><div class="rotulo">Itens vistoriados pela Sofitel</div>' + linhasSub([['Validados', vS], ['Não validados', a.total], ['Reincidência', a.voltou]]) + '</div>' +
+        '<div class="stat am"><div class="valor">'+a.total+'</div><div class="rotulo">Não validado pela Sofitel</div><div class="pct-sub">a Sofitel manteve na planilha · análise da AW abaixo</div></div>' +
+        '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+vS+'</div><div class="rotulo">Validado pela Sofitel</div><div class="pct-sub">itens da Sofitel que saíram da planilha</div></div>' +
+      '</div>' +
+      '<div class="grupo-label grupo-sofitel" style="margin-top:22px;">Não validados pela Sofitel — análise da AW</div>' +
+      '<div class="resumo-grid">' +
+        '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar" data-origem="SOFITEL"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a Sofitel deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
+        '<div class="stat pronto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
+        '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta" data-origem="SOFITEL"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
+      '</div>';
+    })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
     '<div class="resumo-grid">' +
       '<div class="stat vm clicavel" data-ir="itens" data-status-bruto="VM" data-progresso="aberto"><div class="valor">'+c.vm+'</div><div class="rotulo">VM em aberto (vermelho)</div><div class="pct-sub">'+(novosVm ? '<span style="color:var(--vm); font-weight:600;">+'+novosVm+' novos<br></span>' : '')+vmFeitos+' de '+vmTotal+' já executados</div></div>' +
@@ -4969,7 +5004,8 @@ async function renderResumoGeral(recarregarHistorico){
       const ir = el.dataset.ir;
       const status = el.dataset.status;
       if (ir === 'itens') abrirItens({ status: status, progresso: el.dataset.progresso, statusBruto: el.dataset.statusBruto });
-      else if (ir === 'itens-fluxo') abrirItens({ fluxo: el.dataset.fluxo });
+      else if (ir === 'itens-fluxo'){ abrirItens({ fluxo: el.dataset.fluxo });
+        if (el.dataset.origem){ const so = document.getElementById('filtro-item-origem'); if (so){ so.value = el.dataset.origem; renderItens(); } } }
       else if (ir === 'quartos') abrirQuartosComFiltro({ status: status });
     });
   });
@@ -5326,7 +5362,7 @@ function sairamDaPlanilha(){
   const naPlanilha = new Set(itensRevisaoAtual.map((it) => it.andar + '|' + localKey(it) + '|' + String(it.idPlanilha || it.id)));
   const recentes = diffComAnterior ? diffComAnterior.diff.resolvidos
     .filter((it) => !naPlanilha.has(it.andar + '|' + localKey(it) + '|' + String(it.idPlanilha || it.id)))
-    .map((it) => ({ _id: it.id, andar: it.andar })) : [];
+    .map((it) => ({ _id: it.id, andar: it.andar, o: origemDoItem(it) })) : [];
   const limite = diffComAnterior ? Number(diffComAnterior.revAnterior) : n;
   // etapas mais antigas: o registro guardado a cada envio
   const presentes = new Set(itensRevisaoAtual.map((it) => String(it.idPlanilha || it.id)));
@@ -9481,7 +9517,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
@@ -10695,7 +10731,7 @@ async function exportarVisaoGeralPdf(opcoes){
       const pctEl = el.querySelector('.pct-barra');
       return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), num: Number(el.dataset.andar), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
         nums: Array.from(el.querySelectorAll('.mini-stat')).filter((s) => !s.classList.contains('novos')).map((s) => ((s.querySelector('.mini-valor') || {}).textContent || '').trim()).slice(0, 4),
-        novos: (() => { const s = el.querySelector('.mini-stat.novos'); return (s && getComputedStyle(s).display !== 'none' && !s.classList.contains('sem-valor')) ? ((s.querySelector('.mini-valor') || {}).textContent || '').trim() : ''; })(),
+        novos: (() => { const vals = Array.from(el.querySelectorAll('.mini-stat.novos')).filter((s) => getComputedStyle(s).display !== 'none' && !s.classList.contains('sem-valor')).map((s) => (s.classList.contains('novos-s') ? 'S' : 'I') + ((s.querySelector('.mini-valor') || {}).textContent || '').trim()); return vals.join(' '); })(),
         liberadoTotal: el.classList.contains('liberado-total') };
     }).sort((x, z) => z.num - x.num);
     let andaresPdf = andares;
