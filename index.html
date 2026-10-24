@@ -502,6 +502,26 @@ body.aba-quartos main{ max-width:1900px; }
 .linhas-sub .tom-novo, .linhas-sub .tom-novo b{ color:var(--novo); }
 .pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
 .tag-origem-item.sof{ background:#EFE7F6; color:#6B3FA0; }
+.rx-resumo{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin:4px 0 18px; }
+.rx-bloco{ border:1px solid var(--line); border-radius:16px; padding:16px 18px; display:flex; gap:16px; align-items:center; background:var(--surface); }
+.rx-anel{ --p:0; --cor:#2E7D5B; width:92px; height:92px; border-radius:50%; flex:none; display:grid; place-items:center;
+  background:conic-gradient(var(--cor) calc(var(--p) * 1%), var(--line) 0); }
+.rx-anel > div{ width:72px; height:72px; border-radius:50%; background:var(--surface); display:grid; place-items:center; font-size:20px; font-weight:600; }
+.rx-bloco h4{ margin:0 0 6px; font-size:14px; font-weight:600; }
+.rx-bloco .rx-num{ font-size:12.5px; color:var(--muted); line-height:1.6; }
+.rx-bloco .rx-num b{ color:var(--text); font-weight:600; }
+.rx-titulo{ margin:20px 0 8px; font-size:15px; }
+.rx-grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
+.rx-card{ border:1px solid var(--line); border-radius:14px; padding:12px 14px; background:var(--surface); position:relative; }
+.rx-card .rx-nome{ font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.rx-card .rx-ini{ width:28px; height:28px; border-radius:50%; background:var(--paper-2); display:grid; place-items:center; font-size:11px; font-weight:600; color:var(--muted); flex:none; }
+.rx-linha{ display:grid; grid-template-columns:52px 1fr 40px; gap:8px; align-items:center; font-size:11.5px; color:var(--muted); margin-top:5px; }
+.rx-barra{ height:10px; border-radius:6px; background:var(--line); overflow:hidden; display:flex; }
+.rx-barra span{ display:block; height:100%; }
+.rx-pct{ text-align:right; font-weight:600; color:var(--text); }
+.rx-sub{ font-size:10.5px; color:var(--faint); margin:2px 0 0 60px; }
+.rx-selo{ position:absolute; top:10px; right:10px; font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+.rx-selo.bom{ background:#E3F3EA; color:#2E7D5B; } .rx-selo.ruim{ background:#FBE7E6; color:#B03A35; }
 .tabela-cronograma{ width:100%; border-collapse:collapse; font-size:13px; }
 .tabela-cronograma th{ text-align:left; font-weight:500; color:var(--muted); font-size:11.5px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
 .tabela-cronograma td{ padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
@@ -909,13 +929,13 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <section class="secao" id="secao-raiox">
     <div class="card card-pad">
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-        <div><h2 style="margin-bottom:2px;">Raio-X · qualidade das baixas</h2><div class="rodape-nota" style="text-align:left; margin:0;">Só o Fundador vê. Acerto = baixas que não foram reprovadas (nem pela gestão, nem pela IAC).</div></div>
+        <div><h2 style="margin-bottom:2px;">Raio-X · qualidade das baixas</h2><div class="rodape-nota" style="text-align:left; margin:0;">Só o Fundador vê. Conta só baixas que alguém revisou — a gestão (validou ou reprovou) e a vistoria (tirou da planilha, ou manteve/reincidência — venha da IAC ou da Sofitel).</div></div>
         <select id="raiox-periodo"><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="0">Desde o início</option></select>
       </div>
-      <div id="raiox-resumo" class="resumo-grid" style="margin-bottom:16px;"></div>
-      <h3 style="margin:6px 0;">Colaboradores</h3><div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-pessoas"></table></div>
-      <h3 style="margin:18px 0 6px;">Fornecedores</h3><div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-fornecedores"></table></div>
-      <h3 style="margin:18px 0 6px;">Disciplinas</h3><div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-disciplinas"></table></div>
+      <div id="raiox-resumo" class="rx-resumo"></div>
+      <h3 class="rx-titulo">Colaboradores</h3><div class="rx-grade" id="raiox-pessoas"></div>
+      <h3 class="rx-titulo">Fornecedores</h3><div class="rx-grade" id="raiox-fornecedores"></div>
+      <h3 class="rx-titulo">Disciplinas</h3><div class="rx-grade" id="raiox-disciplinas"></div>
       <h3 style="margin:18px 0 6px;">Validações da gestão revistas</h3>
       <div class="rodape-nota" style="text-align:left; margin:0 0 6px;">Validações (Validado gestão) que caíram depois: desmarcadas, ou a baixa foi reprovada — por quem validou ou por outra pessoa.</div>
       <div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-validadores"></table></div>
@@ -1282,7 +1302,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.264';
+const VERSAO_APP = '2026-10-03.267';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8119,37 +8139,55 @@ function renderRaioX(){
   const desde = dias ? new Date(Date.now() - dias*86400000).toISOString() : '';
   const porId = new Map(itensRevisaoAtual.map((x) => [x.id, x]));
   const P = {}, F = {}, D = {};
-  const reg = (mapa, k) => (mapa[k] = mapa[k] || { baixas:0, validadas:0, reprovGestao:0, reincIac:0 });
-  const tot = { baixas:0, validadas:0, reprovGestao:0, reincIac:0 };
+  const reg = (mapa, k) => (mapa[k] = mapa[k] || { baixas:0, validadas:0, reprovGestao:0, iacAprov:0, iacReprov:0 });
+  const tot = { baixas:0, validadas:0, reprovGestao:0, iacAprov:0, iacReprov:0 };
+  const presentes = new Set(itensRevisaoAtual.map((x) => x.id));
+  const herdados = new Set(Object.values(acompanhamento).map((a) => a && a.herdadoDe ? String(a.herdadoDe) : null).filter(Boolean)); // troca de número: não é aprovação da IAC
   Object.keys(acompanhamento).forEach((id) => {
     const ac = acompanhamento[id] || {}, h = Array.isArray(ac.historico) ? ac.historico : [];
     const it = porId.get(id); const forn = it ? (fornecedorEfetivo(it) || 'Sem fornecedor') : null, disc = it ? (disciplinaEfetiva(it) || '—') : null;
-    let baixaAtual = null; // a baixa em vigor: { por, em }
+    let baixaAtual = null;
     const conta = (campo, quem) => { [[P, quem], [F, forn], [D, disc]].forEach(([m, k]) => { if (k) reg(m, k)[campo]++; }); tot[campo]++; };
+    const noPeriodo = (b) => !desde || (b && b.em >= desde);
     h.forEach((e) => {
-      if (e.t === 'aw'){ baixaAtual = { por: e.por || '—', em: e.em }; if (!desde || e.em >= desde) conta('baixas', baixaAtual.por); }
-      else if (e.t === 'iac' && baixaAtual){ if (!desde || baixaAtual.em >= desde) conta('validadas', baixaAtual.por); }
-      else if (e.t === 'reprovaGestao'){ const quem = e.baixaDe || (baixaAtual && baixaAtual.por) || 'não registrado'; const quando = e.baixaEm || (baixaAtual && baixaAtual.em) || e.em; if (!desde || quando >= desde) conta('reprovGestao', quem); baixaAtual = null; }
-      else if (e.t === 'reinc' && baixaAtual){ if (!desde || baixaAtual.em >= desde) conta('reincIac', baixaAtual.por); baixaAtual = null; }
+      if (e.t === 'aw'){ baixaAtual = { por: e.por || '—', em: e.em }; if (noPeriodo(baixaAtual)) conta('baixas', baixaAtual.por); }
+      else if (e.t === 'iac' && baixaAtual){ if (noPeriodo(baixaAtual)) conta('validadas', baixaAtual.por); }
+      else if (e.t === 'reprovaGestao'){ const b = { por: e.baixaDe || (baixaAtual && baixaAtual.por) || 'não registrado', em: e.baixaEm || (baixaAtual && baixaAtual.em) || e.em }; if (noPeriodo(b)) conta('reprovGestao', b.por); baixaAtual = null; }
+      else if (e.t === 'reinc' && baixaAtual){ if (noPeriodo(baixaAtual)) conta('iacReprov', baixaAtual.por); baixaAtual = null; }
     });
+    // a baixa em vigor: a IAC tirou o item da planilha (aprovou) ou manteve depois da vistoria (não aceitou)
+    if (baixaAtual && ac.awExecEm && noPeriodo(baixaAtual)){
+      if (!presentes.has(id) && !it && !herdados.has(String(id).split(' · ')[0])) conta('iacAprov', baixaAtual.por);
+      else if (it && iacNaoAceitou(it)) conta('iacReprov', baixaAtual.por);
+    }
   });
-  const acerto = (r) => r.baixas ? Math.max(0, Math.round((r.baixas - r.reprovGestao - r.reincIac) / r.baixas * 100)) : null;
-  const pct = (n, d) => d ? Math.round(n / d * 100) + '%' : '—';
+  // MÉTRICA = só o que foi revisado: pela GESTÃO (validou/reprovou) e pela IAC (tirou da planilha / manteve)
+  const revG = (r) => r.validadas + r.reprovGestao, revI = (r) => r.iacAprov + r.iacReprov;
+  const apG = (r) => revG(r) ? Math.round(r.validadas / revG(r) * 100) : null, apI = (r) => revI(r) ? Math.round(r.iacAprov / revI(r) * 100) : null;
+  const bloco = (titulo, pctv, cor, linhas) => '<div class="rx-bloco"><div class="rx-anel" style="--p:'+(pctv || 0)+'; --cor:'+cor+';"><div>'+(pctv == null ? '—' : pctv + '%')+'</div></div><div><h4>'+titulo+'</h4><div class="rx-num">'+linhas+'</div></div></div>';
   document.getElementById('raiox-resumo').innerHTML =
-    '<div class="stat"><div class="valor">'+pdfNum(tot.baixas)+'</div><div class="rotulo">Baixas dadas</div></div>' +
-    '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+pdfNum(tot.validadas)+'</div><div class="rotulo">Validadas pela gestão</div><div class="pct-sub">'+pct(tot.validadas, tot.baixas)+' das baixas</div></div>' +
-    '<div class="stat"><div class="valor" style="color:#6B3FA0;">'+pdfNum(tot.reprovGestao)+'</div><div class="rotulo">Reprovadas pela gestão</div><div class="pct-sub">'+pct(tot.reprovGestao, tot.baixas)+' das baixas</div></div>' +
-    '<div class="stat"><div class="valor" style="color:var(--reinc);">'+pdfNum(tot.reincIac)+'</div><div class="rotulo">Reincidência (IAC)</div><div class="pct-sub">'+pct(tot.reincIac, tot.baixas)+' das baixas</div></div>' +
-    '<div class="stat"><div class="valor">'+(acerto(tot) == null ? '—' : acerto(tot) + '%')+'</div><div class="rotulo">Acerto geral</div></div>';
-  const tabela = (elId, mapa, rotulo) => {
-    const linhas = Object.keys(mapa).map((k) => Object.assign({ k }, mapa[k], { ac: acerto(mapa[k]) })).filter((r) => r.baixas || r.reprovGestao || r.reincIac)
-      .sort((a, b) => b.baixas - a.baixas);
-    const comp = linhas.filter((r) => r.baixas >= 10 && r.ac != null);
-    const melhor = comp.length ? comp.reduce((a, b) => (b.ac > a.ac ? b : a)) : null, pior = comp.length ? comp.reduce((a, b) => (b.ac < a.ac ? b : a)) : null;
-    document.getElementById(elId).innerHTML = '<thead><tr><th>'+rotulo+'</th><th>Baixas</th><th>Validadas gestão</th><th>Reprovadas gestão</th><th>Reincidência IAC</th><th>Acerto</th></tr></thead><tbody>' +
-      (linhas.length ? linhas.map((r) => '<tr><td>'+esc(r.k)+(melhor && r.k === melhor.k && melhor !== pior ? ' <span class="tag-auto" style="background:#E3F3EA; color:#2E7D5B;">mais acertou</span>' : '')+(pior && r.k === pior.k && melhor !== pior ? ' <span class="tag-auto" style="background:#FBE7E6; color:#B03A35;">mais errou</span>' : '')+'</td><td>'+pdfNum(r.baixas)+'</td><td>'+pdfNum(r.validadas)+'</td><td>'+pdfNum(r.reprovGestao)+'</td><td>'+pdfNum(r.reincIac)+'</td><td><b>'+(r.ac == null ? '—' : r.ac + '%')+'</b></td></tr>').join('') : '<tr><td colspan="6" style="color:var(--muted);">Sem baixas no período.</td></tr>') + '</tbody>';
+    bloco('Revisão da gestão AW', apG(tot), '#2E7D5B', '<b>'+pdfNum(revG(tot))+'</b> baixas revisadas<br><span style="color:#2E7D5B;">●</span> <b>'+pdfNum(tot.validadas)+'</b> validadas · <span style="color:#6B3FA0;">●</span> <b>'+pdfNum(tot.reprovGestao)+'</b> reprovadas') +
+    bloco('Revisão da vistoria', apI(tot), '#3B6FD4', '<b>'+pdfNum(revI(tot))+'</b> baixas revisadas<br><span style="color:#3B6FD4;">●</span> <b>'+pdfNum(tot.iacAprov)+'</b> aprovadas · <span style="color:#D1443F;">●</span> <b>'+pdfNum(tot.iacReprov)+'</b> reprovadas') +
+    '<div class="rx-bloco" style="justify-content:center;"><div class="rx-num" style="text-align:center;"><div style="font-size:30px; font-weight:600; color:var(--text);">'+pdfNum(tot.baixas)+'</div>baixas dadas no período</div></div>';
+  const ini = (s) => String(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  const barra = (a, b, corA, corB) => { const s = a + b; return '<div class="rx-barra">' + (s ? '<span style="width:'+(a/s*100)+'%; background:'+corA+';"></span><span style="width:'+(b/s*100)+'%; background:'+corB+';"></span>' : '') + '</div>'; };
+  const tabela = (elId, mapa) => {
+    const lista = Object.keys(mapa).map((k) => Object.assign({ k }, mapa[k], { rg: revG(mapa[k]), ri: revI(mapa[k]), ag: apG(mapa[k]), ai: apI(mapa[k]) }))
+      .filter((r) => r.rg > 0 || r.ri > 0)
+      .map((r) => Object.assign(r, { geral: (r.rg + r.ri) ? Math.round((r.validadas + r.iacAprov) / (r.rg + r.ri) * 100) : null }))
+      .sort((a, b) => (b.rg + b.ri) - (a.rg + a.ri));
+    const comp = lista.filter((r) => r.rg + r.ri >= 5);
+    const melhor = comp.length ? comp.reduce((a, b) => (b.geral > a.geral ? b : a)) : null, pior = comp.length ? comp.reduce((a, b) => (b.geral < a.geral ? b : a)) : null;
+    document.getElementById(elId).innerHTML = lista.length ? lista.map((r) =>
+      '<div class="rx-card">' +
+        (melhor && pior && melhor.geral !== pior.geral && r.k === melhor.k ? '<span class="rx-selo bom">mais acertou</span>' : '') +
+        (melhor && pior && melhor.geral !== pior.geral && r.k === pior.k ? '<span class="rx-selo ruim">mais errou</span>' : '') +
+        '<div class="rx-nome"><span class="rx-ini">'+esc(ini(r.k))+'</span>'+esc(r.k)+'</div>' +
+        (r.rg ? '<div class="rx-linha"><span>Gestão</span>'+barra(r.validadas, r.reprovGestao, '#2E7D5B', '#6B3FA0')+'<span class="rx-pct">'+r.ag+'%</span></div><div class="rx-sub">'+r.validadas+' validadas · '+r.reprovGestao+' reprovadas</div>' : '') +
+        (r.ri ? '<div class="rx-linha"><span>Vistoria</span>'+barra(r.iacAprov, r.iacReprov, '#3B6FD4', '#D1443F')+'<span class="rx-pct">'+r.ai+'%</span></div><div class="rx-sub">'+r.iacAprov+' aprovadas · '+r.iacReprov+' reprovadas</div>' : '') +
+      '</div>').join('') : '<div class="rodape-nota" style="text-align:left;">Nenhuma baixa revisada no período.</div>';
   };
-  tabela('raiox-pessoas', P, 'Quem deu a baixa'); tabela('raiox-fornecedores', F, 'Fornecedor'); tabela('raiox-disciplinas', D, 'Disciplina');
+  tabela('raiox-pessoas', P); tabela('raiox-fornecedores', F); tabela('raiox-disciplinas', D);
   // validações da gestão: feitas por cada validador × quantas caíram (por outra pessoa ou por ele mesmo)
   const V = {}, caidas = [];
   const regV = (k) => (V[k] = V[k] || { feitas:0, recusadasPorOutro:0, desfeitasPorEle:0 });
