@@ -543,6 +543,7 @@ body.aba-quartos main{ max-width:1900px; }
 .mini-stat.novos-s .mini-rotulo, .mini-stat.novos-s .mini-valor{ color:#6B3FA0; }
 .mini-stat.novos{ width:auto; min-width:26px; } .mini-stat.novos .mini-rotulo{ white-space:nowrap; }
 @media (max-width: 700px){ .mini-stat.novos .rot-longo{ display:none; } .mini-stat.novos{ min-width:16px; } } /* no celular: só "I" e "S" (com a cor) */
+.rev-entrada{ font-size:10.5px; color:var(--muted); margin-top:3px; font-family:inherit; }
 .tag-auto{ display:inline-block; font-size:9.5px; padding:0 5px; border-radius:6px; background:#E8EEFB; color:#3B6FD4; vertical-align:1px; }
 .sugestao-cat{ margin-top:6px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:11px; color:var(--azul, #3B6FD4); }
 .sugestao-cat .chip-acao{ font-size:10.5px; padding:1px 7px; }
@@ -1304,7 +1305,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.268';
+const VERSAO_APP = '2026-10-03.269';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -7243,6 +7244,8 @@ function renderItens(){
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
       '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+'">'+esc(rotuloOrigem(origemDoItem(it)))))+'</span>'+esc(it.id) +
+        // revisão em que o item entrou (os novos já mostram na etiqueta "Novo · R..")
+        (!infoItemNovo(it) && revisaoDeEntrada(it) ? '<div class="rev-entrada" title="Revisão em que o item apareceu pela primeira vez">R'+esc(revisaoDeEntrada(it))+'</div>' : '') +
         (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
         ((acompanhamento[it.id] || {}).herdadoDe && !(acompanhamento[it.id] || {}).possivelReabertura ? '<div class="num-antigo" title="A IAC trocou o número deste item — mesma descrição e mesma foto">'+((acompanhamento[it.id].herdadoRev) ? 'R'+esc(acompanhamento[it.id].herdadoRev)+' · ' : 'antes · ')+esc(acompanhamento[it.id].herdadoDe)+'</div>' : '') + '</td><td class="mono col-centro">'+nomeAndar(it.andar) + '</td><td class="col-centro">'+esc(label)+(it.rv && it.rv !== String(revisaoSelecionada) ? '<br><span class="tag-rv" style="margin-left:0; cursor:default;" title="Este ambiente ainda não veio na revisão selecionada — item da R'+esc(it.rv)+'">R'+esc(it.rv)+'</span>' : '')+'</td>' +
       '<td>'+esc(disc)+(ac.disciplinaOverride ? (ac.catAutoEm && ac.disciplinaOverride ? ' <span class="tag-auto" title="Categorizado automaticamente ('+(ac.catAutoFonte === 'ia' ? 'IA' : 'pelo seu histórico')+') — edite se precisar">auto</span>' : ' <span title="Reclassificado manualmente" style="color:var(--azul);">✎</span>') : '')+'</td>' +
