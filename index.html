@@ -709,6 +709,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="itens">Itens</button>
   <button data-aba="disciplinas">Disciplinas &amp; fornecedores</button>
   <button data-aba="comparacao">Comparação</button>
+  <button data-aba="raiox" class="so-fundador">Raio-X</button>
   <button data-aba="tendencia">Plano</button>
   <button data-aba="enviar" class="so-admin">Enviar planilhas</button>
   <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
@@ -905,6 +906,23 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   </section>
 
   <!-- COMPARAÇÃO -->
+  <section class="secao" id="secao-raiox">
+    <div class="card card-pad">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+        <div><h2 style="margin-bottom:2px;">Raio-X · qualidade das baixas</h2><div class="rodape-nota" style="text-align:left; margin:0;">Só o Fundador vê. Acerto = baixas que não foram reprovadas (nem pela gestão, nem pela IAC).</div></div>
+        <select id="raiox-periodo"><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="0">Desde o início</option></select>
+      </div>
+      <div id="raiox-resumo" class="resumo-grid" style="margin-bottom:16px;"></div>
+      <h3 style="margin:6px 0;">Colaboradores</h3><div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-pessoas"></table></div>
+      <h3 style="margin:18px 0 6px;">Fornecedores</h3><div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-fornecedores"></table></div>
+      <h3 style="margin:18px 0 6px;">Disciplinas</h3><div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-disciplinas"></table></div>
+      <h3 style="margin:18px 0 6px;">Validações da gestão revistas</h3>
+      <div class="rodape-nota" style="text-align:left; margin:0 0 6px;">Validações (Validado gestão) que caíram depois: desmarcadas, ou a baixa foi reprovada — por quem validou ou por outra pessoa.</div>
+      <div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-validadores"></table></div>
+      <div style="overflow-x:auto; margin-top:10px;"><table class="tabela-cronograma" id="raiox-validacoes-caidas"></table></div>
+    </div>
+  </section>
+
   <section class="secao" id="secao-comparacao">
     <div class="linha-toolbar">
       <span>Comparar</span>
@@ -1085,10 +1103,11 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="modal-sub" id="texto-reprovado"></div>
     <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
       <button type="button" class="btn" id="btn-reprovado-sim" style="justify-content:center; color:var(--vm); border-color:var(--vm);">Item reprovado pela IAC</button>
+      <button type="button" class="btn" id="btn-reprovado-gestao" style="justify-content:center; color:#6B3FA0; border-color:#6B3FA0;">Reprovado pela gestão AW (baixa sem qualidade)</button>
       <button type="button" class="btn" id="btn-reprovado-engano" style="justify-content:center;">Marquei como executado por engano</button>
       <button type="button" class="btn fantasma" id="btn-reprovado-cancelar" style="justify-content:center;">Cancelar</button>
     </div>
-    <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.5; text-align:center;">Reprovado: volta para aberto e conta como reincidência.<br>Por engano: volta para aberto sem contar reincidência.</div>
+    <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.5; text-align:center;">Reprovado pela IAC: volta para aberto e conta como reincidência.<br><span id="nota-reprovado-gestao">Reprovado pela gestão: volta para aberto e fica no Raio-X (não aparece para o cliente).<br></span>Por engano: volta para aberto sem contar nada.</div>
   </div>
 </div>
 
@@ -1253,7 +1272,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.259';
+const VERSAO_APP = '2026-10-03.263';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3363,6 +3382,7 @@ function perguntarReprovado(itemId, ac){
     document.getElementById('texto-reprovado').textContent =
       'Item '+itemId+(local ? ' · '+local : '')+' — marcado como Executado AW'+
       (ac.awExecPor ? ' por '+ac.awExecPor : '')+' em '+dataHoraCurta(ac.awExecEm)+'.';
+    const g = podeValidarGestao(); document.getElementById('btn-reprovado-gestao').style.display = g ? '' : 'none'; document.getElementById('nota-reprovado-gestao').style.display = g ? '' : 'none';
     document.getElementById('modal-reprovado').classList.remove('oculto');
   });
 }
@@ -3393,17 +3413,30 @@ async function alternarAcompanhamento(itemId, campo, modo){
       // tirar o Executado AW: pela tabela, SEMPRE confirma que foi reprovado pela IAC (um toque
       // errado não vira reincidência); pela janela Editar, "marcado por engano" desfaz sem reincidência
       let foiEngano = modo === 'engano';
-      if (!foiEngano){
+      if (!foiEngano && !modo && ehFundador()) modo = 'gestao'; // Fundador: um clique só — com "Desfazer" no aviso
+      if (!foiEngano && modo !== 'gestao'){
         const escolha = await perguntarReprovado(itemId, atual);
         if (!escolha) return; // Cancelar: continua executado, nada muda
         foiEngano = escolha === 'engano';
+        if (escolha === 'gestao') modo = 'gestao';
       }
+      if (atual.iacOkEm){ for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } } }
+      if (atual.iacOkEm) hist.push({ t:'gestaoDesfeita', em:agora, por, validadoPor: atual.iacOkPor || null, validadoEm: atual.iacOkEm, motivo: modo === 'gestao' ? 'reprovou a baixa' : (foiEngano ? 'baixa desfeita por engano' : 'reprovado pela IAC') });
       novo.awExecEm = null; novo.iacOkEm = null; // sem executado, não existe vistoriado
       novo.awExecPor = null; novo.iacOkPor = null;
       novo.checarQuartoEm = null; novo.checarQuartoPor = null; // reaberto: sai da lista de conferir
-      try{ const itNA = itensRevisaoAtual.find((x) => x.id === itemId); if (itNA && iacNaoAceitou(itNA) && !foiEngano){ novo.divergencia = 'nossa'; novo.divergenciaPor = usuarioAtual; novo.divergenciaEm = new Date().toISOString(); } }catch(e){}
-      if (foiEngano){
-        for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i); break; } }
+      try{ const itNA = itensRevisaoAtual.find((x) => x.id === itemId); if (itNA && iacNaoAceitou(itNA) && !foiEngano && modo !== 'gestao'){ novo.divergencia = 'nossa'; novo.divergenciaPor = usuarioAtual; novo.divergenciaEm = new Date().toISOString(); } }catch(e){}
+      if (modo === 'gestao'){
+        // reprovado pela gestão AW: volta pra aberto, guarda quem deu a baixa — NÃO é reincidência (o cliente não vê)
+        hist.push({ t:'reprovaGestao', em:agora, por, baixaDe: atual.awExecPor || null, baixaEm: atual.awExecEm || null });
+        novo.reprovacoesGestao = (atual.reprovacoesGestao || 0) + 1;
+        novo.divergencia = atual.divergencia || null;
+        msg = 'Reprovado pela gestão · volta para aberto'; tipoMsg = 'info';
+      } else if (foiEngano){
+        // por engano: a baixa sai das contas, mas o registro fica no histórico (nunca mais se perde)
+        const baixa = { baixaDe: atual.awExecPor || null, baixaEm: atual.awExecEm || null };
+        for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i, 1); break; } }
+        hist.push(Object.assign({ t:'awDesfeito', em:agora, por }, baixa));
         msg = 'Marcação desfeita';
       } else {
         hist.push({ t:'reinc', em:agora, por });
@@ -3416,9 +3449,10 @@ async function alternarAcompanhamento(itemId, campo, modo){
     if (!atual.iacOkEm){
       novo.iacOkEm = agora; novo.iacOkPor = por; hist.push({ t:'iac', em:agora, por });
     } else {
+      hist.push({ t:'gestaoDesfeita', em:agora, por, validadoPor: atual.iacOkPor || null, validadoEm: atual.iacOkEm || null, motivo:'desmarcou a validação' });
       novo.iacOkEm = null; novo.iacOkPor = null;
-      for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
-      msg = 'Vistoria desfeita';
+      for (let i = hist.length-2; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
+      msg = 'Validação da gestão desfeita';
     }
   }
   novo.historico = hist;
@@ -3429,7 +3463,13 @@ async function alternarAcompanhamento(itemId, campo, modo){
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
   itensGravandoAgora.delete(itemId);
   if (r.ok){
-    avisoFlutuante(msg, tipoMsg);
+    if (campo === 'awExecEm' && modo === 'gestao' && ehFundador() && anterior){
+      // um clique: avisa com "Desfazer" (volta exatamente como estava, sem deixar registro)
+      mostrarDesfazer('Reprovado pela gestão' + (anterior.iacOkEm ? ' · validação de ' + (anterior.iacOkPor || '—') + ' desfeita' : '') + ' · voltou para aberto', async () => {
+        const rv = await salvarAcompanhamentoComRetry(itemId, anterior);
+        if (rv.ok){ acompanhamento[itemId] = anterior; atualizarTelasAposAcompanhamento(); avisoFlutuante('Desfeito', 'ok'); }
+      }, 8);
+    } else avisoFlutuante(msg, tipoMsg);
   } else {
     // não salvou: desfaz na tela também, pra nunca mostrar verde algo que não está no banco
     if (anterior) acompanhamento[itemId] = anterior; else delete acompanhamento[itemId];
@@ -4684,6 +4724,7 @@ function renderTorreAndares(){
   const todosLocais = agruparPorLocal(itensRevisaoAtual);
   const porAndar = resumoPorAndar(itensRevisaoAtual);
   const mapa = new Map(porAndar.map((x) => [x.andar, x]));
+  const metTorre = metricasDeTodosAmbientes();
   todos.forEach((andar) => {
     const registro = mapa.get(andar);
     const temDados = andaresNestaRevisao.has(andar);
@@ -4713,19 +4754,20 @@ function renderTorreAndares(){
       const abertoDoAndar = contarEmAberto(contaDoAndar);                             // sem os novos não aceitos
       const saiuDoAndar = (mapaSairam.get(andar) || 0);
       const tuAndar = totalDoAndarUniverso(andar);
-      const totalAndar = tuAndar != null ? Math.max(tuAndar, contaDoAndar.length) : contaDoAndar.length + saiuDoAndar;
+      const metAndar = metTorre.filter((m) => m.andar === andar);
+      const totalAndar = tuAndar != null ? somaMetricas(metAndar, 'total') : contaDoAndar.length + saiuDoAndar;
       pctAndar = totalAndar ? Math.round((totalAndar - abertoDoAndar) / totalAndar * 100) : 0;
       miniStatsHtml = '<span class="mini-stats">' +
         '<span class="mini-stat destaque"><span class="mini-rotulo">Aberto</span><span class="mini-valor mono">'+abertoDoAndar+'</span></span>' +
         '<span class="mini-stat novos'+(novosI ? '' : ' sem-valor')+'" title="Itens novos a avaliar vindos da IAC"><span class="mini-rotulo"><span class="rot-longo">Novos </span>I</span><span class="mini-valor mono">'+(novosI || 0)+'</span></span>' +
         '<span class="mini-stat novos novos-s'+(novosS ? '' : ' sem-valor')+'" title="Itens novos a avaliar vindos da Sofitel"><span class="mini-rotulo"><span class="rot-longo">Novos </span>S</span><span class="mini-valor mono">'+(novosS || 0)+'</span></span>' +
         (() => {
-          const saiuReal = Math.max(0, totalAndar - contaDoAndar.length);
           const verdesAndar = contaDoAndar.filter((x) => x.status !== 'VM' && x.status !== 'AM').length;
-          const awRegA = awRegistradoNoAndar(andar);
-          const awA = awRegA != null ? awRegA : contaDoAndar.filter(baixaDaAW).length;
+          const iacA = tuAndar != null ? somaMetricas(metAndar, 'iac') : saiuDoAndar + verdesAndar;
+          const saiuReal = Math.max(0, iacA - verdesAndar);
+          const awA = tuAndar != null ? somaMetricas(metAndar, 'aw') : contaDoAndar.filter(baixaDaAW).length;
           return '<span class="mini-stat aw"><span class="mini-rotulo">AW</span><span class="mini-valor mono" title="baixas registradas pela AW">'+awA+'</span></span>' +
-            '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="A IAC tirou da planilha ou marcou verde'+(iacOkDoAndar ? ' · '+iacOkDoAndar+' validados pela gestão AW (não contam aqui)' : '')+'">'+(saiuReal + verdesAndar)+'</span></span>' +
+            '<span class="mini-stat iac"><span class="mini-rotulo">IAC</span><span class="mini-valor mono" title="A IAC tirou da planilha ou marcou verde'+(iacOkDoAndar ? ' · '+iacOkDoAndar+' validados pela gestão AW (não contam aqui)' : '')+'">'+iacA+'</span></span>' +
             '<span class="mini-stat"><span class="mini-rotulo">Total</span><span class="mini-valor mono" title="'+contaDoAndar.length+' na planilha atual + '+saiuReal+' que a IAC já tirou (validados)">'+totalAndar+'</span></span>';
         })() +
         '</span>';
@@ -4890,14 +4932,15 @@ async function renderResumoGeral(recarregarHistorico){
   const andaresUni = Array.from(new Set(itensRevisaoAtual.map((it) => it.andar)));
   const somaUni = andaresUni.reduce((s, a) => { const v = totalDoAndarUniverso(a); return v == null ? s : s + v; }, 0);
   const temUni = andaresUni.some((a) => totalDoAndarUniverso(a) != null);
-  const totalObra = temUni ? Math.max(somaUni, c.total + vdNaPlanilha) : (c.total + vdNaPlanilha + sairam);
+  const metAmb = metricasDeTodosAmbientes();
+  const totalObra = temUni ? somaMetricas(metAmb, 'total') : (c.total + vdNaPlanilha + sairam);
   setTimeout(() => { try{ window.__resumoObra = { total: totalObra, aberto: emAberto, aw: (typeof awObra !== 'undefined' ? awObra : 0), iac: vdHistorico, novos: novosEmAberto }; }catch(e){} }, 0);  // desde o início: não diminui quando a IAC aceita
   const totalItens = totalObra || 1;
   const pctExec = Math.round((totalObra - emAbertoTodos) / totalItens * 100);
-  const saidosObra = temUni ? Math.max(0, totalObra - c.total - vdNaPlanilha) : sairam;
-  const awObra = temUni ? andaresUni.reduce((s, a) => { const v = awRegistradoNoAndar(a); return v == null ? s : s + v; }, 0) : (itensConta.filter(baixaDaAW).length + sairam + vdNaPlanilha);
-  vdHistorico = saidosObra + vdNaPlanilha;
-  const pctVist = Math.round((saidosObra + vdNaPlanilha)/totalItens*100); // só o que a IAC tirou ou marcou verde
+  vdHistorico = temUni ? somaMetricas(metAmb, 'iac') : (sairam + vdNaPlanilha);            // IAC: o que ela tirou ou marcou verde
+  const saidosObra = Math.max(0, vdHistorico - vdNaPlanilha);
+  const awObra = temUni ? somaMetricas(metAmb, 'aw') : (itensConta.filter(baixaDaAW).length + sairam + vdNaPlanilha);
+  const pctVist = Math.round(vdHistorico/totalItens*100);
   const vmTotal = itensConta.filter((it) => it.status === 'VM').length;
   const vmFeitos = vmTotal - c.vm;
   const pctVm = vmTotal ? Math.round(vmFeitos/vmTotal*100) : 0;
@@ -4926,7 +4969,7 @@ async function renderResumoGeral(recarregarHistorico){
           linhasSub([['+ Novos a avaliar', novosEmAberto, 'class="tom-novo" data-ir-novos="1" style="cursor:pointer; font-weight:600;"']]) + '</div>'; })() +
       (() => { const naPlan = itensConta.filter(baixaDaAW).length;
         return '<div class="stat aw"><div class="valor">'+awObra+'</div><div class="rotulo">Executado AW</div>' +
-          linhasSub([['Validados IAC', Math.max(0, awObra - naPlan)]]) + '</div>'; })() +
+          linhasSub([['Validados IAC', vdHistorico]]) + '</div>'; })() +
       (() => { const nG = itensConta.filter((x) => (acompanhamento[x.id] || {}).iacOkEm).length;
         return '<div class="stat clicavel" data-ir="itens" data-progresso="iacOk"><div class="valor" style="color:var(--vd-forte);">'+nG+'</div><div class="rotulo">Validado pelo gestor AW</div><div class="pct-sub">conferência da gestão sobre a baixa</div></div>'; })() +
       '<div class="stat aw clicavel" data-ir="itens" data-progresso="awSemIac"><div class="valor">'+aguardandoIac+'</div><div class="rotulo">Aguardando validação IAC</div><div class="pct-sub">liberados p/ vistoria</div></div>' +
@@ -6644,9 +6687,14 @@ function renderQuartos(){
   { const tr0 = document.getElementById('th-conferir-quartos'); const cab = tr0 ? tr0.parentNode : null;
     if (cab){
       const ths = Array.from(cab.children);
+      // ambientes que já fecharam inteiros (a IAC tirou tudo): entram no Total / AW / IAC, como na Visão geral
+      const fa = document.getElementById('filtro-andar') ? document.getElementById('filtro-andar').value : '';
+      const semOutrosFiltros = ['filtro-ambiente','filtro-disciplina','filtro-fornecedor','filtro-status','filtro-progresso','busca-quarto'].every((id) => { const el = document.getElementById(id); return !el || !el.value; }) && !(filtroMultiQ && filtroMultiQ.status && filtroMultiQ.status.length);
+      const fech = semOutrosFiltros ? metricasDeTodosAmbientes().filter((m) => m.fechado && (!fa || String(m.andar) === fa) && (!(filtroMultiQ && filtroMultiQ.andares && filtroMultiQ.andares.length) || filtroMultiQ.andares.indexOf(String(m.andar)) !== -1)) : [];
+      const extraCol = { 'Total': somaMetricas(fech, 'total'), 'AW': somaMetricas(fech, 'aw'), 'IAC': somaMetricas(fech, 'iac') };
       ths.forEach((th, idx) => {
         if (!th.dataset.soma) return;
-        let s = 0;
+        let s = extraCol[th.dataset.soma] || 0;
         let sc = 0, sr = 0;
         tbody.querySelectorAll('tr').forEach((tr) => { const td = tr.children[idx]; if (td){
           const v = parseInt(String(td.dataset.v != null ? td.dataset.v : td.textContent).replace(/\./g, ''), 10); if (!isNaN(v)) s += v;
@@ -7302,7 +7350,7 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
       (function(){
         const h = historicoDoItem(ac).slice().sort((a,b) => (a.em < b.em ? 1 : -1));
         if (!h.length) return '';
-        const nomeEv = { aw:'Executado AW', iac:'Validado gestão AW', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', recomendacao:'Decisão por recomendação', catAuto:'Categorizado automaticamente', sugestao:'Sugestão do app aceita', naoNovo:'Não é novo (vistoria em andamento)', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
+        const nomeEv = { aw:'Executado AW', iac:'Validado gestão AW', reinc:'Voltou para aberto (reincidência)', reaberto:'Reaberto — baixa errada no Validado IAC', troca:'Número trocado pela IAC — status herdado do item anterior', reabertura:'Possível reabertura — mesma descrição de um item já executado, entrou em aberto', novoAceito:'Item novo aceito (conta no em aberto)', novoContestado:'Item novo: IAC precisa corrigir', gestaoDesfeita:'Validação da gestão desfeita', reprovaGestao:'Reprovado pela gestão AW', awDesfeito:'Executado AW desfeito (engano)', recomendacao:'Decisão por recomendação', catAuto:'Categorizado automaticamente', sugestao:'Sugestão do app aceita', naoNovo:'Não é novo (vistoria em andamento)', origem:'Origem alterada', checarQuarto:'Mandado pra "Conferir no quarto"', checarQuartoSaiu:'Saiu de "Conferir no quarto"', reincRevertida:'Reincidência revertida pelo Fundador', conferido:'Baixa conferida no quarto (era do número geral)', reabertoConferencia:'Conferido no quarto: não foi feito — reaberto', novoVoltou:'Item novo voltou para "a avaliar"' };
         return '<div class="modal-campo"><label>Histórico</label><div style="font-size:12.5px; line-height:1.6;">' +
           h.map((e) => '<div><span style="color:var(--muted);">'+dataHoraCurta(e.em)+'</span> · <span style="color:'+(e.t==='reinc'?'var(--reinc)':'var(--text)')+';">'+nomeEv[e.t]+'</span> · <span style="color:var(--text-2);">'+esc(e.por||'sem registro')+'</span></div>').join('') +
           '</div></div>';
@@ -8050,6 +8098,69 @@ async function tratarCliqueCronograma(e){
   marcarBadgeChat(recomendacoesAtuais.length + cartoesDoCronograma().length);
   avisoFlutuante(nomeAndarLongo(Number(a)) + (v ? ': lista completa' : ': lista volta a pendente'), 'ok');
   return true;
+}
+
+/* RAIO-X (só Fundador): para cada baixa dada (evento "Executado AW"), o que aconteceu depois —
+   validada pela gestão, reprovada pela gestão, reincidência pela IAC — por quem deu a baixa,
+   por fornecedor e por disciplina do item. */
+function renderRaioX(){
+  if (!ehFundador()) return;
+  const dias = Number((document.getElementById('raiox-periodo') || {}).value || 30);
+  const desde = dias ? new Date(Date.now() - dias*86400000).toISOString() : '';
+  const porId = new Map(itensRevisaoAtual.map((x) => [x.id, x]));
+  const P = {}, F = {}, D = {};
+  const reg = (mapa, k) => (mapa[k] = mapa[k] || { baixas:0, validadas:0, reprovGestao:0, reincIac:0 });
+  const tot = { baixas:0, validadas:0, reprovGestao:0, reincIac:0 };
+  Object.keys(acompanhamento).forEach((id) => {
+    const ac = acompanhamento[id] || {}, h = Array.isArray(ac.historico) ? ac.historico : [];
+    const it = porId.get(id); const forn = it ? (fornecedorEfetivo(it) || 'Sem fornecedor') : null, disc = it ? (disciplinaEfetiva(it) || '—') : null;
+    let baixaAtual = null; // a baixa em vigor: { por, em }
+    const conta = (campo, quem) => { [[P, quem], [F, forn], [D, disc]].forEach(([m, k]) => { if (k) reg(m, k)[campo]++; }); tot[campo]++; };
+    h.forEach((e) => {
+      if (e.t === 'aw'){ baixaAtual = { por: e.por || '—', em: e.em }; if (!desde || e.em >= desde) conta('baixas', baixaAtual.por); }
+      else if (e.t === 'iac' && baixaAtual){ if (!desde || baixaAtual.em >= desde) conta('validadas', baixaAtual.por); }
+      else if (e.t === 'reprovaGestao'){ const quem = e.baixaDe || (baixaAtual && baixaAtual.por) || 'não registrado'; const quando = e.baixaEm || (baixaAtual && baixaAtual.em) || e.em; if (!desde || quando >= desde) conta('reprovGestao', quem); baixaAtual = null; }
+      else if (e.t === 'reinc' && baixaAtual){ if (!desde || baixaAtual.em >= desde) conta('reincIac', baixaAtual.por); baixaAtual = null; }
+    });
+  });
+  const acerto = (r) => r.baixas ? Math.max(0, Math.round((r.baixas - r.reprovGestao - r.reincIac) / r.baixas * 100)) : null;
+  const pct = (n, d) => d ? Math.round(n / d * 100) + '%' : '—';
+  document.getElementById('raiox-resumo').innerHTML =
+    '<div class="stat"><div class="valor">'+pdfNum(tot.baixas)+'</div><div class="rotulo">Baixas dadas</div></div>' +
+    '<div class="stat"><div class="valor" style="color:var(--vd-forte);">'+pdfNum(tot.validadas)+'</div><div class="rotulo">Validadas pela gestão</div><div class="pct-sub">'+pct(tot.validadas, tot.baixas)+' das baixas</div></div>' +
+    '<div class="stat"><div class="valor" style="color:#6B3FA0;">'+pdfNum(tot.reprovGestao)+'</div><div class="rotulo">Reprovadas pela gestão</div><div class="pct-sub">'+pct(tot.reprovGestao, tot.baixas)+' das baixas</div></div>' +
+    '<div class="stat"><div class="valor" style="color:var(--reinc);">'+pdfNum(tot.reincIac)+'</div><div class="rotulo">Reincidência (IAC)</div><div class="pct-sub">'+pct(tot.reincIac, tot.baixas)+' das baixas</div></div>' +
+    '<div class="stat"><div class="valor">'+(acerto(tot) == null ? '—' : acerto(tot) + '%')+'</div><div class="rotulo">Acerto geral</div></div>';
+  const tabela = (elId, mapa, rotulo) => {
+    const linhas = Object.keys(mapa).map((k) => Object.assign({ k }, mapa[k], { ac: acerto(mapa[k]) })).filter((r) => r.baixas || r.reprovGestao || r.reincIac)
+      .sort((a, b) => b.baixas - a.baixas);
+    const comp = linhas.filter((r) => r.baixas >= 10 && r.ac != null);
+    const melhor = comp.length ? comp.reduce((a, b) => (b.ac > a.ac ? b : a)) : null, pior = comp.length ? comp.reduce((a, b) => (b.ac < a.ac ? b : a)) : null;
+    document.getElementById(elId).innerHTML = '<thead><tr><th>'+rotulo+'</th><th>Baixas</th><th>Validadas gestão</th><th>Reprovadas gestão</th><th>Reincidência IAC</th><th>Acerto</th></tr></thead><tbody>' +
+      (linhas.length ? linhas.map((r) => '<tr><td>'+esc(r.k)+(melhor && r.k === melhor.k && melhor !== pior ? ' <span class="tag-auto" style="background:#E3F3EA; color:#2E7D5B;">mais acertou</span>' : '')+(pior && r.k === pior.k && melhor !== pior ? ' <span class="tag-auto" style="background:#FBE7E6; color:#B03A35;">mais errou</span>' : '')+'</td><td>'+pdfNum(r.baixas)+'</td><td>'+pdfNum(r.validadas)+'</td><td>'+pdfNum(r.reprovGestao)+'</td><td>'+pdfNum(r.reincIac)+'</td><td><b>'+(r.ac == null ? '—' : r.ac + '%')+'</b></td></tr>').join('') : '<tr><td colspan="6" style="color:var(--muted);">Sem baixas no período.</td></tr>') + '</tbody>';
+  };
+  tabela('raiox-pessoas', P, 'Quem deu a baixa'); tabela('raiox-fornecedores', F, 'Fornecedor'); tabela('raiox-disciplinas', D, 'Disciplina');
+  // validações da gestão: feitas por cada validador × quantas caíram (por outra pessoa ou por ele mesmo)
+  const V = {}, caidas = [];
+  const regV = (k) => (V[k] = V[k] || { feitas:0, recusadasPorOutro:0, desfeitasPorEle:0 });
+  Object.keys(acompanhamento).forEach((id) => {
+    const ac = acompanhamento[id] || {}, h = Array.isArray(ac.historico) ? ac.historico : [];
+    h.forEach((e) => {
+      if (e.t === 'iac' && (!desde || e.em >= desde)) regV(e.por || '—').feitas++;
+      if (e.t === 'gestaoDesfeita' && (!desde || (e.validadoEm || e.em) >= desde)){
+        const quem = e.validadoPor || '—'; const r = regV(quem); r.feitas++; // a validação desfeita saiu do histórico: conta aqui
+        if (e.por && e.por !== quem){ r.recusadasPorOutro++; } else r.desfeitasPorEle++;
+        const it = porId.get(id);
+        caidas.push({ id, local: it ? String(localLabel(it)).replace(/\u00A0/g, ' ') + ' · ' + nomeAndar(it.andar) : '', desc: it ? it.desc : '', validou: quem, validouEm: e.validadoEm, por: e.por, em: e.em, motivo: e.motivo || '' });
+      }
+    });
+  });
+  const lv = Object.keys(V).map((k) => Object.assign({ k }, V[k])).sort((a, b) => b.feitas - a.feitas);
+  document.getElementById('raiox-validadores').innerHTML = '<thead><tr><th>Quem validou</th><th>Validações</th><th>Recusadas por outro</th><th>Desfeitas por ele</th><th>Mantidas</th></tr></thead><tbody>' +
+    (lv.length ? lv.map((r) => { const mant = r.feitas - r.recusadasPorOutro - r.desfeitasPorEle; return '<tr><td>'+esc(r.k)+'</td><td>'+pdfNum(r.feitas)+'</td><td>'+(r.recusadasPorOutro ? '<b style="color:#B03A35;">'+pdfNum(r.recusadasPorOutro)+'</b>' : '0')+'</td><td>'+pdfNum(r.desfeitasPorEle)+'</td><td><b>'+(r.feitas ? Math.round(mant / r.feitas * 100) + '%' : '—')+'</b></td></tr>'; }).join('') : '<tr><td colspan="5" style="color:var(--muted);">Sem validações no período.</td></tr>') + '</tbody>';
+  caidas.sort((a, b) => String(b.em).localeCompare(String(a.em)));
+  document.getElementById('raiox-validacoes-caidas').innerHTML = caidas.length ? '<thead><tr><th>Item</th><th>Local</th><th>Validou</th><th>Quem desfez</th><th>Como</th><th>Quando</th></tr></thead><tbody>' +
+    caidas.slice(0, 200).map((c) => '<tr><td>'+esc(c.id)+'</td><td>'+esc(c.local)+'</td><td>'+esc(c.validou)+(c.validouEm ? ' <span style="color:var(--muted); font-size:11px;">'+dataHoraCurta(c.validouEm)+'</span>' : '')+'</td><td>'+esc(c.por || '—')+'</td><td>'+esc(c.motivo)+'</td><td>'+dataHoraCurta(c.em)+'</td></tr>').join('') + '</tbody>' : '';
 }
 
 /* VALIDAÇÃO DA GESTÃO AW: a IAC não valida mais junto com a gente (a baixa da IAC é só o que ela TIRA
@@ -10145,6 +10256,7 @@ function irParaAba(nome){
   if (bPdf) bPdf.hidden = nome !== 'visao-geral'; // só aparece na Visão geral
   document.querySelectorAll('main .secao').forEach((s) => s.classList.toggle('ativa', s.id==='secao-'+nome));
   if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
+  if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
   document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
   try{ atualizarVoltarFixo(); }catch(e){}
@@ -11377,6 +11489,25 @@ async function exportarRelatorioRevisaoPdf(diff, de, para){
   await compartilharOuBaixarPdf(doc.output('blob'), nome, null);
 }
 // as MESMAS contas da linha da aba Quartos (tela e PDF usam esta função)
+/* FONTE ÚNICA DOS NÚMEROS: tudo (Visão geral, torre, aba Quartos, PDFs) soma as MESMAS métricas
+   por ambiente — total desde a 1ª planilha, AW (cliques reais + encerrados pela IAC sem clique),
+   IAC (o que ela tirou da planilha ou marcou verde). Inclui ambientes que já fecharam inteiros. */
+function metricasDeTodosAmbientes(){
+  const out = [], vistos = new Set();
+  agruparPorLocal(itensRevisaoAtual).forEach((l) => { vistos.add(chaveUniverso(l.andar, l.tipo, l.quarto)); out.push(Object.assign({ andar: l.andar }, metricasDoLocal(l))); });
+  if (universoAmb && universoAmb.mapa){
+    Object.keys(universoAmb.mapa).forEach((k) => {
+      if (vistos.has(k)) return;
+      const [a, tipo, q] = k.split('|'), andar = Number(a), quarto = q === '' ? null : Number(q);
+      if (andaresConhecidos.indexOf(andar) === -1 && !andaresNestaRevisao.has(andar)) return;
+      const total = totalDoAmbiente(andar, tipo, quarto) || 0; if (!total) return;
+      const awReg = awRegistradoNoAmbiente(andar, tipo, quarto);
+      out.push({ andar, total, aberto: 0, aw: awReg != null ? awReg : total, iac: total, vm: 0, am: 0, naoAceitos: 0, cobrar: 0, reinc: 0, conferir: 0, novos: 0, pct: 100, fechado: true });
+    });
+  }
+  return out;
+}
+function somaMetricas(lista, k){ return lista.reduce((s, m) => s + (m[k] || 0), 0); }
 function metricasDoLocal(l){
   const itC = l.itens.filter(contaNoTotal);
   const c = contarVMAMAbertos(itC);
@@ -11407,7 +11538,10 @@ async function exportarQuartosPdf(){
   const admin = ehAdminAtual();
   const dados = locais.map((l) => Object.assign({ l, status: classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado) }, metricasDoLocal(l)));
   const soma = (k) => dados.reduce((s, d) => s + d[k], 0);
-  const tot = soma('total'), ab = soma('aberto'), aw = soma('aw'), iac = soma('iac');
+  // mesmos totais da tela: sem filtros, entram também os ambientes que já fecharam inteiros
+  const semFiltrosQ = ['filtro-andar','filtro-ambiente','filtro-disciplina','filtro-fornecedor','filtro-status','filtro-progresso','busca-quarto'].every((id) => { const el = document.getElementById(id); return !el || !el.value; }) && !(filtroMultiQ && (filtroMultiQ.andares.length || filtroMultiQ.status.length));
+  const fechQ = semFiltrosQ ? metricasDeTodosAmbientes().filter((m) => m.fechado) : [];
+  const tot = soma('total') + somaMetricas(fechQ, 'total'), ab = soma('aberto'), aw = soma('aw') + somaMetricas(fechQ, 'aw'), iac = soma('iac') + somaMetricas(fechQ, 'iac');
   const prioridades = {};
   dados.forEach((d) => { prioridades[d.status] = (prioridades[d.status]||0) + 1; });
   const andarFiltrado = document.getElementById('filtro-andar').value;
@@ -11664,6 +11798,7 @@ async function iniciar(){
   ['input-pin-1','input-pin-2'].forEach((id) => document.getElementById(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmarPin(); }));
   document.getElementById('btn-reprovado-sim').addEventListener('click', () => fecharReprovado('reinc'));
   document.getElementById('btn-reprovado-engano').addEventListener('click', () => fecharReprovado('engano'));
+  document.getElementById('btn-reprovado-gestao').addEventListener('click', () => fecharReprovado('gestao'));
   document.getElementById('btn-reprovado-cancelar').addEventListener('click', () => fecharReprovado(null));
   document.getElementById('btn-semelhante-cancelar').addEventListener('click', () => fecharSemelhante(null));
   document.getElementById('btn-cancelar-usuario').addEventListener('click', cancelarNomeUsuario);
@@ -11781,6 +11916,7 @@ async function iniciar(){
   document.getElementById('filtro-item-programacao').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('filtro-item-revisao').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-filtro-multi').addEventListener('click', abrirFiltroMultiplo);
+  document.getElementById('raiox-periodo').addEventListener('change', renderRaioX);
   document.getElementById('tbody-cronograma').addEventListener('click', (e) => { tratarCliqueCronograma(e); });
   document.getElementById('tbody-cronograma').addEventListener('change', async (e) => {
     const inp = e.target.closest('[data-crono]'); if (!inp) return;
