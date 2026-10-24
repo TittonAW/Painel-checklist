@@ -920,6 +920,16 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <div class="rodape-nota" style="text-align:left; margin:0 0 6px;">Validações (Validado gestão) que caíram depois: desmarcadas, ou a baixa foi reprovada — por quem validou ou por outra pessoa.</div>
       <div style="overflow-x:auto;"><table class="tabela-cronograma" id="raiox-validadores"></table></div>
       <div style="overflow-x:auto; margin-top:10px;"><table class="tabela-cronograma" id="raiox-validacoes-caidas"></table></div>
+      <h3 style="margin:22px 0 6px;">Baixas desmarcadas sem registro (versões antigas)</h3>
+      <div class="rodape-nota" style="text-align:left; margin:0 0 8px;">Antes da versão .261, desmarcar "por engano" apagava o registro. Aqui o app procura no banco os itens que perderam a baixa no período e não têm nenhum evento no histórico — você marca os que foram reprovações e registra como "reprovado pela gestão" (quem deu a baixa fica "não registrado").</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+        <label>De <input type="date" id="bsr-de" value="2026-10-21"></label>
+        <label>até <input type="date" id="bsr-ate" value="2026-10-23"></label>
+        <button type="button" class="btn fantasma" id="bsr-buscar">Procurar</button>
+        <select id="bsr-andar" style="display:none;"><option value="">Todos os andares</option></select>
+        <button type="button" class="btn primario" id="bsr-registrar" style="display:none;">Registrar selecionados como reprovados pela gestão</button>
+      </div>
+      <div style="overflow-x:auto;"><table class="tabela-cronograma" id="bsr-tabela"></table></div>
     </div>
   </section>
 
@@ -1272,7 +1282,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.263';
+const VERSAO_APP = '2026-10-03.264';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8163,6 +8173,61 @@ function renderRaioX(){
     caidas.slice(0, 200).map((c) => '<tr><td>'+esc(c.id)+'</td><td>'+esc(c.local)+'</td><td>'+esc(c.validou)+(c.validouEm ? ' <span style="color:var(--muted); font-size:11px;">'+dataHoraCurta(c.validouEm)+'</span>' : '')+'</td><td>'+esc(c.por || '—')+'</td><td>'+esc(c.motivo)+'</td><td>'+dataHoraCurta(c.em)+'</td></tr>').join('') + '</tbody>' : '';
 }
 
+/* BAIXAS DESMARCADAS SEM REGISTRO: lê direto do banco (data da última alteração de cada item) */
+let bsrLista = [];
+async function buscarBaixasSemRegistro(){
+  if (!ehFundador()) return;
+  const de = document.getElementById('bsr-de').value, ate = document.getElementById('bsr-ate').value;
+  const tb = document.getElementById('bsr-tabela');
+  if (!de || !ate){ avisoFlutuante('Escolha o período', 'erro'); return; }
+  if (!supa){ tb.innerHTML = '<tbody><tr><td style="color:var(--muted);">Só funciona com o app ligado à nuvem.</td></tr></tbody>'; return; }
+  tb.innerHTML = '<tbody><tr><td style="color:var(--muted);">Procurando…</td></tr></tbody>';
+  const ini = new Date(de + 'T00:00:00'), fim = new Date(ate + 'T23:59:59');
+  try{
+    const linhas = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, updated_at, data').eq('collection', colReal('acompanhamento')).gte('updated_at', ini.toISOString()).lte('updated_at', fim.toISOString()));
+    const porId = new Map(itensRevisaoAtual.map((x) => [x.id, x]));
+    bsrLista = linhas.filter((r) => {
+      const d = r.data || {}; if (d.awExecEm) return false;
+      const h = Array.isArray(d.historico) ? d.historico : [];
+      if (h.some((e) => e && e.em && new Date(e.em) >= ini && new Date(e.em) <= fim)) return false; // teve evento registrado no período
+      // gravações automáticas do app (categorização, conferência da Accor) também mudam a data — essas não são desmarcação
+      const u = new Date(r.updated_at).getTime();
+      if (['catAutoEm','catAutoTentadoEm','accorConferidoEm'].some((k) => d[k] && Math.abs(new Date(d[k]).getTime() - u) < 60000)) return false;
+      return true;
+    }).map((r) => { const it = porId.get(r.doc_id); return { id: r.doc_id, em: r.updated_at, it, andar: it ? it.andar : null }; })
+      .sort((a, b) => (a.andar || 0) - (b.andar || 0) || String(a.it ? localLabel(a.it) : a.id).localeCompare(String(b.it ? localLabel(b.it) : b.id)));
+    const sel = document.getElementById('bsr-andar');
+    const andares = Array.from(new Set(bsrLista.map((x) => x.andar).filter((x) => x != null))).sort((a, b) => a - b);
+    sel.innerHTML = '<option value="">Todos os andares</option>' + andares.map((a) => '<option value="'+a+'">'+nomeAndar(a)+'</option>').join('');
+    sel.style.display = bsrLista.length ? '' : 'none';
+    desenharBaixasSemRegistro();
+  }catch(e){ tb.innerHTML = '<tbody><tr><td style="color:var(--vm);">Não consegui ler do banco: '+esc(String(e && e.message || e))+'</td></tr></tbody>'; }
+}
+function desenharBaixasSemRegistro(){
+  const tb = document.getElementById('bsr-tabela'), fa = document.getElementById('bsr-andar').value;
+  const lista = bsrLista.filter((x) => !fa || String(x.andar) === fa);
+  document.getElementById('bsr-registrar').style.display = lista.length ? '' : 'none';
+  tb.innerHTML = lista.length ? '<thead><tr><th><input type="checkbox" id="bsr-todos" checked></th><th>Dia</th><th>Andar</th><th>Quarto / área</th><th>Item</th><th>Descrição</th><th>Desmarcado em</th></tr></thead><tbody>' +
+    lista.map((x) => { const d = new Date(x.em); return '<tr><td><input type="checkbox" class="bsr-chk" data-id="'+esc(x.id)+'" checked></td><td>'+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'</td><td>'+(x.andar != null ? nomeAndar(x.andar) : '—')+'</td><td>'+(x.it ? esc(String(localLabel(x.it)).replace(/\u00A0/g,' ')) : '—')+'</td><td>'+esc(x.it ? (x.it.idPlanilha || x.it.id) : x.id)+'</td><td style="white-space:normal; max-width:420px;">'+esc(x.it ? String(x.it.desc).slice(0, 140) : '(fora da planilha atual)')+'</td><td>'+dataHoraCurta(x.em)+'</td></tr>'; }).join('') + '</tbody>'
+    : '<tbody><tr><td style="color:var(--muted);">Nenhum item encontrado no período.</td></tr></tbody>';
+  const tod = document.getElementById('bsr-todos'); if (tod) tod.addEventListener('change', () => tb.querySelectorAll('.bsr-chk').forEach((c) => { c.checked = tod.checked; }));
+}
+async function registrarBaixasSemRegistro(){
+  if (!ehFundador() || !(await garantirUsuario())) return;
+  const ids = Array.from(document.querySelectorAll('#bsr-tabela .bsr-chk:checked')).map((c) => c.dataset.id);
+  if (!ids.length) return;
+  if (!window.confirm('Registrar ' + ids.length + ' item(ns) como "reprovado pela gestão"?\n\nQuem deu a baixa fica como "não registrado". Não muda o em aberto (os itens já estão abertos) e não aparece para o cliente.')) return;
+  let n = 0;
+  await comLimiteDeConcorrencia(ids, 4, async (id) => {
+    const x = bsrLista.find((y) => y.id === id); const atual = acompanhamento[id] || {};
+    const novo = Object.assign({}, atual, { reprovacoesGestao: (atual.reprovacoesGestao || 0) + 1 });
+    novo.historico = historicoDoItem(atual).concat([{ t:'reprovaGestao', em: x ? x.em : new Date().toISOString(), por: 'não registrado', baixaDe: 'não registrado', baixaEm: x ? x.em : null, retroativo: true, registradoPor: usuarioAtual }]);
+    const r = await salvarAcompanhamentoComRetry(id, novo); if (r.ok){ acompanhamento[id] = novo; n++; }
+  });
+  avisoFlutuante(n + ' item(ns) registrados como reprovados pela gestão', 'ok');
+  bsrLista = bsrLista.filter((x) => ids.indexOf(x.id) === -1); desenharBaixasSemRegistro(); renderRaioX();
+}
+
 /* VALIDAÇÃO DA GESTÃO AW: a IAC não valida mais junto com a gente (a baixa da IAC é só o que ela TIRA
    da planilha). O antigo botão "Validado IAC" de cada item passa a ser a conferência da gestão da AW
    sobre a baixa dos mestres — feita só pelo diretor, pelo gerente do contrato e pelo gerente da obra. */
@@ -11917,6 +11982,9 @@ async function iniciar(){
   document.getElementById('filtro-item-revisao').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-filtro-multi').addEventListener('click', abrirFiltroMultiplo);
   document.getElementById('raiox-periodo').addEventListener('change', renderRaioX);
+  document.getElementById('bsr-buscar').addEventListener('click', buscarBaixasSemRegistro);
+  document.getElementById('bsr-andar').addEventListener('change', desenharBaixasSemRegistro);
+  document.getElementById('bsr-registrar').addEventListener('click', registrarBaixasSemRegistro);
   document.getElementById('tbody-cronograma').addEventListener('click', (e) => { tratarCliqueCronograma(e); });
   document.getElementById('tbody-cronograma').addEventListener('change', async (e) => {
     const inp = e.target.closest('[data-crono]'); if (!inp) return;
