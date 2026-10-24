@@ -1305,7 +1305,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.273';
+const VERSAO_APP = '2026-10-03.274';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5882,11 +5882,21 @@ function chaveDiaLocal(d){
    primeiro uso e muda a cada marcação. Base: os itens da revisão selecionada (obra toda).
    Por dia: em aberto, executado AW acumulado (+ feitos no dia), vistoriado IAC acumulado
    (+ validados no dia) e total. */
+/* HISTÓRICO EFETIVO: uma reincidência revertida pelo Fundador deixa de existir em TODAS as contas
+   (gráfico, Raio-X) — some o evento "reinc" e a própria reversão. */
+function historicoEfetivo(h){
+  const out = [];
+  (Array.isArray(h) ? h : []).forEach((e) => {
+    if (e && e.t === 'reincRevertida'){ for (let i = out.length - 1; i >= 0; i--){ if (out[i].t === 'reinc'){ out.splice(i, 1); break; } } return; }
+    out.push(e);
+  });
+  return out;
+}
 function calcularEvolucaoPendencias(limiteDias){
   limiteDias = limiteDias || 30;
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   // eventos de cada item, já com o dia local, em ordem de acontecimento
-  const evs = (ac, extra) => historicoDoItem(ac).map((e) => ({ t:e.t, em:e.em })).concat(extra || [])
+  const evs = (ac, extra) => historicoEfetivo(historicoDoItem(ac)).map((e) => ({ t:e.t, em:e.em })).concat(extra || [])
     .filter((e) => e.em).map((e) => ({ t:e.t, dia: chaveDiaLocal(new Date(e.em)), em:e.em }))
     .sort((a,b) => (a.em < b.em ? -1 : (a.em > b.em ? 1 : 0)));
   const importadoDoAndar = new Map();
@@ -8176,7 +8186,7 @@ function renderRaioX(){
   const presentes = new Set(itensRevisaoAtual.map((x) => x.id));
   const herdados = new Set(Object.values(acompanhamento).map((a) => a && a.herdadoDe ? String(a.herdadoDe) : null).filter(Boolean)); // troca de número: não é aprovação da IAC
   Object.keys(acompanhamento).forEach((id) => {
-    const ac = acompanhamento[id] || {}, h = Array.isArray(ac.historico) ? ac.historico : [];
+    const ac = acompanhamento[id] || {}, h = historicoEfetivo(ac.historico);
     const it = porId.get(id); const forn = it ? (fornecedorEfetivo(it) || 'Sem fornecedor') : null, disc = it ? (disciplinaEfetiva(it) || '—') : null;
     let baixaAtual = null;
     const conta = (campo, quem) => { [[P, quem], [F, forn], [D, disc]].forEach(([m, k]) => { if (k) reg(m, k)[campo]++; }); tot[campo]++; };
@@ -8234,7 +8244,7 @@ function renderRaioX(){
   const V = {}, caidas = [];
   const regV = (k) => (V[k] = V[k] || { feitas:0, recusadasPorOutro:0, desfeitasPorEle:0 });
   Object.keys(acompanhamento).forEach((id) => {
-    const ac = acompanhamento[id] || {}, h = Array.isArray(ac.historico) ? ac.historico : [];
+    const ac = acompanhamento[id] || {}, h = historicoEfetivo(ac.historico);
     h.forEach((e) => {
       if (e.t === 'iac' && (!desde || e.em >= desde)) regV(e.por || '—').feitas++;
       if (e.t === 'gestaoDesfeita' && (!desde || (e.validadoEm || e.em) >= desde)){
