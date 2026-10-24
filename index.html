@@ -122,7 +122,7 @@ nav.abas button{
 nav.abas button.ativa{ color:var(--accent-2); background:var(--accent-soft); }
 @media (hover:hover) and (pointer:fine){ nav.abas button:hover:not(.ativa){ color:var(--text); background:var(--paper-2); } }
 
-main{ max-width:1560px; margin:0 auto; padding:28px 32px 72px; }
+main{ max-width:1960px; margin:0 auto; padding:28px 28px 72px; } /* telas largas: usa a largura toda */
 .secao{ display:none; }
 .secao.ativa{ display:block; }
 
@@ -428,7 +428,7 @@ html.chat-aberto{ overflow:hidden; }
 }
 .status-vm{ background:var(--vm-fill); } .status-pendente{ background:var(--exec); } .status-liberado-pend{ background:var(--lib-fill); } .status-vd{ background:var(--vd-fill); } .status-sem{ background:var(--semdados); }
 
-.resumo-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:14px; }
+.resumo-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
 .grupo-label{ font-size:12.5px; font-weight:400; color:var(--muted); margin:0 0 10px; }
 .stat{ padding:16px 18px; border-radius:var(--r-md); background:var(--paper-2); border:1px solid var(--line); transition:border-color .15s, box-shadow .15s, transform .1s; }
 .stat.clicavel{ cursor:pointer; }
@@ -1305,7 +1305,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.269';
+const VERSAO_APP = '2026-10-03.273';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5895,14 +5895,14 @@ function calcularEvolucaoPendencias(limiteDias){
   const marcas = itensRevisaoAtual.filter(contaNoTotal).map((it) => {
     const ac = acompanhamento[it.id];
     const verde = it.origem !== 'AW' && it.status !== 'VM' && it.status !== 'AM' && !(ac && ac.iacOkEm);
-    return evs(ac, verde && it.atualizadoEmAndar ? [{ t:'iac', em: it.atualizadoEmAndar }] : []);
+    return evs(ac, verde && it.atualizadoEmAndar ? [{ t:'iacPlan', em: it.atualizadoEmAndar }] : []);
   });
   // + os que a IAC tirou da planilha: validados no dia em que saíram
   try{
     sairamDaPlanilha().forEach((h) => {
       const id = String(h.id || h._id).split('@')[0];
       const em = h.resolvidoEm || importadoDoAndar.get(Number(h.andar)) || null;
-      marcas.push(evs(acompanhamento[id], em ? [{ t:'iac', em }] : []));
+      marcas.push(evs(acompanhamento[id], em ? [{ t:'iacPlan', em }] : []));
     });
   }catch(e){}
   let inicio = new Date(hoje); inicio.setDate(inicio.getDate() - (limiteDias-1));
@@ -5924,7 +5924,8 @@ function calcularEvolucaoPendencias(limiteDias){
       for (const e of ev){
         if (e.dia > dia) break;
         if (e.t === 'aw'){ ex = true; if (e.dia === dia) awDia++; }
-        else if (e.t === 'iac'){ ex = true; } // validação da gestão AW: conta como executado; a linha da IAC é só o que ela tirou
+        else if (e.t === 'iac'){ ex = true; } // validação da gestão AW: conta como executado
+        else if (e.t === 'iacPlan'){ ex = true; vi = true; if (e.dia === dia) iacDia++; } // a IAC tirou da planilha / marcou verde
         else if (e.t === 'reinc'){ ex = false; vi = false; if (e.dia === dia) reincDia++; }
         else if (e.t === 'reaberto'){ ex = false; vi = false; }
       }
@@ -5998,14 +5999,23 @@ function renderEvolucaoPendencias(){
     pontos.forEach((p,i) => { sx+=i; sy+=p[chave]; sxy+=i*p[chave]; sxx+=i*i; });
     return (n*sxy - sx*sy) / (n*sxx - sx*sx);
   }
-  const incAberto = Math.min(0, inclinacao('aberto'));
+  // RITMO = média de baixas por dia nos últimos 14 dias (o mesmo nas três datas: original, com novos, com a avaliar)
+  const ult14 = pontos.slice(-14), ritmoDia = ult14.length ? ult14.reduce((s, p) => s + (p.awDia || 0), 0) / ult14.length : 0;
+  const ehNovoEscopo = (x) => !!infoItemNovo(x) || origemDoItem(x) === 'SOFITEL';
+  const novosAbertos = itensRevisaoAtual.filter((x) => contaNoTotal(x) && estaEmAberto(x) && ehNovoEscopo(x)).length;
+  const aAvaliar = itensRevisaoAtual.filter((x) => novoForaDoAberto(x) && !(acompanhamento[x.id] || {}).novoContestadoEm).length;
+  const abertoOriginal = Math.max(0, ult.aberto - novosAbertos);
+  const diasPara = (q) => ritmoDia > 0 ? Math.ceil(q / ritmoDia) : null;
+  const dataEm = (dias) => { if (dias == null) return null; const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + dias); return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }); };
+  const dOrig = diasPara(abertoOriginal), dAtual = diasPara(ult.aberto), dComAval = diasPara(ult.aberto + aAvaliar);
+  const incAberto = ritmoDia > 0 ? -ritmoDia : Math.min(0, inclinacao('aberto'));
   const incIac = Math.max(0, inclinacao('iac'));
   // a projeção segue até o "em aberto" zerar no ritmo atual (no máximo 30 dias à frente);
   // se o ritmo ainda não mostra queda, projeta 7 dias
   let diasProj = 0;
   if (n >= 2){
-    diasProj = incAberto < 0 ? Math.ceil(ult.aberto / -incAberto) : 7;
-    diasProj = Math.min(30, Math.max(3, diasProj));
+    diasProj = incAberto < 0 ? Math.ceil((ult.aberto + aAvaliar) / -incAberto) : 7;
+    diasProj = Math.min(45, Math.max(3, diasProj));
   }
   const futuro = [];
   let antes = ult;
@@ -6140,6 +6150,14 @@ function renderEvolucaoPendencias(){
     const ph = [xAt(n-1), yAt(ult[ch])];
     svg += '<circle cx="'+ph[0].toFixed(1)+'" cy="'+ph[1].toFixed(1)+'" r="3.6" style="fill:'+s.cor+'; stroke:#fff; stroke-width:1.5;"/>';
   });
+  // impacto dos novos: projeção do escopo original e com os novos a avaliar
+  if (diasProj && ritmoDia > 0){
+    const reta = (ini) => { const pts = []; for (let k = 0; k <= diasProj; k++){ const v = Math.max(0, ini - ritmoDia * k); pts.push(xAt(n - 1 + k).toFixed(1) + ',' + yAt(v).toFixed(1)); if (v === 0) break; } return pts.join(' '); };
+    if (novosAbertos + aAvaliar > 0){
+      svg += '<polyline points="'+reta(abertoOriginal)+'" style="fill:none; stroke:#9AA3AD; stroke-width:1.6; stroke-dasharray:5 4;"/>';
+      svg += '<polyline points="'+reta(ult.aberto + aAvaliar)+'" style="fill:none; stroke:#F2A65A; stroke-width:1.8; stroke-dasharray:5 4;"/>';
+    }
+  }
   // cursor
   svg += '<g id="evo-cursor" style="display:none;"><line id="evo-cursor-linha" y1="'+padT+'" y2="'+yBase+'" style="stroke:var(--text); stroke-width:1.2;"/>';
   SERIES_EVOLUCAO.forEach((s) => { svg += '<circle id="evo-cursor-'+s.chave+'" r="4.5" style="fill:'+s.cor+'; stroke:#fff; stroke-width:2;"/>'; });
@@ -6147,11 +6165,18 @@ function renderEvolucaoPendencias(){
   svg += '<rect id="evo-area-toque" x="'+padL+'" y="'+padT+'" width="'+(W-padL-padR)+'" height="'+(yBase-padT)+'" style="fill:transparent; cursor:crosshair;"/>';
   svg += '</svg>';
 
+  const chip = (bg, rot, data, extra) => '<div style="background:'+bg+'; border-radius:12px; padding:8px 12px; min-width:170px;"><div style="font-size:11.5px; color:#5B6660;">'+rot+'</div><div style="font-size:18px; font-weight:600; color:#33403A;">'+(data || '—')+(extra ? ' <span style="font-size:12px; font-weight:500; color:#B4661F;">'+extra+'</span>' : '')+'</div></div>';
+  // TODOS os itens marcados como novos (a avaliar + já aceitos): aceitar não muda a data — o trabalho já estava lá
+  const totalNovos = novosAbertos + aAvaliar;
+  const impacto = (ritmoDia > 0 && totalNovos) ? '<div style="display:flex; flex-wrap:wrap; gap:10px; margin:2px 0 12px;">' +
+      chip('#F1F2F4', 'Escopo original (sem itens novos)', dataEm(dOrig), '') +
+      chip('#FDF1E4', totalNovos === 1 ? 'Com 1 item novo' : 'Com os ' + pdfNum(totalNovos) + ' itens novos', dataEm(dComAval), dComAval - dOrig > 0 ? '+' + (dComAval - dOrig) + ' dias' : '') +
+      '<div style="align-self:center; font-size:11.5px; color:#8A938E; line-height:1.5;">ritmo: ' + (Math.round(ritmoDia * 10) / 10).toLocaleString('pt-BR') + ' baixas/dia (média de 14 dias)<br>no gráfico: <span style="color:#9AA3AD;">- - -</span> escopo original · <span style="color:#F2A65A;">- - -</span> com os itens novos</div></div>' : '';
   // cabeçalho: valores do dia selecionado (padrão: hoje), clicáveis pra esconder/mostrar
-  let topo = '<div style="display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; margin:2px 0 8px; font-size:12px; color:var(--muted);">' +
+  let topo = impacto + '<div style="display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; margin:2px 0 8px; font-size:12px; color:var(--muted);">' +
     '<span>Valores de <span id="evo-dia-sel" style="color:var(--text);">hoje</span> · toque ou passe o mouse no gráfico pra ver cada dia</span>' +
     '<span id="evo-feito-sel"></span>' +
-    (zeraEm ? '<span style="margin-left:auto;">No ritmo atual, o em aberto zera por volta de <span style="color:var(--text);">'+zeraEm+'</span> ('+diasAteZero+' dias)</span>'
+    (zeraEm ? '<span style="margin-left:auto;">No ritmo atual, termina por volta de <span style="color:var(--text);">'+(dataEm(dComAval) || zeraEm)+'</span> ('+(dComAval != null ? dComAval : diasAteZero)+' dias'+(aAvaliar ? ', com os novos' : '')+')</span>'
       : (n >= 2 ? '<span style="margin-left:auto;">Em aberto sem queda no período</span>' : '')) +
     '</div>';
   topo += '<div style="display:flex; flex-wrap:wrap; gap:12px 28px; margin:0 0 10px;">';
@@ -8182,18 +8207,24 @@ function renderRaioX(){
     .filter((r) => r.rev > 0);
   const minimo = rxDim === 'P' ? 10 : 15;
   const comVolume = lista.filter((r) => r.rev >= minimo);
-  const linha = (r, larg) => {
+  const linha = (r, modo) => {
     const ok = r.validadas + r.iacAprov, ruim = r.reprovGestao + r.iacReprov;
     const det = [revG(r) ? 'gestão ' + apG(r) + '%' : '', revI(r) ? 'vistoria ' + apI(r) + '%' : ''].filter(Boolean).join(' · ');
-    return '<div class="rx-item"><div class="rx-n" title="'+esc(r.k)+'">'+esc(r.k)+'<span class="rx-s">'+pdfNum(r.rev)+' revisadas · '+det+'</span></div>' +
+    const conta = modo === 'bom' ? '<b>'+pdfNum(ok)+'</b> aprovadas de '+pdfNum(r.rev) : (modo === 'ruim' ? '<b>'+pdfNum(ruim)+'</b> reprovadas de '+pdfNum(r.rev) : pdfNum(r.rev)+' revisadas');
+    return '<div class="rx-item"><div class="rx-n" title="'+esc(r.k)+'">'+esc(r.k)+'<span class="rx-s">'+conta+' · '+det+'</span></div>' +
       '<div class="rx-mini"><span style="width:'+(ok/(ok+ruim)*100)+'%; background:#A8D5BA;"></span><span style="width:'+(ruim/(ok+ruim)*100)+'%; background:#F4B6B6;"></span></div>' +
       '<div class="rx-p">'+r.ap+'%</div></div>';
   };
-  const melhores = comVolume.slice().sort((a, b) => b.ap - a.ap || b.rev - a.rev).slice(0, 5);
-  const piores = comVolume.slice().sort((a, b) => a.ap - b.ap || b.rev - a.rev).filter((r) => melhores.indexOf(r) === -1 || comVolume.length <= 5).slice(0, 5);
+  // ESFORÇO COM RESULTADO: "mais acertaram" = mais baixas aprovadas (volume bem feito); "mais erraram" = mais baixas reprovadas
+  const okDe = (r) => r.validadas + r.iacAprov, ruimDe = (r) => r.reprovGestao + r.iacReprov;
+  // resultado conta: só entra em "acertaram" quem está na média de aprovação do grupo ou acima; abaixo dela vai para "erraram"
+  const somaOk = comVolume.reduce((s, r) => s + okDe(r), 0), somaRev = comVolume.reduce((s, r) => s + r.rev, 0);
+  const media = somaRev ? Math.round(somaOk / somaRev * 100) : 0;
+  const melhores = comVolume.filter((r) => r.ap >= media).sort((a, b) => okDe(b) - okDe(a) || b.ap - a.ap).slice(0, 5);
+  const piores = comVolume.filter((r) => r.ap < media && ruimDe(r) > 0).sort((a, b) => ruimDe(b) - ruimDe(a) || a.ap - b.ap).slice(0, 5);
   document.getElementById('raiox-top').innerHTML = comVolume.length
-    ? '<div class="rx-col bom"><h4>Mais acertaram</h4>' + melhores.map((r) => linha(r)).join('') + '</div>' +
-      '<div class="rx-col ruim"><h4>Mais erraram</h4>' + piores.map((r) => linha(r)).join('') + '</div>'
+    ? '<div class="rx-col bom"><h4>Mais acertaram <span style="font-weight:400; color:#8A938E;">· mais baixas aprovadas, com aprovação ≥ '+media+'% (média)</span></h4>' + melhores.map((r) => linha(r, 'bom')).join('') + '</div>' +
+      (piores.length ? '<div class="rx-col ruim"><h4>Mais erraram <span style="font-weight:400; color:#8A938E;">· mais baixas reprovadas, abaixo da média</span></h4>' + piores.map((r) => linha(r, 'ruim')).join('') + '</div>' : '')
     : '<div class="rx-vazio">Ainda não há volume suficiente (mínimo de ' + minimo + ' baixas revisadas) para comparar.</div>';
   const box = document.getElementById('raiox-todos-box');
   box.style.display = lista.length ? '' : 'none';
