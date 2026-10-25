@@ -550,8 +550,18 @@ body.aba-quartos main{ max-width:1900px; }
 .rec-botoes .rec-ok{ border-color:var(--primary, #5A8C80); color:var(--primary, #5A8C80); font-weight:500; }
 .grupo-label.grupo-sofitel{ color:#6B3FA0; }
 .mini-stat.novos-s .mini-rotulo, .mini-stat.novos-s .mini-valor{ color:#6B3FA0; }
-.mini-stat.novos{ width:auto; min-width:26px; } .mini-stat.novos .mini-rotulo{ white-space:nowrap; }
-@media (max-width: 700px){ .mini-stat.novos .rot-longo{ display:none; } .mini-stat.novos{ min-width:16px; } } /* no celular: só "I" e "S" (com a cor) */
+.mini-stat .mini-valor, .mini-stat .mini-rotulo{ white-space:nowrap; }
+.mini-stat{ width:32px; flex:none; }                         /* até 4 dígitos (AW, IAC, Total) */
+.mini-stat.destaque{ width:40px; min-width:0; }              /* Aberto */
+.mini-stat.novos{ width:46px; min-width:0; }                 /* "Novos I" / "Novos S" · até 3 dígitos */
+.andar-barra .num{ flex:none; }
+@media (max-width: 700px){
+  .mini-stat.novos .rot-longo{ display:none; }               /* no celular: só "I" e "S" (com a cor) */
+  .mini-stat{ width:29px; }
+  .mini-stat.destaque{ width:33px; }
+  .mini-stat.novos{ width:22px; }
+  .mini-stats{ gap:5px; }
+}
 .rev-entrada{ font-size:10.5px; color:var(--muted); margin-top:3px; font-family:inherit; }
 .tag-auto{ display:inline-block; font-size:9.5px; padding:0 5px; border-radius:6px; background:#E8EEFB; color:#3B6FD4; vertical-align:1px; }
 .sugestao-cat{ margin-top:6px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:11px; color:var(--azul, #3B6FD4); }
@@ -1314,7 +1324,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.286';
+const VERSAO_APP = '2026-10-03.288';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3016,6 +3026,33 @@ async function revisarOrigemDosPassados(){
   popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento();
   avisoFlutuante('Origem conferida pelo rodapé: ' + cont.viraramSofitel + ' passaram para Sofitel · ' + cont.iac + ' voltaram para IAC' + (cont.naoConf ? ' · ' + cont.naoConf + ' sem rodapé legível (?)' : '') + (cont.ocrFalhou ? ' · o leitor não carregou em ' + cont.ocrFalhou + ' (tenta de novo na próxima abertura)' : ''), 'ok');
 }
+function extrairListaDaIA(txt){
+  let s = String(txt || '').replace(/```(?:json)?/gi, '').replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+  const candidatos = [];
+  // recorta cada bloco {…} ou […] balanceado (respeitando textos entre aspas)
+  for (let i = 0; i < s.length; i++){
+    if (s[i] !== '{' && s[i] !== '[') continue;
+    const pilha = []; let dentroTexto = false, esc = false;
+    for (let j = i; j < s.length; j++){
+      const c = s[j];
+      if (dentroTexto){ if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') dentroTexto = false; continue; }
+      if (c === '"') dentroTexto = true;
+      else if (c === '{' || c === '[') pilha.push(c);
+      else if (c === '}' || c === ']'){ pilha.pop(); if (!pilha.length){ candidatos.push(s.slice(i, j + 1)); break; } }
+    }
+  }
+  candidatos.sort((a, b) => b.length - a.length);
+  for (const c of candidatos){
+    for (const tentativa of [c, c.replace(/,\s*([\]}])/g, '$1')]){
+      try{
+        const v = JSON.parse(tentativa);
+        if (v && Array.isArray(v.itens)) return v.itens;
+        if (Array.isArray(v) && v.length && v.every((x) => x && typeof x === 'object' && 'id' in x)) return v;
+      }catch(e){}
+    }
+  }
+  return null;
+}
 function naoTocado(it){
   if (it.origem === 'AW') return false;
   const ac = acompanhamento[it.id] || {};
@@ -3033,7 +3070,7 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
   const renovarTrava = () => store.setDoc('config', 'categorizacao_em_andamento', { por: usuarioAtual, em: new Date().toISOString() }).catch(() => {});
   await renovarTrava();
   categorizandoAgora = true; pararCategorizacao = false;
-  let porHist = 0, porIA = 0, falhouIA = false, motivoFalhaIA = '';
+  let porHist = 0, porIA = 0, falhouIA = false, motivoFalhaIA = '', lotesFalhos = 0;
   try{
     const agora = new Date().toISOString();
     const gravar = async (it, disc, forn, fonte, motivo) => {
@@ -3086,19 +3123,24 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
           else if (data && data.type === 'error') motivoFalhaIA = (data.error && data.error.message) || 'erro da IA';
           else resp = data;
         }catch(e){ motivoFalhaIA = String(e && e.message || e); }
+        const textoDe = (r) => r && Array.isArray(r.content) ? r.content.filter((b) => b.type === 'text').map((b) => b.text).join('') : '';
         let uso = resp && Array.isArray(resp.content) ? resp.content.find((b) => b.type === 'tool_use' && b.name === 'registrar_categorias') : null;
-        if (!uso && resp && Array.isArray(resp.content)){ // às vezes a IA responde em texto: aproveita o JSON se vier
-          const txt = resp.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+        if (!uso && resp){ const l = extrairListaDaIA(textoDe(resp)); if (l) uso = { input: { itens: l } }; }
+        if (!uso && resp){
+          // 2ª tentativa: a resposta já começa no formato pedido (a IA só completa a lista)
           try{
-            const limpo = txt.replace(/```json|```/g, '');
-            const a = limpo.indexOf('{'), z = limpo.lastIndexOf('}');
-            if (a !== -1 && z > a){ const obj = JSON.parse(limpo.slice(a, z + 1)); if (obj && Array.isArray(obj.itens)) uso = { input: obj }; }
-            if (!uso){ const a2 = limpo.indexOf('['), z2 = limpo.lastIndexOf(']'); if (a2 !== -1 && z2 > a2){ const arr = JSON.parse(limpo.slice(a2, z2 + 1)); if (Array.isArray(arr)) uso = { input: { itens: arr } }; } }
+            const { data } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }, { role:'assistant', content: '{"itens":[' }], contexto: 'Tarefa interna de categorização: responda somente o JSON pedido, sem conversa.', ferramentas: [] } });
+            if (data && !(data.type === 'error')){ const l = extrairListaDaIA('{"itens":[' + textoDe(data).replace(/^\s*\{\s*"itens"\s*:\s*\[/, '')) || extrairListaDaIA(textoDe(data)); if (l) uso = { input: { itens: l } }; }
           }catch(e){}
-          if (!uso){ motivoFalhaIA = 'a IA respondeu sem a lista (' + (resp.stop_reason || 'sem motivo') + ')'; console.warn('Resposta da IA (categorização):', txt.slice(0, 600)); }
+          if (!uso){ motivoFalhaIA = 'a IA respondeu fora do formato'; console.warn('Resposta da IA (categorização):', textoDe(resp).slice(0, 600)); }
         }
         const lista = uso && uso.input && Array.isArray(uso.input.itens) ? uso.input.itens : [];
-        if (!uso){ falhouIA = true; break; } // sem resposta: não marca nada, tenta de novo na próxima abertura
+        if (!uso){ // pula este lote (tenta de novo depois) e segue; para de vez se falhar 3 lotes seguidos
+          lotesFalhos = (lotesFalhos || 0) + 1;
+          if (lotesFalhos >= 3){ falhouIA = true; break; }
+          continue;
+        }
+        lotesFalhos = 0;
         for (const it of lote){
           const r = lista.find((x) => String(x.id) === String(it.id));
           const discOk = r && discs.indexOf(r.disciplina) !== -1 ? r.disciplina : null;
@@ -3114,7 +3156,7 @@ async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
     if (falhouIA){ console.warn('Categorização: IA não respondeu —', motivoFalhaIA);
       let jaAvisou = false; const kAv = 'aviso_ia_falhou_' + chaveDia(new Date());
       try{ jaAvisou = !!localStorage.getItem(kAv); localStorage.setItem(kAv, motivoFalhaIA || '1'); }catch(e){}
-      if (!jaAvisou && ehFundador()) avisoFlutuante('A IA não categorizou agora (' + (/credit|balance|billing/i.test(motivoFalhaIA) ? 'sem créditos na API da Anthropic' : (motivoFalhaIA || 'sem resposta').slice(0, 120)) + ') — tenta de novo na próxima abertura', 'erro'); }
+      if (!jaAvisou && ehFundador()) avisoFlutuante(/credit|balance|billing/i.test(motivoFalhaIA) ? 'Categorização por IA pausada: sem créditos na API da Anthropic' : 'Categorização por IA pausada por hoje (a IA não respondeu no formato) — o resto do app segue normal', 'info'); }
     if (porHist + porIA){ atualizarTelasAposAcompanhamento(); if (abaAtual() === 'itens') renderItens();
       avisoFlutuante('Itens novos categorizados automaticamente: ' + (porHist ? porHist + ' pelo seu histórico' : '') + (porHist && porIA ? ' · ' : '') + (porIA ? porIA + ' pela IA' : ''), 'ok'); }
   }
