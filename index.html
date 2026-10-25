@@ -502,6 +502,13 @@ body.aba-quartos main{ max-width:1900px; }
 .linhas-sub .tom-novo, .linhas-sub .tom-novo b{ color:var(--novo); }
 .pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
 .tag-origem-item.sof{ background:#EFE7F6; color:#6B3FA0; }
+.grupo-progresso{ flex:1; min-width:0; margin-right:10px; font-size:12.5px; color:var(--muted); }
+.grupo-progresso .gp-texto{ display:flex; align-items:center; gap:7px; line-height:1.35; }
+.grupo-progresso .gp-texto b{ color:var(--text); }
+.grupo-progresso .gp-ponto{ width:9px; height:9px; border-radius:50%; background:#7BB89A; flex:none; animation:gpPulso 1s ease-in-out infinite; }
+@keyframes gpPulso{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+.grupo-progresso .gp-barra{ height:5px; border-radius:4px; background:#E7EAE8; margin-top:5px; overflow:hidden; }
+.grupo-progresso .gp-barra span{ display:block; height:100%; background:#A8D5BA; transition:width .3s; }
 .tag-origem-nc{ margin-left:3px; font-weight:600; color:#B4661F; }
 .lightbox-rodape{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom, 0px) + 10px); max-width:92vw; background:rgba(255,255,255,.94); color:#33403A; font-size:12px; line-height:1.4; padding:6px 10px; border-radius:10px; z-index:111; }
 .rx-resumo{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:6px 0 18px; }
@@ -1308,7 +1315,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.276';
+const VERSAO_APP = '2026-10-03.279';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2246,8 +2253,11 @@ function acharMarcaCliente(texto){
       if (padrao.test(norm)) return { marca, tipo: 'exata' };
     } else {
       if (letras.indexOf(alvo) !== -1) return { marca, tipo: 'exata' };
-      const tol = Math.max(1, Math.floor(alvo.length * 0.15)); // até ~15% de letras trocadas pelo OCR
-      if (distanciaNoTexto(alvo, letras) <= tol) return { marca, tipo: 'aproximada' };
+      // aproximada (letras trocadas pelo OCR): só numa linha curta, do tamanho de um rodapé — nunca no meio de ruído
+      if (letras.length <= alvo.length * 2.2){
+        const tol = Math.max(1, Math.floor(alvo.length * 0.12));
+        if (distanciaNoTexto(alvo, letras) <= tol) return { marca, tipo: 'aproximada' };
+      }
     }
   }
   return null;
@@ -2275,12 +2285,27 @@ function obterOcr(){
   return ocrWorkerPromessa;
 }
 // recorta a faixa de baixo da foto (onde fica o rodapé), aumenta e passa pra cinza; "inverter" ajuda em texto claro
+function faixaBrancaDoRodape(bmp){
+  // lê a imagem pequena e sobe da borda de baixo enquanto as linhas forem quase brancas (o texto ocupa pouco da linha)
+  const W = 200, H = Math.max(50, Math.round(bmp.height * W / bmp.width));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(bmp, 0, 0, W, H);
+  const d = x.getImageData(0, 0, W, H).data;
+  const branca = (y) => { let b = 0; for (let i = y * W * 4; i < (y + 1) * W * 4; i += 4){ if (d[i] > 215 && d[i+1] > 215 && d[i+2] > 215) b++; } return b / W; };
+  // linha de texto ainda tem bastante branco em volta das letras; a foto (textura) quase não tem
+  let y = H - 1; while (y > H * 0.75 && branca(y) >= 0.3) y--;
+  const alt = H - 1 - y;
+  if (alt < H * 0.025) return null; // sem faixa branca
+  return { y0: Math.max(0, (y + 1) / H * bmp.height), h: alt / H * bmp.height };
+}
 async function recorteDoRodape(blob, inverter){
   const bmp = await createImageBitmap(blob);
-  const h0 = Math.round(bmp.height * 0.22), escala = Math.min(3, 1400 / bmp.width);
-  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * escala); cv.height = Math.round(h0 * escala);
+  const faixa = faixaBrancaDoRodape(bmp);
+  const y0 = faixa ? faixa.y0 : bmp.height * 0.86, h0 = faixa ? faixa.h : bmp.height * 0.14;
+  const escala = Math.min(3, 1400 / bmp.width);
+  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * escala); cv.height = Math.max(20, Math.round(h0 * escala));
   const cx = cv.getContext('2d', { willReadFrequently: true });
-  cx.drawImage(bmp, 0, bmp.height - h0, bmp.width, h0, 0, 0, cv.width, cv.height);
+  cx.drawImage(bmp, 0, y0, bmp.width, h0, 0, 0, cv.width, cv.height);
   const img = cx.getImageData(0, 0, cv.width, cv.height), d = img.data;
   for (let k = 0; k < d.length; k += 4){ let l = 0.299 * d[k] + 0.587 * d[k+1] + 0.114 * d[k+2]; if (inverter) l = 255 - l; d[k] = d[k+1] = d[k+2] = l; }
   cx.putImageData(img, 0, 0);
@@ -2297,10 +2322,11 @@ async function lerRodapeDaFoto(blob){
       let melhor = null;
       for (const inverter of [false, true]){
         const r = await w.recognize(await recorteDoRodape(blob, inverter));
-        const texto = String((r && r.data && r.data.text) || '').replace(/\s+/g, ' ').trim();
+        const linhas = String((r && r.data && r.data.text) || '').split(/\n+/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
         const conf = Math.round((r && r.data && r.data.confidence) || 0);
-        const marca = acharMarcaCliente(texto), data = acharDataRodape(texto);
-        const lido = { texto: texto.slice(0, 160), marca: marca ? marca.marca : null, marcaTipo: marca ? marca.tipo : null, data, conf };
+        let lido = null;
+        for (const l of linhas){ const m = acharMarcaCliente(l); if (m){ lido = { texto: l.slice(0, 120), marca: m.marca, marcaTipo: m.tipo, data: acharDataRodape(l) || acharDataRodape(linhas.join(' ')), conf }; break; } }
+        if (!lido){ const l = linhas.find((x) => acharDataRodape(x)); lido = { texto: l ? l.slice(0, 120) : '', marca: null, marcaTipo: null, data: l ? acharDataRodape(l) : null, conf }; }
         if (!melhor || (lido.marca && !melhor.marca) || (!melhor.marca && lido.data && !melhor.data)) melhor = lido;
         if (melhor.marca || melhor.data) break; // já leu o que precisa
       }
@@ -2889,11 +2915,26 @@ function origemMudadaAMao(ac){
 let revisandoOrigemPassados = false;
 async function revisarOrigemDosPassados(){
   if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
+  // revisão em que a Sofitel começou a aparecer: os IAC daí em diante também são conferidos (podem ser Sofitel)
+  const revsSof = itensRevisaoAtual.filter((it) => origemDoItem(it) === 'SOFITEL').map((it) => Number(revisaoDeEntrada(it)) || 0).filter(Boolean);
+  const revInicioSof = revsSof.length ? Math.min.apply(null, revsSof) : 31;
   const alvos = itensRevisaoAtual.filter((it) => { const ac = acompanhamento[it.id] || {};
-    return it.origem !== 'AW' && origemDoItem(it) === 'SOFITEL' && (it.fotos || []).length && !ac.rodapeConferidoEm && !origemMudadaAMao(ac); });
+    if (it.origem === 'AW' || !(it.fotos || []).length || origemMudadaAMao(ac)) return false;
+    const incerto = ac.fotoRodapes && Object.values(ac.fotoRodapes).some((r) => r && r.c !== 'alta');
+    if (ac.rodapeConferidoEm && ac.rodapeLeituraV2) return false;                      // já lido com o recorte novo
+    if (ac.rodapeConferidoEm && !incerto && !ac.origemNaoConfirmada) return false;     // leitura antiga, mas segura
+    if (origemDoItem(it) === 'SOFITEL') return true;
+    return origemDoItem(it) === 'IAC' && (Number(revisaoDeEntrada(it)) || 0) >= revInicioSof;
+  });
   if (!alvos.length) return;
   revisandoOrigemPassados = true;
-  const cont = { iac: 0, sofitel: 0, naoConf: 0 };
+  const cont = { iac: 0, sofitel: 0, viraramSofitel: 0, naoConf: 0 };
+  let feitosR = 0;
+  const ind = (() => { let el = document.getElementById('aviso-origem-rodape');
+    if (!el){ el = document.createElement('div'); el.id = 'aviso-origem-rodape'; el.style.cssText = 'position:fixed; left:16px; bottom:56px; z-index:90; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:12px; color:var(--muted); box-shadow:0 2px 8px rgba(0,0,0,.06);'; document.body.appendChild(el); }
+    return el; })();
+  const mostrar = () => { ind.textContent = '◎ Conferindo a origem pelo rodapé das fotos… ' + feitosR + '/' + alvos.length; };
+  mostrar();
   try{
     await comLimiteDeConcorrencia(alvos, 2, async (it) => {
       const lidos = [], porFoto = {};
@@ -2903,19 +2944,28 @@ async function revisarOrigemDosPassados(){
           porFoto[idF] = { t: lido.texto, m: lido.marca || null, d: lido.data || null, c: lido.certeza };
         }catch(e){}
       }
-      const dec = decidirOrigemPorRodapes(lidos, 'SOFITEL');
+      if (lidos.length && lidos.every((x) => x.erro)){ cont.ocrFalhou = (cont.ocrFalhou || 0) + 1; feitosR++; mostrar(); return; } // leitor não carregou: tenta na próxima abertura
+      const eraSof = origemDoItem(it) === 'SOFITEL';
+      const dec = decidirOrigemPorRodapes(lidos, eraSof ? 'SOFITEL' : 'IAC');
       const agora = new Date().toISOString(), atual = acompanhamento[it.id] || {};
-      const novo = Object.assign({}, atual, { rodapeConferidoEm: agora, fotoRodapes: porFoto, origemNaoConfirmada: !dec.confirmada });
-      if (dec.confirmada && dec.origem === 'IAC'){
+      const novo = Object.assign({}, atual, { rodapeConferidoEm: atual.rodapeConferidoEm || agora, fotoRodapes: porFoto, origemNaoConfirmada: !dec.confirmada });
+      if (atual.rodapeConferidoEm) novo.rodapeReconferidoEm = agora;
+      novo.rodapeLeituraV2 = true;
+      if (dec.confirmada && dec.origem === 'IAC' && eraSof){
         novo.origemOverride = 'IAC'; novo.origemNome = null;
         novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'IAC', motivo: dec.motivo }]);
         cont.iac++;
+      } else if (dec.confirmada && dec.origem === 'SOFITEL' && !eraSof){
+        novo.origemOverride = 'SOFITEL'; novo.origemNome = 'Sofitel';
+        novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'Sofitel', motivo: dec.motivo }]);
+        cont.viraramSofitel++;
       } else if (dec.confirmada) cont.sofitel++; else cont.naoConf++;
       const r = await salvarAcompanhamentoComRetry(it.id, novo); if (r.ok) acompanhamento[it.id] = novo;
+      feitosR++; mostrar();
     });
-  } finally { revisandoOrigemPassados = false; }
+  } finally { revisandoOrigemPassados = false; ind.remove(); }
   popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento();
-  avisoFlutuante('Origem revisada pelo rodapé: ' + cont.iac + ' voltaram para IAC · ' + cont.sofitel + ' confirmados Sofitel' + (cont.naoConf ? ' · ' + cont.naoConf + ' sem rodapé legível (?)' : ''), 'ok');
+  avisoFlutuante('Origem conferida pelo rodapé: ' + cont.viraramSofitel + ' passaram para Sofitel · ' + cont.iac + ' voltaram para IAC' + (cont.naoConf ? ' · ' + cont.naoConf + ' sem rodapé legível (?)' : '') + (cont.ocrFalhou ? ' · o leitor não carregou em ' + cont.ocrFalhou + ' (tenta de novo na próxima abertura)' : ''), 'ok');
 }
 function naoTocado(it){
   if (it.origem === 'AW') return false;
@@ -3044,7 +3094,42 @@ async function salvarAcompanhamentoComRetry(itemId, dados){
     await new Promise((res) => setTimeout(res, 1500));
     r = await store.setDoc('acompanhamento', itemId, dados);
   }
+  if (loteAgrup) contarProgressoAgrup(itemId);
   return r;
+}
+/* PROGRESSO DO "EDITAR AGRUPAMENTO": enquanto grava muitos itens, mostra ao lado do Salvar quantos já foram,
+   quanto falta e trava Salvar/Cancelar — pra ninguém cancelar e repetir achando que travou. */
+let loteAgrup = null;
+function iniciarProgressoAgrup(total){
+  loteAgrup = { total: Math.max(1, total), feitos: new Set(), etapa: 1, inicio: null, timer: null };
+}
+function contarProgressoAgrup(id){
+  const L = loteAgrup; if (!L) return;
+  if (!L.inicio){ // 1ª gravação: mostra o progresso e trava a janela
+    L.inicio = Date.now();
+    ['grupo-salvar','grupo-cancelar','grupo-tirar-obra'].forEach((x) => { const b = document.getElementById(x); if (b) b.disabled = true; });
+    const el = document.getElementById('grupo-progresso'); if (el) el.classList.remove('oculto');
+    L.timer = setInterval(desenharProgressoAgrup, 1000);
+    window.addEventListener('beforeunload', avisoSaidaAgrup);
+  }
+  if (L.feitos.has(id) && L.feitos.size >= L.total){ L.feitos = new Set(); L.etapa++; L.inicio = Date.now(); } // mais uma etapa nos mesmos itens
+  L.feitos.add(id);
+  desenharProgressoAgrup();
+}
+function desenharProgressoAgrup(){
+  const L = loteAgrup, el = document.getElementById('grupo-progresso'); if (!L || !el || !L.inicio) return;
+  const n = Math.min(L.feitos.size, L.total), seg = (Date.now() - L.inicio) / 1000, ritmo = n / Math.max(1, seg);
+  const resta = ritmo > 0 ? Math.round((L.total - n) / ritmo) : null;
+  const falta = resta == null ? '' : (resta >= 90 ? ' · faltam ~' + Math.ceil(resta / 60) + ' min' : (resta > 5 ? ' · faltam ~' + resta + ' s' : ' · terminando…'));
+  el.innerHTML = '<div class="gp-texto"><span class="gp-ponto"></span>Salvando <b>' + n.toLocaleString('pt-BR') + '</b> de ' + L.total.toLocaleString('pt-BR') + (L.etapa > 1 ? ' (etapa ' + L.etapa + ')' : '') + falta + ' — não feche esta janela</div>' +
+    '<div class="gp-barra"><span style="width:' + Math.round(n / L.total * 100) + '%"></span></div>';
+}
+function avisoSaidaAgrup(e){ e.preventDefault(); e.returnValue = ''; }
+function pararProgressoAgrup(){
+  if (loteAgrup && loteAgrup.timer) clearInterval(loteAgrup.timer);
+  loteAgrup = null; window.removeEventListener('beforeunload', avisoSaidaAgrup);
+  ['grupo-salvar','grupo-cancelar','grupo-tirar-obra'].forEach((x) => { const b = document.getElementById(x); if (b) b.disabled = false; });
+  const el = document.getElementById('grupo-progresso'); if (el) el.classList.add('oculto');
 }
 
 /* aviso flutuante no rodapé da tela (some sozinho) — confirma que salvou ou avisa se falhou */
@@ -7130,7 +7215,10 @@ function abrirLightbox(idFoto){
   document.getElementById('lightbox-imagem-el').src = urlDaFoto(idFoto);
   const box = document.getElementById('lightbox-rodape'), x = rodapeDaFoto(idFoto);
   if (box){
-    if (x){ const r = x.r; box.innerHTML = 'Rodapé lido: <b>' + esc(r.t || '(nada legível)') + '</b><br>' + (r.m ? 'marca do cliente: <b>' + esc(r.m) + '</b> → Sofitel' : (r.d ? 'só data (' + esc(r.d) + ') → IAC' : 'ilegível → padrão do envio')) + ' · certeza ' + esc(r.c || '—'); box.classList.remove('oculto'); }
+    if (x && ehAdminAtual()){ const r = x.r;
+      box.innerHTML = r.m ? 'Rodapé: <b>' + esc(r.m) + '</b>' + (r.d ? ' · ' + esc(r.d) : '') + ' → Sofitel'
+        : (r.d ? 'Rodapé: só data · ' + esc(r.d) + ' → IAC' : 'Rodapé não legível → origem do envio');
+      box.classList.remove('oculto'); }
     else box.classList.add('oculto');
   }
   overlay.classList.remove('oculto');
@@ -9019,6 +9107,7 @@ function abrirEdicaoAgrupamento(){
       (podeTirarDaObra() ? '<div class="modal-campo" style="margin-top:4px;"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
       '</div>' + // fim do corpo (só ele rola, se precisar)
       '<div class="modal-acoes modal-rodape-fixo">' +
+        '<div id="grupo-progresso" class="grupo-progresso oculto"></div>' +
         '<button class="btn fantasma" id="grupo-cancelar">Cancelar</button>' +
         '<button class="btn primario" id="grupo-salvar">Salvar</button>' +
       '</div>' +
@@ -9032,8 +9121,8 @@ function abrirEdicaoAgrupamento(){
   document.getElementById('grupo-prev-modo').addEventListener('change', (e) => {
     const inp = document.getElementById('grupo-prev'); inp.style.display = e.target.value === 'data' ? 'block' : 'none'; if (e.target.value === 'data'){ inp.focus(); try{ inp.showPicker(); }catch(er){} }
   });
-  document.getElementById('grupo-cancelar').addEventListener('click', fecharEdicaoAgrupamento);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharEdicaoAgrupamento(); });
+  document.getElementById('grupo-cancelar').addEventListener('click', () => { if (!loteAgrup || !loteAgrup.inicio) fecharEdicaoAgrupamento(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay && !(loteAgrup && loteAgrup.inicio)) fecharEdicaoAgrupamento(); });
   const bTirar = document.getElementById('grupo-tirar-obra');
   if (bTirar) bTirar.addEventListener('click', async () => {
     if (!window.confirm('Tirar '+itens.length+' item(ns) da obra?\n\nSão de outra diretoria: somem de todas as telas e das próximas revisões. Dá pra restaurar depois na aba Enviar planilhas.')) return;
@@ -9043,6 +9132,11 @@ function abrirEdicaoAgrupamento(){
     if (ok){ itensSelecionados.clear(); await recarregarAposExclusao(); }
   });
   document.getElementById('grupo-salvar').addEventListener('click', async () => {
+    if (loteAgrup) return; // já está salvando
+    iniciarProgressoAgrup(ids.length);
+    try{ await salvarAgrupamentoAgora(); } finally { pararProgressoAgrup(); }
+  });
+  async function salvarAgrupamentoAgora(){
     const novaDisc = document.getElementById('grupo-disc').value;
     let selForn = document.getElementById('grupo-forn').value;
     let novoForn = null; // null = manter
@@ -9212,7 +9306,7 @@ function abrirEdicaoAgrupamento(){
       popularFiltroFornecedor('filtro-item-fornecedor'); popularFiltroFornecedor('filtro-fornecedor');
       avisoFlutuante(f ? 'Desfeito em parte — ' + f + ' item(ns) sem conexão' : 'Desfeito — os ' + ids.length + ' itens voltaram e continuam selecionados', f ? 'erro' : 'ok');
     }, 12);
-  });
+  }
 }
 
 /* grava a exceção de disciplina/fornecedor de UM item — só guarda override se for
