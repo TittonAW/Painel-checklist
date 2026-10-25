@@ -1314,7 +1314,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.280';
+const VERSAO_APP = '2026-10-03.282';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2279,9 +2279,13 @@ function obterOcr(){
     if (!window.Tesseract){
       await new Promise((ok, falha) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = ok; s.onerror = () => falha(new Error('OCR não carregou')); document.head.appendChild(s); });
     }
-    const w = await window.Tesseract.createWorker('por', 1, { logger: () => {} });
-    await w.setParameters({ tessedit_pageseg_mode: '6' });
-    return w;
+    const novo = async () => { const w = await window.Tesseract.createWorker('por', 1, { logger: () => {} }); await w.setParameters({ tessedit_pageseg_mode: '6' }); return w; };
+    if (window.Tesseract.createScheduler){ // dois leitores em paralelo
+      const sch = window.Tesseract.createScheduler();
+      const ws = await Promise.all([novo(), novo()]); ws.forEach((w) => sch.addWorker(w));
+      return { recognize: (img) => sch.addJob('recognize', img) };
+    }
+    return await novo();
   })();
   ocrWorkerPromessa.catch(() => { ocrWorkerPromessa = null; });
   return ocrWorkerPromessa;
@@ -2311,6 +2315,7 @@ async function recorteDoRodape(blob, inverter){
   const img = cx.getImageData(0, 0, cv.width, cv.height), d = img.data;
   for (let k = 0; k < d.length; k += 4){ let l = 0.299 * d[k] + 0.587 * d[k+1] + 0.114 * d[k+2]; if (inverter) l = 255 - l; d[k] = d[k+1] = d[k+2] = l; }
   cx.putImageData(img, 0, 0);
+  cv.temFaixa = !!faixa;
   return cv;
 }
 // SÓ TRANSCREVE: devolve o texto lido, a marca encontrada (ou nenhuma), a data e a certeza. Não decide a origem.
@@ -2320,10 +2325,12 @@ async function lerRodapeDaFoto(blob){
   if (chave && rodapesDesteEnvio.has(chave)) return rodapesDesteEnvio.get(chave);
   const prom = (async () => {
     try{
+      const rec = await recorteDoRodape(blob, false);
+      if (!rec.temFaixa) return { texto: '', marca: null, marcaTipo: null, data: null, conf: 0, legivel: false, certeza: 'baixa', semFaixa: true }; // sem faixa branca: não há rodapé impresso
       const w = await obterOcr();
       let melhor = null;
-      for (const inverter of [false, true]){
-        const r = await w.recognize(await recorteDoRodape(blob, inverter));
+      for (const inverter of [false]){ // faixa branca com texto escuro: uma leitura basta
+        const r = await w.recognize(rec);
         const linhas = String((r && r.data && r.data.text) || '').split(/\n+/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
         const conf = Math.round((r && r.data && r.data.confidence) || 0);
         let lido = null;
@@ -2350,17 +2357,31 @@ function decidirOrigemPorRodapes(lidos, padrao){
   return { origem: padrao || 'IAC', confirmada: false, motivo: (lidos && lidos.length) ? 'rodapé ilegível' : 'sem foto' };
 }
 async function subirFotosDoLote(itens, avisos, aoProgredir){
-  // ORIGEM PELO RODAPÉ: lê o rodapé de cada foto (só transcreve) e aplica a regra fixa
+  // ORIGEM PELO RODAPÉ — só nos itens NOVOS (quem já existia mantém a origem que tinha, sem reler)
   const rodapesPorItem = itens.map(() => []);
-  avisos.origem = avisos.origem || { sofitel: 0, iac: 0, naoConfirmados: 0, ocrFalhou: 0 };
-  await comLimiteDeConcorrencia(itens.map((it, i) => i), 2, async (i) => {
-    const it = itens[i]; if (it.origem === 'AW') return;
+  avisos.origem = avisos.origem || { sofitel: 0, iac: 0, naoConfirmados: 0, ocrFalhou: 0, mantidos: 0 };
+  const anteriores = new Map(itensRevisaoAtual.map((x) => [x.id, x]));
+  const paraLer = [];
+  itens.forEach((it, i) => {
+    if (it.origem === 'AW') return;
+    const ant = anteriores.get(it.id);
+    if (ant){ // já existia: mantém a origem e o que já foi lido do rodapé
+      itens[i] = Object.assign({}, it, { origemPlanilha: ant.origemPlanilha || 'IAC', origemConfirmada: !ant.origemNaoConfirmada, origemMotivo: 'mantida da revisão anterior', fotoRodapesAnt: ant.fotoRodapes || null });
+      avisos.origem.mantidos++;
+    } else paraLer.push(i);
+  });
+  const totalRod = paraLer.reduce((s, i) => s + (itens[i].fotosBlob || []).length, 0);
+  let feitasRod = 0;
+  if (aoProgredir && totalRod) aoProgredir(0, totalRod, 'rodape');
+  // a leitura roda AO MESMO TEMPO que o envio das fotos (abaixo); só espera no fim
+  const leitura = comLimiteDeConcorrencia(paraLer, 3, async (i) => {
+    const it = itens[i];
     const padrao = it.origemPadrao || it.origemPlanilha || 'IAC';
     const lidos = [];
-    for (const b of (it.fotosBlob || [])) lidos.push(await lerRodapeDaFoto(b));
+    for (const b of (it.fotosBlob || [])){ lidos.push(await lerRodapeDaFoto(b)); feitasRod++; if (aoProgredir) aoProgredir(feitasRod, totalRod, 'rodape'); }
     rodapesPorItem[i] = lidos;
     const dec = decidirOrigemPorRodapes(lidos, padrao);
-    itens[i] = Object.assign({}, it, { origemPlanilha: dec.origem, origemConfirmada: dec.confirmada, origemMotivo: dec.motivo });
+    itens[i] = Object.assign({}, itens[i], { origemPlanilha: dec.origem, origemConfirmada: dec.confirmada, origemMotivo: dec.motivo });
     if (!dec.confirmada) avisos.origem.naoConfirmados++; else if (dec.origem === 'SOFITEL') avisos.origem.sofitel++; else avisos.origem.iac++;
     if (lidos.some((r) => r.erro)) avisos.origem.ocrFalhou++;
   });
@@ -2368,12 +2389,12 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
   // mesmo quando um item tem mais de uma foto
   const tarefas = [];
   itens.forEach((it, idxItem) => {
-    (it.fotosBlob || []).forEach((blob, k) => tarefas.push({ idxItem, blob, idItem: it.id, rodape: rodapesPorItem[idxItem][k] || null }));
+    (it.fotosBlob || []).forEach((blob, k) => tarefas.push({ idxItem, k, blob, idItem: it.id }));
   });
-  if (tarefas.length === 0) return itens;
+  if (tarefas.length === 0){ await leitura; return itens; }
   if (!assetsCap){
     avisos.fotosSemRecurso += tarefas.length;
-    return itens;
+    await leitura; return itens;
   }
   const idsPorItem = itens.map(() => []);
   const rodapePorFoto = itens.map(() => ({})); // texto lido do rodapé, guardado junto do id da foto (para auditar)
@@ -2408,7 +2429,7 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
   }
   function registrar(tarefa, up){
     idsPorItem[tarefa.idxItem].push(up.id);
-    if (tarefa.rodape){ const r = tarefa.rodape; rodapePorFoto[tarefa.idxItem][up.id] = { t: r.texto, m: r.marca || null, d: r.data || null, c: r.certeza }; }
+    tarefa.upId = up.id; // o texto do rodapé entra no fim, quando a leitura (que roda junto) terminar
     if (up.reaproveitada) avisos.fotosReaproveitadas = (avisos.fotosReaproveitadas||0) + 1; else avisos.fotosEnviadas++;
   }
   const pendentes = []; // falharam na 1ª rodada (ex: "SlowDown" do Supabase) → tentam de novo no fim, devagar
@@ -2441,7 +2462,13 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
     console.warn('foto não subiu nem nas novas tentativas', p.tarefa.idItem, p.erro);
     avisos.fotosFalharam.push(p.tarefa.idItem + (p.erro && p.erro.code ? ' ('+p.erro.code+')' : (p.erro && p.erro.message ? ' ('+String(p.erro.message).slice(0,30)+')' : '')));
   });
-  return itens.map((it, i) => idsPorItem[i].length ? Object.assign({}, it, { fotoAssetIds: idsPorItem[i], fotoRodapes: rodapePorFoto[i] }) : it);
+  await leitura; // termina a leitura dos rodapés (rodou junto com o envio)
+  tarefas.forEach((tf) => { const r = rodapesPorItem[tf.idxItem][tf.k]; if (tf.upId && r) rodapePorFoto[tf.idxItem][tf.upId] = { t: r.texto, m: r.marca || null, d: r.data || null, c: r.certeza }; });
+  return itens.map((it, i) => {
+    const fr = Object.assign({}, it.fotoRodapesAnt || {}, rodapePorFoto[i]);
+    const base = Object.assign({}, it); delete base.fotoRodapesAnt;
+    return idsPorItem[i].length ? Object.assign(base, { fotoAssetIds: idsPorItem[i], fotoRodapes: fr }) : base;
+  });
 }
 
 /* volta tudo que um envio gravou: andares e registro da revisão como estavam antes, e tira os
@@ -2533,8 +2560,8 @@ async function salvarLote(grupos, aoProgredir){
       }
     }
 
-    const itensComFoto = await subirFotosDoLote(g.itens, avisos, (feitas, total) => {
-      if (aoProgredir) aoProgredir(g.andar, feitas, total);
+    const itensComFoto = await subirFotosDoLote(g.itens, avisos, (feitas, total, fase) => {
+      if (aoProgredir) aoProgredir(g.andar, feitas, total, fase);
     });
     const novosCompactos = itensComFoto.map(paraCompacto);
     const combinados = preservados.concat(novosCompactos);
@@ -2915,6 +2942,7 @@ function origemMudadaAMao(ac){
   return !ult || !/^App/.test(String(ult.por || ''));
 }
 let revisandoOrigemPassados = false;
+let importandoAgora = false; // durante a importação, a conferência dos passados espera (o leitor fica pra importação)
 async function revisarOrigemDosPassados(){
   if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
   // revisão em que a Sofitel começou a aparecer: os IAC daí em diante também são conferidos (podem ser Sofitel)
@@ -2939,6 +2967,7 @@ async function revisarOrigemDosPassados(){
   mostrar();
   try{
     await comLimiteDeConcorrencia(alvos, 2, async (it) => {
+      while (importandoAgora) await new Promise((r) => setTimeout(r, 2000));
       const lidos = [], porFoto = {};
       for (const idF of it.fotos){
         try{ const r = await fetch(urlDaFoto(idF), { mode:'cors' }); if (!r.ok) continue;
@@ -10236,26 +10265,31 @@ async function executarSalvamento(grupos, btn, cont){
   }
   btn.textContent = 'Salvando…';
   mostrarBannerProgresso('Salvando…');
+  importandoAgora = true;
   // estimativa de tempo: pelo ritmo real das fotos já processadas neste envio
   // (foto reaproveitada é quase instantânea, então a estimativa se ajusta sozinha)
-  const feitasPorAndar = new Map();
-  let inicioFotos = null;
-  const avisos = await salvarLote(grupos, (andar, feitas, total) => {
-    if (!inicioFotos) inicioFotos = Date.now();
-    feitasPorAndar.set(andar, feitas);
-    const feitasGeral = Array.from(feitasPorAndar.values()).reduce((a, b) => a + b, 0);
-    const passou = (Date.now() - inicioFotos) / 1000;
-    let estimativa = '';
-    if (totalFotosNoLote > 0 && feitasGeral >= 10 && passou >= 5){
-      const seg = (totalFotosNoLote - feitasGeral) / (feitasGeral / passou);
-      const min = Math.ceil(seg / 60);
-      estimativa = seg < 60 ? ' · menos de 1 min' : (min >= 60 ? ' · ≈ ' + Math.floor(min/60) + 'h ' + (min%60) + 'min' : ' · ≈ ' + min + ' min') + ' restantes';
-      if (seg < 60) estimativa += ' restante';
-    }
-    const texto = 'Salvando… (' + nomeAndarLongo(andar) + ': ' + feitas + '/' + total + ' foto(s)' + estimativa + ')';
+  const feitasPorAndar = new Map(), totalPorAndar = new Map(), lidasPorAndar = new Map(), totalLerPorAndar = new Map();
+  let inicioFotos = null, inicioRod = null, andarAtual = null;
+  const soma = (m) => Array.from(m.values()).reduce((a, b) => a + b, 0);
+  const restante = (feitas, total, inicio) => { const passou = (Date.now() - inicio) / 1000; if (!(total > 0 && feitas >= 10 && passou >= 5)) return null; return (total - feitas) / (feitas / passou); };
+  const avisos = await salvarLote(grupos, (andar, feitas, total, fase) => {
+    andarAtual = andar;
+    if (fase === 'rodape'){ if (!inicioRod) inicioRod = Date.now(); lidasPorAndar.set(andar, feitas); totalLerPorAndar.set(andar, total); }
+    else { if (!inicioFotos) inicioFotos = Date.now(); feitasPorAndar.set(andar, feitas); totalPorAndar.set(andar, total); }
+    // leitura do rodapé e envio rodam juntos: mostra os dois e o tempo do que acaba por último
+    const fF = feitasPorAndar.get(andar) || 0, tF = totalPorAndar.get(andar) || 0, fL = lidasPorAndar.get(andar) || 0, tL = totalLerPorAndar.get(andar) || 0;
+    const rF = inicioFotos ? restante(soma(feitasPorAndar), totalFotosNoLote, inicioFotos) : null;
+    const rL = inicioRod ? restante(soma(lidasPorAndar), soma(totalLerPorAndar), inicioRod) : null;
+    const seg = Math.max(rF || 0, rL || 0), min = Math.ceil(seg / 60);
+    const estimativa = (rF == null && rL == null) ? '' : (seg < 60 ? ' · menos de 1 min restante' : (min >= 60 ? ' · ≈ ' + Math.floor(min/60) + 'h ' + (min%60) + 'min restantes' : ' · ≈ ' + min + ' min restantes'));
+    const partes = [];
+    if (tF) partes.push(fF + '/' + tF + ' foto(s)');
+    if (tL && fL < tL) partes.push('rodapés ' + fL + '/' + tL);
+    const texto = 'Salvando… (' + nomeAndarLongo(andar) + ': ' + (partes.join(' · ') || 'preparando') + estimativa + ')';
     btn.textContent = texto;
     mostrarBannerProgresso(texto + ' — pode navegar em qualquer aba, não interrompe');
   });
+  importandoAgora = false;
   esconderBannerProgresso();
   await carregarRevisoes();
   // se o envio trouxe uma revisão mais nova que a que está na tela, já mostra ela
@@ -10324,7 +10358,7 @@ async function executarSalvamento(grupos, btn, cont){
     avisos.revisarLiberacao.length===0 && discSemForn.length===0 && !(saiuSemClique > 0 && ehAdminAtual());
   const resumoFotos = (avisos.fotosEnviadas>0 ? ' '+avisos.fotosEnviadas+' foto(s) nova(s) salva(s).' : '') +
     (avisos.fotosReaproveitadas>0 ? ' '+avisos.fotosReaproveitadas+' foto(s) já existiam e foram reaproveitadas (sem duplicar).' : '') +
-    (avisos.origem ? ' Origem pelo rodapé: ' + avisos.origem.sofitel + ' Sofitel (marca) · ' + avisos.origem.iac + ' IAC (só data)' + (avisos.origem.naoConfirmados ? ' · ' + avisos.origem.naoConfirmados + ' com rodapé não legível (ficaram IAC com “?”)' : '') + (avisos.origem.ocrFalhou ? ' · a leitura do rodapé falhou em ' + avisos.origem.ocrFalhou + ' item(ns)' : '') + '.' : '');
+    (avisos.origem ? ' Origem pelo rodapé (itens novos): ' + avisos.origem.sofitel + ' Sofitel (marca) · ' + avisos.origem.iac + ' IAC (só data)' + (avisos.origem.naoConfirmados ? ' · ' + avisos.origem.naoConfirmados + ' com rodapé não legível (ficaram IAC com “?”)' : '') + (avisos.origem.ocrFalhou ? ' · a leitura do rodapé falhou em ' + avisos.origem.ocrFalhou + ' item(ns)' : '') + '.' : '');
   if (tudoOk){
     html += '<div class="dica">Revisão salva sem nenhum aviso.'+resumoFotos+' O painel foi atualizado.</div>';
     cont.innerHTML = html;
