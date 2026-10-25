@@ -1040,8 +1040,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </div>
       <div id="status-espaco-fotos" style="font-size:.85rem; color:var(--muted); margin-top:2px;"></div>
       <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais, áreas do térreo — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
-      <label style="display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:13.5px;">Origem padrão (quando o rodapé da foto não decidir):
-        <select id="origem-envio" style="max-width:220px;"><option value="IAC">IAC (consultoria)</option><option value="SOFITEL">Sofitel (cliente)</option></select></label>
+      <p style="color:var(--muted); font-size:13px; margin:0 0 10px;">A origem de cada item (IAC ou Sofitel) é lida no rodapé da foto. Quando o rodapé não dá para ler, o item entra como IAC com um “?” para conferir.</p>
       <div class="dropzone" id="dropzone">
         <strong>Arraste os arquivos .xlsx, PDF ou um .zip aqui</strong><br>ou clique para escolher
       </div>
@@ -1315,7 +1314,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.279';
+const VERSAO_APP = '2026-10-03.280';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1851,7 +1850,10 @@ function lerArquivos(fileList){
           if (r.erro) erros.push(r.erro); else resultados.push(r);
         }
       }catch(err){
-        erros.push(`"${file.name}": erro ao ler o arquivo (${err.message || err}).`);
+        const naoAchou = err && (err.name === 'NotFoundError' || /could not be found|not found|NotReadable/i.test(String(err.message || err)));
+        erros.push(naoAchou
+          ? `"${file.name}": não consegui abrir. Se for uma pasta, envie os arquivos de dentro dela (ou um .zip). Se estiver no OneDrive/Google Drive, baixe para o computador antes de arrastar.`
+          : `"${file.name}": erro ao ler o arquivo (${err.message || err}).`);
       }
       restantes--;
       if (restantes === 0) resolve({ resultados, erros });
@@ -3312,7 +3314,7 @@ function pessoasConhecidas(){
     if (a.iacOkPor) s.add(a.iacOkPor);
     (Array.isArray(a.historico) ? a.historico : []).forEach((e) => { if (e && e.por) s.add(e.por); });
   });
-  return Array.from(s);
+  return Array.from(s).filter((n) => n && !/^App\b/i.test(n) && !/^n[aã]o registrado$/i.test(n) && !/^(IA|auto)$|^IA \(/i.test(n)); // registros automáticos não são gente
 }
 /* todos os fornecedores já usados: padrões por disciplina + exceções em qualquer item */
 function todosFornecedoresConhecidos(){
@@ -7217,7 +7219,7 @@ function abrirLightbox(idFoto){
   if (box){
     if (x && ehAdminAtual()){ const r = x.r;
       box.innerHTML = r.m ? 'Rodapé: <b>' + esc(r.m) + '</b>' + (r.d ? ' · ' + esc(r.d) : '') + ' → Sofitel'
-        : (r.d ? 'Rodapé: só data · ' + esc(r.d) + ' → IAC' : 'Rodapé não legível → origem do envio');
+        : (r.d ? 'Rodapé: só data · ' + esc(r.d) + ' → IAC' : 'Rodapé não legível → ficou IAC (confira)');
       box.classList.remove('oculto'); }
     else box.classList.add('oculto');
   }
@@ -7499,7 +7501,7 @@ function renderItens(){
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC'+(origemNaoConfirmada(it) ? ' — não confirmado pelo rodapé (padrão do envio)' : '')+'">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+(origemNaoConfirmada(it) ? ' — não confirmado pelo rodapé (padrão do envio)' : '')+'">'+esc(rotuloOrigem(origemDoItem(it)))))+(origemNaoConfirmada(it) ? '<span class="tag-origem-nc">?</span>' : '')+'</span>'+esc(it.id) +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC'+(origemNaoConfirmada(it) ? ' — rodapé não legível, confira a origem' : '')+'">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+(origemNaoConfirmada(it) ? ' — rodapé não legível, confira a origem' : '')+'">'+esc(rotuloOrigem(origemDoItem(it)))))+(origemNaoConfirmada(it) ? '<span class="tag-origem-nc">?</span>' : '')+'</span>'+esc(it.id) +
         // revisão em que o item entrou (os novos já mostram na etiqueta "Novo · R..")
         (!infoItemNovo(it) && revisaoDeEntrada(it) ? '<div class="rev-entrada" title="Revisão em que o item apareceu pela primeira vez">R'+esc(revisaoDeEntrada(it))+'</div>' : '') +
         (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
@@ -10162,7 +10164,7 @@ function incluirNoAcumulado(resultados){
     // chegando agora é um pdf, mantém o xlsx — nunca deixa o pdf substituir por acidente.
     if (existente && existente.formato === 'xlsx' && r.formato === 'pdf'){ pdfsIgnoradosPorXlsx++; return; }
     resultadosAcumulados = resultadosAcumulados.filter((x) => identidadeConteudo(x) !== id);
-    { const og = (document.getElementById('origem-envio') || {}).value || 'IAC'; r.origemPlanilha = og; (r.itens || []).forEach((i) => { i.origemPlanilha = og; i.origemPadrao = og; }); } // padrão: vale só quando o rodapé não decidir
+    { const og = 'IAC'; r.origemPlanilha = og; (r.itens || []).forEach((i) => { i.origemPlanilha = og; i.origemPadrao = og; }); } // padrão: vale só quando o rodapé não decidir
     resultadosAcumulados.push(r);
   });
 }
@@ -10322,7 +10324,7 @@ async function executarSalvamento(grupos, btn, cont){
     avisos.revisarLiberacao.length===0 && discSemForn.length===0 && !(saiuSemClique > 0 && ehAdminAtual());
   const resumoFotos = (avisos.fotosEnviadas>0 ? ' '+avisos.fotosEnviadas+' foto(s) nova(s) salva(s).' : '') +
     (avisos.fotosReaproveitadas>0 ? ' '+avisos.fotosReaproveitadas+' foto(s) já existiam e foram reaproveitadas (sem duplicar).' : '') +
-    (avisos.origem ? ' Origem pelo rodapé: ' + avisos.origem.sofitel + ' Sofitel (marca) · ' + avisos.origem.iac + ' IAC (só data)' + (avisos.origem.naoConfirmados ? ' · ' + avisos.origem.naoConfirmados + ' não confirmados (padrão do envio)' : '') + (avisos.origem.ocrFalhou ? ' · a leitura do rodapé falhou em ' + avisos.origem.ocrFalhou + ' item(ns)' : '') + '.' : '');
+    (avisos.origem ? ' Origem pelo rodapé: ' + avisos.origem.sofitel + ' Sofitel (marca) · ' + avisos.origem.iac + ' IAC (só data)' + (avisos.origem.naoConfirmados ? ' · ' + avisos.origem.naoConfirmados + ' com rodapé não legível (ficaram IAC com “?”)' : '') + (avisos.origem.ocrFalhou ? ' · a leitura do rodapé falhou em ' + avisos.origem.ocrFalhou + ' item(ns)' : '') + '.' : '');
   if (tudoOk){
     html += '<div class="dica">Revisão salva sem nenhum aviso.'+resumoFotos+' O painel foi atualizado.</div>';
     cont.innerHTML = html;
