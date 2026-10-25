@@ -952,7 +952,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <section class="secao" id="secao-raiox">
     <div class="card card-pad">
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-        <div><h2 style="margin-bottom:2px;">Raio-X · qualidade das baixas</h2><div class="rodape-nota" style="text-align:left; margin:0;">Só o Fundador vê. Conta só baixas que alguém revisou de forma clara — a gestão (validou ou reprovou) e a vistoria (tirou da planilha = aprovou; voltou como reincidência = reprovou). Itens que a IAC ainda não tirou, ou que ela precisa corrigir, não contam para ninguém.</div></div>
+        <div><h2 style="margin-bottom:2px;">Raio-X · qualidade das baixas</h2><div class="rodape-nota" style="text-align:left; margin:0;">Só o Fundador vê. Acertou: a gestão validou, a vistoria tirou da planilha, ou a vistoria não aceitou mas a AW confirmou que estava feito (IAC/Sofitel precisa corrigir). Errou: a gestão reprovou, voltou como reincidência, ou a conferência no quarto achou "não foi feito". Ainda não vistoriado ou sem decisão: não conta.</div></div>
         <select id="raiox-periodo"><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="0">Desde o início</option></select>
       </div>
       <div id="raiox-resumo" class="rx-resumo"></div>
@@ -1324,7 +1324,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.289';
+const VERSAO_APP = '2026-10-03.290';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8509,11 +8509,13 @@ function renderRaioX(){
       else if (e.t === 'iac' && baixaAtual){ if (noPeriodo(baixaAtual) && new Date(e.em) >= new Date(INICIO_VALIDACAO_GESTAO)) conta('validadas', baixaAtual.por); }
       else if (e.t === 'reprovaGestao'){ const b = { por: e.baixaDe || (baixaAtual && baixaAtual.por) || 'não registrado', em: e.baixaEm || (baixaAtual && baixaAtual.em) || e.em }; if (noPeriodo(b)) conta('reprovGestao', b.por); baixaAtual = null; }
       else if (e.t === 'reinc' && baixaAtual){ if (noPeriodo(baixaAtual)) conta('iacReprov', baixaAtual.por); baixaAtual = null; }
+      else if (e.t === 'reabertoConferencia' && baixaAtual){ if (noPeriodo(baixaAtual)) conta('iacReprov', baixaAtual.por); baixaAtual = null; } // conferido no quarto: "não foi feito"
     });
     // VISTORIA, só o inequívoco: aprovou = a IAC TIROU o item da planilha; reprovou = voltou como reincidência (evento acima).
     // "IAC não aceitou", "IAC precisa corrigir" e itens esperando a vistoria NÃO contam — não dá pra dizer que o mestre errou.
     if (baixaAtual && ac.awExecEm && noPeriodo(baixaAtual)){
-      if (!presentes.has(id) && !it && !herdados.has(String(id).split(' · ')[0])) conta('iacAprov', baixaAtual.por);
+      if (!presentes.has(id) && !it && !herdados.has(String(id).split(' · ')[0])) conta('iacAprov', baixaAtual.por); // a vistoria tirou da planilha
+      else if (ac.divergencia === 'iac') conta('iacAprov', baixaAtual.por); // não aceito, mas a AW confirmou que estava feito (IAC/Sofitel precisa corrigir)
     }
   });
   // MÉTRICA = só o que foi revisado: pela GESTÃO (validou/reprovou) e pela IAC (tirou da planilha / manteve)
