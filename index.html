@@ -502,6 +502,8 @@ body.aba-quartos main{ max-width:1900px; }
 .linhas-sub .tom-novo, .linhas-sub .tom-novo b{ color:var(--novo); }
 .pct-lado{ font-size:13px; font-weight:400; color:var(--muted); margin-left:6px; letter-spacing:0; }
 .tag-origem-item.sof{ background:#EFE7F6; color:#6B3FA0; }
+.tag-origem-nc{ margin-left:3px; font-weight:600; color:#B4661F; }
+.lightbox-rodape{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom, 0px) + 10px); max-width:92vw; background:rgba(255,255,255,.94); color:#33403A; font-size:12px; line-height:1.4; padding:6px 10px; border-radius:10px; z-index:111; }
 .rx-resumo{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:6px 0 18px; }
 .rx-num-card{ border-radius:16px; padding:14px 16px; }
 .rx-num-card .rx-big{ font-size:30px; font-weight:600; line-height:1.1; color:#33403A; }
@@ -1031,7 +1033,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </div>
       <div id="status-espaco-fotos" style="font-size:.85rem; color:var(--muted); margin-top:2px;"></div>
       <p style="color:var(--muted);">Solte aqui os arquivos .xlsx ou PDF recebidos (quartos, corredor, hall, itens gerais, áreas do térreo — de um ou mais andares), ou um único .zip com tudo dentro (inclusive em subpastas por andar). O número da revisão e o andar são lidos automaticamente de dentro de cada arquivo.</p>
-      <label style="display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:13.5px;">Origem destas planilhas:
+      <label style="display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:13.5px;">Origem padrão (quando o rodapé da foto não decidir):
         <select id="origem-envio" style="max-width:220px;"><option value="IAC">IAC (consultoria)</option><option value="SOFITEL">Sofitel (cliente)</option></select></label>
       <div class="dropzone" id="dropzone">
         <strong>Arraste os arquivos .xlsx, PDF ou um .zip aqui</strong><br>ou clique para escolher
@@ -1162,6 +1164,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 <div class="lightbox-overlay oculto" id="lightbox-foto">
   <button class="lightbox-fechar" id="lightbox-fechar" aria-label="Fechar" title="Fechar">&times;</button>
   <img class="lightbox-imagem" id="lightbox-imagem-el" src="" alt="Foto ampliada">
+  <div class="lightbox-rodape oculto" id="lightbox-rodape"></div>
 </div>
 
 <script>
@@ -1305,7 +1308,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.274';
+const VERSAO_APP = '2026-10-03.276';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2038,6 +2041,8 @@ function paraCompacto(it){
   const reg = { id: it.id, q: it.quarto, t: it.tipo, d: it.disciplina, s: it.status, x: it.desc||'' };
   if (it.fotoAssetIds && it.fotoAssetIds.length) reg.fs = it.fotoAssetIds;
   if (it.origemPlanilha && it.origemPlanilha !== 'IAC') reg.o = it.origemPlanilha; // origem diferente da IAC (ex.: Sofitel)
+  if (it.origemConfirmada === false) reg.onc = 1;                                   // origem não confirmada pelo rodapé
+  if (it.fotoRodapes && Object.keys(it.fotoRodapes).length) reg.fr = it.fotoRodapes; // texto lido do rodapé de cada foto
   return reg;
 }
 
@@ -2208,47 +2213,134 @@ async function fotoJaExiste(nomeBase){
 }
 const fotosDesteEnvio = new Map(); // a mesma foto repetida dentro do mesmo envio sobe uma vez só
 
-/* FOTO DO RELATÓRIO ACCOR: as fotos que vêm da Sofitel trazem, embaixo, uma faixa branca com o texto
-   "Foto do relatório Accor de dd/mm/aaaa". Detecta essa faixa (sem IA, só pelos pixels): a última faixa
-   da imagem é quase toda branca, com texto escuro no meio, e logo acima é foto (não é branco). */
-async function temFaixaAccor(blobOuUrl){
-  try{
-    let bmp;
-    if (typeof blobOuUrl === 'string'){ const r = await fetch(blobOuUrl, { mode:'cors' }); if (!r.ok) return false; bmp = await createImageBitmap(await r.blob()); }
-    else bmp = await createImageBitmap(blobOuUrl);
-    const W = 240, H = Math.max(40, Math.round(bmp.height * W / bmp.width));
-    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-    const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(bmp, 0, 0, W, H);
-    const faixa = (y0, y1) => { const d = cx.getImageData(0, y0, W, Math.max(1, y1 - y0)).data; let br = 0, esc = 0, n = d.length / 4;
-      for (let i = 0; i < d.length; i += 4){ const l = (d[i] + d[i+1] + d[i+2]) / 3; if (l > 225) br++; else if (l < 90) esc++; } return { br: br / n, esc: esc / n }; };
-    // procura a faixa nos últimos 4–14% da altura
-    for (const fr of [0.07, 0.09, 0.11, 0.13]){
-      const yb = Math.round(H * (1 - fr)), baixo = faixa(yb, H), cima = faixa(Math.round(H * (1 - fr - 0.08)), yb - 1);
-      if (baixo.br >= 0.62 && baixo.esc >= 0.03 && baixo.esc <= 0.35 && cima.br < 0.45){
-        // faixa de legenda de verdade: margens de cima e de baixo da faixa são brancas lisas (o texto fica no meio)
-        const hB = H - yb, mTop = faixa(yb + 1, yb + Math.max(2, Math.round(hB * 0.18))), mBase = faixa(H - Math.max(2, Math.round(hB * 0.15)), H);
-        if (mTop.br >= 0.85 && mBase.br >= 0.85) return true;
-      }
-    }
-    return false;
-  }catch(e){ return false; }
+/* ===================== ORIGEM PELO RODAPÉ DA FOTO =====================
+   Cada foto traz um rodapé impresso com a data; as do cliente (Sofitel) trazem também uma marca.
+   O OCR só TRANSCREVE o rodapé; quem decide a origem é a regra fixa abaixo (decidirOrigemPorRodapes).
+   Para mudar as marcas, edite só esta lista. */
+const MARCAS_CLIENTE = ['ACOR', 'Foto do relatório da operação'];
+
+// normaliza para comparar: sem acento, minúsculas, "0" lido no lugar de "o"
+function normRodape(s){ return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/0/g, 'o'); }
+function soLetras(s){ return normRodape(s).replace(/[^a-z]/g, ''); }
+// menor distância de edição entre a marca e qualquer trecho do texto (busca aproximada)
+function distanciaNoTexto(marca, texto){
+  const m = marca.length, n = texto.length; if (!m) return 0; if (!n) return m;
+  let ant = new Array(m + 1), cur = new Array(m + 1);
+  for (let i = 0; i <= m; i++) ant[i] = i;
+  let melhor = ant[m];
+  for (let j = 1; j <= n; j++){
+    cur[0] = 0;
+    for (let i = 1; i <= m; i++) cur[i] = Math.min(ant[i] + 1, cur[i - 1] + 1, ant[i - 1] + (marca[i - 1] === texto[j - 1] ? 0 : 1));
+    melhor = Math.min(melhor, cur[m]); [ant, cur] = [cur, ant];
+  }
+  return melhor;
 }
-function descricaoDaAccor(desc){ return /\baccor\b|relat[óo]rio\s+accor|apontad[oa]s?\s+pela\s+accor/i.test(String(desc || '')); }
+// procura as marcas no texto lido; aceita "AC0R", "A COR", "Accor", caixa alta/baixa, sem acento, espaços a mais
+function acharMarcaCliente(texto){
+  const norm = normRodape(texto), letras = soLetras(texto);
+  for (const marca of MARCAS_CLIENTE){
+    const alvo = soLetras(marca);
+    if (alvo.length <= 6){
+      // marca curta: as letras na ordem, cada uma podendo repetir, com espaços/pontos entre elas, como palavra solta
+      const padrao = new RegExp('(^|[^a-z])' + alvo.split('').map((c) => c + '+').join('[^a-z0-9]{0,2}') + '([^a-z]|$)');
+      if (padrao.test(norm)) return { marca, tipo: 'exata' };
+    } else {
+      if (letras.indexOf(alvo) !== -1) return { marca, tipo: 'exata' };
+      const tol = Math.max(1, Math.floor(alvo.length * 0.15)); // até ~15% de letras trocadas pelo OCR
+      if (distanciaNoTexto(alvo, letras) <= tol) return { marca, tipo: 'aproximada' };
+    }
+  }
+  return null;
+}
+function acharDataRodape(texto){
+  const m = String(texto || '').match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})/);
+  if (!m) return null;
+  const d = +m[1], mm = +m[2]; let a = m[3]; if (a.length === 2) a = '20' + a;
+  if (d < 1 || d > 31 || mm < 1 || mm > 12) return null;
+  return String(d).padStart(2, '0') + '/' + String(mm).padStart(2, '0') + '/' + a;
+}
+// OCR local (Tesseract, no navegador — sem custo de API). Carrega uma vez e reaproveita.
+let ocrWorkerPromessa = null;
+function obterOcr(){
+  if (ocrWorkerPromessa) return ocrWorkerPromessa;
+  ocrWorkerPromessa = (async () => {
+    if (!window.Tesseract){
+      await new Promise((ok, falha) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.onload = ok; s.onerror = () => falha(new Error('OCR não carregou')); document.head.appendChild(s); });
+    }
+    const w = await window.Tesseract.createWorker('por', 1, { logger: () => {} });
+    await w.setParameters({ tessedit_pageseg_mode: '6' });
+    return w;
+  })();
+  ocrWorkerPromessa.catch(() => { ocrWorkerPromessa = null; });
+  return ocrWorkerPromessa;
+}
+// recorta a faixa de baixo da foto (onde fica o rodapé), aumenta e passa pra cinza; "inverter" ajuda em texto claro
+async function recorteDoRodape(blob, inverter){
+  const bmp = await createImageBitmap(blob);
+  const h0 = Math.round(bmp.height * 0.22), escala = Math.min(3, 1400 / bmp.width);
+  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * escala); cv.height = Math.round(h0 * escala);
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(bmp, 0, bmp.height - h0, bmp.width, h0, 0, 0, cv.width, cv.height);
+  const img = cx.getImageData(0, 0, cv.width, cv.height), d = img.data;
+  for (let k = 0; k < d.length; k += 4){ let l = 0.299 * d[k] + 0.587 * d[k+1] + 0.114 * d[k+2]; if (inverter) l = 255 - l; d[k] = d[k+1] = d[k+2] = l; }
+  cx.putImageData(img, 0, 0);
+  return cv;
+}
+// SÓ TRANSCREVE: devolve o texto lido, a marca encontrada (ou nenhuma), a data e a certeza. Não decide a origem.
+const rodapesDesteEnvio = new Map(); // a mesma foto repetida no envio é lida uma vez só
+async function lerRodapeDaFoto(blob){
+  let chave = null; try{ chave = await impressaoDigitalFoto(blob); }catch(e){}
+  if (chave && rodapesDesteEnvio.has(chave)) return rodapesDesteEnvio.get(chave);
+  const prom = (async () => {
+    try{
+      const w = await obterOcr();
+      let melhor = null;
+      for (const inverter of [false, true]){
+        const r = await w.recognize(await recorteDoRodape(blob, inverter));
+        const texto = String((r && r.data && r.data.text) || '').replace(/\s+/g, ' ').trim();
+        const conf = Math.round((r && r.data && r.data.confidence) || 0);
+        const marca = acharMarcaCliente(texto), data = acharDataRodape(texto);
+        const lido = { texto: texto.slice(0, 160), marca: marca ? marca.marca : null, marcaTipo: marca ? marca.tipo : null, data, conf };
+        if (!melhor || (lido.marca && !melhor.marca) || (!melhor.marca && lido.data && !melhor.data)) melhor = lido;
+        if (melhor.marca || melhor.data) break; // já leu o que precisa
+      }
+      const legivel = !!(melhor.marca || melhor.data);
+      melhor.legivel = legivel;
+      melhor.certeza = !legivel ? 'baixa' : ((melhor.conf >= 70 && melhor.marcaTipo !== 'aproximada') ? 'alta' : (melhor.conf >= 45 ? 'media' : 'baixa'));
+      return melhor;
+    }catch(e){ return { texto: '', marca: null, marcaTipo: null, data: null, conf: 0, legivel: false, certeza: 'baixa', erro: String(e && e.message || e).slice(0, 60) }; }
+  })();
+  if (chave) rodapesDesteEnvio.set(chave, prom);
+  return prom;
+}
+// REGRA FIXA (no código): marca do cliente em QUALQUER foto = Sofitel; rodapé só com data = IAC;
+// rodapé ilegível ou sem foto = padrão do seletor "Origem destas planilhas", marcado como não confirmado
+function decidirOrigemPorRodapes(lidos, padrao){
+  const comMarca = (lidos || []).find((r) => r && r.marca);
+  if (comMarca) return { origem: 'SOFITEL', confirmada: true, motivo: 'marca "' + comMarca.marca + '" no rodapé' };
+  if ((lidos || []).some((r) => r && r.data)) return { origem: 'IAC', confirmada: true, motivo: 'rodapé só com a data' };
+  return { origem: padrao || 'IAC', confirmada: false, motivo: (lidos && lidos.length) ? 'rodapé ilegível' : 'sem foto' };
+}
 async function subirFotosDoLote(itens, avisos, aoProgredir){
-  // origem Sofitel reconhecida sozinha: foto com a faixa "relatório Accor" ou descrição que cita a Accor
-  try{
-    await comLimiteDeConcorrencia(itens.map((it, i) => i), 4, async (i) => {
-      const it = itens[i]; if (it.origemPlanilha === 'SOFITEL') return;
-      let sof = descricaoDaAccor(it.desc);
-      if (!sof) for (const b of (it.fotosBlob || [])){ if (await temFaixaAccor(b)){ sof = true; break; } }
-      if (sof){ itens[i] = Object.assign({}, it, { origemPlanilha: 'SOFITEL', origemDetectada: true }); avisos.origemSofitelDetectada = (avisos.origemSofitelDetectada || 0) + 1; }
-    });
-  }catch(e){}
+  // ORIGEM PELO RODAPÉ: lê o rodapé de cada foto (só transcreve) e aplica a regra fixa
+  const rodapesPorItem = itens.map(() => []);
+  avisos.origem = avisos.origem || { sofitel: 0, iac: 0, naoConfirmados: 0, ocrFalhou: 0 };
+  await comLimiteDeConcorrencia(itens.map((it, i) => i), 2, async (i) => {
+    const it = itens[i]; if (it.origem === 'AW') return;
+    const padrao = it.origemPadrao || it.origemPlanilha || 'IAC';
+    const lidos = [];
+    for (const b of (it.fotosBlob || [])) lidos.push(await lerRodapeDaFoto(b));
+    rodapesPorItem[i] = lidos;
+    const dec = decidirOrigemPorRodapes(lidos, padrao);
+    itens[i] = Object.assign({}, it, { origemPlanilha: dec.origem, origemConfirmada: dec.confirmada, origemMotivo: dec.motivo });
+    if (!dec.confirmada) avisos.origem.naoConfirmados++; else if (dec.origem === 'SOFITEL') avisos.origem.sofitel++; else avisos.origem.iac++;
+    if (lidos.some((r) => r.erro)) avisos.origem.ocrFalhou++;
+  });
   // achata em (item, foto) pra poder subir todas com o mesmo limite de concorrência,
   // mesmo quando um item tem mais de uma foto
   const tarefas = [];
   itens.forEach((it, idxItem) => {
-    (it.fotosBlob || []).forEach((blob) => tarefas.push({ idxItem, blob, idItem: it.id }));
+    (it.fotosBlob || []).forEach((blob, k) => tarefas.push({ idxItem, blob, idItem: it.id, rodape: rodapesPorItem[idxItem][k] || null }));
   });
   if (tarefas.length === 0) return itens;
   if (!assetsCap){
@@ -2256,6 +2348,7 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
     return itens;
   }
   const idsPorItem = itens.map(() => []);
+  const rodapePorFoto = itens.map(() => ({})); // texto lido do rodapé, guardado junto do id da foto (para auditar)
   let concluidas = 0;
   if (!arquivosNaPasta) await carregarArquivosNaPasta();
   // processa UMA foto: reaproveita se já existe; senão comprime e sobe com o nome da impressão digital
@@ -2287,6 +2380,7 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
   }
   function registrar(tarefa, up){
     idsPorItem[tarefa.idxItem].push(up.id);
+    if (tarefa.rodape){ const r = tarefa.rodape; rodapePorFoto[tarefa.idxItem][up.id] = { t: r.texto, m: r.marca || null, d: r.data || null, c: r.certeza }; }
     if (up.reaproveitada) avisos.fotosReaproveitadas = (avisos.fotosReaproveitadas||0) + 1; else avisos.fotosEnviadas++;
   }
   const pendentes = []; // falharam na 1ª rodada (ex: "SlowDown" do Supabase) → tentam de novo no fim, devagar
@@ -2319,7 +2413,7 @@ async function subirFotosDoLote(itens, avisos, aoProgredir){
     console.warn('foto não subiu nem nas novas tentativas', p.tarefa.idItem, p.erro);
     avisos.fotosFalharam.push(p.tarefa.idItem + (p.erro && p.erro.code ? ' ('+p.erro.code+')' : (p.erro && p.erro.message ? ' ('+String(p.erro.message).slice(0,30)+')' : '')));
   });
-  return itens.map((it, i) => idsPorItem[i].length ? Object.assign({}, it, { fotoAssetIds: idsPorItem[i] }) : it);
+  return itens.map((it, i) => idsPorItem[i].length ? Object.assign({}, it, { fotoAssetIds: idsPorItem[i], fotoRodapes: rodapePorFoto[i] }) : it);
 }
 
 /* volta tudo que um envio gravou: andares e registro da revisão como estavam antes, e tira os
@@ -2783,20 +2877,45 @@ async function categorizarAntigosComIA(){
   try{ await categorizarNovosAutomaticamente(alvos, andamento); }
   finally{ if (b) b.textContent = txt; try{ renderDisciplinas(); }catch(e){} }
 }
-async function detectarSofitelNosExistentes(){
-  if (!ehAdminAtual() || !usuarioAtual || modoVisualizador()) return;
-  const alvos = itensRevisaoAtual.filter((it) => { const ac = acompanhamento[it.id] || {}; return it.origem !== 'AW' && !ac.origemOverride && !ac.accorConferidoEm && origemDoItem(it) === 'IAC'; });
+/* REVISÃO DOS PASSADOS (uma vez, sozinha, no aparelho do Fundador): itens que estão como Sofitel por
+   decisão do APP (heurística antiga) são relidos pelo rodapé e passam pela regra nova.
+   Origem mudada à mão por alguém NÃO é tocada. Cada item é revisado uma vez só (rodapeConferidoEm). */
+function origemMudadaAMao(ac){
+  if (!ac || !ac.origemOverride) return false;
+  const h = historicoDoItem(ac).filter((e) => e && e.t === 'origem');
+  const ult = h[h.length - 1];
+  return !ult || !/^App/.test(String(ult.por || ''));
+}
+let revisandoOrigemPassados = false;
+async function revisarOrigemDosPassados(){
+  if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
+  const alvos = itensRevisaoAtual.filter((it) => { const ac = acompanhamento[it.id] || {};
+    return it.origem !== 'AW' && origemDoItem(it) === 'SOFITEL' && (it.fotos || []).length && !ac.rodapeConferidoEm && !origemMudadaAMao(ac); });
   if (!alvos.length) return;
-  let n = 0; const agora = new Date().toISOString();
-  await comLimiteDeConcorrencia(alvos, 4, async (it) => {
-    let sof = descricaoDaAccor(it.desc);
-    if (!sof && it.fotoAssetIds && it.fotoAssetIds[0]) sof = await temFaixaAccor(urlDaFoto(it.fotoAssetIds[0]));
-    const atual = acompanhamento[it.id] || {};
-    const novo = Object.assign({}, atual, { accorConferidoEm: agora });
-    if (sof){ novo.origemOverride = 'SOFITEL'; novo.origemNome = 'Sofitel'; novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (foto/descrição do relatório Accor)', para: 'planilha da Sofitel' }]); }
-    const r = await salvarAcompanhamentoComRetry(it.id, novo); if (r.ok){ acompanhamento[it.id] = novo; if (sof) n++; }
-  });
-  if (n){ popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento(); avisoFlutuante(n + ' item(ns) reconhecido(s) como origem Sofitel (relatório Accor)', 'ok'); }
+  revisandoOrigemPassados = true;
+  const cont = { iac: 0, sofitel: 0, naoConf: 0 };
+  try{
+    await comLimiteDeConcorrencia(alvos, 2, async (it) => {
+      const lidos = [], porFoto = {};
+      for (const idF of it.fotos){
+        try{ const r = await fetch(urlDaFoto(idF), { mode:'cors' }); if (!r.ok) continue;
+          const lido = await lerRodapeDaFoto(await r.blob()); lidos.push(lido);
+          porFoto[idF] = { t: lido.texto, m: lido.marca || null, d: lido.data || null, c: lido.certeza };
+        }catch(e){}
+      }
+      const dec = decidirOrigemPorRodapes(lidos, 'SOFITEL');
+      const agora = new Date().toISOString(), atual = acompanhamento[it.id] || {};
+      const novo = Object.assign({}, atual, { rodapeConferidoEm: agora, fotoRodapes: porFoto, origemNaoConfirmada: !dec.confirmada });
+      if (dec.confirmada && dec.origem === 'IAC'){
+        novo.origemOverride = 'IAC'; novo.origemNome = null;
+        novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'IAC', motivo: dec.motivo }]);
+        cont.iac++;
+      } else if (dec.confirmada) cont.sofitel++; else cont.naoConf++;
+      const r = await salvarAcompanhamentoComRetry(it.id, novo); if (r.ok) acompanhamento[it.id] = novo;
+    });
+  } finally { revisandoOrigemPassados = false; }
+  popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento();
+  avisoFlutuante('Origem revisada pelo rodapé: ' + cont.iac + ' voltaram para IAC · ' + cont.sofitel + ' confirmados Sofitel' + (cont.naoConf ? ' · ' + cont.naoConf + ' sem rodapé legível (?)' : ''), 'ok');
 }
 function naoTocado(it){
   if (it.origem === 'AW') return false;
@@ -4236,7 +4355,9 @@ async function carregarItensDaRevisao(numeroStr, naoMarcarFonte){
         fotos: it.fs || (it.f ? [it.f] : []), // "fs" é o formato novo; "f" é de itens salvos antes (1 foto só)
         atualizadoEmAndar: snap.atualizadoEm || null, // quando ESSE andar (não a revisão toda) foi salvo
         rv: it.rv || (snap._veioDeAnterior ? String(snap.revisao) : null), // revisão de origem, se veio de uma anterior
-        origemPlanilha: it.o || 'IAC'
+        origemPlanilha: it.o || 'IAC',
+        origemNaoConfirmada: !!it.onc,
+        fotoRodapes: it.fr || null
       });
     });
     Object.keys(snap.areasLiberadas || {}).forEach((chave) => {
@@ -6997,9 +7118,21 @@ function popularFiltroItemAndar(){
 }
 
 /* ===================== LIGHTBOX DE FOTO ===================== */
+function origemNaoConfirmada(it){ if (!it) return false; const ac = acompanhamento[it.id] || {};
+  if (origemMudadaAMao(ac)) return false;
+  if (ac.rodapeConferidoEm) return !!ac.origemNaoConfirmada;
+  return !!(it.origemNaoConfirmada && !ac.origemOverride); }
+function rodapeDaFoto(idFoto){ for (const it of itensRevisaoAtual){ const ac = acompanhamento[it.id] || {};
+  if (ac.fotoRodapes && ac.fotoRodapes[idFoto]) return { r: ac.fotoRodapes[idFoto], it };
+  if (it.fotoRodapes && it.fotoRodapes[idFoto]) return { r: it.fotoRodapes[idFoto], it }; } return null; }
 function abrirLightbox(idFoto){
   const overlay = document.getElementById('lightbox-foto');
   document.getElementById('lightbox-imagem-el').src = urlDaFoto(idFoto);
+  const box = document.getElementById('lightbox-rodape'), x = rodapeDaFoto(idFoto);
+  if (box){
+    if (x){ const r = x.r; box.innerHTML = 'Rodapé lido: <b>' + esc(r.t || '(nada legível)') + '</b><br>' + (r.m ? 'marca do cliente: <b>' + esc(r.m) + '</b> → Sofitel' : (r.d ? 'só data (' + esc(r.d) + ') → IAC' : 'ilegível → padrão do envio')) + ' · certeza ' + esc(r.c || '—'); box.classList.remove('oculto'); }
+    else box.classList.add('oculto');
+  }
   overlay.classList.remove('oculto');
 }
 function fecharLightbox(){
@@ -7278,7 +7411,7 @@ function renderItens(){
     const tr = document.createElement('tr');
     tr.dataset.item = it.id;
     tr.innerHTML = '<td class="col-centro so-admin"><input type="checkbox" class="check-item" data-id="'+esc(it.id)+'" '+(itensSelecionados.has(it.id)?'checked':'')+'></td>' +
-      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+'">'+esc(rotuloOrigem(origemDoItem(it)))))+'</span>'+esc(it.id) +
+      '<td class="mono col-centro" style="white-space:nowrap;"><span class="tag-origem-item '+(origemDoItem(it) === 'AW' ? 'aw" title="Incluído no app por '+esc(it.criadoPor||'—')+'">AW' : (origemDoItem(it) === 'IAC' ? 'iac" title="Veio da planilha da IAC'+(origemNaoConfirmada(it) ? ' — não confirmado pelo rodapé (padrão do envio)' : '')+'">IAC' : 'sof" title="Origem: '+esc(nomeOrigem(origemDoItem(it)))+(origemNaoConfirmada(it) ? ' — não confirmado pelo rodapé (padrão do envio)' : '')+'">'+esc(rotuloOrigem(origemDoItem(it)))))+(origemNaoConfirmada(it) ? '<span class="tag-origem-nc">?</span>' : '')+'</span>'+esc(it.id) +
         // revisão em que o item entrou (os novos já mostram na etiqueta "Novo · R..")
         (!infoItemNovo(it) && revisaoDeEntrada(it) ? '<div class="rev-entrada" title="Revisão em que o item apareceu pela primeira vez">R'+esc(revisaoDeEntrada(it))+'</div>' : '') +
         (infoItemNovo(it) ? (() => { const n = infoItemNovo(it); return '<div><span class="tag-entrou'+(n.tipo === 'voltou' ? ' voltou' : '')+'" title="'+(n.tipo === 'voltou' ? 'Este número já tinha saído da planilha e a IAC recolocou' : 'Item novo: não existia na planilha original do andar (troca de número não conta)')+'">'+(n.tipo === 'voltou' ? 'Voltou' : 'Novo')+(n.rev ? ' · R'+esc(n.rev) : '')+'</span></div>'; })() : '') +
@@ -9935,7 +10068,7 @@ function incluirNoAcumulado(resultados){
     // chegando agora é um pdf, mantém o xlsx — nunca deixa o pdf substituir por acidente.
     if (existente && existente.formato === 'xlsx' && r.formato === 'pdf'){ pdfsIgnoradosPorXlsx++; return; }
     resultadosAcumulados = resultadosAcumulados.filter((x) => identidadeConteudo(x) !== id);
-    { const og = (document.getElementById('origem-envio') || {}).value || 'IAC'; r.origemPlanilha = og; (r.itens || []).forEach((i) => { i.origemPlanilha = og; }); }
+    { const og = (document.getElementById('origem-envio') || {}).value || 'IAC'; r.origemPlanilha = og; (r.itens || []).forEach((i) => { i.origemPlanilha = og; i.origemPadrao = og; }); } // padrão: vale só quando o rodapé não decidir
     resultadosAcumulados.push(r);
   });
 }
@@ -10094,7 +10227,8 @@ async function executarSalvamento(grupos, btn, cont){
     avisos.fotosFalharam.length===0 && avisos.fotosSemRecurso===0 && avisos.fotosNaoAssociadas.length===0 &&
     avisos.revisarLiberacao.length===0 && discSemForn.length===0 && !(saiuSemClique > 0 && ehAdminAtual());
   const resumoFotos = (avisos.fotosEnviadas>0 ? ' '+avisos.fotosEnviadas+' foto(s) nova(s) salva(s).' : '') +
-    (avisos.fotosReaproveitadas>0 ? ' '+avisos.fotosReaproveitadas+' foto(s) já existiam e foram reaproveitadas (sem duplicar).' : '');
+    (avisos.fotosReaproveitadas>0 ? ' '+avisos.fotosReaproveitadas+' foto(s) já existiam e foram reaproveitadas (sem duplicar).' : '') +
+    (avisos.origem ? ' Origem pelo rodapé: ' + avisos.origem.sofitel + ' Sofitel (marca) · ' + avisos.origem.iac + ' IAC (só data)' + (avisos.origem.naoConfirmados ? ' · ' + avisos.origem.naoConfirmados + ' não confirmados (padrão do envio)' : '') + (avisos.origem.ocrFalhou ? ' · a leitura do rodapé falhou em ' + avisos.origem.ocrFalhou + ' item(ns)' : '') + '.' : '');
   if (tudoOk){
     html += '<div class="dica">Revisão salva sem nenhum aviso.'+resumoFotos+' O painel foi atualizado.</div>';
     cont.innerHTML = html;
@@ -11985,7 +12119,8 @@ async function iniciar(){
     irParaAba('enviar');
   }
   setTimeout(() => { atualizarRecomendacoes().then(() => atualizarCronogramaEPlano()).catch(() => {}); }, 2000);
-  setTimeout(() => { if (!MODO_CONSOLIDADO) detectarSofitelNosExistentes().catch(() => {}); }, 4500);
+  setTimeout(() => { revisarOrigemDosPassados().catch(() => {}); }, 6000); // origem dos passados pela regra do rodapé (1× por item)
+
   setTimeout(() => { try{ if (!MODO_CONSOLIDADO) categorizarNovosAutomaticamente(null, (feitos, total) => {
     let el = document.getElementById('aviso-categorizando');
     if (!el){ el = document.createElement('div'); el.id = 'aviso-categorizando'; el.style.cssText = 'position:fixed; left:16px; bottom:16px; z-index:90; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:12px; color:var(--muted); box-shadow:var(--shadow-lg);'; document.body.appendChild(el); }
