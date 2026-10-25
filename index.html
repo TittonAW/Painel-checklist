@@ -1314,7 +1314,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.282';
+const VERSAO_APP = '2026-10-03.286';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -2298,16 +2298,21 @@ function faixaBrancaDoRodape(bmp){
   const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(bmp, 0, 0, W, H);
   const d = x.getImageData(0, 0, W, H).data;
   const branca = (y) => { let b = 0; for (let i = y * W * 4; i < (y + 1) * W * 4; i += 4){ if (d[i] > 215 && d[i+1] > 215 && d[i+2] > 215) b++; } return b / W; };
-  // linha de texto ainda tem bastante branco em volta das letras; a foto (textura) quase não tem
-  let y = H - 1; while (y > H * 0.75 && branca(y) >= 0.3) y--;
-  const alt = H - 1 - y;
-  if (alt < H * 0.025) return null; // sem faixa branca
-  return { y0: Math.max(0, (y + 1) / H * bmp.height), h: alt / H * bmp.height };
+  // sobe da borda de baixo: linhas brancas são a faixa; a linha do TEXTO (pouco branco) é atravessada
+  // enquanto não passar de ~6% da altura sem voltar a ficar branco — aí já é a foto
+  let y = H - 1, ultimaBranca = null; const maxTexto = Math.max(3, Math.round(H * 0.06));
+  while (y > H * 0.7){
+    if (branca(y) >= 0.9) ultimaBranca = y;
+    else if (ultimaBranca === null || (ultimaBranca - y) > maxTexto) break;
+    y--;
+  }
+  if (ultimaBranca === null || (H - ultimaBranca) < H * 0.025) return null; // sem faixa branca
+  return { y0: ultimaBranca / H * bmp.height, h: (H - ultimaBranca) / H * bmp.height };
 }
 async function recorteDoRodape(blob, inverter){
   const bmp = await createImageBitmap(blob);
   const faixa = faixaBrancaDoRodape(bmp);
-  const y0 = faixa ? faixa.y0 : bmp.height * 0.86, h0 = faixa ? faixa.h : bmp.height * 0.14;
+  const y0 = faixa ? faixa.y0 : bmp.height * 0.88, h0 = faixa ? faixa.h : bmp.height * 0.12;
   const escala = Math.min(3, 1400 / bmp.width);
   const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * escala); cv.height = Math.max(20, Math.round(h0 * escala));
   const cx = cv.getContext('2d', { willReadFrequently: true });
@@ -2320,13 +2325,13 @@ async function recorteDoRodape(blob, inverter){
 }
 // SÓ TRANSCREVE: devolve o texto lido, a marca encontrada (ou nenhuma), a data e a certeza. Não decide a origem.
 const rodapesDesteEnvio = new Map(); // a mesma foto repetida no envio é lida uma vez só
-async function lerRodapeDaFoto(blob){
+async function lerRodapeDaFoto(blob, opcoes){
   let chave = null; try{ chave = await impressaoDigitalFoto(blob); }catch(e){}
   if (chave && rodapesDesteEnvio.has(chave)) return rodapesDesteEnvio.get(chave);
   const prom = (async () => {
     try{
       const rec = await recorteDoRodape(blob, false);
-      if (!rec.temFaixa) return { texto: '', marca: null, marcaTipo: null, data: null, conf: 0, legivel: false, certeza: 'baixa', semFaixa: true }; // sem faixa branca: não há rodapé impresso
+      if (!rec.temFaixa && opcoes && opcoes.pularSemFaixa) return { texto: '', marca: null, marcaTipo: null, data: null, conf: 0, legivel: false, certeza: 'baixa', semFaixa: true };
       const w = await obterOcr();
       let melhor = null;
       for (const inverter of [false]){ // faixa branca com texto escuro: uma leitura basta
@@ -2942,6 +2947,7 @@ function origemMudadaAMao(ac){
   return !ult || !/^App/.test(String(ult.por || ''));
 }
 let revisandoOrigemPassados = false;
+const LEITURA_RODAPE_VERSAO = 4; // sobe quando a leitura melhora: o que não ficou confirmado é relido
 let importandoAgora = false; // durante a importação, a conferência dos passados espera (o leitor fica pra importação)
 async function revisarOrigemDosPassados(){
   if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
@@ -2951,37 +2957,49 @@ async function revisarOrigemDosPassados(){
   const alvos = itensRevisaoAtual.filter((it) => { const ac = acompanhamento[it.id] || {};
     if (it.origem === 'AW' || !(it.fotos || []).length || origemMudadaAMao(ac)) return false;
     const incerto = ac.fotoRodapes && Object.values(ac.fotoRodapes).some((r) => r && r.c !== 'alta');
-    if (ac.rodapeConferidoEm && ac.rodapeLeituraV2) return false;                      // já lido com o recorte novo
-    if (ac.rodapeConferidoEm && !incerto && !ac.origemNaoConfirmada) return false;     // leitura antiga, mas segura
+    if (ac.rodapeConferidoEm && !incerto && !ac.origemNaoConfirmada) return false;     // já conferido e seguro
+    if (ac.rodapeConferidoEm && (ac.rodapeLeituraVersao || 0) >= LEITURA_RODAPE_VERSAO) return false; // já relido com a leitura atual
     if (origemDoItem(it) === 'SOFITEL') return true;
+    if (it.origemNaoConfirmada || ac.origemNaoConfirmada) return true; // entrou com "?" (ex.: lidos com o erro da faixa)
     return origemDoItem(it) === 'IAC' && (Number(revisaoDeEntrada(it)) || 0) >= revInicioSof;
   });
   if (!alvos.length) return;
+  const temInterrog = (it) => !!(it.origemNaoConfirmada || (acompanhamento[it.id] || {}).origemNaoConfirmada);
+  alvos.sort((a, b) => (temInterrog(b) - temInterrog(a)) || ((Number(revisaoDeEntrada(b)) || 0) - (Number(revisaoDeEntrada(a)) || 0)));
   revisandoOrigemPassados = true;
   const cont = { iac: 0, sofitel: 0, viraramSofitel: 0, naoConf: 0 };
   let feitosR = 0;
   const ind = (() => { let el = document.getElementById('aviso-origem-rodape');
     if (!el){ el = document.createElement('div'); el.id = 'aviso-origem-rodape'; el.style.cssText = 'position:fixed; left:16px; bottom:56px; z-index:90; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:12px; color:var(--muted); box-shadow:0 2px 8px rgba(0,0,0,.06);'; document.body.appendChild(el); }
     return el; })();
-  const mostrar = () => { ind.textContent = '◎ Conferindo a origem pelo rodapé das fotos… ' + feitosR + '/' + alvos.length; };
+  const nInterrog = alvos.filter(temInterrog).length;
+  const mostrar = () => { ind.textContent = '◎ Conferindo a origem pelo rodapé das fotos… ' + feitosR + '/' + alvos.length + (nInterrog && feitosR < nInterrog ? ' (primeiro os ' + nInterrog + ' com “?”)' : ''); };
   mostrar();
   try{
-    await comLimiteDeConcorrencia(alvos, 2, async (it) => {
+    let pararConferencia = false;
+    await comLimiteDeConcorrencia(alvos, 3, async (it) => {
+      if (pararConferencia) return;
       while (importandoAgora) await new Promise((r) => setTimeout(r, 2000));
       const lidos = [], porFoto = {};
       for (const idF of it.fotos){
         try{ const r = await fetch(urlDaFoto(idF), { mode:'cors' }); if (!r.ok) continue;
-          const lido = await lerRodapeDaFoto(await r.blob()); lidos.push(lido);
+          const lido = await lerRodapeDaFoto(await r.blob(), { pularSemFaixa: true }); lidos.push(lido);
           porFoto[idF] = { t: lido.texto, m: lido.marca || null, d: lido.data || null, c: lido.certeza };
         }catch(e){}
       }
-      if (lidos.length && lidos.every((x) => x.erro)){ cont.ocrFalhou = (cont.ocrFalhou || 0) + 1; feitosR++; mostrar(); return; } // leitor não carregou: tenta na próxima abertura
+      if (lidos.length && lidos.every((x) => x.erro)){ // leitor não carregou: avisa e para (tenta na próxima abertura)
+        cont.ocrFalhou = (cont.ocrFalhou || 0) + 1; feitosR++;
+        if (cont.ocrFalhou >= 3){ pararConferencia = true; ind.textContent = '⚠ Não consegui carregar o leitor de rodapé (internet?) — tento de novo na próxima abertura'; }
+        else mostrar();
+        return; }
       const eraSof = origemDoItem(it) === 'SOFITEL';
-      const dec = decidirOrigemPorRodapes(lidos, eraSof ? 'SOFITEL' : 'IAC');
+      let dec = decidirOrigemPorRodapes(lidos, eraSof ? 'SOFITEL' : 'IAC');
+      // IAC antigo cuja foto nem tem faixa de rodapé: nada indica Sofitel — fica IAC, sem "?"
+      if (!eraSof && !dec.confirmada && lidos.length && lidos.every((x) => x.semFaixa) && !it.origemNaoConfirmada) dec = { origem: 'IAC', confirmada: true, motivo: 'foto sem rodapé' };
       const agora = new Date().toISOString(), atual = acompanhamento[it.id] || {};
       const novo = Object.assign({}, atual, { rodapeConferidoEm: atual.rodapeConferidoEm || agora, fotoRodapes: porFoto, origemNaoConfirmada: !dec.confirmada });
       if (atual.rodapeConferidoEm) novo.rodapeReconferidoEm = agora;
-      novo.rodapeLeituraV2 = true;
+      novo.rodapeLeituraVersao = LEITURA_RODAPE_VERSAO;
       if (dec.confirmada && dec.origem === 'IAC' && eraSof){
         novo.origemOverride = 'IAC'; novo.origemNome = null;
         novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'IAC', motivo: dec.motivo }]);
@@ -2994,7 +3012,7 @@ async function revisarOrigemDosPassados(){
       const r = await salvarAcompanhamentoComRetry(it.id, novo); if (r.ok) acompanhamento[it.id] = novo;
       feitosR++; mostrar();
     });
-  } finally { revisandoOrigemPassados = false; ind.remove(); }
+  } finally { revisandoOrigemPassados = false; if (!cont.ocrFalhou || cont.ocrFalhou < 3) ind.remove(); else setTimeout(() => ind.remove(), 15000); }
   popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento();
   avisoFlutuante('Origem conferida pelo rodapé: ' + cont.viraramSofitel + ' passaram para Sofitel · ' + cont.iac + ' voltaram para IAC' + (cont.naoConf ? ' · ' + cont.naoConf + ' sem rodapé legível (?)' : '') + (cont.ocrFalhou ? ' · o leitor não carregou em ' + cont.ocrFalhou + ' (tenta de novo na próxima abertura)' : ''), 'ok');
 }
@@ -3761,7 +3779,7 @@ async function triarDivergenciaIac(itemId, tipo){
   if (tipo === 'iac'){
     novo.divergencia = 'iac'; novo.divergenciaPor = por; novo.divergenciaEm = agora;
     novo.checarQuartoEm = null; novo.checarQuartoPor = null;
-    msg = 'Marcado: a IAC precisa corrigir a planilha';
+    msg = 'Marcado: ' + (quemCorrige(itensRevisaoAtual.find((x) => x.id === itemId)) === 'SOF' ? 'a Sofitel' : 'a IAC') + ' precisa corrigir a planilha';
   } else if (tipo === 'nossa'){
     if (!window.confirm('Aceitar como aberto o item '+itemId+'?\n\nO item volta para EM ABERTO e conta como REINCIDÊNCIA. Sai do PDF de cobrança da IAC.')) return;
     novo.antesReinc = (anterior.antesReinc || []).concat([{ awExecEm: anterior.awExecEm || null, awExecPor: anterior.awExecPor || null, iacOkEm: anterior.iacOkEm || null, iacOkPor: anterior.iacOkPor || null, divergencia: anterior.divergencia || null, divergenciaPor: anterior.divergenciaPor || null, divergenciaEm: anterior.divergenciaEm || null, em: new Date().toISOString() }]);
@@ -7234,6 +7252,7 @@ function popularFiltroItemAndar(){
 }
 
 /* ===================== LIGHTBOX DE FOTO ===================== */
+function quemCorrige(it){ return origemDoItem(it) === 'SOFITEL' ? 'SOF' : 'IAC'; }
 function origemNaoConfirmada(it){ if (!it) return false; const ac = acompanhamento[it.id] || {};
   if (origemMudadaAMao(ac)) return false;
   if (ac.rodapeConferidoEm) return !!ac.origemNaoConfirmada;
@@ -7505,18 +7524,18 @@ function renderItens(){
         ? '<div style="border:1px solid var(--novo); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--novo-soft); margin-bottom:5px;">' +
             '<span class="tag-entrou" style="align-self:center; margin:0;">Item novo</span>' +
             ((ac.novoContestadoEm)
-              ? '<span style="font-size:11px; color:var(--text-2); text-align:center;">✓ IAC vai corrigir</span><button class="chip-acao" data-novo-acao="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
-              : '<button class="chip-acao" data-novo-acao="corrigir" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
+              ? '<span style="font-size:11px; color:var(--text-2); text-align:center;">✓ '+quemCorrige(it)+' vai corrigir</span><button class="chip-acao" data-novo-acao="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
+              : '<button class="chip-acao" data-novo-acao="corrigir" data-id="'+esc(it.id)+'" style="font-size:11px;">'+quemCorrige(it)+' precisa corrigir</button>') +
             '<button class="chip-acao" data-novo-acao="naonovo" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Pendência normal da vistoria (a IAC ainda estava vistoriando): entra no em aberto sem a etiqueta Novo">Não é novo</button>' +
             '<button class="chip-acao" data-novo-acao="aceitar" data-id="'+esc(it.id)+'" style="font-size:11px; border-color:var(--novo); color:var(--novo);" title="Entra no em aberto e continua com a etiqueta Novo">Aceitar como novo</button>' +
           '</div>'
         : '') +
       (iacNaoAceitou(it)
         ? '<div style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
-            '<span class="badge-nao-aceitou '+tipoNaoAceitou(it)+'" title="'+esc(DICA_NAO_ACEITOU[tipoNaoAceitou(it)] || '')+'">IAC não aceitou</span>' +
+            '<span class="badge-nao-aceitou '+tipoNaoAceitou(it)+'" title="'+esc(DICA_NAO_ACEITOU[tipoNaoAceitou(it)] || '')+'">'+quemCorrige(it)+' não aceitou</span>' +
             (ac.divergencia === 'iac'
-              ? '<span style="font-size:11px; color:var(--text-2);">✓ IAC vai corrigir</span><button class="chip-acao so-admin" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
-              : '<button class="chip-acao so-admin" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">IAC precisa corrigir</button>') +
+              ? '<span style="font-size:11px; color:var(--text-2);">✓ '+quemCorrige(it)+' vai corrigir</span><button class="chip-acao so-admin" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
+              : '<button class="chip-acao so-admin" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">'+quemCorrige(it)+' precisa corrigir</button>') +
             (ac.checarQuartoEm
               ? '<span style="font-size:11px; color:var(--pronto);">✓ Na lista Conferir no quarto</span><button class="chip-acao so-admin" data-checar="tirar" data-id="'+esc(it.id)+'" style="font-size:10.5px;">tirar da lista</button>'
               : '<button class="chip-acao so-admin" data-checar="por" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Manda pra lista da equipe ir olhar no quarto. Não foi feito? Desmarque o Executado AW.">Conferir no quarto</button>') +
@@ -7568,7 +7587,7 @@ function renderItens(){
     b.disabled = true;
     const acao = b.dataset.novoAcao;
     const ok = acao === 'naonovo' ? await marcarNaoNovo([b.dataset.id]) : await decidirItemNovo([b.dataset.id], acao === 'aceitar', acao === 'corrigir');
-    if (ok){ avisoFlutuante(acao === 'naonovo' ? 'Marcado: não é novo (pendência normal da vistoria)' : acao === 'aceitar' ? 'Aceito como novo (conta no em aberto)' : (acao === 'corrigir' ? 'Marcado: IAC precisa corrigir' : 'Voltou para "a avaliar"'), 'ok'); atualizarTelasAposAcompanhamento(); }
+    if (ok){ avisoFlutuante(acao === 'naonovo' ? 'Marcado: não é novo (pendência normal da vistoria)' : acao === 'aceitar' ? 'Aceito como novo (conta no em aberto)' : (acao === 'corrigir' ? 'Marcado: ' + (quemCorrige(itensRevisaoAtual.find((x) => x.id === b.dataset.id) || {}) === 'SOF' ? 'a Sofitel' : 'a IAC') + ' precisa corrigir' : 'Voltou para "a avaliar"'), 'ok'); atualizarTelasAposAcompanhamento(); }
     else b.disabled = false;
   }));
   tbody.querySelectorAll('[data-acomp]').forEach((btn) => {
@@ -9126,9 +9145,9 @@ function abrirEdicaoAgrupamento(){
           '<div class="modal-campo campo-largo"><label for="grupo-conferir">Conferir no quarto <span style="font-weight:400; color:var(--muted);">(só administradores · baixas copiadas do número geral)</span></label>' +
           '<select id="grupo-conferir"><option value="">— manter como está —</option><option value="ok">Confirmado no quarto (mantém a baixa)</option><option value="reabrir">Não foi feito: reabrir</option></select></div>' +
           '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens novos)</span></label>' +
-          '<select id="grupo-novos"><option value="">— manter como está —</option><option value="aceitar">Aceitar como novo</option><option value="corrigir">IAC precisa corrigir</option><option value="naonovo">Não é novo (vistoria em andamento)</option><option value="voltar">Desfazer decisão (volta a avaliar)</option></select></div>' +
+          '<select id="grupo-novos"><option value="">— manter como está —</option><option value="aceitar">Aceitar como novo</option><option value="corrigir">IAC / Sofitel precisa corrigir (conforme a origem do item)</option><option value="naonovo">Não é novo (vistoria em andamento)</option><option value="voltar">Desfazer decisão (volta a avaliar)</option></select></div>' +
           '<div class="modal-campo campo-largo"><label for="grupo-naoaceitou">IAC não aceitou <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens com essa etiqueta)</span></label>' +
-          '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC precisa corrigir (continua executado, vai no PDF de cobrança)</option><option value="checar">Conferir no quarto (manda pra lista da equipe)</option><option value="nossa">Aceitar como aberto (volta pra aberto e conta reincidência)</option></select></div>'
+          '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC / Sofitel precisa corrigir (conforme a origem · continua executado, vai no PDF de cobrança)</option><option value="checar">Conferir no quarto (manda pra lista da equipe)</option><option value="nossa">Aceitar como aberto (volta pra aberto e conta reincidência)</option></select></div>'
         : '') +
       (podeTirarDaObra()
         ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
@@ -9223,7 +9242,7 @@ function abrirEdicaoAgrupamento(){
       return !!infoItemNovo(x) && estaEmAberto(x); }) : [];
     if (decisaoNovos){
       if (!idsNovos.length){ avisoFlutuante(decisaoNovos === 'voltar' ? 'Nenhum dos selecionados tem decisão de item novo' : 'Nenhum dos selecionados é item novo', 'erro'); return; }
-      if (!window.confirm(({ aceitar:'Aceitar como novo ', corrigir:'Marcar "IAC precisa corrigir" em ', naonovo:'Marcar como NÃO novo (vistoria em andamento) ', voltar:'Desfazer a decisão (volta a avaliar) de ' })[decisaoNovos] + idsNovos.length + ' de ' + ids.length + ' item(ns) selecionado(s)?')) return;
+      if (!window.confirm(({ aceitar:'Aceitar como novo ', corrigir:'Marcar "precisa corrigir" (IAC ou Sofitel, conforme a origem) em ', naonovo:'Marcar como NÃO novo (vistoria em andamento) ', voltar:'Desfazer a decisão (volta a avaliar) de ' })[decisaoNovos] + idsNovos.length + ' de ' + ids.length + ' item(ns) selecionado(s)?')) return;
     }
     const idsNA = triagemNA ? ids.filter((id) => { const x = itensRevisaoAtual.find((y) => y.id === id); return x && iacNaoAceitou(x); }) : [];
     if (triagemNA === 'checar'){
@@ -9236,7 +9255,7 @@ function abrirEdicaoAgrupamento(){
     }
     if (triagemNA){
       if (!idsNA.length){ avisoFlutuante('Nenhum dos selecionados está como "IAC não aceitou"', 'erro'); return; }
-      if (!window.confirm((triagemNA === 'iac' ? 'Marcar "IAC precisa corrigir"' : 'Aceitar como aberto (reincidência)') + ' em ' + idsNA.length + ' de ' + ids.length + ' item(ns) selecionado(s)?' +
+      if (!window.confirm((triagemNA === 'iac' ? 'Marcar "precisa corrigir" (IAC ou Sofitel, conforme a origem)' : 'Aceitar como aberto (reincidência)') + ' em ' + idsNA.length + ' de ' + ids.length + ' item(ns) selecionado(s)?' +
         (idsNA.length < ids.length ? '\n\nOs outros ' + (ids.length - idsNA.length) + ' não estão como "IAC não aceitou" e ficam como estão.' : '') +
         (triagemNA === 'nossa' ? '\n\nEles voltam para EM ABERTO, contam como REINCIDÊNCIA e saem do PDF de cobrança.' : ''))) return;
     }
@@ -12125,9 +12144,9 @@ async function exportarItensPdf(listaPronta){
     const tipoNA = tipoNaoAceitou(it);
     if (tipoNA){
       fluxLinhas.push({ t:'IAC não aceitou', cor:PDF_COR.am || PDF_COR.ink2, s:7 });
-      fluxLinhas.push({ t: ac.divergencia === 'iac' ? 'IAC precisa corrigir' : (checarNoQuarto(it) ? 'revalidar no quarto' : (tipoNA === 'junto' ? 'validado pela gestão' : 'IAC sozinha')), cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
+      fluxLinhas.push({ t: ac.divergencia === 'iac' ? quemCorrige(it) + ' precisa corrigir' : (checarNoQuarto(it) ? 'revalidar no quarto' : (tipoNA === 'junto' ? 'validado pela gestão' : 'IAC sozinha')), cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
     }
-    if (novoForaDoAberto(it)) fluxLinhas.push({ t: ac.novoContestadoEm ? 'Item novo · IAC precisa corrigir' : 'Item novo · a avaliar', cor:[221,107,30], s:6.8 });
+    if (novoForaDoAberto(it)) fluxLinhas.push({ t: ac.novoContestadoEm ? 'Item novo · ' + quemCorrige(it) + ' precisa corrigir' : 'Item novo · a avaliar', cor:[221,107,30], s:6.8 });
     if (ac.dataPrevista && !ac.awExecEm && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
     const fluxH = 18 + (fluxLinhas.length ? 5 + fluxLinhas.length*LH2 : 0);
     const prioH = 13 + prioNotas.length*LH2 + (prioNotas.length ? 3 : 0);
@@ -12404,7 +12423,7 @@ async function iniciar(){
   document.getElementById('btn-ver-divergencia').addEventListener('click', () => abrirItens({ fluxo: 'naoBaixadoIac' }));
   document.getElementById('btn-pdf-manteve').addEventListener('click', () => {
     // todos os "IAC não aceitou" (os reabertos por baixa errada nossa ficam de fora)
-    const contestados = itensRevisaoAtual.filter((x) => novoForaDoAberto(x) && (acompanhamento[x.id] || {}).novoContestadoEm).map((x) => Object.assign({}, x, { _notaPdf: ['Item novo', 'IAC precisa corrigir'] }));
+    const contestados = itensRevisaoAtual.filter((x) => novoForaDoAberto(x) && (acompanhamento[x.id] || {}).novoContestadoEm).map((x) => Object.assign({}, x, { _notaPdf: ['Item novo', quemCorrige(x) + ' precisa corrigir'] }));
     const lista = itensRevisaoAtual.filter(iacNaoAceitou).concat(contestados).sort((a,b) => a.andar - b.andar || String(localLabel(a)).localeCompare(String(localLabel(b)), 'pt-BR', { numeric:true }));
     if (!lista.length){ avisoFlutuante('Nenhum item com "IAC não aceitou" nesta revisão', 'ok'); return; }
     const nJ = lista.filter((x) => tipoNaoAceitou(x) === 'junto').length;
