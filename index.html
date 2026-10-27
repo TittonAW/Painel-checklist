@@ -554,7 +554,9 @@ body.aba-quartos main{ max-width:1900px; }
 .rn-chips{ display:flex; flex-wrap:wrap; gap:3px; justify-content:center; margin-top:4px; }
 .rn-chip{ font-size:10.5px; padding:1px 6px; border-radius:7px; background:#fff; color:#33403A; }
 .rn-chip.ass{ background:#CFE8D8; color:#2E6B4A; }
-.rn-andar.atual{ background:#FBE9D6; border-radius:8px; padding:2px 4px; margin:0 -4px; }
+.rn-andar.pintado{ border-radius:8px; padding:2px 4px; margin:0 -4px; }
+.rn-aneis.todos{ display:grid; grid-template-columns: repeat(6, 1fr); gap:4px 6px; }
+.rn-aneis.todos .rn-a{ font-size:11.5px; margin-top:0; }
 .rn-andar .rn-st{ font-size:10.5px; color:#8A938E; white-space:nowrap; }
 .rn-aneis.cinco{ display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; }
 .rn-aneis.cinco .rn-a{ font-size:12px; }
@@ -1390,7 +1392,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.298';
+const VERSAO_APP = '2026-10-03.299';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8705,6 +8707,12 @@ async function registrarBaixasSemRegistro(){
    Datas das levas e dos andares a assinar seguem o planejamento de 26/10 (editáveis na tela, sem gravar). */
 const REUNIAO_ASSINADOS = [8, 9, 10, 14, 15, 16, 17, 18]; // andares que a operação já assumiu
 const REUNIAO_LEVA_ATUAL = 0; // índice em REUNIAO_LEVAS da leva em execução agora
+const REUNIAO_EQUIPES = [
+  { andares:[11, 7], cor:'#E9E0F7', rot:'energia hoje · próximas revistorias IAC (modelo anterior)' },
+  { andares:[8, 9, 10], cor:'#DCEEF8', rot:'energia hoje · abertos da IAC e da operação' },
+];
+const REUNIAO_PROPOSTA_ANDARES = [20, 19];          // para onde levar a energia
+const REUNIAO_MARCOS_ANTERIOR = [{ data:'29/10', txt:'11º · revistoria IAC' }, { data:'30/10', txt:'7º · revistoria IAC' }];
 const REUNIAO_LEVAS = [
   { nome:'1ª leva', data:'31/10', andares:[20, 19, 10, 9, 8], cor:'#A9C5EA' },
   { nome:'2ª leva', data:'07/11', andares:[18, 17, 16, 15, 14], cor:'#A8D5BA' },
@@ -8755,15 +8763,23 @@ function renderReuniao(){
   const doAndar = (a) => atuais.filter((x) => Number(x.andar) === a);
   const listaRecebida = (a) => REUNIAO_ASSINADOS.indexOf(a) !== -1 || doAndar(a).some((x) => origemDoItem(x) === 'SOFITEL');
   const linhas = andares.map((a) => { const its = conta.filter((x) => Number(x.andar) === a && estaEmAberto(x)), nv = itensRevisaoAtual.filter((x) => Number(x.andar) === a && novoForaDoAberto(x)).length;
-    return { a, nv, op: its.filter((x) => origemDoItem(x) === 'SOFITEL').length, iac: its.filter((x) => origemDoItem(x) !== 'SOFITEL').length,
+    const eq = REUNIAO_EQUIPES.find((e) => e.andares.indexOf(a) !== -1);
+    return { a, nv, eq, prop: REUNIAO_PROPOSTA_ANDARES.indexOf(a) !== -1, op: its.filter((x) => origemDoItem(x) === 'SOFITEL').length, iac: its.filter((x) => origemDoItem(x) !== 'SOFITEL').length,
       assumiu: REUNIAO_ASSINADOS.indexOf(a) !== -1, atual: leva.andares.indexOf(a) !== -1, lista: listaRecebida(a), lv: levaDe(a) }; });
   const maxAb = Math.max(1, ...linhas.map((l) => l.op + l.iac + l.nv));
-  const situacao = (l) => l.atual ? '<span class="rn-st" style="color:#7A4A12; font-weight:600;">leva atual</span>'
+  const situacao = (l) => l.prop ? '<span class="rn-st" style="color:#7A4A12; font-weight:600;">→ proposta</span>'
     : (l.assumiu ? '<span class="rn-st">operação assumiu</span>'
     : (l.lista ? '<span class="rn-st">lista recebida</span>' : '<span class="rn-st">lista até ' + (limiteListaOperacao(l.lv ? l.lv.data : '') || '—') + '</span>'));
   // leva atual: lista da operação de cada andar (a mais recente)
-  const foco = leva.andares.map((a) => { const its = doAndar(a).filter((x) => reuniaoModo === 'proposta' || origemDoItem(x) !== 'SOFITEL');
+  const foco = leva.andares.map((a) => { const its = doAndar(a);
     return { a, total: its.length, feitos: its.filter((x) => !estaEmAberto(x)).length }; });
+  // modelo anterior: todos os andares, só a lista da IAC — total do andar (desde a 1ª planilha) menos o que está em aberto
+  const metA = metricasDeTodosAmbientes();
+  const anteriorTodos = andares.map((a) => { const m = metA.filter((x) => x.andar === a);
+    const sofNoTotal = conta.filter((x) => Number(x.andar) === a && origemDoItem(x) === 'SOFITEL').length;
+    const total = Math.max(0, somaMetricas(m, 'total') - sofNoTotal);
+    const ab = conta.filter((x) => Number(x.andar) === a && origemDoItem(x) !== 'SOFITEL' && estaEmAberto(x)).length;
+    return { a, total, feitos: Math.max(0, total - ab) }; });
   const anel = (feitos, total, rot, tam) => { const S = tam || 96, r = S * 0.39, C = 2 * Math.PI * r, p = total ? feitos / total : 0, cx = S / 2;
     return '<div class="rn-anel"><svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="'+(S*0.1)+'"/>' +
       (p > 0 ? '<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+COR.ok+'" stroke-width="'+(S*0.1)+'" stroke-linecap="round" stroke-dasharray="'+(C*p).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cx+')"/>' : '') +
@@ -8798,10 +8814,12 @@ function renderReuniao(){
     '<div class="rn-linha2">' +
       // ---- andares hoje ----
       '<div class="rn-card"><h3>Andares hoje</h3><div class="rn-predio">' +
-        linhas.map((l) => '<div class="rn-andar'+(l.atual ? ' atual' : '')+'"><span>'+(l.atual ? '<b>'+l.a+'º</b>' : l.a+'º')+'</span><div class="rn-barra">' +
+        linhas.map((l) => '<div class="rn-andar'+(l.eq ? ' pintado' : '')+'"'+(l.eq ? ' style="background:'+l.eq.cor+';"' : '')+'><span>'+(l.eq || l.prop ? '<b>'+l.a+'º</b>' : l.a+'º')+'</span><div class="rn-barra">' +
           '<span style="width:'+(l.iac/maxAb*100)+'%; background:'+COR.iac+';"></span><span style="width:'+(l.op/maxAb*100)+'%; background:'+COR.op+';"></span><span style="width:'+(l.nv/maxAb*100)+'%; background:#FBE3C6;"></span></div>' +
-          '<span class="rn-q">'+fmt(l.iac + l.op)+(l.nv ? '<span style="font-weight:400; color:#B4661F; font-size:10.5px;"> +'+fmt(l.nv)+'</span>' : '')+'</span><span class="rn-dot" style="background:'+(l.assumiu ? COR.ok : (l.atual ? COR.atual : COR.cinza))+';"></span>'+situacao(l)+'</div>').join('') +
-      '</div><div class="rn-leg" style="margin-top:8px;"><span><i style="background:'+COR.iac+';"></i>em aberto IAC</span><span><i style="background:'+COR.op+';"></i>em aberto operação</span><span><i style="background:#FBE3C6;"></i>+ novos em avaliação</span><span><i style="background:'+COR.ok+'; border-radius:50%;"></i>operação assumiu</span></div></div>' +
+          '<span class="rn-q">'+fmt(l.iac + l.op)+(l.nv ? '<span style="font-weight:400; color:#B4661F; font-size:10.5px;"> +'+fmt(l.nv)+'</span>' : '')+'</span><span class="rn-dot" style="background:'+(l.assumiu ? COR.ok : COR.cinza)+';"></span>'+situacao(l)+'</div>').join('') +
+      '</div><div class="rn-leg" style="margin-top:8px;"><span><i style="background:'+COR.iac+';"></i>em aberto IAC</span><span><i style="background:'+COR.op+';"></i>em aberto operação</span><span><i style="background:#FBE3C6;"></i>+ novos em avaliação</span><span><i style="background:'+COR.ok+'; border-radius:50%;"></i>operação assumiu</span></div>' +
+      '<div class="rn-leg" style="margin-top:4px;">' + REUNIAO_EQUIPES.map((e) => '<span><i style="background:'+e.cor+'; width:14px;"></i>'+e.andares.map((a) => a + 'º').join(', ')+' · '+e.rot+'</span>').join('') +
+        '<span style="color:#7A4A12;"><b>→ proposta:</b> levar a energia do 11º e 7º para o '+REUNIAO_PROPOSTA_ANDARES.map((a) => a + 'º').join(' e ')+'</span></div></div>' +
       // ---- fluxo + entregas ----
       '<div class="rn-card"><h3>Fluxo de entrega do andar</h3><div class="rn-fluxo-v">' +
         '<div><div class="rn-rot-trilho">antes</div><div class="rn-trilho"><span class="rn-pill">Vistoria IAC</span><span class="rn-seta">→</span><span class="rn-pill">Revistoria</span><span class="rn-seta">→</span><span class="rn-pill ok">Operação assume</span><span class="rn-seta">→</span><span class="rn-pill dest">Lista da operação</span></div></div>' +
@@ -8818,15 +8836,20 @@ function renderReuniao(){
         '</div><div class="rn-leg" style="justify-content:center;"><span><i style="background:#CFE8D8;"></i>lista da operação recebida</span></div>' +
       '</div></div>' +
       // ---- leva atual ----
-      '<div class="rn-card" style="background:#FBF6EF;"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;"><h3 style="margin:0;">Leva atual · entrega <span contenteditable="true">'+leva.data+'</span></h3>' +
+      '<div class="rn-card" style="background:#FBF6EF;"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;"><h3 style="margin:0;">'+(reuniaoModo === 'anterior' ? 'Avanço por andar' : 'Leva atual · entrega <span contenteditable="true">'+leva.data+'</span>')+'</h3>' +
           '<div class="rn-modo" id="rn-modo"><button type="button" data-modo="anterior"'+(reuniaoModo === 'anterior' ? ' class="ativo"' : '')+'>Modelo anterior</button><button type="button" data-modo="proposta"'+(reuniaoModo === 'proposta' ? ' class="ativo"' : '')+'>Nova proposta</button></div></div>' +
-        '<div class="rn-aneis cinco">' + foco.map((f) => anel(f.feitos, f.total, f.a + 'º', 78)).join('') + '</div>' +
-        '<div style="text-align:center; font-size:11.5px; color:#6B756F; margin-top:2px;">em aberto de total · '+(reuniaoModo === 'proposta' ? 'lista da IAC + lista da operação' : 'só a lista da IAC')+'</div>' +
-        '<div class="rn-tempo" style="margin-top:16px;">' +
-          '<div class="rn-marco"><div class="rn-p" style="background:'+COR.op+';"></div><b contenteditable="true">24/10</b><small>lista recebida<br>19º e 20º</small></div>' +
-          '<div class="rn-marco"><div class="rn-p" style="background:'+COR.ok+';"></div><b contenteditable="true">'+fim5+'</b><small>5 dias úteis</small></div>' +
-        '</div>' +
-        '<div class="rn-raia" style="background:#fff; margin-top:14px;"><b>Foco da equipe na leva atual</b><small>gestão e execução concentradas no '+leva.andares.map((a) => a + 'º').join(', ')+'. Os próximos andares avançam quando a lista da operação chegar.</small></div>' +
+        (reuniaoModo === 'anterior'
+          ? '<div class="rn-aneis todos">' + anteriorTodos.map((f) => anel(f.feitos, f.total, f.a + 'º', 62)).join('') + '</div>' +
+            '<div style="text-align:center; font-size:11.5px; color:#6B756F; margin-top:4px;">em aberto de total · só a lista da IAC · todos os andares</div>' +
+            '<div class="rn-tempo" style="margin-top:14px;">' + REUNIAO_MARCOS_ANTERIOR.map((m) => '<div class="rn-marco"><div class="rn-p" style="background:#C9B8E8;"></div><b contenteditable="true">'+m.data+'</b><small>'+m.txt+'</small></div>').join('') + '</div>' +
+            '<div class="rn-raia" style="background:#fff; margin-top:12px;"><b>Modelo anterior</b><small>a energia ia para a próxima revistoria da IAC; a lista da operação vinha depois de a operação assumir.</small></div>'
+          : '<div class="rn-aneis cinco">' + foco.map((f) => anel(f.feitos, f.total, f.a + 'º', 78)).join('') + '</div>' +
+            '<div style="text-align:center; font-size:11.5px; color:#6B756F; margin-top:2px;">em aberto de total · lista da IAC + lista da operação</div>' +
+            '<div class="rn-tempo" style="margin-top:16px;">' +
+              '<div class="rn-marco"><div class="rn-p" style="background:'+COR.op+';"></div><b contenteditable="true">24/10</b><small>lista recebida<br>19º e 20º</small></div>' +
+              '<div class="rn-marco"><div class="rn-p" style="background:'+COR.ok+';"></div><b contenteditable="true">'+fim5+'</b><small>5 dias úteis</small></div>' +
+            '</div>' +
+            '<div class="rn-raia" style="background:#fff; margin-top:14px;"><b>Nova proposta</b><small>tirar a energia do 11º e do 7º e concentrar no 20º e 19º, junto com 10º, 9º e 8º — uma lista única (IAC + operação) por andar.</small></div>') +
       '</div>' +
     '</div>';
   box.querySelectorAll('#rn-modo [data-modo]').forEach((b) => b.addEventListener('click', () => { reuniaoModo = b.dataset.modo; renderReuniao(); }));
