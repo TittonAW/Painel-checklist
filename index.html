@@ -1379,7 +1379,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.294';
+const VERSAO_APP = '2026-10-03.295';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3012,7 +3012,7 @@ function origemMudadaAMao(ac){
   return !ult || !/^App/.test(String(ult.por || ''));
 }
 let revisandoOrigemPassados = false;
-const LEITURA_RODAPE_VERSAO = 4; // sobe quando a leitura melhora: o que não ficou confirmado é relido
+const LEITURA_RODAPE_VERSAO = 5; // sobe quando a leitura melhora: o que não ficou confirmado é relido
 let importandoAgora = false; // durante a importação, a conferência dos passados espera (o leitor fica pra importação)
 async function revisarOrigemDosPassados(){
   if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
@@ -3058,14 +3058,15 @@ async function revisarOrigemDosPassados(){
         else mostrar();
         return; }
       const eraSof = origemDoItem(it) === 'SOFITEL';
-      let dec = decidirOrigemPorRodapes(lidos, eraSof ? 'SOFITEL' : 'IAC');
-      // IAC antigo cuja foto nem tem faixa de rodapé: nada indica Sofitel — fica IAC, sem "?"
-      if (!eraSof && !dec.confirmada && lidos.length && lidos.every((x) => x.semFaixa) && !it.origemNaoConfirmada) dec = { origem: 'IAC', confirmada: true, motivo: 'foto sem rodapé' };
+      // a regra é só o rodapé: sem a marca, é IAC (a origem "Sofitel" antiga veio da descrição citar a Accor ou da faixa só com data)
+      let dec = decidirOrigemPorRodapes(lidos, 'IAC');
+      // foto sem faixa de rodapé nenhuma: nada indica Sofitel — IAC, sem "?"
+      if (!dec.confirmada && lidos.length && lidos.every((x) => x.semFaixa)) dec = { origem: 'IAC', confirmada: true, motivo: 'foto sem rodapé' };
       const agora = new Date().toISOString(), atual = acompanhamento[it.id] || {};
       const novo = Object.assign({}, atual, { rodapeConferidoEm: atual.rodapeConferidoEm || agora, fotoRodapes: porFoto, origemNaoConfirmada: !dec.confirmada });
       if (atual.rodapeConferidoEm) novo.rodapeReconferidoEm = agora;
       novo.rodapeLeituraVersao = LEITURA_RODAPE_VERSAO;
-      if (dec.confirmada && dec.origem === 'IAC' && eraSof){
+      if (dec.origem === 'IAC' && eraSof){
         novo.origemOverride = 'IAC'; novo.origemNome = null;
         novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'IAC', motivo: dec.motivo }]);
         cont.iac++;
