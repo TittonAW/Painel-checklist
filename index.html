@@ -560,7 +560,7 @@ body.aba-quartos main{ max-width:1900px; }
 .rn-aneis.cinco .rn-a{ font-size:12px; }
 .rn-kpi .rn-leg{ margin-top:4px; }
 .rn-modo{ display:inline-flex; background:#EEF0EF; border-radius:999px; padding:3px; }
-.rn-modo button{ border:0; background:transparent; padding:6px 14px; border-radius:999px; font-size:13px; color:#5B6660; cursor:pointer; }
+.rn-modo button{ border:0; background:transparent; padding:5px 11px; border-radius:999px; font-size:12px; color:#5B6660; cursor:pointer; }
 .rn-modo button.ativo{ background:#fff; color:#33403A; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08); }
 .rn-exec-grade{ display:grid; grid-template-columns: 1fr 1fr; gap:6px 28px; }
 @media (max-width: 1150px){ .rn-exec-grade{ grid-template-columns:1fr; } }
@@ -1390,7 +1390,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.297';
+const VERSAO_APP = '2026-10-03.298';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8762,8 +8762,8 @@ function renderReuniao(){
     : (l.assumiu ? '<span class="rn-st">operação assumiu</span>'
     : (l.lista ? '<span class="rn-st">lista recebida</span>' : '<span class="rn-st">lista até ' + (limiteListaOperacao(l.lv ? l.lv.data : '') || '—') + '</span>'));
   // leva atual: lista da operação de cada andar (a mais recente)
-  const foco = leva.andares.map((a) => { const sofs = doAndar(a).filter((x) => origemDoItem(x) === 'SOFITEL');
-    return { a, total: sofs.length, feitos: sofs.filter((x) => !estaEmAberto(x)).length }; });
+  const foco = leva.andares.map((a) => { const its = doAndar(a).filter((x) => reuniaoModo === 'proposta' || origemDoItem(x) !== 'SOFITEL');
+    return { a, total: its.length, feitos: its.filter((x) => !estaEmAberto(x)).length }; });
   const anel = (feitos, total, rot, tam) => { const S = tam || 96, r = S * 0.39, C = 2 * Math.PI * r, p = total ? feitos / total : 0, cx = S / 2;
     return '<div class="rn-anel"><svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="'+(S*0.1)+'"/>' +
       (p > 0 ? '<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+COR.ok+'" stroke-width="'+(S*0.1)+'" stroke-linecap="round" stroke-dasharray="'+(C*p).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cx+')"/>' : '') +
@@ -8788,15 +8788,14 @@ function renderReuniao(){
   }
   const hoje = new Date();
   box.innerHTML =
-    '<div class="rn-topo"><div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;"><h2>Sofitel Ipanema · Quartos</h2><span class="rn-sub">painel da obra · ' + hoje.toLocaleDateString('pt-BR') + '</span></div>' +
-      '<div class="rn-modo" id="rn-modo"><button type="button" data-modo="anterior"'+(reuniaoModo === 'anterior' ? ' class="ativo"' : '')+'>Modelo anterior</button><button type="button" data-modo="proposta"'+(reuniaoModo === 'proposta' ? ' class="ativo"' : '')+'>Nova proposta</button></div></div>' +
+    '<div class="rn-topo"><h2>Sofitel Ipanema · Quartos</h2><div class="rn-sub">painel da obra · ' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
     '<div class="rn-kpis">' +
       '<div class="rn-kpi" style="display:block;"><div class="rn-big">'+fmt(recTot)+'</div><div class="rn-rot">pendências da obra</div>' + stack(recIac, recSof) + leg(recIac, recSof) + novosLinha + '</div>' +
       '<div class="rn-kpi">'+anelPct(pctExec)+'<div style="flex:1;"><div class="rn-big">'+fmt(exec)+'</div><div class="rn-rot">executadas pela AW</div>' + leg(exIac, exSof) + '</div></div>' +
       '<div class="rn-kpi" style="display:block;"><div class="rn-big">'+fmt(aberto)+'</div><div class="rn-rot">em aberto</div>' + stack(abIac, abSof) + leg(abIac, abSof) + novosLinha + '</div>' +
       '<div class="rn-kpi" style="background:#E8F3EC;"><div><div class="rn-big" style="color:#2E6B4A;">'+REUNIAO_ASSINADOS.length+'</div><div class="rn-rot">andares com a operação</div></div></div>' +
     '</div>' +
-    (reuniaoModo === 'anterior' ? modeloAnterior() : '<div class="rn-linha2">' +
+    '<div class="rn-linha2">' +
       // ---- andares hoje ----
       '<div class="rn-card"><h3>Andares hoje</h3><div class="rn-predio">' +
         linhas.map((l) => '<div class="rn-andar'+(l.atual ? ' atual' : '')+'"><span>'+(l.atual ? '<b>'+l.a+'º</b>' : l.a+'º')+'</span><div class="rn-barra">' +
@@ -8819,16 +8818,17 @@ function renderReuniao(){
         '</div><div class="rn-leg" style="justify-content:center;"><span><i style="background:#CFE8D8;"></i>lista da operação recebida</span></div>' +
       '</div></div>' +
       // ---- leva atual ----
-      '<div class="rn-card" style="background:#FBF6EF;"><h3>Leva atual · entrega <span contenteditable="true">'+leva.data+'</span></h3>' +
+      '<div class="rn-card" style="background:#FBF6EF;"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;"><h3 style="margin:0;">Leva atual · entrega <span contenteditable="true">'+leva.data+'</span></h3>' +
+          '<div class="rn-modo" id="rn-modo"><button type="button" data-modo="anterior"'+(reuniaoModo === 'anterior' ? ' class="ativo"' : '')+'>Modelo anterior</button><button type="button" data-modo="proposta"'+(reuniaoModo === 'proposta' ? ' class="ativo"' : '')+'>Nova proposta</button></div></div>' +
         '<div class="rn-aneis cinco">' + foco.map((f) => anel(f.feitos, f.total, f.a + 'º', 78)).join('') + '</div>' +
-        '<div style="text-align:center; font-size:11.5px; color:#6B756F; margin-top:2px;">lista da operação · em aberto de total</div>' +
+        '<div style="text-align:center; font-size:11.5px; color:#6B756F; margin-top:2px;">em aberto de total · '+(reuniaoModo === 'proposta' ? 'lista da IAC + lista da operação' : 'só a lista da IAC')+'</div>' +
         '<div class="rn-tempo" style="margin-top:16px;">' +
           '<div class="rn-marco"><div class="rn-p" style="background:'+COR.op+';"></div><b contenteditable="true">24/10</b><small>lista recebida<br>19º e 20º</small></div>' +
           '<div class="rn-marco"><div class="rn-p" style="background:'+COR.ok+';"></div><b contenteditable="true">'+fim5+'</b><small>5 dias úteis</small></div>' +
         '</div>' +
         '<div class="rn-raia" style="background:#fff; margin-top:14px;"><b>Foco da equipe na leva atual</b><small>gestão e execução concentradas no '+leva.andares.map((a) => a + 'º').join(', ')+'. Os próximos andares avançam quando a lista da operação chegar.</small></div>' +
       '</div>' +
-    '</div>');
+    '</div>';
   box.querySelectorAll('#rn-modo [data-modo]').forEach((b) => b.addEventListener('click', () => { reuniaoModo = b.dataset.modo; renderReuniao(); }));
   box.querySelectorAll('.rn-entrega').forEach((el) => el.addEventListener('input', () => { const lim = el.parentElement.querySelector('.rn-lim'); if (lim) lim.textContent = limiteListaOperacao(el.textContent) || '—'; }));
 }
