@@ -511,38 +511,51 @@ body.aba-quartos main{ max-width:1900px; }
 .grupo-progresso .gp-barra span{ display:block; height:100%; background:#A8D5BA; transition:width .3s; }
 .tag-origem-nc{ margin-left:3px; font-weight:600; color:#B4661F; }
 .lightbox-rodape{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom, 0px) + 10px); max-width:92vw; background:rgba(255,255,255,.94); color:#33403A; font-size:12px; line-height:1.4; padding:6px 10px; border-radius:10px; z-index:111; }
-.rn-pagina{ padding:22px 26px; }
-.rn-topo{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
-.rn-topo h2{ margin:0; font-size:20px; } .rn-topo .rn-sub{ color:#6B756F; font-size:12.5px; }
-.rn-grade{ display:grid; grid-template-columns: 1.05fr 1fr 1.15fr; gap:14px; }
-@media (max-width: 1100px){ .rn-grade{ grid-template-columns:1fr; } }
-.rn-bloco{ border-radius:16px; padding:14px 16px; }
-.rn-bloco h3{ margin:0 0 10px; font-size:13px; letter-spacing:.02em; text-transform:uppercase; color:#4E5A54; }
-.rn-n{ display:flex; gap:10px; flex-wrap:wrap; }
-.rn-num{ flex:1; min-width:120px; background:#fff; border-radius:12px; padding:10px 12px; }
-.rn-num b{ display:block; font-size:24px; color:#33403A; font-weight:600; line-height:1.1; }
-.rn-num span{ font-size:12px; color:#6B756F; }
-.rn-num small{ display:block; font-size:11.5px; color:#8A938E; margin-top:3px; }
-.rn-fluxo{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:#33403A; }
-.rn-passos{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
-.rn-passos span{ background:#fff; border-radius:8px; padding:4px 8px; }
-.rn-passos i{ color:#9AA3AD; font-style:normal; }
-.rn-passos .rn-novo{ background:#F6E9D8; color:#8A5A1E; font-weight:600; }
-.rn-tab{ width:100%; border-collapse:collapse; font-size:12.5px; }
-.rn-tab td, .rn-tab th{ padding:6px 6px; text-align:left; border-top:1px solid rgba(0,0,0,.05); }
-.rn-tab th{ font-size:11px; color:#6B756F; font-weight:600; border-top:0; }
-.rn-tag{ font-size:11px; padding:2px 7px; border-radius:8px; white-space:nowrap; }
-.rn-tag.ok{ background:#DDEFE3; color:#2E6B4A; } .rn-tag.av{ background:#E3EAF7; color:#3A5A92; }
-.rn-foco{ background:#FBF1E6; }
-.rn-foco .rn-andar{ display:grid; grid-template-columns: 54px 1fr; gap:10px; align-items:center; background:#fff; border-radius:12px; padding:10px 12px; margin-bottom:8px; }
-.rn-foco .rn-andar b.rn-a{ font-size:22px; color:#33403A; }
-.rn-barra{ height:8px; border-radius:5px; background:#ECEDEF; overflow:hidden; margin:5px 0 3px; } .rn-barra span{ display:block; height:100%; background:#A8D5BA; }
-.rn-datas{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:6px; }
-.rn-datas div{ background:#fff; border-radius:10px; padding:8px 10px; text-align:center; }
-.rn-datas small{ display:block; font-size:11px; color:#6B756F; }
-.rn-datas b{ font-size:18px; color:#33403A; outline:none; }
-.rn-datas b[contenteditable]:hover{ background:#F3F4F6; border-radius:6px; }
-.rn-pedidos{ margin:0; padding-left:16px; font-size:12.5px; color:#33403A; line-height:1.6; }
+.rn-pagina{ padding:20px 24px; }
+.rn-topo{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.rn-topo h2{ margin:0; font-size:20px; color:#33403A; } .rn-topo .rn-sub{ color:#8A938E; font-size:12px; }
+.rn-kpis{ display:grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+.rn-kpi{ border-radius:16px; padding:12px 16px; background:#F3F4F3; display:flex; align-items:center; gap:14px; min-height:96px; }
+.rn-kpi .rn-big{ font-size:34px; font-weight:600; color:#33403A; line-height:1; }
+.rn-kpi .rn-rot{ font-size:12.5px; color:#6B756F; margin-top:4px; }
+.rn-stack{ height:12px; border-radius:7px; overflow:hidden; display:flex; margin-top:8px; background:#E7EAE8; }
+.rn-stack span{ display:block; height:100%; }
+.rn-leg{ display:flex; gap:12px; font-size:11.5px; color:#6B756F; margin-top:6px; flex-wrap:wrap; }
+.rn-leg i{ display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+.rn-linha2{ display:grid; grid-template-columns: 1fr 1.05fr 1.1fr; gap:12px; }
+@media (max-width: 1150px){ .rn-kpis, .rn-linha2{ grid-template-columns:1fr; } }
+.rn-card{ border-radius:16px; padding:14px 16px; background:#F3F4F3; }
+.rn-card h3{ margin:0 0 10px; font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:#5B6660; }
+.rn-predio{ display:flex; flex-direction:column; gap:4px; }
+.rn-andar{ display:grid; grid-template-columns: 34px 1fr 40px 18px; gap:8px; align-items:center; font-size:12.5px; color:#33403A; }
+.rn-andar .rn-barra{ height:14px; border-radius:7px; background:#fff; overflow:hidden; display:flex; }
+.rn-andar .rn-barra span{ display:block; height:100%; }
+.rn-andar .rn-q{ text-align:right; font-weight:600; font-size:12px; }
+.rn-dot{ width:12px; height:12px; border-radius:50%; justify-self:center; }
+.rn-fluxo-v{ display:flex; flex-direction:column; gap:10px; }
+.rn-trilho{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.rn-pill{ background:#fff; border-radius:999px; padding:5px 10px; font-size:12px; color:#33403A; white-space:nowrap; }
+.rn-pill.dest{ background:#F8DDBF; font-weight:600; color:#7A4A12; }
+.rn-pill.ok{ background:#CFE8D8; font-weight:600; color:#2E6B4A; }
+.rn-seta{ color:#A9B1AC; font-size:14px; }
+.rn-rot-trilho{ font-size:11px; font-weight:600; color:#8A938E; text-transform:uppercase; letter-spacing:.05em; }
+.rn-raias{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+.rn-raia{ border-radius:14px; padding:10px 12px; }
+.rn-raia b{ display:block; font-size:13px; color:#33403A; } .rn-raia small{ font-size:11.5px; color:#5B6660; }
+.rn-raia .rn-dias{ font-size:26px; font-weight:600; color:#7A4A12; line-height:1.05; }
+.rn-aneis{ display:flex; justify-content:space-around; gap:10px; }
+.rn-anel{ text-align:center; } .rn-anel .rn-a{ font-size:13px; color:#5B6660; margin-top:2px; }
+.rn-tempo{ position:relative; display:flex; justify-content:space-between; margin:14px 4px 4px; }
+.rn-tempo:before{ content:""; position:absolute; left:8px; right:8px; top:8px; height:3px; background:#E2E5E3; border-radius:2px; }
+.rn-marco{ position:relative; text-align:center; flex:1; }
+.rn-marco .rn-p{ width:18px; height:18px; border-radius:50%; margin:0 auto 4px; border:3px solid #fff; box-shadow:0 0 0 1px #E2E5E3; }
+.rn-marco b{ display:block; font-size:15px; color:#33403A; outline:none; } .rn-marco small{ font-size:11px; color:#6B756F; display:block; line-height:1.25; }
+.rn-marco b[contenteditable]:hover{ background:#fff; border-radius:6px; }
+.rn-chips{ display:flex; flex-wrap:wrap; gap:3px; justify-content:center; margin-top:4px; }
+.rn-chip{ font-size:10.5px; padding:1px 6px; border-radius:7px; background:#fff; color:#33403A; }
+.rn-chip.ass{ background:#CFE8D8; color:#2E6B4A; }
+.rn-limite{ margin-top:6px; font-size:11px; color:#7A4A12; background:#FBE9D6; border-radius:8px; padding:3px 6px; display:inline-block; }
+.rn-limite b{ font-size:12.5px; }
 .rx-resumo{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:6px 0 18px; }
 .rx-num-card{ border-radius:16px; padding:14px 16px; }
 .rx-num-card .rx-big{ font-size:30px; font-weight:600; line-height:1.1; color:#33403A; }
@@ -1361,7 +1374,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.291';
+const VERSAO_APP = '2026-10-03.293';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8675,9 +8688,9 @@ async function registrarBaixasSemRegistro(){
    Datas das levas e dos andares a assinar seguem o planejamento de 26/10 (editáveis na tela, sem gravar). */
 const REUNIAO_ASSINADOS = [8, 9, 10, 14, 15, 16, 17, 18];
 const REUNIAO_LEVAS = [
-  { nome:'1ª leva', data:'31/10', andares:[20, 19, 10, 9, 8], cor:'#E3EEF9' },
-  { nome:'2ª leva', data:'07/11', andares:[18, 17, 16, 15, 14], cor:'#E4F1E6' },
-  { nome:'3ª leva', data:'13/11', andares:[13, 12, 11, 7, 6, 5], cor:'#F6EEDC' },
+  { nome:'1ª leva', data:'31/10', andares:[20, 19, 10, 9, 8], cor:'#A9C5EA' },
+  { nome:'2ª leva', data:'07/11', andares:[18, 17, 16, 15, 14], cor:'#A8D5BA' },
+  { nome:'3ª leva', data:'13/11', andares:[13, 12, 11, 7, 6, 5], cor:'#F4D9A6' },
 ];
 function numeroDaTela(rotulo){ // lê o mesmo número que a Visão geral mostra
   const s = Array.from(document.querySelectorAll('#grid-resumo .stat')).find((x) => ((x.querySelector('.rotulo') || {}).textContent || '').trim() === rotulo);
@@ -8686,58 +8699,86 @@ function numeroDaTela(rotulo){ // lê o mesmo número que a Visão geral mostra
   const num = (v) => Number(String(v || '').replace(/\./g, '').replace(/[^\d]/g, '')) || 0;
   return { valor: num((s.querySelector('.valor') || {}).textContent), linhas, num };
 }
+const REUNIAO_DIAS_LISTA = 5; // dias úteis para executar a lista da operação
+function diaUtilReuniao(d){ return d.getDay() !== 0 && !FERIADOS_BR[chaveDia(d)]; }
+function voltarDiasUteis(d, n){ const x = new Date(d); while (n > 0){ x.setDate(x.getDate() - 1); if (diaUtilReuniao(x)) n--; } return x; }
+function limiteListaOperacao(entregaDDMM){
+  const m = String(entregaDDMM || '').match(/(\d{1,2})\/(\d{1,2})/); if (!m) return null;
+  const ano = new Date().getFullYear(), ent = new Date(ano, +m[2] - 1, +m[1]);
+  const fim = voltarDiasUteis(ent, 1);                                    // dia anterior: lista concluída
+  const lim = voltarDiasUteis(fim, REUNIAO_DIAS_LISTA);                   // começa a contar no dia útil seguinte ao recebimento
+  return String(lim.getDate()).padStart(2, '0') + '/' + String(lim.getMonth() + 1).padStart(2, '0');
+}
 function renderReuniao(){
   const box = document.getElementById('reuniao-pagina'); if (!box) return;
   const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
-  // 1) números da obra — as MESMAS contas da Visão geral (guardadas quando ela é desenhada)
+  const COR = { iac:'#A9C5EA', op:'#F4C38E', exec:'#BBA9E6', ok:'#A8D5BA', cinza:'#D8DCD9' };
+  // números da obra — as MESMAS contas da Visão geral
   const R = window.__resumoObra || { total: 0, aberto: 0, aw: 0 };
-  const c = contarPorOrigem(itensRevisaoAtual.filter(contaNoTotal));
-  const av = contarPorOrigem(itensRevisaoAtual.filter(novoForaDoAberto));
-  const iac = Math.max(0, R.total - c.SOFITEL - c.AW - c.outras), sof = c.SOFITEL, awInc = c.AW + c.outras;
-  const novIac = av.IAC + av.AW + av.outras, novSof = av.SOFITEL;
-  const recIac = iac + novIac, recSof = sof + novSof, recTot = R.total + novIac + novSof;
-  const exec = R.aw || 0, aberto = (R.aberto || 0) + novIac + novSof;
-  // 2) por andar (planilha atual)
-  const porAndar = (a) => { const its = itensRevisaoAtual.filter((x) => Number(x.andar) === a && contaNoTotal(x) || (Number(x.andar) === a && novoForaDoAberto(x)));
-    const sofsTodos = its.filter((x) => origemDoItem(x) === 'SOFITEL');
-    // a LISTA DA OPERAÇÃO deste andar = os itens da Sofitel que entraram na última revisão em que ela mandou itens (ex.: R36, 24/10)
-    const revUlt = sofsTodos.reduce((m, x) => Math.max(m, Number(revisaoDeEntrada(x)) || 0), 0);
-    const sofs = sofsTodos.filter((x) => (Number(revisaoDeEntrada(x)) || 0) === revUlt);
-    return { aberto: its.filter((x) => estaEmAberto(x)).length, sof: sofs.length, sofFeitos: sofs.filter((x) => !estaEmAberto(x)).length, iacAberto: its.filter((x) => origemDoItem(x) !== 'SOFITEL' && estaEmAberto(x)).length }; };
-  const foco = [20, 19].map((a) => Object.assign({ andar: a }, porAndar(a)));
+  const c = contarPorOrigem(itensRevisaoAtual.filter(contaNoTotal)), av = contarPorOrigem(itensRevisaoAtual.filter(novoForaDoAberto));
+  const recSof = c.SOFITEL + av.SOFITEL, recTot = R.total + av.IAC + av.SOFITEL + av.AW + av.outras, recIac = recTot - recSof;
+  const exec = R.aw || 0, aberto = (R.aberto || 0) + av.IAC + av.SOFITEL + av.AW + av.outras;
+  const pctExec = recTot ? Math.round(exec / recTot * 100) : 0;
+  // por andar
+  const andares = Array.from(new Set(itensRevisaoAtual.map((x) => Number(x.andar)))).filter((a) => a >= 5 && a <= 20).sort((a, b) => b - a);
+  const doAndar = (a) => itensRevisaoAtual.filter((x) => Number(x.andar) === a && (contaNoTotal(x) || novoForaDoAberto(x)));
+  const linhas = andares.map((a) => { const its = doAndar(a).filter(estaEmAberto);
+    return { a, op: its.filter((x) => origemDoItem(x) === 'SOFITEL').length, iac: its.filter((x) => origemDoItem(x) !== 'SOFITEL').length, assinado: REUNIAO_ASSINADOS.indexOf(a) !== -1 }; });
+  const maxAb = Math.max(1, ...linhas.map((l) => l.op + l.iac));
+  const frentes = linhas.filter((l) => l.op + l.iac > 0).length;
+  // 19º e 20º: a lista mais recente da operação
+  const foco = [20, 19].map((a) => { const sofs = doAndar(a).filter((x) => origemDoItem(x) === 'SOFITEL');
+    const revUlt = sofs.reduce((m, x) => Math.max(m, Number(revisaoDeEntrada(x)) || 0), 0);
+    const lista = sofs.filter((x) => (Number(revisaoDeEntrada(x)) || 0) === revUlt);
+    return { a, total: lista.length, feitos: lista.filter((x) => !estaEmAberto(x)).length }; });
+  const anel = (feitos, total, rot) => { const r = 44, C = 2 * Math.PI * r, p = total ? feitos / total : 0;
+    return '<div class="rn-anel"><svg width="112" height="112" viewBox="0 0 112 112"><circle cx="56" cy="56" r="'+r+'" fill="none" stroke="#fff" stroke-width="12"/>' +
+      (p > 0 ? '<circle cx="56" cy="56" r="'+r+'" fill="none" stroke="'+COR.ok+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+(C*p).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 56 56)"/>' : '') +
+      '<text x="56" y="54" text-anchor="middle" font-size="22" font-weight="600" fill="#33403A">'+fmt(feitos)+'</text><text x="56" y="72" text-anchor="middle" font-size="12" fill="#6B756F">de '+fmt(total)+'</text></svg><div class="rn-a"><b>'+rot+'</b> · lista da operação</div></div>'; };
+  const anelPct = (p) => { const r = 30, C = 2 * Math.PI * r;
+    return '<svg width="78" height="78" viewBox="0 0 78 78" style="flex:none;"><circle cx="39" cy="39" r="'+r+'" fill="none" stroke="#E7EAE8" stroke-width="10"/><circle cx="39" cy="39" r="'+r+'" fill="none" stroke="'+COR.exec+'" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*p/100).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 39 39)"/><text x="39" y="44" text-anchor="middle" font-size="16" font-weight="600" fill="#33403A">'+p+'%</text></svg>'; };
   const hoje = new Date();
   box.innerHTML =
-    '<div class="rn-topo"><div><h2>Sofitel Ipanema · Quartos — status e plano de entrega</h2><div class="rn-sub">Dados do painel da obra · ' + hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + ' · Revisão ' + esc(String(revisaoSelecionada || '')) + '</div></div></div>' +
-    '<div class="rn-grade">' +
-      // coluna 1: números + fluxo
-      '<div style="display:flex; flex-direction:column; gap:14px;">' +
-        '<div class="rn-bloco" style="background:#F1F3F2;"><h3>Pendências da obra</h3><div class="rn-n">' +
-          '<div class="rn-num"><b>' + fmt(recTot) + '</b><span>recebidas</span><small>IAC ' + fmt(recIac) + ' · Sofitel ' + fmt(recSof) + '</small></div>' +
-          '<div class="rn-num"><b style="color:#5B4A9E;">' + fmt(exec) + '</b><span>executadas pela AW</span><small>' + (recTot ? Math.round(exec / recTot * 100) : 0) + '% do recebido</small></div>' +
-          '<div class="rn-num"><b>' + fmt(aberto) + '</b><span>em aberto</span><small>inclui ' + fmt(novIac + novSof) + ' novas em avaliação</small></div>' +
+    '<div class="rn-topo"><h2>Sofitel Ipanema · Quartos</h2><div class="rn-sub">painel da obra · ' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
+    // ---- números ----
+    '<div class="rn-kpis">' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big">'+fmt(recTot)+'</div><div class="rn-rot">pendências recebidas</div>' +
+        '<div class="rn-stack"><span style="width:'+(recTot ? recIac/recTot*100 : 0)+'%; background:'+COR.iac+';"></span><span style="width:'+(recTot ? recSof/recTot*100 : 0)+'%; background:'+COR.op+';"></span></div>' +
+        '<div class="rn-leg"><span><i style="background:'+COR.iac+';"></i>IAC '+fmt(recIac)+'</span><span><i style="background:'+COR.op+';"></i>Operação Sofitel '+fmt(recSof)+'</span></div></div>' +
+      '<div class="rn-kpi">'+anelPct(pctExec)+'<div><div class="rn-big">'+fmt(exec)+'</div><div class="rn-rot">executadas pela AW</div></div></div>' +
+      '<div class="rn-kpi"><div><div class="rn-big">'+fmt(aberto)+'</div><div class="rn-rot">em aberto</div></div></div>' +
+      '<div class="rn-kpi" style="background:#FBF1E6;"><div><div class="rn-big">'+frentes+'</div><div class="rn-rot">andares com frente aberta hoje</div></div></div>' +
+    '</div>' +
+    '<div class="rn-linha2">' +
+      // ---- onde estamos atuando ----
+      '<div class="rn-card"><h3>Onde estamos atuando hoje</h3><div class="rn-predio">' +
+        linhas.map((l) => '<div class="rn-andar"><span>'+l.a+'º</span><div class="rn-barra">' +
+          '<span style="width:'+(l.iac/maxAb*100)+'%; background:'+COR.iac+';"></span><span style="width:'+(l.op/maxAb*100)+'%; background:'+COR.op+';"></span></div>' +
+          '<span class="rn-q">'+fmt(l.iac + l.op)+'</span><span class="rn-dot" title="'+(l.assinado ? 'assinado' : 'a assinar')+'" style="background:'+(l.assinado ? COR.ok : COR.cinza)+';"></span></div>').join('') +
+      '</div><div class="rn-leg" style="margin-top:8px;"><span><i style="background:'+COR.iac+';"></i>IAC</span><span><i style="background:'+COR.op+';"></i>Operação</span><span><i style="background:'+COR.ok+'; border-radius:50%;"></i>assinado</span><span><i style="background:'+COR.cinza+'; border-radius:50%;"></i>a assinar</span></div></div>' +
+      // ---- novo fluxo ----
+      '<div class="rn-card"><h3>Novo fluxo de entrega do andar</h3><div class="rn-fluxo-v">' +
+        '<div><div class="rn-rot-trilho">antes</div><div class="rn-trilho"><span class="rn-pill">Vistoria IAC</span><span class="rn-seta">→</span><span class="rn-pill">Revistoria</span><span class="rn-seta">→</span><span class="rn-pill ok">Assina</span><span class="rn-seta">→</span><span class="rn-pill dest">Lista da operação</span></div></div>' +
+        '<div><div class="rn-rot-trilho">agora</div><div class="rn-trilho"><span class="rn-pill">Vistoria IAC</span><span class="rn-seta">+</span><span class="rn-pill dest">Lista da operação</span><span class="rn-seta">→</span><span class="rn-pill">5 dias úteis</span><span class="rn-seta">→</span><span class="rn-pill">Revistoria</span><span class="rn-seta">→</span><span class="rn-pill ok">Assina</span></div></div>' +
+        '<div class="rn-raias">' +
+          '<div class="rn-raia" style="background:#FBE9D6;"><div class="rn-dias" contenteditable="true">5 dias úteis</div><b>antes de entregar o andar</b><small>o que impede a operação: limpeza, sujeira, acabamento</small></div>' +
+          '<div class="rn-raia" style="background:#E8F3EC;"><div class="rn-dias" style="color:#2E6B4A;">depois</div><b>com a operação dentro</b><small>compras e trocas, como manutenção e garantia</small></div>' +
+        '</div></div></div>' +
+      // ---- 19º e 20º + levas ----
+      '<div class="rn-card" style="background:#FBF6EF;"><h3>19º e 20º</h3><div class="rn-aneis">' + foco.map((f) => anel(f.feitos, f.total, f.a + 'º')).join('') + '</div>' +
+        '<div class="rn-tempo">' +
+          '<div class="rn-marco"><div class="rn-p" style="background:'+COR.op+';"></div><b contenteditable="true">24/10</b><small>lista recebida</small></div>' +
+          '<div class="rn-marco"><div class="rn-p" style="background:#F8DDBF;"></div><b contenteditable="true">30/10</b><small>5 dias úteis<br>lista concluída</small></div>' +
+          '<div class="rn-marco"><div class="rn-p" style="background:'+COR.ok+';"></div><b contenteditable="true">31/10</b><small>revistoria<br>e assinatura</small></div>' +
+        '</div>' +
+        '<h3 style="margin-top:16px;">Entregas</h3><div class="rn-tempo">' +
+          REUNIAO_LEVAS.map((l) => { const aAssinar = l.andares.some((a) => REUNIAO_ASSINADOS.indexOf(a) === -1);
+            return '<div class="rn-marco"><div class="rn-p" style="background:'+l.cor+';"></div><b contenteditable="true" class="rn-entrega">'+l.data+'</b><div class="rn-chips">'+l.andares.map((a) => '<span class="rn-chip'+(REUNIAO_ASSINADOS.indexOf(a) !== -1 ? ' ass' : '')+'">'+a+'º</span>').join('')+'</div>' +
+              '<div class="rn-limite">'+(aAssinar ? 'lista da operação até <b class="rn-lim">'+(limiteListaOperacao(l.data) || '—')+'</b>' : 'listas já recebidas')+'</div></div>'; }).join('') +
+          '<div class="rn-marco"><div class="rn-p" style="background:#C9B8E8;"></div><b>01/12</b><small>inauguração</small></div>' +
         '</div></div>' +
-        '<div class="rn-bloco" style="background:#F1F3F2;"><h3>Como era × como ficou</h3><div class="rn-fluxo">' +
-          '<div><b>Antes</b><div class="rn-passos"><span>Execução AW</span><i>→</i><span>Vistoria IAC</span><i>→</i><span>Correções</span><i>→</i><span>Revistoria IAC</span><i>→</i><span>Assinatura Accor</span></div><div style="color:#6B756F; margin-top:3px;">Operação entrava com itens não impeditivos.</div></div>' +
-          '<div style="margin-top:6px;"><b>Agora</b><div class="rn-passos"><span>Execução AW</span><i>→</i><span>Vistoria IAC</span><i>+</i><span class="rn-novo">Lista da operação Sofitel</span><i>→</i><span>Correções das duas listas</span><i>→</i><span>Revistoria</span><i>→</i><span>Assinatura Accor</span></div><div style="color:#6B756F; margin-top:3px;">O andar é entregue de uma vez, já com a lista da operação. Entraram ' + fmt(recSof) + ' pendências da operação, a maior parte depois de assinados os andares.</div></div>' +
-        '</div></div>' +
-      '</div>' +
-      // coluna 2: andares e levas
-      '<div class="rn-bloco" style="background:#F1F3F2;"><h3>Andares e entregas</h3><table class="rn-tab"><thead><tr><th>Leva</th><th>Andares</th><th>Entrega</th></tr></thead><tbody>' +
-        REUNIAO_LEVAS.map((l) => '<tr style="background:' + l.cor + ';"><td><b>' + l.nome + '</b></td><td>' + l.andares.map((a) => '<span style="margin-right:6px; white-space:nowrap;">' + a + 'º ' + (REUNIAO_ASSINADOS.indexOf(a) !== -1 ? '<span class="rn-tag ok">assinado</span>' : '<span class="rn-tag av">a assinar</span>') + '</span>').join(' ') + '</td><td><b contenteditable="true">' + l.data + '</b></td></tr>').join('') +
-      '</tbody></table>' +
-      '<div style="font-size:12px; color:#6B756F; margin-top:8px; line-height:1.5;">Assinados (8 andares): ' + REUNIAO_ASSINADOS.map((a) => a + 'º').join(', ') + ' — em execução as listas da operação.<br>A assinar: 20º, 19º, 13º, 12º, 11º, 7º, 6º e 5º — já no fluxo novo.</div></div>' +
-      // coluna 3: foco 19/20
-      '<div class="rn-bloco rn-foco"><h3>Foco: 19º e 20º</h3>' +
-        foco.map((f) => '<div class="rn-andar"><b class="rn-a">' + f.andar + 'º</b><div><div style="font-size:12.5px; color:#33403A;">Lista da operação (recebida 24/10): <b>' + fmt(f.sof) + '</b> itens · <b>' + fmt(f.sofFeitos) + '</b> feitos</div>' +
-          '<div class="rn-barra"><span style="width:' + (f.sof ? Math.round(f.sofFeitos / f.sof * 100) : 0) + '%"></span></div>' +
-          '<div style="font-size:11.5px; color:#6B756F;">Em aberto no andar: ' + fmt(f.aberto) + ' (IAC ' + fmt(f.iacAberto) + ' · operação ' + fmt(f.sof - f.sofFeitos) + ')</div></div></div>').join('') +
-        '<div class="rn-datas"><div><small>Lista concluída</small><b contenteditable="true">30/10</b></div><div><small>Revistoria conjunta</small><b contenteditable="true">30/10</b></div><div><small>Assinatura Accor</small><b contenteditable="true">31/10</b></div></div>' +
-        '<h3 style="margin-top:14px;">Para manter as datas</h3><ul class="rn-pedidos">' +
-          '<li>Lista da operação <b>antes</b> da revistoria nos andares a assinar (13º, 12º, 11º, 7º, 6º, 5º).</li>' +
-          '<li>Revistoria <b>conjunta</b> IAC + operação, numa data só por andar.</li>' +
-          '<li>Janela para serviços com pó (lixamento de pedra, pintura) <b>antes</b> da operação entrar.</li>' +
-        '</ul></div>' +
     '</div>';
+  box.querySelectorAll('.rn-entrega').forEach((el) => el.addEventListener('input', () => { const lim = el.parentElement.querySelector('.rn-lim'); if (lim) lim.textContent = limiteListaOperacao(el.textContent) || '—'; }));
 }
 
 /* VALIDAÇÃO DA GESTÃO AW: a IAC não valida mais junto com a gente (a baixa da IAC é só o que ela TIRA
