@@ -511,6 +511,38 @@ body.aba-quartos main{ max-width:1900px; }
 .grupo-progresso .gp-barra span{ display:block; height:100%; background:#A8D5BA; transition:width .3s; }
 .tag-origem-nc{ margin-left:3px; font-weight:600; color:#B4661F; }
 .lightbox-rodape{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom, 0px) + 10px); max-width:92vw; background:rgba(255,255,255,.94); color:#33403A; font-size:12px; line-height:1.4; padding:6px 10px; border-radius:10px; z-index:111; }
+.rn-pagina{ padding:22px 26px; }
+.rn-topo{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.rn-topo h2{ margin:0; font-size:20px; } .rn-topo .rn-sub{ color:#6B756F; font-size:12.5px; }
+.rn-grade{ display:grid; grid-template-columns: 1.05fr 1fr 1.15fr; gap:14px; }
+@media (max-width: 1100px){ .rn-grade{ grid-template-columns:1fr; } }
+.rn-bloco{ border-radius:16px; padding:14px 16px; }
+.rn-bloco h3{ margin:0 0 10px; font-size:13px; letter-spacing:.02em; text-transform:uppercase; color:#4E5A54; }
+.rn-n{ display:flex; gap:10px; flex-wrap:wrap; }
+.rn-num{ flex:1; min-width:120px; background:#fff; border-radius:12px; padding:10px 12px; }
+.rn-num b{ display:block; font-size:24px; color:#33403A; font-weight:600; line-height:1.1; }
+.rn-num span{ font-size:12px; color:#6B756F; }
+.rn-num small{ display:block; font-size:11.5px; color:#8A938E; margin-top:3px; }
+.rn-fluxo{ display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:#33403A; }
+.rn-passos{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+.rn-passos span{ background:#fff; border-radius:8px; padding:4px 8px; }
+.rn-passos i{ color:#9AA3AD; font-style:normal; }
+.rn-passos .rn-novo{ background:#F6E9D8; color:#8A5A1E; font-weight:600; }
+.rn-tab{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.rn-tab td, .rn-tab th{ padding:6px 6px; text-align:left; border-top:1px solid rgba(0,0,0,.05); }
+.rn-tab th{ font-size:11px; color:#6B756F; font-weight:600; border-top:0; }
+.rn-tag{ font-size:11px; padding:2px 7px; border-radius:8px; white-space:nowrap; }
+.rn-tag.ok{ background:#DDEFE3; color:#2E6B4A; } .rn-tag.av{ background:#E3EAF7; color:#3A5A92; }
+.rn-foco{ background:#FBF1E6; }
+.rn-foco .rn-andar{ display:grid; grid-template-columns: 54px 1fr; gap:10px; align-items:center; background:#fff; border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+.rn-foco .rn-andar b.rn-a{ font-size:22px; color:#33403A; }
+.rn-barra{ height:8px; border-radius:5px; background:#ECEDEF; overflow:hidden; margin:5px 0 3px; } .rn-barra span{ display:block; height:100%; background:#A8D5BA; }
+.rn-datas{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:6px; }
+.rn-datas div{ background:#fff; border-radius:10px; padding:8px 10px; text-align:center; }
+.rn-datas small{ display:block; font-size:11px; color:#6B756F; }
+.rn-datas b{ font-size:18px; color:#33403A; outline:none; }
+.rn-datas b[contenteditable]:hover{ background:#F3F4F6; border-radius:6px; }
+.rn-pedidos{ margin:0; padding-left:16px; font-size:12.5px; color:#33403A; line-height:1.6; }
 .rx-resumo{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:6px 0 18px; }
 .rx-num-card{ border-radius:16px; padding:14px 16px; }
 .rx-num-card .rx-big{ font-size:30px; font-weight:600; line-height:1.1; color:#33403A; }
@@ -753,6 +785,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="disciplinas">Disciplinas &amp; fornecedores</button>
   <button data-aba="comparacao">Comparação</button>
   <button data-aba="raiox" class="so-fundador">Raio-X</button>
+  <button data-aba="reuniao" class="so-admin">Reunião</button>
   <button data-aba="tendencia">Plano</button>
   <button data-aba="enviar" class="so-admin">Enviar planilhas</button>
   <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
@@ -949,6 +982,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   </section>
 
   <!-- COMPARAÇÃO -->
+  <section class="secao" id="secao-reuniao">
+    <div class="card card-pad rn-pagina" id="reuniao-pagina"></div>
+  </section>
+
   <section class="secao" id="secao-raiox">
     <div class="card card-pad">
       <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
@@ -1324,7 +1361,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.290';
+const VERSAO_APP = '2026-10-03.291';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -8634,6 +8671,75 @@ async function registrarBaixasSemRegistro(){
   bsrLista = bsrLista.filter((x) => ids.indexOf(x.id) === -1); desenharBaixasSemRegistro(); renderRaioX();
 }
 
+/* REUNIÃO: uma página para mostrar na tela — números da Visão geral (os mesmos), fluxo, levas e foco no 19º/20º.
+   Datas das levas e dos andares a assinar seguem o planejamento de 26/10 (editáveis na tela, sem gravar). */
+const REUNIAO_ASSINADOS = [8, 9, 10, 14, 15, 16, 17, 18];
+const REUNIAO_LEVAS = [
+  { nome:'1ª leva', data:'31/10', andares:[20, 19, 10, 9, 8], cor:'#E3EEF9' },
+  { nome:'2ª leva', data:'07/11', andares:[18, 17, 16, 15, 14], cor:'#E4F1E6' },
+  { nome:'3ª leva', data:'13/11', andares:[13, 12, 11, 7, 6, 5], cor:'#F6EEDC' },
+];
+function numeroDaTela(rotulo){ // lê o mesmo número que a Visão geral mostra
+  const s = Array.from(document.querySelectorAll('#grid-resumo .stat')).find((x) => ((x.querySelector('.rotulo') || {}).textContent || '').trim() === rotulo);
+  if (!s) return null;
+  const linhas = s.innerText.split('\n').map((l) => l.trim()).filter(Boolean);
+  const num = (v) => Number(String(v || '').replace(/\./g, '').replace(/[^\d]/g, '')) || 0;
+  return { valor: num((s.querySelector('.valor') || {}).textContent), linhas, num };
+}
+function renderReuniao(){
+  const box = document.getElementById('reuniao-pagina'); if (!box) return;
+  const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
+  // 1) números da obra — as MESMAS contas da Visão geral (guardadas quando ela é desenhada)
+  const R = window.__resumoObra || { total: 0, aberto: 0, aw: 0 };
+  const c = contarPorOrigem(itensRevisaoAtual.filter(contaNoTotal));
+  const av = contarPorOrigem(itensRevisaoAtual.filter(novoForaDoAberto));
+  const iac = Math.max(0, R.total - c.SOFITEL - c.AW - c.outras), sof = c.SOFITEL, awInc = c.AW + c.outras;
+  const novIac = av.IAC + av.AW + av.outras, novSof = av.SOFITEL;
+  const recIac = iac + novIac, recSof = sof + novSof, recTot = R.total + novIac + novSof;
+  const exec = R.aw || 0, aberto = (R.aberto || 0) + novIac + novSof;
+  // 2) por andar (planilha atual)
+  const porAndar = (a) => { const its = itensRevisaoAtual.filter((x) => Number(x.andar) === a && contaNoTotal(x) || (Number(x.andar) === a && novoForaDoAberto(x)));
+    const sofsTodos = its.filter((x) => origemDoItem(x) === 'SOFITEL');
+    // a LISTA DA OPERAÇÃO deste andar = os itens da Sofitel que entraram na última revisão em que ela mandou itens (ex.: R36, 24/10)
+    const revUlt = sofsTodos.reduce((m, x) => Math.max(m, Number(revisaoDeEntrada(x)) || 0), 0);
+    const sofs = sofsTodos.filter((x) => (Number(revisaoDeEntrada(x)) || 0) === revUlt);
+    return { aberto: its.filter((x) => estaEmAberto(x)).length, sof: sofs.length, sofFeitos: sofs.filter((x) => !estaEmAberto(x)).length, iacAberto: its.filter((x) => origemDoItem(x) !== 'SOFITEL' && estaEmAberto(x)).length }; };
+  const foco = [20, 19].map((a) => Object.assign({ andar: a }, porAndar(a)));
+  const hoje = new Date();
+  box.innerHTML =
+    '<div class="rn-topo"><div><h2>Sofitel Ipanema · Quartos — status e plano de entrega</h2><div class="rn-sub">Dados do painel da obra · ' + hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + ' · Revisão ' + esc(String(revisaoSelecionada || '')) + '</div></div></div>' +
+    '<div class="rn-grade">' +
+      // coluna 1: números + fluxo
+      '<div style="display:flex; flex-direction:column; gap:14px;">' +
+        '<div class="rn-bloco" style="background:#F1F3F2;"><h3>Pendências da obra</h3><div class="rn-n">' +
+          '<div class="rn-num"><b>' + fmt(recTot) + '</b><span>recebidas</span><small>IAC ' + fmt(recIac) + ' · Sofitel ' + fmt(recSof) + '</small></div>' +
+          '<div class="rn-num"><b style="color:#5B4A9E;">' + fmt(exec) + '</b><span>executadas pela AW</span><small>' + (recTot ? Math.round(exec / recTot * 100) : 0) + '% do recebido</small></div>' +
+          '<div class="rn-num"><b>' + fmt(aberto) + '</b><span>em aberto</span><small>inclui ' + fmt(novIac + novSof) + ' novas em avaliação</small></div>' +
+        '</div></div>' +
+        '<div class="rn-bloco" style="background:#F1F3F2;"><h3>Como era × como ficou</h3><div class="rn-fluxo">' +
+          '<div><b>Antes</b><div class="rn-passos"><span>Execução AW</span><i>→</i><span>Vistoria IAC</span><i>→</i><span>Correções</span><i>→</i><span>Revistoria IAC</span><i>→</i><span>Assinatura Accor</span></div><div style="color:#6B756F; margin-top:3px;">Operação entrava com itens não impeditivos.</div></div>' +
+          '<div style="margin-top:6px;"><b>Agora</b><div class="rn-passos"><span>Execução AW</span><i>→</i><span>Vistoria IAC</span><i>+</i><span class="rn-novo">Lista da operação Sofitel</span><i>→</i><span>Correções das duas listas</span><i>→</i><span>Revistoria</span><i>→</i><span>Assinatura Accor</span></div><div style="color:#6B756F; margin-top:3px;">O andar é entregue de uma vez, já com a lista da operação. Entraram ' + fmt(recSof) + ' pendências da operação, a maior parte depois de assinados os andares.</div></div>' +
+        '</div></div>' +
+      '</div>' +
+      // coluna 2: andares e levas
+      '<div class="rn-bloco" style="background:#F1F3F2;"><h3>Andares e entregas</h3><table class="rn-tab"><thead><tr><th>Leva</th><th>Andares</th><th>Entrega</th></tr></thead><tbody>' +
+        REUNIAO_LEVAS.map((l) => '<tr style="background:' + l.cor + ';"><td><b>' + l.nome + '</b></td><td>' + l.andares.map((a) => '<span style="margin-right:6px; white-space:nowrap;">' + a + 'º ' + (REUNIAO_ASSINADOS.indexOf(a) !== -1 ? '<span class="rn-tag ok">assinado</span>' : '<span class="rn-tag av">a assinar</span>') + '</span>').join(' ') + '</td><td><b contenteditable="true">' + l.data + '</b></td></tr>').join('') +
+      '</tbody></table>' +
+      '<div style="font-size:12px; color:#6B756F; margin-top:8px; line-height:1.5;">Assinados (8 andares): ' + REUNIAO_ASSINADOS.map((a) => a + 'º').join(', ') + ' — em execução as listas da operação.<br>A assinar: 20º, 19º, 13º, 12º, 11º, 7º, 6º e 5º — já no fluxo novo.</div></div>' +
+      // coluna 3: foco 19/20
+      '<div class="rn-bloco rn-foco"><h3>Foco: 19º e 20º</h3>' +
+        foco.map((f) => '<div class="rn-andar"><b class="rn-a">' + f.andar + 'º</b><div><div style="font-size:12.5px; color:#33403A;">Lista da operação (recebida 24/10): <b>' + fmt(f.sof) + '</b> itens · <b>' + fmt(f.sofFeitos) + '</b> feitos</div>' +
+          '<div class="rn-barra"><span style="width:' + (f.sof ? Math.round(f.sofFeitos / f.sof * 100) : 0) + '%"></span></div>' +
+          '<div style="font-size:11.5px; color:#6B756F;">Em aberto no andar: ' + fmt(f.aberto) + ' (IAC ' + fmt(f.iacAberto) + ' · operação ' + fmt(f.sof - f.sofFeitos) + ')</div></div></div>').join('') +
+        '<div class="rn-datas"><div><small>Lista concluída</small><b contenteditable="true">30/10</b></div><div><small>Revistoria conjunta</small><b contenteditable="true">30/10</b></div><div><small>Assinatura Accor</small><b contenteditable="true">31/10</b></div></div>' +
+        '<h3 style="margin-top:14px;">Para manter as datas</h3><ul class="rn-pedidos">' +
+          '<li>Lista da operação <b>antes</b> da revistoria nos andares a assinar (13º, 12º, 11º, 7º, 6º, 5º).</li>' +
+          '<li>Revistoria <b>conjunta</b> IAC + operação, numa data só por andar.</li>' +
+          '<li>Janela para serviços com pó (lixamento de pedra, pintura) <b>antes</b> da operação entrar.</li>' +
+        '</ul></div>' +
+    '</div>';
+}
+
 /* VALIDAÇÃO DA GESTÃO AW: a IAC não valida mais junto com a gente (a baixa da IAC é só o que ela TIRA
    da planilha). O antigo botão "Validado IAC" de cada item passa a ser a conferência da gestão da AW
    sobre a baixa dos mestres — feita só pelo diretor, pelo gerente do contrato e pelo gerente da obra. */
@@ -10740,6 +10846,7 @@ function irParaAba(nome){
   document.querySelectorAll('main .secao').forEach((s) => s.classList.toggle('ativa', s.id==='secao-'+nome));
   if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
   if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
+  if (nome === 'reuniao'){ try{ renderResumoGeral(); }catch(e){} setTimeout(renderReuniao, 50); }
   document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
   try{ atualizarVoltarFixo(); }catch(e){}
