@@ -962,6 +962,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="conferirQuarto">Conferir no quarto</option>
         <option value="naFalta">IAC não aceitou: falta analisar</option>
         <option value="naCobrar">IAC não aceitou: cobrar IAC</option>
+        <option value="naoBaixadoSof">Sofitel não aceitou</option>
+        <option value="naFaltaSof">Sofitel não aceitou: falta analisar</option>
+        <option value="naCobrarSof">Sofitel não aceitou: cobrar Sofitel</option>
       </select>
       <select id="filtro-item-programacao">
         <option value="">Toda a programação</option>
@@ -1400,7 +1403,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.305';
+const VERSAO_APP = '2026-10-03.306';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5420,9 +5423,9 @@ async function renderResumoGeral(recarregarHistorico){
       '</div>' +
       '<div class="grupo-label grupo-sofitel" style="margin-top:22px;">Não validados pela Sofitel — análise da AW</div>' +
       '<div class="resumo-grid">' +
-        '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrar" data-origem="SOFITEL"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a Sofitel deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
+        '<div class="stat clicavel" data-ir="itens-fluxo" data-fluxo="naCobrarSof" data-origem="SOFITEL"><div class="valor" style="color:var(--vd-forte);">'+a.confirma+'</div><div class="rotulo">AW confirma: a Sofitel deve corrigir</div><div class="pct-sub">a AW entende que está feito</div></div>' +
         '<div class="stat pronto"><div class="valor">'+a.conferir+'</div><div class="rotulo">AW vai conferir no quarto</div><div class="pct-sub">a equipe vai revalidar em campo</div></div>' +
-        '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFalta" data-origem="SOFITEL"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
+        '<div class="stat am clicavel" data-ir="itens-fluxo" data-fluxo="naFaltaSof" data-origem="SOFITEL"><div class="valor">'+a.falta+'</div><div class="rotulo">Falta a AW analisar</div><div class="pct-sub">ainda sem decisão</div></div>' +
       '</div>';
     })() +
     '<div class="grupo-label" style="margin-top:22px;">Em aberto por prioridade</div>' +
@@ -7406,10 +7409,13 @@ function passaFluxo(it, f){
   if (f === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
   if (f === 'novosAvaliar') return novoForaDoAberto(it);
   if (f === 'conferirQuarto') return naListaConferir(it);
-  if (/^na(Falta|Cobrar|Conferir|Voltou)$/.test(f)) return decisaoNaoValidado(it) === f;
+  if (/^na(Falta|Cobrar)$/.test(f)) return origemDoItem(it) !== 'SOFITEL' && decisaoNaoValidado(it) === f;
+  if (/^na(Falta|Cobrar)Sof$/.test(f)) return origemDoItem(it) === 'SOFITEL' && decisaoNaoValidado(it) === f.replace(/Sof$/, '');
+  if (/^na(Conferir|Voltou)$/.test(f)) return decisaoNaoValidado(it) === f;
   if (f === 'novosAceitos') return novoAceitoEmAberto(it);
   if (f === 'comReinc') return !!(a && a.reincidencias);
-  if (f === 'naoBaixadoIac') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
+  if (f === 'naoBaixadoIac') return origemDoItem(it) !== 'SOFITEL' && (iacNaoAceitou(it) || reabertoPorBaixaErrada(it));
+  if (f === 'naoBaixadoSof') return origemDoItem(it) === 'SOFITEL' && (iacNaoAceitou(it) || reabertoPorBaixaErrada(it));
   return true;
 }
 function abrirFiltroMultiplo(){
@@ -7460,7 +7466,7 @@ function grupoDecisao(it){
 }
 function listaComDecisoes(){
   const f = (document.getElementById('filtro-item-progresso') || {}).value || '';
-  const fl = ['naoBaixadoIac', 'naFalta', 'naCobrar', 'conferirQuarto'];
+  const fl = ['naoBaixadoIac', 'naFalta', 'naCobrar', 'naoBaixadoSof', 'naFaltaSof', 'naCobrarSof', 'conferirQuarto'];
   return fl.indexOf(f) !== -1 || filtroMulti.fluxos.some((x) => fl.indexOf(x) !== -1);
 }
 function obterItensFiltrados(){
@@ -7514,10 +7520,13 @@ function obterItensFiltrados(){
       if (filtroProgressoSelect === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
       if (filtroProgressoSelect === 'novosAvaliar') return novoForaDoAberto(it);
       if (filtroProgressoSelect === 'conferirQuarto') return naListaConferir(it);
-      if (/^na(Falta|Cobrar|Conferir|Voltou)$/.test(filtroProgressoSelect)) return decisaoNaoValidado(it) === filtroProgressoSelect;
+      if (/^na(Falta|Cobrar)$/.test(filtroProgressoSelect)) return origemDoItem(it) !== 'SOFITEL' && decisaoNaoValidado(it) === filtroProgressoSelect;
+      if (/^na(Falta|Cobrar)Sof$/.test(filtroProgressoSelect)) return origemDoItem(it) === 'SOFITEL' && decisaoNaoValidado(it) === filtroProgressoSelect.replace(/Sof$/, '');
+      if (/^na(Conferir|Voltou)$/.test(filtroProgressoSelect)) return decisaoNaoValidado(it) === filtroProgressoSelect;
       if (filtroProgressoSelect === 'novosAceitos') return novoAceitoEmAberto(it);
       if (filtroProgressoSelect === 'comReinc') return !!(a && a.reincidencias);
-      if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return iacNaoAceitou(it) || reabertoPorBaixaErrada(it);
+      if (filtroProgressoSelect === 'naoBaixadoIac' || filtroProgressoSelect === 'iacManteve') return origemDoItem(it) !== 'SOFITEL' && (iacNaoAceitou(it) || reabertoPorBaixaErrada(it));
+      if (filtroProgressoSelect === 'naoBaixadoSof') return origemDoItem(it) === 'SOFITEL' && (iacNaoAceitou(it) || reabertoPorBaixaErrada(it));
       if (filtroProgressoSelect === 'awSemIac') return !!(a && a.awExecEm && !a.iacOkEm);
       if (filtroProgressoSelect === 'novosRevisao') return !!entradaNestaRevisao(it);
       if (filtroProgressoSelect === 'semPrevisao') return estaEmAberto(it) && !(a && a.dataPrevista);
