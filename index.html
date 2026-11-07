@@ -3258,13 +3258,39 @@ async function aceitarSugestoes(ids){
   sugestoesIdx = null;
   return n;
 }
+/* GRAVAÇÃO SEGURA: nunca reescreve o item com uma cópia velha da memória.
+   Antes de gravar, lê a versão atual do banco e aplica SÓ o que esta ação mudou
+   (campos alterados + eventos novos do histórico). Assim, uma ação em massa feita num aparelho
+   desatualizado não apaga baixas nem o histórico que outro aparelho gravou. */
+function chaveEvento(e){ return e ? [e.t, e.em, e.por].join('|') : ''; }
+function mesclarComBanco(antes, novo, banco){
+  antes = antes || {}; const res = Object.assign({}, banco);
+  const chaves = new Set(Object.keys(antes).concat(Object.keys(novo || {})));
+  chaves.forEach((k) => {
+    if (k === 'historico') return;
+    if (JSON.stringify(novo[k]) !== JSON.stringify(antes[k])){ if (novo[k] === undefined) delete res[k]; else res[k] = novo[k]; }
+  });
+  const ha = Array.isArray(antes.historico) ? antes.historico : [], hn = Array.isArray(novo.historico) ? novo.historico : [], hb = Array.isArray(banco.historico) ? banco.historico : [];
+  const kA = new Set(ha.map(chaveEvento)), kN = new Set(hn.map(chaveEvento));
+  const removidos = new Set(ha.filter((e) => !kN.has(chaveEvento(e))).map(chaveEvento));   // eventos que esta ação tirou (ex.: desfazer)
+  const novos = hn.filter((e) => !kA.has(chaveEvento(e)));                                  // eventos que esta ação acrescentou
+  const kB = new Set(hb.map(chaveEvento));
+  res.historico = hb.filter((e) => !removidos.has(chaveEvento(e))).concat(novos.filter((e) => !kB.has(chaveEvento(e))));
+  return res;
+}
 async function salvarAcompanhamentoComRetry(itemId, dados){
   sugestoesIdx = null; // qualquer mudança refaz o aprendizado
-  let r = await store.setDoc('acompanhamento', itemId, dados);
+  let final = dados;
+  try{
+    const banco = await store.getDoc('acompanhamento', itemId);
+    if (banco && typeof banco === 'object') final = mesclarComBanco(acompanhamento[itemId], dados, banco);
+  }catch(e){}
+  let r = await store.setDoc('acompanhamento', itemId, final);
   if (!r.ok){
     await new Promise((res) => setTimeout(res, 1500));
-    r = await store.setDoc('acompanhamento', itemId, dados);
+    r = await store.setDoc('acompanhamento', itemId, final);
   }
+  if (r.ok && final !== dados) setTimeout(() => { acompanhamento[itemId] = final; }, 0); // a memória fica com a versão completa (depois de quem chamou)
   if (loteAgrup) contarProgressoAgrup(itemId);
   return r;
 }
