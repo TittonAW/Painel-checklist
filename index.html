@@ -464,6 +464,11 @@ td.col-centro .tag-reinc{ display:flex; width:max-content; margin:4px auto 0; }
 .badge.execucao{ background:var(--exec-soft); color:var(--text-2); }
 .stat.execucao .valor{ color:var(--text-2); }
 .badge.liberado-pend{ background:var(--lib-soft); color:var(--lib); }
+.badge.aprov-sof{ background:#E3F5EC; color:#4FA77C; }
+.status-aprovado-sof{ background:rgba(124,201,160,.55); }
+.andar-barra .barra.fundo-status-aprovado-sof{ background:#E3F5EC; }
+.andar-barra .barra > span.preenchido.status-aprovado-sof{ background:#7CC9A0; }
+.btn-etapa.marcado.aprovsof{ background:#E3F5EC; border-color:#A9DCC2; color:#3E8E66; }
 .badge.concluido{ background:var(--vd-soft); color:var(--vd); }
 .badge.semdados{ background:var(--semdados-soft); color:var(--semdados); }
 .chip-acao{ font-size:11.5px; padding:4px 10px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; white-space:nowrap; transition:border-color .15s, color .15s, background .15s; }
@@ -854,6 +859,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
           <span style="white-space:nowrap;"><span class="badge pronto">●</span> <span style="color:var(--pronto);">Liberado p/ vistoria</span></span>
           <span style="white-space:nowrap;"><span class="badge vistoriado">●</span> <span style="color:var(--vist);">Vistoriado pela IAC</span></span>
           <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--lib);">Liberado p/ operação</span></span>
+          <span style="white-space:nowrap;"><span class="badge aprov-sof">●</span> <span style="color:#4FA77C;">Aprovado Sofitel</span></span>
           <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
         </div>
       </div>
@@ -925,7 +931,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       <table>
         <thead><tr>
           <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
-          <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th>
+          <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th><th class="col-centro" id="th-aprovsof-quartos">Aprovado Sofitel</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
       </table>
@@ -1404,7 +1410,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.314';
+const VERSAO_APP = '2026-10-03.315';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3276,7 +3282,128 @@ async function aceitarSugestoes(ids){
 /* ===================== APROVAÇÃO DE ALTERAÇÕES EM MASSA =====================
    Só o Fundador altera 2+ itens de uma vez. Os outros enviam um pedido (coleção "aprovacoes");
    o Fundador vê no sino, confere os itens e aprova (o app dele aplica) ou recusa com motivo. */
-let pedidosAprovacao = [], pedidoEmAplicacao = null, agrupamentoSalvouEm = 0, filtroIdsPedido = null;
+let pedidosAprovacao = [], pedidoEmAplicacao = null, agrupamentoSalvouEm = 0, filtroIdsPedido = null, nAvisosAprov = 0;
+/* ---- Aprovado Sofitel (por ambiente; depois do Liberado p/ operação) ---- */
+let aprovadosSofitel = {};
+async function carregarAprovadosSofitel(){
+  try{ const d = await store.getDoc('config', 'aprovados_sofitel'); const novo = (d && d.mapa) || {};
+    const mudou = JSON.stringify(novo) !== JSON.stringify(aprovadosSofitel); aprovadosSofitel = novo;
+    if (mudou && itensRevisaoAtual.length){ try{ renderTorreAndares(); }catch(e){} try{ renderQuartos(); }catch(e){} }
+  }catch(e){}
+}
+async function alternarAprovadoSofitel(chaves, soMarcar){
+  if (!exigirAdmin() || !(await garantirUsuario())) return;
+  if (chaves.length > 1 && !ehFundador()){ avisoFlutuante('Marcar vários ambientes de uma vez é só com o Fundador.', 'erro'); return; }
+  let d = null; try{ d = await store.getDoc('config', 'aprovados_sofitel'); }catch(e){}
+  const mapa = Object.assign({}, (d && d.mapa) || {}), agora = new Date().toISOString();
+  chaves.forEach((k) => { if (mapa[k] && !soMarcar) delete mapa[k]; else if (!mapa[k]) mapa[k] = { em: agora, por: usuarioAtual }; });
+  const r = await store.setDoc('config', 'aprovados_sofitel', { mapa });
+  if (!r || !r.ok){ avisoFlutuante('Não foi salvo (sem conexão?). Tente de novo.', 'erro'); renderQuartos(); return; }
+  aprovadosSofitel = mapa; renderQuartos(); renderTorreAndares();
+  avisoFlutuante(chaves.length > 1 ? chaves.length + ' ambientes aprovados pela Sofitel' : 'Aprovado Sofitel atualizado', 'ok');
+}
+/* ---- plano de ataque (a regra do Guilherme, 08/11) ----
+   1ª prioridade: terminar os em aberto dos andares que ainda NÃO foram liberados p/ operação.
+   2ª onda (de cima para baixo): executar e aprovar com a operação os itens da Sofitel; da IAC, só os
+   que já foram resolvidos em outros andares (repetitivos) — o resto da IAC não é atacado. */
+const PRIORIDADE_ANDARES = [6, 5];
+const ONDAS_SOFITEL = [
+  { ini:'2026-11-09', fim:'2026-11-16', andares:[20, 19, 18, 17] },
+  { ini:'2026-11-16', fim:'2026-11-23', andares:[16, 15, 14, 13, 12] },
+  { ini:'2026-11-23', fim:'2026-11-30', andares:[11, 7, 6, 5] },
+];
+function locaisDoAndarCor(a){ const ls = agruparPorLocal(itensRevisaoAtual).filter((l) => Number(l.andar) === Number(a)); return ls.some((l) => l.tipo === 'APTO') ? ls.filter((l) => l.tipo === 'APTO') : ls; }
+function andarLiberadoOperacao(a){ const ls = locaisDoAndarCor(a); if (!ls.length) return false; const p = piorStatusEntreLocais(ls); return p === 'LIBERADO_PEND' || p === 'CONCLUIDO'; }
+function ondasDeHoje(){ const h = chaveDia(new Date()); const at = ONDAS_SOFITEL.filter((o) => h >= o.ini && h <= o.fim); if (at.length) return at.map((o) => Object.assign({ estado:'atual' }, o)); const px = ONDAS_SOFITEL.find((o) => h < o.ini); return px ? [Object.assign({ estado:'proxima' }, px)] : []; }
+function abertoOuNovo(x){ return novoForaDoAberto(x) || (contaNoTotal(x) && estaEmAberto(x)); }
+function sofitelEmAberto(a){ return itensRevisaoAtual.filter((x) => Number(x.andar) === Number(a) && origemDoItem(x) === 'SOFITEL' && abertoOuNovo(x)); }
+function iacRepetitivos(andares){
+  const feitos = new Map();
+  itensRevisaoAtual.forEach((x) => { if (andares.indexOf(Number(x.andar)) !== -1 || origemDoItem(x) === 'SOFITEL' || !baixaDaAW(x)) return;
+    const k = chaveComparacao(x.desc); if (!k || k.length < 8) return; feitos.set(k, (feitos.get(k) || 0) + 1); });
+  const grupos = new Map();
+  itensRevisaoAtual.forEach((x) => { if (andares.indexOf(Number(x.andar)) === -1 || origemDoItem(x) === 'SOFITEL' || x.origem === 'AW' || !abertoOuNovo(x)) return;
+    const k = chaveComparacao(x.desc), f = feitos.get(k) || 0; if (f < 3) return;
+    if (!grupos.has(k)) grupos.set(k, { desc: x.desc, feitos: f, ids: [] }); grupos.get(k).ids.push(x.id); });
+  return Array.from(grupos.values()).sort((a, b) => b.ids.length - a.ids.length || b.feitos - a.feitos);
+}
+function topContagem(lista, chaveFn, n){ const m = {}; lista.forEach((x) => { const k = chaveFn(x); m[k] = (m[k] || 0) + 1; }); return Object.keys(m).map((k) => ({ k, n: m[k] })).sort((a, b) => b.n - a.n).slice(0, n); }
+let idsAvisos = [];
+function botaoVerIds(ids, rotulo){ idsAvisos.push({ ids, rotulo }); return '<button type="button" class="chip-acao" data-av-ver="' + (idsAvisos.length - 1) + '">Ver ' + ids.length + ' ite' + (ids.length === 1 ? 'm' : 'ns') + '</button>'; }
+function htmlAvisosChat(){
+  idsAvisos = [];
+  const fund = ehFundador(); let h = '';
+  const quando = (s) => s ? new Date(s).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+  const card = (cor, borda, html) => '<div class="rec-card" style="background:' + cor + '; border-color:' + borda + ';">' + html + '</div>';
+  // 1) pedidos de alteração em massa
+  if (fund){
+    const pend = pedidosAprovacao.filter((p) => p.status === 'pendente');
+    if (pend.length) h += '<div class="rec-titulo">Pedidos de alteração em massa · precisam da sua aprovação</div>' + pend.map((p) => card('#FFF6DA', '#EAD38A',
+      '<b>' + esc(p.por || '') + '</b> <span style="color:var(--muted); font-size:12px;">· ' + quando(p.em) + '</span><div style="margin-top:4px;">' + (p.resumo || []).map(esc).join(' · ') + '</div>' +
+      '<div class="rec-sub">' + (p.n || (p.ids || []).length) + ' itens · ' + (p.andares || []).map((a) => a + 'º').join(', ') + '</div>' +
+      '<div class="rec-botoes"><button type="button" class="chip-acao" data-av-ped-ver="' + esc(p._id) + '">Ver itens</button><button type="button" class="chip-acao rec-ok" data-av-ped-aprovar="' + esc(p._id) + '">Aprovar e aplicar</button><button type="button" class="chip-acao" data-av-ped-recusar="' + esc(p._id) + '">Recusar</button></div>')).join('');
+  } else {
+    const visto = localStorage.getItem('pedidos_vistos_' + chaveComparacao(usuarioAtual)) || '';
+    const meus = pedidosAprovacao.filter((p) => p.por === usuarioAtual && (p.status === 'pendente' || String(p.decididoEm || '') > visto));
+    if (meus.length) h += '<div class="rec-titulo">Meus pedidos de alteração em massa</div>' + meus.map((p) => card(p.status === 'aprovado' ? '#E8F5EE' : p.status === 'recusado' ? '#FBECEA' : '#FFF6DA', p.status === 'aprovado' ? '#BFE3CF' : p.status === 'recusado' ? '#EBC3BD' : '#EAD38A',
+      (p.resumo || []).map(esc).join(' · ') + ' · ' + (p.n || 0) + ' itens<div class="rec-sub">' + (p.status === 'pendente' ? 'Aguardando a aprovação de ' + esc(FUNDADOR) : (p.status === 'aprovado' ? 'Aprovado' : 'Recusado') + ' por ' + esc(p.decididoPor || '') + ' em ' + quando(p.decididoEm) + (p.motivo ? ' · “' + esc(p.motivo) + '”' : '')) + '</div>')).join('');
+  }
+  if (!recebeRecomendacoes()) return h;
+  // 2) 1ª prioridade: andares ainda não liberados p/ operação
+  const prio = PRIORIDADE_ANDARES.filter((a) => andaresConhecidos.indexOf(a) !== -1 && !andarLiberadoOperacao(a));
+  if (prio.length){
+    h += '<div class="rec-titulo">1ª prioridade · terminar até liberar para a operação</div>' + prio.map((a) => {
+      const ab = itensRevisaoAtual.filter((x) => Number(x.andar) === a && abertoOuNovo(x));
+      const semLib = agruparPorLocal(itensRevisaoAtual).filter((l) => Number(l.andar) === a).filter((l) => { const s = classificarComLiberacao(l.itens, l.liberado, l.pronto, l.vistoriado); return s !== 'LIBERADO_PEND' && s !== 'CONCLUIDO'; }).length;
+      const forn = topContagem(ab, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3), qts = topContagem(ab, (x) => String(localLabel(x)).replace(/\u00A0/g, ' '), 3);
+      return card('#FBE9D6', '#F1C99B', '<b>' + nomeAndarLongo(a) + ':</b> ' + ab.length + ' em aberto · ' + semLib + ' ambiente(s) sem liberar p/ operação' +
+        (forn.length ? '<div class="rec-sub">Fornecedores: ' + forn.map((f) => esc(f.k) + ' (' + f.n + ')').join(' · ') + '</div>' : '') +
+        (qts.length ? '<div class="rec-sub">Quartos com mais itens: ' + qts.map((q) => esc(q.k) + ' (' + q.n + ')').join(' · ') + '</div>' : '') +
+        (ab.length ? '<div class="rec-botoes">' + botaoVerIds(ab.map((x) => x.id), 'Em aberto · ' + nomeAndar(a)) + '</div>' : ''));
+    }).join('');
+  }
+  // 3) 2ª onda: Sofitel de cima para baixo + IAC repetitivos
+  ondasDeHoje().forEach((o) => {
+    const linhas = o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).map((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a), ap = ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length;
+      return { a, s, ap, tot: ls.length }; });
+    const todosS = linhas.flatMap((l) => l.s.map((x) => x.id));
+    h += '<div class="rec-titulo">' + (o.estado === 'atual' ? 'Onda Sofitel' : 'Próxima onda Sofitel') + ' · ' + dataCurta(o.ini) + ' a ' + dataCurta(o.fim) + ' · executar e aprovar com a operação</div>' +
+      card('#E7EEFB', '#B7C9EE', linhas.map((l) => '<div><b>' + nomeAndar(l.a) + ':</b> ' + l.s.length + ' itens da Sofitel em aberto · aprovados Sofitel ' + l.ap + '/' + l.tot + '</div>').join('') +
+        (todosS.length ? '<div class="rec-botoes">' + botaoVerIds(todosS, 'Sofitel em aberto · onda ' + dataCurta(o.ini)) + '</div>' : ''));
+    const rep = iacRepetitivos(o.andares), idsRep = rep.flatMap((g) => g.ids);
+    if (idsRep.length) h += card('#EFE8FA', '#CDBDF0', '<b>IAC que você já resolveu em outros andares:</b> ' + idsRep.length + ' itens nos andares da onda' +
+      '<div class="rec-sub">' + rep.slice(0, 5).map((g) => '“' + esc(String(g.desc).slice(0, 60)) + (String(g.desc).length > 60 ? '…' : '') + '” · ' + g.ids.length + ' aqui · feito ' + g.feitos + '× em outros andares').join('<br>') + '</div>' +
+      '<div class="rec-sub">O resto da IAC fica de fora (detalhe que não vale atacar agora).</div><div class="rec-botoes">' + botaoVerIds(idsRep, 'IAC repetitivos · onda ' + dataCurta(o.ini)) + '</div>');
+  });
+  return h;
+}
+function verIdsNaAbaItens(ids, rotulo, aoVoltar){
+  filtroIdsPedido = new Set(ids || []);
+  const fechar = document.getElementById('chat-fechar'); if (fechar && !document.getElementById('painel-chat').classList.contains('oculto')) fechar.click();
+  const bAba = document.querySelector('nav.abas button[data-aba="itens"]'); if (bAba) bAba.click();
+  let barra = document.getElementById('barra-pedido');
+  if (!barra){ barra = document.createElement('div'); barra.id = 'barra-pedido'; barra.style.cssText = 'position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:95; background:#FFF7EC; border:1px solid #F1D7B4; color:#7A4A12; border-radius:999px; padding:8px 14px; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.10); display:flex; gap:10px; align-items:center;'; document.body.appendChild(barra); }
+  barra.innerHTML = esc(rotulo) + ' (' + filtroIdsPedido.size + ') <button type="button" class="btn fantasma" id="barra-pedido-voltar" style="padding:3px 10px; font-size:12px;">Voltar ao chat</button><button type="button" class="btn fantasma" id="barra-pedido-sair" style="padding:3px 10px; font-size:12px;">✕</button>';
+  const sair = () => { filtroIdsPedido = null; barra.remove(); renderItens(); };
+  barra.querySelector('#barra-pedido-sair').addEventListener('click', sair);
+  barra.querySelector('#barra-pedido-voltar').addEventListener('click', () => { sair(); (aoVoltar || abrirChatAvisos)(); });
+  renderItens();
+}
+function abrirChatAvisos(){ const b = document.getElementById('btn-chat'); if (b) b.click(); }
+function montarAvisosChat(){
+  const lista = document.getElementById('chat-mensagens'); if (!lista || !ehAdminAtual()) return;
+  let ca = document.getElementById('chat-avisos');
+  if (!ca){ ca = document.createElement('div'); ca.id = 'chat-avisos'; lista.prepend(ca);
+    ca.addEventListener('click', (e) => {
+      const v = e.target.closest('[data-av-ver]'); if (v){ const r = idsAvisos[Number(v.dataset.avVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo); return; }
+      const pv = e.target.closest('[data-av-ped-ver]'); if (pv){ const p = pedidosAprovacao.find((x) => x._id === pv.dataset.avPedVer); if (p) verIdsNaAbaItens(p.ids, 'Itens do pedido de ' + p.por); return; }
+      const pa = e.target.closest('[data-av-ped-aprovar]'); if (pa){ const p = pedidosAprovacao.find((x) => x._id === pa.dataset.avPedAprovar); const f = document.getElementById('chat-fechar'); if (f) f.click(); aprovarPedido(p); return; }
+      const pr = e.target.closest('[data-av-ped-recusar]'); if (pr){ recusarPedido(pedidosAprovacao.find((x) => x._id === pr.dataset.avPedRecusar)); return; }
+    }); }
+  else lista.prepend(ca);
+  ca.innerHTML = htmlAvisosChat();
+  if (!ehFundador()){ localStorage.setItem('pedidos_vistos_' + chaveComparacao(usuarioAtual), new Date().toISOString()); nAvisosAprov = 0; marcarBadgeChat(ultimoBadgeBase); }
+}
 function textoCampoAgrupamento(el){
   const lab = document.querySelector('label[for="' + el.id + '"]');
   const nome = lab ? (lab.childNodes[0] ? String(lab.childNodes[0].textContent || '') : lab.textContent).trim() : el.id;
@@ -3300,22 +3427,20 @@ async function enviarPedidoAprovacao(ids, overlay){
   const r = await store.setDoc('aprovacoes', pid, { status:'pendente', por: usuarioAtual, em: new Date().toISOString(), ids, campos, resumo, andares, n: ids.length });
   if (!r || !r.ok){ avisoFlutuante('Não consegui enviar o pedido (sem conexão?). Tente de novo.', 'erro'); return; }
   fecharEdicaoAgrupamento(); itensSelecionados.clear(); atualizarTelasAposAcompanhamento();
-  avisoFlutuante('Pedido enviado para aprovação de ' + FUNDADOR + ' (' + ids.length + ' itens)', 'ok');
+  avisoFlutuante('Pedido enviado para aprovação de ' + FUNDADOR + ' (' + ids.length + ' itens). Ele recebe no chat.', 'ok');
   carregarPedidos();
 }
 async function carregarPedidos(){
   const btn = document.getElementById('btn-aprovacoes'); if (!btn) return;
-  if (!usuarioAtual || modoVisualizador() || !ehAdminAtual()){ btn.hidden = true; return; }
+  if (!usuarioAtual || modoVisualizador() || !ehAdminAtual()){ btn.hidden = true; nAvisosAprov = 0; return; }
   try{ const docs = await store.listCollection('aprovacoes'); pedidosAprovacao = docs.sort((a, b) => String(b.em || '').localeCompare(String(a.em || ''))); }catch(e){ return; }
   let n = 0;
   if (ehFundador()) n = pedidosAprovacao.filter((p) => p.status === 'pendente').length;
   else { const visto = localStorage.getItem('pedidos_vistos_' + chaveComparacao(usuarioAtual)) || '';
     n = pedidosAprovacao.filter((p) => p.por === usuarioAtual && p.status !== 'pendente' && String(p.decididoEm || '') > visto).length; }
-  const meus = ehFundador() ? pedidosAprovacao.length : pedidosAprovacao.filter((p) => p.por === usuarioAtual).length;
-  btn.hidden = !(n || meus);
-  document.getElementById('n-aprovacoes').textContent = n ? String(n) : '';
-  document.getElementById('n-aprovacoes').style.display = n ? 'inline-block' : 'none';
-  const painel = document.getElementById('modal-pedidos'); if (painel) renderPainelPedidos();
+  btn.hidden = true; // sem sino: tudo chega pelo chat
+  nAvisosAprov = n; marcarBadgeChat(ultimoBadgeBase);
+  const p = document.getElementById('painel-chat'); if (p && !p.classList.contains('oculto')) montarAvisosChat();
 }
 function abrirPainelPedidos(){
   let ov = document.getElementById('modal-pedidos');
@@ -3353,7 +3478,7 @@ function renderPainelPedidos(){
   ov.querySelectorAll('[data-ped-recusar]').forEach((b) => b.addEventListener('click', () => recusarPedido(pedidosAprovacao.find((p) => p._id === b.dataset.pedRecusar))));
 }
 function verItensDoPedido(p){
-  if (!p) return;
+  if (!p) return; return verIdsNaAbaItens(p.ids, 'Itens do pedido de ' + p.por);
   filtroIdsPedido = new Set(p.ids || []);
   const ov = document.getElementById('modal-pedidos'); if (ov) ov.remove();
   const bAba = document.querySelector('nav.abas button[data-aba="itens"]'); if (bAba) bAba.click();
@@ -3402,8 +3527,8 @@ let timerPedidos = null;
 function iniciarAprovacoes(){
   const btn = document.getElementById('btn-aprovacoes');
   if (btn && !btn.dataset.ok){ btn.dataset.ok = '1'; btn.addEventListener('click', abrirPainelPedidos); }
-  carregarPedidos();
-  if (!timerPedidos) timerPedidos = setInterval(() => { if (!document.hidden) carregarPedidos(); }, 60000);
+  carregarAprovadosSofitel(); carregarPedidos();
+  if (!timerPedidos) timerPedidos = setInterval(() => { if (!document.hidden){ carregarAprovadosSofitel(); carregarPedidos(); } }, 60000);
 }
 
 function chaveEvento(e){ return e ? [e.t, e.em, e.por].join('|') : ''; }
@@ -5333,6 +5458,7 @@ function renderTorreAndares(){
       // andar "liberado por inteiro": nenhuma área ainda crítica ou pendente sem liberar —
       // ou já ficou tudo azul (liberado p/ operação), ou já foi tudo embora (verde)
       liberadoTotal = (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO');
+      if (liberadoTotal && locaisCor.length && locaisCor.every((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)])) statusClasse = 'status-aprovado-sof';
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const novosAbertosDoAndar = itensDoAndar.filter(novoAAvaliar).length;          // novos ainda sem decisão
@@ -7302,7 +7428,10 @@ function renderQuartos(){
           '<td class="col-centro">'+barraPct(totalAmb ? Math.round((totalAmb - abertoAmb) / totalAmb * 100) : 0)+'</td>';
       })() +
       '<td class="col-centro">'+celPronto+'</td><td class="col-centro">'+celVist+'</td>' + '<td hidden style="font-size:12.5px; color:'+(vistoriasIac[l.andar] ? 'var(--vist)' : 'var(--faint)')+';" title="'+(vistoriasIac[l.andar] ? 'IAC vistoriou o '+esc(nomeAndarLongo(l.andar))+' em '+vistoriasIac[l.andar].em.split('-').reverse().join('/') : 'A IAC ainda não vistoriou este andar')+'">'+(vistoriasIac[l.andar] ? vistoriasIac[l.andar].em.split('-').reverse().slice(0,2).join('/') : '—')+'</td>' +
-      '<td class="col-centro">'+acaoHtml+'</td>';
+      '<td class="col-centro">'+acaoHtml+'</td>' +
+      '<td class="col-centro">' + ((status === 'LIBERADO_PEND' || status === 'CONCLUIDO')
+        ? (() => { const ap = aprovadosSofitel[kAmb]; return '<button class="chip-acao btn-etapa'+(ap ? ' marcado aprovsof' : '')+'" data-acao-aprovsof="1" '+(ehAdminAtual() ? '' : 'disabled')+' title="'+(ap ? 'Aprovado em '+new Date(ap.em).toLocaleDateString('pt-BR')+' · '+esc(ap.por || '') : 'Marcar como aprovado pela Sofitel (operação)')+'">'+(ap ? '✓ Aprovado' : 'Aprovar')+'</button>'; })()
+        : '<span class="sem-foto">—</span>') + '</td>';
     tbody.appendChild(tr);
     linhas++;
   });
@@ -7329,6 +7458,14 @@ function renderQuartos(){
       });
     }
   }
+  { const th = document.getElementById('th-aprovsof-quartos');
+    if (th){ th.innerHTML = 'Aprovado Sofitel' + (ehFundador() && linhas ? '<div><a href="#" id="aprovsof-todos" style="font-size:10.5px; font-weight:400;">marcar os listados</a></div>' : '');
+      const lk = document.getElementById('aprovsof-todos');
+      if (lk) lk.addEventListener('click', async (e) => { e.preventDefault();
+        const ks = Array.from(tbody.querySelectorAll('tr')).filter((tr) => tr.querySelector('[data-acao-aprovsof]:not(.marcado)')).map((tr) => chaveAreaGlobal(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10)));
+        if (!ks.length){ avisoFlutuante('Nenhum ambiente listado para aprovar (precisa estar liberado p/ operação).', 'erro'); return; }
+        if (!window.confirm('Marcar ' + ks.length + ' ambiente(s) listado(s) como aprovados pela Sofitel?')) return;
+        await alternarAprovadoSofitel(ks, true); }); } }
   document.getElementById('vazio-quartos').classList.toggle('oculto', linhas>0);
   requestAnimationFrame(() => { const c = document.getElementById('card-quartos'); if (!c) return; c.classList.remove('rolagem'); const tb = c.querySelector('table'); if (tb && tb.scrollWidth > c.clientWidth + 2) c.classList.add('rolagem'); });
   const caixaAgr = document.getElementById('agressores-quartos');
@@ -7346,7 +7483,7 @@ function renderQuartos(){
   }
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
     tr.addEventListener('click', (e) => {
-      if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]') || e.target.closest('[data-acao-vist]')) return; // o botão trata seu próprio clique
+      if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]') || e.target.closest('[data-acao-vist]') || e.target.closest('[data-acao-aprovsof]')) return; // o botão trata seu próprio clique
       const tagRv = e.target.closest('[data-rv-local]');
       if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
       const tag = e.target.closest('[data-agressor]');
@@ -7366,6 +7503,8 @@ function renderQuartos(){
         fluxo: celConf ? 'conferirQuarto' : tagNovos ? 'novosAvaliar' : (tagNA ? 'naoBaixadoIac' : (tag ? 'emAberto' : document.getElementById('filtro-progresso').value))
       });
     });
+    const btnAS = tr.querySelector('[data-acao-aprovsof]');
+    if (btnAS) btnAS.addEventListener('click', async (e) => { e.stopPropagation(); btnAS.disabled = true; await alternarAprovadoSofitel([chaveAreaGlobal(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10))]); });
     const btnV = tr.querySelector('[data-acao-vist]');
     if (btnV) btnV.addEventListener('click', (e) => { e.stopPropagation(); marcarVistoriaAmbiente(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10)); });
     const btnP = tr.querySelector('[data-acao-pronto]');
@@ -8682,22 +8821,25 @@ function planoDoAndar(s, ritmo){
 let insightDoDia = null; // { data, texto }
 async function gerarInsightDoDia(planos){
   const hoje = chaveDia(new Date());
-  try{ const d = await store.getDoc('config', 'insight_diario'); if (d && d.data === hoje && d.texto){ insightDoDia = d; return; } }catch(e){}
+  try{ const d = await store.getDoc('config', 'insight_diario_v2'); if (d && d.data === hoje && d.texto){ insightDoDia = d; return; } }catch(e){}
   if (!planos.length || !supa || !supa.functions) return;
-  const pedido = 'Tarefa interna: escreva o PLANO DO DIA para os gestores da obra (português, direto, até 12 linhas, em tópicos curtos). ' +
-    'Use SOMENTE os números abaixo (já calculados pelo sistema; não invente). Para cada andar: se fecha no prazo no ritmo atual, quanto precisa por dia, quais fornecedores estão abaixo do necessário ' +
-    '(sugira reforço ou usar a AW Finalização como coringa só se o fornecedor dono não der conta), por quais quartos começar e quais quartos estão quase prontos para fechar e liberar para vistoria. ' +
+  const pedido = 'Tarefa interna: escreva o PLANO DO DIA para os gestores da obra (português, direto, até 10 linhas, em tópicos curtos). ' +
+    'REGRAS DO DIRETOR: (1) 1ª prioridade = terminar os itens em aberto dos andares que ainda NÃO foram liberados para a operação (fase "1-prioridade"); ' +
+    '(2) 2ª onda, de cima para baixo, com prazo = executar e aprovar com a operação (Sofitel) os itens da Sofitel dos andares da onda; dos itens da IAC, atacar SÓ os repetitivos (já resolvidos em outros andares) — o resto da IAC fica de fora. ' +
+    'NÃO cite andares que não estão nos dados. Use SOMENTE os números abaixo (não invente). Diga por onde começar (fornecedor e quartos) e o que falta para liberar/aprovar. ' +
     'Domingos e feriados rendem 80%; hoje é ' + hoje + '. DADOS: ' + JSON.stringify(planos);
   try{
     const { data, error } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }], contexto: 'Plano diário (texto, sem ferramentas).', ferramentas: [] } });
     const texto = !error && data && Array.isArray(data.content) ? data.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim() : '';
-    if (texto){ insightDoDia = { data: hoje, texto }; store.setDoc('config', 'insight_diario', insightDoDia).catch(() => {}); }
+    if (texto){ insightDoDia = { data: hoje, texto }; store.setDoc('config', 'insight_diario_v2', insightDoDia).catch(() => {}); }
   }catch(e){}
 }
+const CARTOES_PRAZO_LISTAS = false; // desligado em 08/11: os prazos de lista do cronograma antigo não valem mais (regra nova: 1ª prioridade + ondas Sofitel)
 function cartoesDoCronograma(){
-  if (!cronograma) return [];
+  if (!cronograma || !CARTOES_PRAZO_LISTAS) return [];
   const out = [];
   ordemDosAndares().forEach((a) => { const s = situacaoDoAndar(a); if (!s) return;
+    if (cartaoExpirado('crono|' + a + '|' + (s.revAjustada ? 'ajuste' : s.estado))) return;
     if (s.revAjustada){ out.push({ tipo: 'ajuste', s }); return; }
     if (!s.listaOk && (s.estado === 'alerta' || s.estado === 'atraso')) out.push({ tipo: 'lista', s });
     else if (!s.listaOk && s.temItens && itensPorQuartoDoAndar(a) > 0 && diasUteisEntre(chaveDia(new Date()), s.prazoIdeal) <= 5) out.push({ tipo: 'completa', s });
@@ -8728,7 +8870,16 @@ async function atualizarCronogramaEPlano(){
   renderCronograma();
   if (!recebeRecomendacoes()) return;
   const ritmo = ritmoReal();
-  const planos = ordemDosAndares().map(situacaoDoAndar).filter((s) => s && s.listaOk && s.emAberto > 0 && chaveDia(new Date()) <= s.alvo).map((s) => planoDoAndar(s, ritmo));
+  const planos = [];
+  PRIORIDADE_ANDARES.filter((a) => andaresConhecidos.indexOf(a) !== -1 && !andarLiberadoOperacao(a)).forEach((a) => {
+    const ab = itensRevisaoAtual.filter((x) => Number(x.andar) === a && abertoOuNovo(x));
+    planos.push({ fase:'1-prioridade', andar:a, emAberto: ab.length, fornecedores: topContagem(ab, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 4), quartos: topContagem(ab, (x) => String(localLabel(x)).replace(/\u00A0/g, ' '), 4) }); });
+  ondasDeHoje().forEach((o) => { const rep = iacRepetitivos(o.andares);
+    o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).forEach((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a);
+      planos.push({ fase:'2-onda Sofitel ' + dataCurta(o.ini) + ' a ' + dataCurta(o.fim) + (o.estado === 'proxima' ? ' (começa em ' + dataCurta(o.ini) + ')' : ''), andar:a,
+        sofitelEmAberto: s.length, iacRepetitivos: rep.reduce((n, g) => n + g.ids.filter((id) => (itensRevisaoAtual.find((x) => x.id === id) || {}).andar == a).length, 0),
+        aprovadosSofitel: ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length + '/' + ls.length,
+        fornecedoresSofitel: topContagem(s, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3) }); }); });
   await gerarInsightDoDia(planos);
   marcarBadgeChat(recomendacoesAtuais.length + cartoesDoCronograma().length);
 }
@@ -9067,6 +9218,14 @@ function podeValidarGestao(){ return (VALIDADORES_GESTAO[OBRA || 'quartos'] || [
 const RECOMENDACOES_PARA = { 'quartos': ['Guilherme Titton', 'Marcel Camilo'], 'areas-comuns': ['Rafael Gentil', 'Gabriel Cecche'] };
 const ROTULO_DECISAO = { cobrar:'IAC precisa corrigir', conferir:'Conferir no quarto', aberto:'Aceitar como aberto (reincidência)', confirmar:'Confirmar a baixa (Executado AW)', reabrir:'Não foi feito: reabrir', aceitar:'Aceitar como novo', naonovo:'Não é novo (continuação)', contestar:'IAC precisa corrigir (item novo)' };
 let recomendacoesAtuais = [], recomendacoesIgnoradas = null, filtroIdsRec = null;
+/* cartão que ninguém avaliou em 24 h some sozinho, de vez (se não foi olhado, não fazia sentido) */
+let cartoesVistos = null, tSalvarVistos = null;
+const VALIDADE_CARTAO_MS = 24*3600*1000;
+function cartaoExpirado(chave){
+  if (!cartoesVistos) return false;
+  if (!cartoesVistos[chave]){ cartoesVistos[chave] = new Date().toISOString(); clearTimeout(tSalvarVistos); tSalvarVistos = setTimeout(() => { store.setDoc('config', 'cartoes_vistos_' + chaveComparacao(usuarioAtual || ''), { mapa: cartoesVistos }).catch(() => {}); }, 3000); return false; }
+  return Date.now() - new Date(cartoesVistos[chave]).getTime() > VALIDADE_CARTAO_MS;
+}
 function recebeRecomendacoes(){ const l = RECOMENDACOES_PARA[OBRA || 'quartos'] || []; return ehAdminAtual() && l.indexOf(usuarioAtual) !== -1; }
 function decisaoTomada(it){
   const a = acompanhamento[it.id] || {};
@@ -9120,16 +9279,19 @@ function calcularRecomendacoes(){
     grupos.get(kg).ids.push(it.id);
   });
   const ign = recomendacoesIgnoradas || {};
-  return Array.from(grupos.values()).filter((g) => !ign[g.chave]).filter((g) => g.tipo === 'propor' || ehFundador() || OBRA === 'areas-comuns')
+  return Array.from(grupos.values()).filter((g) => !ign[g.chave]).filter((g) => !cartaoExpirado('rec|' + g.chave)).filter((g) => g.tipo === 'propor' || ehFundador() || OBRA === 'areas-comuns')
     .sort((a, b) => (a.tipo === 'propor' ? 0 : 1) - (b.tipo === 'propor' ? 0 : 1) || b.ids.length - a.ids.length).slice(0, 20);
 }
 async function atualizarRecomendacoes(){
   if (!recebeRecomendacoes()){ recomendacoesAtuais = []; marcarBadgeChat(0); return; }
   if (!recomendacoesIgnoradas){ try{ recomendacoesIgnoradas = ((await store.getDoc('config', 'recomendacoes_ignoradas')) || {}).mapa || {}; }catch(e){ recomendacoesIgnoradas = {}; } }
+  if (!cartoesVistos){ try{ cartoesVistos = ((await store.getDoc('config', 'cartoes_vistos_' + chaveComparacao(usuarioAtual || ''))) || {}).mapa || {}; }catch(e){ cartoesVistos = {}; } }
   recomendacoesAtuais = calcularRecomendacoes();
   marcarBadgeChat(recomendacoesAtuais.length + (cronograma ? cartoesDoCronograma().length : 0));
 }
+let ultimoBadgeBase = 0;
 function marcarBadgeChat(n){
+  ultimoBadgeBase = n || 0; n = (n || 0) + (nAvisosAprov || 0);
   const b = document.getElementById('btn-chat'); if (!b) return;
   let s = b.querySelector('.chat-badge');
   if (!n){ if (s) s.remove(); return; }
@@ -9239,6 +9401,7 @@ function iniciarChat(){
       c.innerHTML = htmlRecomendacoes();
       let cc = document.getElementById('chat-cronograma'); if (!cc){ cc = document.createElement('div'); cc.id = 'chat-cronograma'; lista.prepend(cc); cc.addEventListener('click', (e) => { tratarCliqueCronograma(e); }); }
       cc.innerHTML = htmlCronogramaChat(); } }catch(e){}
+    try{ montarAvisosChat(); }catch(e){ console.warn('avisos do chat', e); }
     p.classList.remove('oculto'); document.body.classList.add('chat-aberto'); document.documentElement.classList.add('chat-aberto'); setTimeout(() => $('chat-texto').focus(), 60); };
   const fechar = () => { p.classList.add('oculto'); document.body.classList.remove('chat-aberto'); document.documentElement.classList.remove('chat-aberto'); };
   // iPhone: gesto que começa no cabeçalho ou no rodapé não "vaza" pro painel de trás
@@ -11747,7 +11910,7 @@ async function exportarVisaoGeralPdf(opcoes){
     }).filter(Boolean);
     const andares = Array.from(document.querySelectorAll('#torre-andares .andar-barra')).map((el) => {
       const sp = el.querySelector('.barra > span'), cls = sp ? sp.className : '';
-      const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.exec : /status-liberado-pend/.test(cls) ? PDF_COR.lib : /status-pronto/.test(cls) ? PDF_COR.pronto : /status-vistoriado/.test(cls) ? PDF_COR.vist : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
+      const cor = /status-vm/.test(cls) ? PDF_COR.vm : /status-pendente/.test(cls) ? PDF_COR.exec : /status-liberado-pend|status-aprovado-sof/.test(cls) ? PDF_COR.lib : /status-pronto/.test(cls) ? PDF_COR.pronto : /status-vistoriado/.test(cls) ? PDF_COR.vist : /status-vd/.test(cls) ? PDF_COR.vd : PDF_COR.faint;
       const pctEl = el.querySelector('.pct-barra');
       return { andar: ((el.querySelector('.num') || {}).textContent || '').trim(), num: Number(el.dataset.andar), pct: pctEl ? parseInt(pctEl.textContent,10) || 0 : 0, cor,
         nums: Array.from(el.querySelectorAll('.mini-stat')).filter((s) => !s.classList.contains('novos')).map((s) => ((s.querySelector('.mini-valor') || {}).textContent || '').trim()).slice(0, 4),
