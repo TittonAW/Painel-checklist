@@ -810,6 +810,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <div class="topo-controles">
     <div class="topo-controles-status">
       <span class="pill local" id="pill-armazenamento">verificando…</span>
+      <button type="button" class="btn fantasma" id="btn-aprovacoes" hidden title="Pedidos de alteração em massa" style="padding:6px 10px; font-size:13px; color:var(--text-2); white-space:nowrap;">🔔 <b id="n-aprovacoes" style="display:inline-block; min-width:16px; padding:0 5px; border-radius:9px; background:#FBE3C6; color:#7A4A12; font-size:11.5px;"></b></button>
       <button type="button" class="btn fantasma" id="btn-usuario" title="Trocar o nome de quem está usando este aparelho" style="padding:6px 11px; font-size:13px; color:var(--text-2); white-space:nowrap;"></button>
       <span id="caixa-revisao" style="position:relative; display:inline-flex;"><select id="seletor-revisao" title="Revisão em exibição"></select><span id="nota-revisao-mista" class="oculto" style="position:absolute; right:2px; top:calc(100% + 3px); font-size:11px; font-weight:500; color:var(--aw); white-space:nowrap;"></span></span>
     </div>
@@ -1403,7 +1404,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.312';
+const VERSAO_APP = '2026-10-03.314';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3272,6 +3273,139 @@ async function aceitarSugestoes(ids){
    Antes de gravar, lê a versão atual do banco e aplica SÓ o que esta ação mudou
    (campos alterados + eventos novos do histórico). Assim, uma ação em massa feita num aparelho
    desatualizado não apaga baixas nem o histórico que outro aparelho gravou. */
+/* ===================== APROVAÇÃO DE ALTERAÇÕES EM MASSA =====================
+   Só o Fundador altera 2+ itens de uma vez. Os outros enviam um pedido (coleção "aprovacoes");
+   o Fundador vê no sino, confere os itens e aprova (o app dele aplica) ou recusa com motivo. */
+let pedidosAprovacao = [], pedidoEmAplicacao = null, agrupamentoSalvouEm = 0, filtroIdsPedido = null;
+function textoCampoAgrupamento(el){
+  const lab = document.querySelector('label[for="' + el.id + '"]');
+  const nome = lab ? (lab.childNodes[0] ? String(lab.childNodes[0].textContent || '') : lab.textContent).trim() : el.id;
+  const valor = el.tagName === 'SELECT' ? (el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : el.value) : el.value;
+  return nome + ': ' + valor;
+}
+async function enviarPedidoAprovacao(ids, overlay){
+  const campos = {}, resumo = [];
+  overlay.querySelectorAll('select[id^="grupo-"], input[id^="grupo-"]').forEach((el) => {
+    const v = el.value; if (!v || v === '__manter__') return;
+    if (el.tagName === 'INPUT' && el.offsetParent === null && el.type !== 'hidden') return; // campo escondido (não usado)
+    campos[el.id] = v;
+    if (el.tagName === 'SELECT') resumo.push(textoCampoAgrupamento(el));
+  });
+  if (campos['grupo-forn'] === '__novo__' && campos['grupo-forn-novo']) resumo.push('Fornecedor novo: ' + campos['grupo-forn-novo']);
+  if (campos['grupo-origem'] === '__outra'){ const n = (window.prompt('Nome da origem (ex.: Accor, Fiscalização):') || '').trim(); if (!n) return; campos.__origemNome = n; resumo.push('Origem: ' + n); }
+  if (!resumo.length){ avisoFlutuante('Nenhum campo foi alterado.', 'erro'); return; }
+  const itens = ids.map((id) => itensRevisaoAtual.find((x) => x.id === id)).filter(Boolean);
+  const andares = Array.from(new Set(itens.map((it) => it.andar))).sort((a, b) => a - b);
+  const pid = 'ped_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const r = await store.setDoc('aprovacoes', pid, { status:'pendente', por: usuarioAtual, em: new Date().toISOString(), ids, campos, resumo, andares, n: ids.length });
+  if (!r || !r.ok){ avisoFlutuante('Não consegui enviar o pedido (sem conexão?). Tente de novo.', 'erro'); return; }
+  fecharEdicaoAgrupamento(); itensSelecionados.clear(); atualizarTelasAposAcompanhamento();
+  avisoFlutuante('Pedido enviado para aprovação de ' + FUNDADOR + ' (' + ids.length + ' itens)', 'ok');
+  carregarPedidos();
+}
+async function carregarPedidos(){
+  const btn = document.getElementById('btn-aprovacoes'); if (!btn) return;
+  if (!usuarioAtual || modoVisualizador() || !ehAdminAtual()){ btn.hidden = true; return; }
+  try{ const docs = await store.listCollection('aprovacoes'); pedidosAprovacao = docs.sort((a, b) => String(b.em || '').localeCompare(String(a.em || ''))); }catch(e){ return; }
+  let n = 0;
+  if (ehFundador()) n = pedidosAprovacao.filter((p) => p.status === 'pendente').length;
+  else { const visto = localStorage.getItem('pedidos_vistos_' + chaveComparacao(usuarioAtual)) || '';
+    n = pedidosAprovacao.filter((p) => p.por === usuarioAtual && p.status !== 'pendente' && String(p.decididoEm || '') > visto).length; }
+  const meus = ehFundador() ? pedidosAprovacao.length : pedidosAprovacao.filter((p) => p.por === usuarioAtual).length;
+  btn.hidden = !(n || meus);
+  document.getElementById('n-aprovacoes').textContent = n ? String(n) : '';
+  document.getElementById('n-aprovacoes').style.display = n ? 'inline-block' : 'none';
+  const painel = document.getElementById('modal-pedidos'); if (painel) renderPainelPedidos();
+}
+function abrirPainelPedidos(){
+  let ov = document.getElementById('modal-pedidos');
+  if (!ov){ ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modal-pedidos'; document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); }); }
+  if (!ehFundador()) localStorage.setItem('pedidos_vistos_' + chaveComparacao(usuarioAtual), new Date().toISOString());
+  renderPainelPedidos(); carregarPedidos();
+}
+function renderPainelPedidos(){
+  const ov = document.getElementById('modal-pedidos'); if (!ov) return;
+  const fund = ehFundador();
+  const lista = fund ? pedidosAprovacao : pedidosAprovacao.filter((p) => p.por === usuarioAtual);
+  const pend = lista.filter((p) => p.status === 'pendente'), dec = lista.filter((p) => p.status !== 'pendente').slice(0, 15);
+  const quando = (s) => s ? new Date(s).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+  const selo = (p) => p.status === 'pendente' ? '<span style="background:#FBE3C6; color:#7A4A12; padding:2px 8px; border-radius:8px; font-size:11.5px;">aguardando</span>'
+    : p.status === 'aprovado' ? '<span style="background:#CFE8D8; color:#2E6B4A; padding:2px 8px; border-radius:8px; font-size:11.5px;">aprovado</span>'
+    : '<span style="background:#F3D9D6; color:#8A3B32; padding:2px 8px; border-radius:8px; font-size:11.5px;">recusado</span>';
+  const linha = (p) => '<div style="border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; background:var(--surface);">' +
+    '<div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;"><b>' + esc(p.por || '') + '</b><span style="font-size:12px; color:var(--muted);">' + quando(p.em) + '</span>' + selo(p) + '</div>' +
+    '<div style="font-size:13px; margin:6px 0 2px;">' + (p.resumo || []).map(esc).join(' · ') + '</div>' +
+    '<div style="font-size:12px; color:var(--muted);">' + (p.n || (p.ids || []).length) + ' itens · ' + (p.andares || []).map((a) => a + 'º').join(', ') + '</div>' +
+    (p.status !== 'pendente' ? '<div style="font-size:12px; color:var(--muted); margin-top:4px;">' + (p.status === 'aprovado' ? 'Aprovado' : 'Recusado') + ' por ' + esc(p.decididoPor || '') + ' em ' + quando(p.decididoEm) + (p.motivo ? ' · “' + esc(p.motivo) + '”' : '') + '</div>' : '') +
+    '<div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;"><button type="button" class="btn fantasma" data-ped-ver="' + esc(p._id) + '" style="padding:5px 10px; font-size:12.5px;">Ver itens</button>' +
+    (fund && p.status === 'pendente' ? '<button type="button" class="btn primario" data-ped-aprovar="' + esc(p._id) + '" style="padding:5px 10px; font-size:12.5px;">Aprovar e aplicar</button><button type="button" class="btn fantasma" data-ped-recusar="' + esc(p._id) + '" style="padding:5px 10px; font-size:12.5px;">Recusar</button>' : '') +
+    '</div></div>';
+  ov.innerHTML = '<div class="modal-card modal-largo" role="dialog" aria-modal="true"><div class="modal-largo-corpo">' +
+    '<h3>' + (fund ? 'Pedidos de alteração em massa' : 'Meus pedidos de alteração') + '</h3>' +
+    '<div class="modal-sub">' + (fund ? 'Alterações de 2 ou mais itens feitas por outras pessoas só valem depois da sua aprovação.' : 'Alterações de 2 ou mais itens vão para aprovação de ' + esc(FUNDADOR) + '.') + '</div>' +
+    (pend.length ? '<div style="font-size:12px; font-weight:600; color:var(--muted); margin:10px 0 6px;">AGUARDANDO</div>' + pend.map(linha).join('') : '<div style="font-size:13px; color:var(--muted); margin:10px 0;">Nenhum pedido aguardando.</div>') +
+    (dec.length ? '<div style="font-size:12px; font-weight:600; color:var(--muted); margin:14px 0 6px;">DECIDIDOS</div>' + dec.map(linha).join('') : '') +
+    '</div><div class="modal-acoes modal-rodape-fixo"><button class="btn fantasma" id="ped-fechar">Fechar</button></div></div>';
+  ov.querySelector('#ped-fechar').addEventListener('click', () => ov.remove());
+  ov.querySelectorAll('[data-ped-ver]').forEach((b) => b.addEventListener('click', () => verItensDoPedido(pedidosAprovacao.find((p) => p._id === b.dataset.pedVer))));
+  ov.querySelectorAll('[data-ped-aprovar]').forEach((b) => b.addEventListener('click', () => aprovarPedido(pedidosAprovacao.find((p) => p._id === b.dataset.pedAprovar))));
+  ov.querySelectorAll('[data-ped-recusar]').forEach((b) => b.addEventListener('click', () => recusarPedido(pedidosAprovacao.find((p) => p._id === b.dataset.pedRecusar))));
+}
+function verItensDoPedido(p){
+  if (!p) return;
+  filtroIdsPedido = new Set(p.ids || []);
+  const ov = document.getElementById('modal-pedidos'); if (ov) ov.remove();
+  const bAba = document.querySelector('nav.abas button[data-aba="itens"]'); if (bAba) bAba.click();
+  let barra = document.getElementById('barra-pedido');
+  if (!barra){ barra = document.createElement('div'); barra.id = 'barra-pedido'; barra.style.cssText = 'position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:95; background:#FFF7EC; border:1px solid #F1D7B4; color:#7A4A12; border-radius:999px; padding:8px 14px; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.10); display:flex; gap:10px; align-items:center;'; document.body.appendChild(barra); }
+  barra.innerHTML = 'Itens do pedido de <b>' + esc(p.por || '') + '</b> (' + filtroIdsPedido.size + ') <button type="button" class="btn fantasma" id="barra-pedido-voltar" style="padding:3px 10px; font-size:12px;">Voltar aos pedidos</button><button type="button" class="btn fantasma" id="barra-pedido-sair" style="padding:3px 10px; font-size:12px;">✕</button>';
+  const sair = () => { filtroIdsPedido = null; barra.remove(); renderItens(); };
+  barra.querySelector('#barra-pedido-sair').addEventListener('click', sair);
+  barra.querySelector('#barra-pedido-voltar').addEventListener('click', () => { sair(); abrirPainelPedidos(); });
+  renderItens();
+}
+async function aprovarPedido(p){
+  if (!p || !ehFundador()) return;
+  const ids = (p.ids || []).filter((id) => itensRevisaoAtual.some((x) => x.id === id));
+  if (!ids.length){ await store.setDoc('aprovacoes', p._id, Object.assign({}, p, { _id: undefined, status:'recusado', decididoPor: usuarioAtual, decididoEm: new Date().toISOString(), motivo:'os itens não estão mais na planilha' })); carregarPedidos(); return; }
+  if (!window.confirm('Aplicar o pedido de ' + p.por + '?\n\n' + (p.resumo || []).join('\n') + '\n\nEm ' + ids.length + ' itens.')) return;
+  const ov = document.getElementById('modal-pedidos'); if (ov) ov.remove();
+  pedidoEmAplicacao = p; agrupamentoSalvouEm = 0;
+  const promptOriginal = window.prompt;
+  if (p.campos && p.campos.__origemNome) window.prompt = () => p.campos.__origemNome;
+  try{
+    itensSelecionados = new Set(ids);
+    abrirEdicaoAgrupamento();
+    Object.keys(p.campos || {}).forEach((k) => { if (k.indexOf('grupo-') !== 0) return; const el = document.getElementById(k); if (!el) return; el.value = p.campos[k]; el.dispatchEvent(new Event('change', { bubbles:true })); });
+    const inicio = Date.now();
+    document.getElementById('grupo-salvar').click();
+    // espera o salvamento terminar (ou a janela ser fechada sem salvar)
+    while (Date.now() - inicio < 45*60*1000){ await new Promise((r) => setTimeout(r, 600)); if (!document.getElementById('modal-editar-grupo') && !loteAgrup) break; }
+  } finally { window.prompt = promptOriginal; pedidoEmAplicacao = null; }
+  if (agrupamentoSalvouEm){
+    const atual = Object.assign({}, p); delete atual._id;
+    await store.setDoc('aprovacoes', p._id, Object.assign(atual, { status:'aprovado', decididoPor: usuarioAtual, decididoEm: new Date().toISOString(), aplicados: ids.length }));
+    avisoFlutuante('Pedido de ' + p.por + ' aprovado e aplicado em ' + ids.length + ' itens', 'ok');
+  } else avisoFlutuante('Pedido não aplicado (a janela foi fechada sem salvar). Continua aguardando.', 'erro');
+  carregarPedidos();
+}
+async function recusarPedido(p){
+  if (!p || !ehFundador()) return;
+  const motivo = window.prompt('Recusar o pedido de ' + p.por + '. Motivo (opcional):', '');
+  if (motivo === null) return;
+  const atual = Object.assign({}, p); delete atual._id;
+  await store.setDoc('aprovacoes', p._id, Object.assign(atual, { status:'recusado', decididoPor: usuarioAtual, decididoEm: new Date().toISOString(), motivo: motivo.trim() || null }));
+  avisoFlutuante('Pedido recusado', 'ok'); carregarPedidos();
+}
+let timerPedidos = null;
+function iniciarAprovacoes(){
+  const btn = document.getElementById('btn-aprovacoes');
+  if (btn && !btn.dataset.ok){ btn.dataset.ok = '1'; btn.addEventListener('click', abrirPainelPedidos); }
+  carregarPedidos();
+  if (!timerPedidos) timerPedidos = setInterval(() => { if (!document.hidden) carregarPedidos(); }, 60000);
+}
+
 function chaveEvento(e){ return e ? [e.t, e.em, e.por].join('|') : ''; }
 const acompanhamentoAntes = new Map(); // a tela já mostra a mudança antes de gravar: aqui fica o que era antes
 function lembrarAntes(id){ if (!acompanhamentoAntes.has(id)) acompanhamentoAntes.set(id, acompanhamento[id] || {}); }
@@ -7513,6 +7647,7 @@ function listaComDecisoes(){
   return fl.indexOf(f) !== -1 || filtroMulti.fluxos.some((x) => fl.indexOf(x) !== -1);
 }
 function obterItensFiltrados(){
+  if (filtroIdsPedido) return itensRevisaoAtual.filter((it) => filtroIdsPedido.has(it.id));
   const busca = (document.getElementById('busca-item').value || '').toLowerCase().trim();
   const filtroAndar = document.getElementById('filtro-item-andar').value;
   const filtroAmbiente = document.getElementById('filtro-item-ambiente').value;
@@ -9468,26 +9603,27 @@ function abrirEdicaoAgrupamento(){
         '<select id="grupo-prio"><option value="">— manter a de cada item —</option><option value="VM">VM (vermelho)</option><option value="AM">AM (amarelo)</option><option value="__planilha__">— voltar à da planilha —</option></select>' +
       '</div>' +
       (podeTirarDaObra()
-        ? '<div class="modal-campo campo-largo"><label for="grupo-origem">Origem do item <span style="font-weight:400; color:var(--muted);">(só administradores · de onde veio a pendência)</span></label>' +
+        ? '<div class="modal-campo campo-largo"><label for="grupo-origem">Origem do item <span style="font-weight:400; color:var(--muted);">(de onde veio a pendência)</span></label>' +
           '<select id="grupo-origem"><option value="">— manter como está —</option><option value="IAC">IAC (consultoria)</option><option value="SOFITEL">Sofitel (cliente)</option><option value="__outra">Outra…</option><option value="__planilha">Voltar à origem da planilha</option></select></div>' +
-          '<div class="modal-campo campo-largo"><label for="grupo-conferir">Conferir no quarto <span style="font-weight:400; color:var(--muted);">(só administradores · baixas copiadas do número geral)</span></label>' +
+          '<div class="modal-campo campo-largo"><label for="grupo-conferir">Conferir no quarto <span style="font-weight:400; color:var(--muted);">(baixas copiadas do número geral)</span></label>' +
           '<select id="grupo-conferir"><option value="">— manter como está —</option><option value="ok">Confirmado no quarto (mantém a baixa)</option><option value="reabrir">Não foi feito: reabrir</option></select></div>' +
-          '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens novos)</span></label>' +
+          '<div class="modal-campo campo-largo"><label for="grupo-novos">Itens novos <span style="font-weight:400; color:var(--muted);">(vale só pros itens novos)</span></label>' +
           '<select id="grupo-novos"><option value="">— manter como está —</option><option value="aceitar">Aceitar como novo</option><option value="corrigir">IAC / Sofitel precisa corrigir (conforme a origem do item)</option><option value="naonovo">Não é novo (vistoria em andamento)</option><option value="voltar">Desfazer decisão (volta a avaliar)</option></select></div>' +
-          '<div class="modal-campo campo-largo"><label for="grupo-naoaceitou">IAC não aceitou <span style="font-weight:400; color:var(--muted);">(só administradores · vale só pros itens com essa etiqueta)</span></label>' +
+          '<div class="modal-campo campo-largo"><label for="grupo-naoaceitou">IAC não aceitou <span style="font-weight:400; color:var(--muted);">(vale só pros itens com essa etiqueta)</span></label>' +
           '<select id="grupo-naoaceitou"><option value="">— manter como está —</option><option value="iac">IAC / Sofitel precisa corrigir (conforme a origem · continua executado, vai no PDF de cobrança)</option><option value="checar">Conferir no quarto (manda pra lista da equipe)</option><option value="nossa">Aceitar como aberto (volta pra aberto e conta reincidência)</option></select></div>'
         : '') +
       (podeTirarDaObra()
-        ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo <span style="font-weight:400; color:var(--muted);">(só administradores)</span></label>' +
+        ? '<div class="modal-campo campo-largo"><label for="grupo-fluxo">Fluxo</label>' +
           '<select id="grupo-fluxo"><option value="">— manter o de cada item —</option><option value="aw">Marcar Executado AW</option><option value="iac">Marcar Validado gestão AW (inclui Executado AW)</option><option value="aberto">Voltar para em aberto (marcado por engano — sem reincidência)</option></select></div>'
         : '') +
       '</div>' + // fim das 2 colunas
-      (podeTirarDaObra() ? '<div class="modal-campo" style="margin-top:4px;"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
+      (ehFundador() ? '<div class="modal-campo" style="margin-top:4px;"><button type="button" class="btn fantasma ambar" id="grupo-tirar-obra" style="width:100%; justify-content:center;">🗑 Tirar estes '+itens.length+' itens da obra (outra diretoria)</button></div>' : '') +
       '</div>' + // fim do corpo (só ele rola, se precisar)
       '<div class="modal-acoes modal-rodape-fixo">' +
         '<div id="grupo-progresso" class="grupo-progresso oculto"></div>' +
         '<button class="btn fantasma" id="grupo-cancelar">Cancelar</button>' +
-        '<button class="btn primario" id="grupo-salvar">Salvar</button>' +
+        ((!ehFundador() && ids.length >= 2) ? '<span style="flex:1; font-size:12px; color:var(--muted);">Com 2 ou mais itens, a alteração vai para aprovação de ' + esc(FUNDADOR) + '.</span>' : '') +
+        '<button class="btn primario" id="grupo-salvar">' + ((!ehFundador() && ids.length >= 2) ? 'Enviar para aprovação' : 'Salvar') + '</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -9511,6 +9647,7 @@ function abrirEdicaoAgrupamento(){
   });
   document.getElementById('grupo-salvar').addEventListener('click', async () => {
     if (loteAgrup) return; // já está salvando
+    if (!ehFundador() && ids.length >= 2){ await enviarPedidoAprovacao(ids, overlay); return; } // em massa: só com aprovação do Fundador
     iniciarProgressoAgrup(ids.length);
     try{ await salvarAgrupamentoAgora(); } finally { pararProgressoAgrup(); }
   });
@@ -9659,14 +9796,17 @@ function abrirEdicaoAgrupamento(){
         } else if (novoFluxo === 'aberto' && (novo.awExecEm || novo.iacOkEm)){
           for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'iac'){ hist.splice(i, 1); break; } }
           for (let i = hist.length-1; i >= 0; i--){ if (hist[i].t === 'aw'){ hist.splice(i, 1); break; } }
+          if (novo.awExecEm) hist.push({ t:'awDesfeito', em: new Date().toISOString(), por: usuarioAtual, baixaEm: novo.awExecEm, baixaDe: novo.awExecPor || null, motivo: 'Editar agrupamento → Em aberto' });
           novo.awExecEm = null; novo.awExecPor = null; novo.iacOkEm = null; novo.iacOkPor = null;
         }
+        if (pedidoEmAplicacao) hist.push({ t:'pedidoAprovado', em: new Date().toISOString(), por: usuarioAtual, pedidoDe: pedidoEmAplicacao.por, pedido: pedidoEmAplicacao.id });
         novo.historico = hist;
         const r = await salvarAcompanhamentoComRetry(id, novo);
         if (r.ok) acompanhamento[id] = novo; else falhas++;
       }
       feitos++; btn.textContent = 'Salvando… '+feitos+'/'+ids.length;
     });
+    agrupamentoSalvouEm = Date.now();
     fecharEdicaoAgrupamento();
     itensSelecionados.clear();
     atualizarTelasAposAcompanhamento();
@@ -12565,7 +12705,9 @@ function mesclarResgate(C, S){
   res.historico = faltando.concat(ev(S)).sort((a, b) => String(a.em || '').localeCompare(String(b.em || '')));
   return res;
 }
+const RESGATE_LIGADO = false; // desligado em 08/11, depois da recuperação pelos backups
 async function resgatarDoAparelho(){
+  if (!RESGATE_LIGADO) return;
   const marca = 'resgate_0711_' + colReal('acompanhamento');
   try{ if (localStorage.getItem(marca)) return; }catch(e){ return; }
   if (store.backend !== 'cloud' || !supa) return;
@@ -12627,6 +12769,7 @@ async function iniciar(){
   else exigirPinDoUsuarioAtual();
   renderListaPins();
   renderUsuarioTopo(); // aplica as permissões de novo, agora com a lista de administradores da obra carregada
+  iniciarAprovacoes();
   ultimaSincronizacao = marcaCarga;
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
