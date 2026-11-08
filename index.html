@@ -815,7 +815,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <div class="topo-controles">
     <div class="topo-controles-status">
       <span class="pill local" id="pill-armazenamento">verificando…</span>
-      <button type="button" class="btn fantasma" id="btn-aprovacoes" hidden title="Pedidos de alteração em massa" style="padding:6px 10px; font-size:13px; color:var(--text-2); white-space:nowrap;">🔔 <b id="n-aprovacoes" style="display:inline-block; min-width:16px; padding:0 5px; border-radius:9px; background:#FBE3C6; color:#7A4A12; font-size:11.5px;"></b></button>
       <button type="button" class="btn fantasma" id="btn-usuario" title="Trocar o nome de quem está usando este aparelho" style="padding:6px 11px; font-size:13px; color:var(--text-2); white-space:nowrap;"></button>
       <span id="caixa-revisao" style="position:relative; display:inline-flex;"><select id="seletor-revisao" title="Revisão em exibição"></select><span id="nota-revisao-mista" class="oculto" style="position:absolute; right:2px; top:calc(100% + 3px); font-size:11px; font-weight:500; color:var(--aw); white-space:nowrap;"></span></span>
     </div>
@@ -1410,7 +1409,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.315';
+const VERSAO_APP = '2026-10-03.318';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3378,7 +3377,7 @@ function htmlAvisosChat(){
   return h;
 }
 function verIdsNaAbaItens(ids, rotulo, aoVoltar){
-  filtroIdsPedido = new Set(ids || []);
+  filtroIdsPedido = new Set(ids || []); rotuloFiltroIds = rotulo || '';
   const fechar = document.getElementById('chat-fechar'); if (fechar && !document.getElementById('painel-chat').classList.contains('oculto')) fechar.click();
   const bAba = document.querySelector('nav.abas button[data-aba="itens"]'); if (bAba) bAba.click();
   let barra = document.getElementById('barra-pedido');
@@ -3431,14 +3430,12 @@ async function enviarPedidoAprovacao(ids, overlay){
   carregarPedidos();
 }
 async function carregarPedidos(){
-  const btn = document.getElementById('btn-aprovacoes'); if (!btn) return;
-  if (!usuarioAtual || modoVisualizador() || !ehAdminAtual()){ btn.hidden = true; nAvisosAprov = 0; return; }
+  if (!usuarioAtual || modoVisualizador() || !ehAdminAtual()){ nAvisosAprov = 0; return; }
   try{ const docs = await store.listCollection('aprovacoes'); pedidosAprovacao = docs.sort((a, b) => String(b.em || '').localeCompare(String(a.em || ''))); }catch(e){ return; }
   let n = 0;
   if (ehFundador()) n = pedidosAprovacao.filter((p) => p.status === 'pendente').length;
   else { const visto = localStorage.getItem('pedidos_vistos_' + chaveComparacao(usuarioAtual)) || '';
     n = pedidosAprovacao.filter((p) => p.por === usuarioAtual && p.status !== 'pendente' && String(p.decididoEm || '') > visto).length; }
-  btn.hidden = true; // sem sino: tudo chega pelo chat
   nAvisosAprov = n; marcarBadgeChat(ultimoBadgeBase);
   const p = document.getElementById('painel-chat'); if (p && !p.classList.contains('oculto')) montarAvisosChat();
 }
@@ -3525,8 +3522,6 @@ async function recusarPedido(p){
 }
 let timerPedidos = null;
 function iniciarAprovacoes(){
-  const btn = document.getElementById('btn-aprovacoes');
-  if (btn && !btn.dataset.ok){ btn.dataset.ok = '1'; btn.addEventListener('click', abrirPainelPedidos); }
   carregarAprovadosSofitel(); carregarPedidos();
   if (!timerPedidos) timerPedidos = setInterval(() => { if (!document.hidden){ carregarAprovadosSofitel(); carregarPedidos(); } }, 60000);
 }
@@ -12674,6 +12669,37 @@ async function exportarQuartosPdf(){
   await compartilharOuBaixarPdf(doc.output('blob'), nomeArquivoPdf('Quartos e áreas', ctx.filtro), statusEl);
 }
 
+/* ESPELHO DA TELA: o que a aba Itens mostra em cada item, em texto, com as MESMAS regras da tela */
+function rotulosTelaDoItem(it){
+  const ac = acompanhamento[it.id] || {};
+  const og = origemDoItem(it), n = infoItemNovo(it);
+  const r = {
+    origem: og === 'AW' ? 'AW' : (og === 'IAC' ? 'IAC' : rotuloOrigem(og)), origemCod: og, nc: !!origemNaoConfirmada(it),
+    rev: (!n && revisaoDeEntrada(it)) ? 'R' + revisaoDeEntrada(it) : null,
+    novoTag: n ? ((n.tipo === 'voltou' ? 'Voltou' : 'Novo') + (n.rev ? ' · R' + n.rev : '')) : null,
+    herdado: (ac.herdadoDe && !ac.possivelReabertura) ? ((ac.herdadoRev ? 'R' + ac.herdadoRev + ' · ' : 'antes · ') + ac.herdadoDe) : null,
+    rvLocal: (it.rv && it.rv !== String(revisaoSelecionada)) ? 'R' + it.rv : null,
+    prioTexto: ac.iacOkEm ? 'VD (verde) · era ' + (it.status || '—') : (it.status || '—'),
+    fluxo: []
+  };
+  const L = (t, tipo) => r.fluxo.push({ t, tipo: tipo || 'normal' });
+  const quem = quemCorrige(it);
+  if (conferirNoQuarto(it)) L('Conferir no quarto', 'azul');
+  if (ac.dataPrevista && estaEmAberto(it)) L('Previsão ' + ac.dataPrevista.split('-').reverse().slice(0, 2).join('/') + (ac.dataPrevista < chaveDiaLocal(new Date()) ? ' · vencida' : ''), ac.dataPrevista < chaveDiaLocal(new Date()) ? 'vm' : 'muted');
+  if (podeTirarDaObra() && novoForaDoAberto(it)){ L('Item novo', 'novo'); L(ac.novoContestadoEm ? '✓ ' + quem + ' vai corrigir' : 'a avaliar', 'novo'); }
+  if (iacNaoAceitou(it)){
+    L(quem + ' não aceitou', 'aviso');
+    if (ac.divergencia === 'iac') L('✓ ' + quem + ' vai corrigir', 'aviso');
+    if (ac.checarQuartoEm) L('✓ Na lista Conferir no quarto', 'azul');
+  } else if (reabertoPorBaixaErrada(it)) L('Reaberto: baixa errada', 'aviso');
+  else if (iacManteveExecutado(it)){ L('IAC não aceitou', 'aviso'); if (ac.divergencia === 'iac') L('✓ IAC vai corrigir', 'aviso'); }
+  else if (ac.possivelReabertura && estaEmAberto(it)) L('Possível reabertura · era ' + ac.possivelReabertura, 'vm');
+  if (ac.awExecEm){ L((conferirNoQuarto(it) ? (baixaHerdadaPendente(ac) ? 'Baixa herdada de ' + ac.herdadoDe + ': ' : 'Baixa do número geral: ') : 'AW: ') + (ac.awExecPor || '—'), 'nome'); L(dataHoraCurta(ac.awExecEm), 'muted'); }
+  if (ac.iacOkEm){ L('Gestão: ' + (ac.iacOkPor || '—'), 'nome'); L(dataHoraCurta(ac.iacOkEm), 'muted'); }
+  if (it._notaPdf){ L(it._notaPdf[0], 'aviso'); L(it._notaPdf[1], 'muted'); }
+  return r;
+}
+let rotuloFiltroIds = '';
 async function exportarItensPdf(listaPronta){
   // listaPronta = { itens, filtro, titulo } quando vem de outra aba (ex.: Plano) — mesmo padrão do PDF de Itens
   const externo = listaPronta && Array.isArray(listaPronta.itens);
@@ -12758,31 +12784,22 @@ async function exportarItensPdf(listaPronta){
     // anotações pequenas, iguais às marcas da tela
     const discNota = ac.disciplinaOverride ? 'reclassificada' : null;
     const fornNota = ac.fornecedorOverride ? 'editado' : (fornNome ? 'padrão' : null);
+    const RT = rotulosTelaDoItem(it);
     const prioNotas = [];
-    if (ac.iacOkEm) prioNotas.push({ t:'era '+(it.status||'—'), cor:PDF_COR.muted });
-    if (ac.reincidencias) prioNotas.push({ t:'Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':''), cor:PDF_COR.vm });
+    if (ac.reincidencias) prioNotas.push({ t:'↺ Reincidência'+(ac.reincidencias>1?' '+ac.reincidencias+'×':''), cor:PDF_COR.vm });
+    // coluna do item: origem (SOF/IAC/AW, com ?), número e, embaixo, revisão de entrada ou etiqueta Novo
+    const itemLinhas = [];
+    if (RT.rev) itemLinhas.push({ t: RT.rev, cor: PDF_COR.faint, s: 6.6 });
+    if (RT.novoTag) itemLinhas.push({ t: RT.novoTag, cor: [221,107,30], s: 6.8 });
+    if (RT.herdado) itemLinhas.push({ t: RT.herdado, cor: PDF_COR.faint, s: 6.3 });
+    const itemH = 12 + 11 + itemLinhas.length * LH2;
     // fluxo: selo + quem deu cada baixa, com data e hora + previsão
-    const fluxLinhas = [];
-    if (ac.awExecEm){
-      if (conferirNoQuarto(it)) fluxLinhas.push({ t:'baixa do número geral', cor:PDF_COR.az, s:6.8 });
-      fluxLinhas.push({ t:'AW · '+(ac.awExecPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
-      fluxLinhas.push({ t:dataHoraCurta(ac.awExecEm), cor:PDF_COR.muted, s:6.8 });
-    }
-    if (ac.iacOkEm){
-      fluxLinhas.push({ t:'IAC · '+(ac.iacOkPor||'sem registro'), cor:PDF_COR.ink2, s:7 });
-      fluxLinhas.push({ t:dataHoraCurta(ac.iacOkEm), cor:PDF_COR.muted, s:6.8 });
-    }
-    if (it._notaPdf){ fluxLinhas.push({ t:it._notaPdf[0], cor:PDF_COR.am || PDF_COR.ink2, s:7 }); fluxLinhas.push({ t:it._notaPdf[1], cor:PDF_COR.muted, s:6.8 }); }
-    const tipoNA = tipoNaoAceitou(it);
-    if (tipoNA){
-      fluxLinhas.push({ t:'IAC não aceitou', cor:PDF_COR.am || PDF_COR.ink2, s:7 });
-      fluxLinhas.push({ t: ac.divergencia === 'iac' ? quemCorrige(it) + ' precisa corrigir' : (checarNoQuarto(it) ? 'revalidar no quarto' : (tipoNA === 'junto' ? 'validado pela gestão' : 'IAC sozinha')), cor:PDF_COR.am || PDF_COR.ink2, s:6.8 });
-    }
-    if (novoForaDoAberto(it)) fluxLinhas.push({ t: ac.novoContestadoEm ? 'Item novo · ' + quemCorrige(it) + ' precisa corrigir' : 'Item novo · a avaliar', cor:[221,107,30], s:6.8 });
-    if (ac.dataPrevista && !ac.awExecEm && !ac.iacOkEm) fluxLinhas.push({ t:'Previsão '+ac.dataPrevista.split('-').reverse().join('/'), cor:PDF_COR.muted, s:6.8 });
+    const COR_FLUXO = { normal: PDF_COR.ink2, nome: PDF_COR.ink2, muted: PDF_COR.muted, aviso: PDF_COR.am || PDF_COR.ink2, novo: [221,107,30], azul: PDF_COR.az, vm: PDF_COR.vm };
+    const fluxLinhas = RT.fluxo.map((l) => ({ t: l.t, cor: COR_FLUXO[l.tipo] || PDF_COR.ink2, s: (l.tipo === 'muted' ? 6.8 : 7) }));
     const fluxH = 18 + (fluxLinhas.length ? 5 + fluxLinhas.length*LH2 : 0);
     const prioH = 13 + prioNotas.length*LH2 + (prioNotas.length ? 3 : 0);
-    const altura = Math.max(FH + 14, desc.length*LH + 20, loc.length*LH + 20,
+    const locLinhas = loc.concat(RT.rvLocal ? [RT.rvLocal] : []);
+    const altura = Math.max(FH + 14, itemH + 18, desc.length*LH + 20, locLinhas.length*LH + 20,
       discTxt.length*LH + (discNota?LH2:0) + 20, fornTxt.length*LH + (fornNota?LH2:0) + 20,
       fluxH + 16, prioH + 18);
     let prio;
@@ -12790,6 +12807,7 @@ async function exportarItensPdf(listaPronta){
     else if (it.status === 'VM') prio = PDF_PRIO.BLOQUEADO;
     else if (it.status === 'AM') prio = PDF_PRIO.PENDENTE;
     else prio = PDF_PRIO.CONCLUIDO;
+    prio = Object.assign({}, prio, { curto: RT.prioTexto }); // o texto do selo é o mesmo da tela (VM, AM, "VD (verde) · era AM")
     return {
       altura,
       desenhar: (doc, cx, top) => {
@@ -12801,13 +12819,18 @@ async function exportarItensPdf(listaPronta){
           ls.forEach((tx) => { pdfTxt(doc, cx+x, yb, tx, 8.5, cor, alinhar); yb += LH; });
           if (nota) pdfTxt(doc, cx+x, yb - 1, nota, 6.8, PDF_COR.faint, alinhar);
         };
-        const acNum = acompanhamento[it.id] || {};
-        if (acNum.herdadoDe && !acNum.possivelReabertura){
-          pdfTxt(doc, cx+CI.item, mid, it.id, 8.5, PDF_COR.ink2, 'center');
-          pdfTxt(doc, cx+CI.item, mid+9, (acNum.herdadoRev ? 'R'+acNum.herdadoRev+' · ' : 'antes · ') + acNum.herdadoDe, 6.3, PDF_COR.faint, 'center');
-        } else pdfTxt(doc, cx+CI.item, mid+3, it.id, 8.5, PDF_COR.ink2, 'center');
+        { // origem + número + revisão/Novo, como na tela
+          let yi = mid - itemH/2 + 8;
+          const selo = RT.origem + (RT.nc ? ' ?' : '');
+          const corSelo = RT.origemCod === 'SOFITEL' ? [124,82,170] : (RT.origemCod === 'AW' ? PDF_COR.az : PDF_COR.muted);
+          const wS = pdfLarg(doc, selo, 6.4) + 8;
+          pdfFill(doc, [245,242,250]); pdfDraw(doc, corSelo); doc.setLineWidth(0.5); doc.roundedRect(cx+CI.item - wS/2, yi - 6.5, wS, 9, 3, 3, 'FD');
+          pdfTxt(doc, cx+CI.item, yi, selo, 6.4, corSelo, 'center'); yi += 11;
+          pdfTxt(doc, cx+CI.item, yi, it.id, 8.5, PDF_COR.ink2, 'center'); yi += LH2 + 1;
+          itemLinhas.forEach((l) => { pdfTxt(doc, cx+CI.item, yi, pdfCaber(doc, l.t, l.s, X.andar - X.item + 6), l.s, l.cor, 'center'); yi += LH2; });
+        }
         pdfTxt(doc, cx+CI.andar, mid+3, nomeAndar(it.andar) + '', 8.5, PDF_COR.ink2, 'center');
-        bloco(CI.local, loc, PDF_COR.ink2, null, 'center');
+        bloco(CI.local, loc, PDF_COR.ink2, RT.rvLocal, 'center');
         bloco(X.disc, discTxt, PDF_COR.ink2, discNota);
         bloco(X.forn, fornTxt, PDF_COR.ink2, fornNota);
         // prioridade + anotações ("era AM", reincidência)
