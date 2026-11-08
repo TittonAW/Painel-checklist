@@ -1403,7 +1403,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.309';
+const VERSAO_APP = '2026-10-03.312';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3039,21 +3039,22 @@ function origemMudadaAMao(ac){
 let revisandoOrigemPassados = false;
 const LEITURA_RODAPE_VERSAO = 5; // sobe quando a leitura melhora: o que não ficou confirmado é relido
 let importandoAgora = false; // durante a importação, a conferência dos passados espera (o leitor fica pra importação)
+/* PASSADA GERAL ÚNICA DA ORIGEM (pedida em 08/11): relê o rodapé de TODOS os itens com foto, UMA vez para a obra,
+   e mexe SÓ na origem (IAC × Sofitel) — nunca em baixa, em aberto ou em qualquer outro campo.
+   Regra: se QUALQUER foto do item tiver a marca da Sofitel (agora ou numa leitura anterior), o item é Sofitel.
+   Depois de concluída fica registrada no banco e não roda mais (só a leitura na importação, nos itens novos). */
+const PASSADA_ORIGEM_ID = 'passada_origem_geral_0811';
 async function revisarOrigemDosPassados(){
   if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
-  // revisão em que a Sofitel começou a aparecer: os IAC daí em diante também são conferidos (podem ser Sofitel)
-  const revsSof = itensRevisaoAtual.filter((it) => origemDoItem(it) === 'SOFITEL').map((it) => Number(revisaoDeEntrada(it)) || 0).filter(Boolean);
-  const revInicioSof = revsSof.length ? Math.min.apply(null, revsSof) : 31;
+  try{ const reg = await store.getDoc('config', PASSADA_ORIGEM_ID);
+    if (reg && reg.concluidaEm) return;                                                         // já foi feita para esta obra
+    if (reg && reg.iniciadaEm && Date.now() - new Date(reg.iniciadaEm).getTime() < 2*3600*1000 && reg.por !== usuarioAtual) return; // outro aparelho está fazendo
+    await store.setDoc('config', PASSADA_ORIGEM_ID, Object.assign({}, reg || {}, { iniciadaEm: new Date().toISOString(), por: usuarioAtual }));
+  }catch(e){ return; }
   const alvos = itensRevisaoAtual.filter((it) => { const ac = acompanhamento[it.id] || {};
-    if (it.origem === 'AW' || !(it.fotos || []).length || origemMudadaAMao(ac)) return false;
-    const incerto = ac.fotoRodapes && Object.values(ac.fotoRodapes).some((r) => r && r.c !== 'alta');
-    if (ac.rodapeConferidoEm && !incerto && !ac.origemNaoConfirmada) return false;     // já conferido e seguro
-    if (ac.rodapeConferidoEm && (ac.rodapeLeituraVersao || 0) >= LEITURA_RODAPE_VERSAO) return false; // já relido com a leitura atual
-    if (origemDoItem(it) === 'SOFITEL') return true;
-    if (it.origemNaoConfirmada || ac.origemNaoConfirmada) return true; // entrou com "?" (ex.: lidos com o erro da faixa)
-    return origemDoItem(it) === 'IAC' && (Number(revisaoDeEntrada(it)) || 0) >= revInicioSof;
+    return it.origem !== 'AW' && (it.fotos || []).length && !origemMudadaAMao(ac);
   });
-  if (!alvos.length) return;
+  if (!alvos.length){ try{ await store.setDoc('config', PASSADA_ORIGEM_ID, { concluidaEm: new Date().toISOString(), por: usuarioAtual, itens: 0 }); }catch(e){} return; }
   const temInterrog = (it) => !!(it.origemNaoConfirmada || (acompanhamento[it.id] || {}).origemNaoConfirmada);
   alvos.sort((a, b) => (temInterrog(b) - temInterrog(a)) || ((Number(revisaoDeEntrada(b)) || 0) - (Number(revisaoDeEntrada(a)) || 0)));
   revisandoOrigemPassados = true;
@@ -3083,19 +3084,23 @@ async function revisarOrigemDosPassados(){
         else mostrar();
         return; }
       const eraSof = origemDoItem(it) === 'SOFITEL';
-      // a regra é só o rodapé: sem a marca, é IAC (a origem "Sofitel" antiga veio da descrição citar a Accor ou da faixa só com data)
+      const atual = acompanhamento[it.id] || {};
+      // Sofitel predominante: marca em QUALQUER foto — na leitura de agora ou já registrada antes (importação / leituras anteriores)
+      const marcaAntes = [it.fotoRodapes, atual.fotoRodapes].some((fr) => fr && Object.values(fr).some((r) => r && r.m));
       let dec = decidirOrigemPorRodapes(lidos, 'IAC');
+      if (dec.origem !== 'SOFITEL' && marcaAntes) dec = { origem: 'SOFITEL', confirmada: true, motivo: 'marca da Sofitel numa foto (leitura anterior)' };
       // foto sem faixa de rodapé nenhuma: nada indica Sofitel — IAC, sem "?"
       if (!dec.confirmada && lidos.length && lidos.every((x) => x.semFaixa)) dec = { origem: 'IAC', confirmada: true, motivo: 'foto sem rodapé' };
-      const agora = new Date().toISOString(), atual = acompanhamento[it.id] || {};
-      const novo = Object.assign({}, atual, { rodapeConferidoEm: atual.rodapeConferidoEm || agora, fotoRodapes: porFoto, origemNaoConfirmada: !dec.confirmada });
-      if (atual.rodapeConferidoEm) novo.rodapeReconferidoEm = agora;
-      novo.rodapeLeituraVersao = LEITURA_RODAPE_VERSAO;
+      const mudaOrigem = (dec.origem === 'IAC' && eraSof) || (dec.origem === 'SOFITEL' && !eraSof);
+      const mudaInterrog = !!atual.origemNaoConfirmada !== !dec.confirmada;
+      if (!mudaOrigem && !mudaInterrog){ if (dec.confirmada){ if (dec.origem === 'SOFITEL') cont.sofitel++; } else cont.naoConf++; feitosR++; mostrar(); return; } // nada muda: não grava
+      const agora = new Date().toISOString();
+      const novo = Object.assign({}, atual, { rodapeConferidoEm: atual.rodapeConferidoEm || agora, fotoRodapes: Object.assign({}, atual.fotoRodapes || {}, porFoto), origemNaoConfirmada: !dec.confirmada, rodapeLeituraVersao: LEITURA_RODAPE_VERSAO });
       if (dec.origem === 'IAC' && eraSof){
         novo.origemOverride = 'IAC'; novo.origemNome = null;
         novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'IAC', motivo: dec.motivo }]);
         cont.iac++;
-      } else if (dec.confirmada && dec.origem === 'SOFITEL' && !eraSof){
+      } else if (dec.origem === 'SOFITEL' && !eraSof){
         novo.origemOverride = 'SOFITEL'; novo.origemNome = 'Sofitel';
         novo.historico = historicoDoItem(atual).concat([{ t:'origem', em: agora, por: 'App (rodapé da foto)', para: 'Sofitel', motivo: dec.motivo }]);
         cont.viraramSofitel++;
@@ -3104,6 +3109,7 @@ async function revisarOrigemDosPassados(){
       feitosR++; mostrar();
     });
   } finally { revisandoOrigemPassados = false; if (!cont.ocrFalhou || cont.ocrFalhou < 3) ind.remove(); else setTimeout(() => ind.remove(), 15000); }
+  if (!(cont.ocrFalhou >= 3) && feitosR >= alvos.length){ try{ await store.setDoc('config', PASSADA_ORIGEM_ID, { concluidaEm: new Date().toISOString(), por: usuarioAtual, itens: alvos.length, sofitel: cont.viraramSofitel, iac: cont.iac }); }catch(e){} }
   popularFiltroOrigemItens(); atualizarTelasAposAcompanhamento();
   avisoFlutuante('Origem conferida pelo rodapé: ' + cont.viraramSofitel + ' passaram para Sofitel · ' + cont.iac + ' voltaram para IAC' + (cont.naoConf ? ' · ' + cont.naoConf + ' sem rodapé legível (?)' : '') + (cont.ocrFalhou ? ' · o leitor não carregou em ' + cont.ocrFalhou + ' (tenta de novo na próxima abertura)' : ''), 'ok');
 }
@@ -3139,7 +3145,10 @@ function naoTocado(it){
   const ac = acompanhamento[it.id] || {};
   return !ac.disciplinaOverride && !ac.fornecedorOverride && !ac.catAutoEm && !ac.catAutoTentadoEm;
 }
-function alvoCategorizacao(it){ return naoTocado(it); } // passados e novos: tudo que ninguém categorizou à mão
+/* Categorização por IA: UMA vez, só nos itens que entrarem em importações a partir da R41.
+   Itens já importados (até a R40) não são mais categorizados em segundo plano. */
+const CATEGORIZACAO_A_PARTIR_DA_REVISAO = 41;
+function alvoCategorizacao(it){ return naoTocado(it) && (Number(revisaoDeEntrada(it)) || 0) >= CATEGORIZACAO_A_PARTIR_DA_REVISAO; }
 let pararCategorizacao = false;
 let categorizandoAgora = false;
 async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
@@ -12631,7 +12640,7 @@ async function iniciar(){
     irParaAba('enviar');
   }
   setTimeout(() => { atualizarRecomendacoes().then(() => atualizarCronogramaEPlano()).catch(() => {}); }, 2000);
-  setTimeout(() => { revisarOrigemDosPassados().catch(() => {}); }, 6000); // origem dos passados pela regra do rodapé (1× por item)
+  setTimeout(() => { revisarOrigemDosPassados().catch(() => {}); }, 6000); // passada geral ÚNICA da origem (mexe só na origem; depois de concluída não roda mais)
 
   setTimeout(() => { try{ if (!MODO_CONSOLIDADO) categorizarNovosAutomaticamente(null, (feitos, total) => {
     let el = document.getElementById('aviso-categorizando');
