@@ -1403,7 +1403,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.307';
+const VERSAO_APP = '2026-10-03.308';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1482,6 +1482,7 @@ const cacheIdb = {
   async del(k){ const d = await this.db(); if (!d) return; return new Promise((ok) => { try{ const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = () => ok(); tx.onerror = () => ok(); }catch(e){ ok(); } }); }
 };
 let acompCacheSujo = false; // gravou/apagou acompanhamento nesta sessão: a próxima leitura completa refaz o cache
+const CACHE_ACOMP_VERSAO = 2; // subir quando for preciso que TODOS os aparelhos recarreguem os itens inteiros do banco
 let indiceSnapshots = null, indiceSnapshotsEm = 0; // doc_id → updated_at (consulta leve, refeita a cada 60 s)
 async function datasDasPlanilhas(colR){
   if (indiceSnapshots && indiceSnapshots.col === colR && Date.now() - indiceSnapshotsEm < 60000) return indiceSnapshots.mapa;
@@ -1582,7 +1583,7 @@ const store = {
       try{
         const k = 'col:' + col, c = await cacheIdb.get(k);
         const umDia = 24*3600*1000;
-        if (c && c.docs && c.maxU && !acompCacheSujo && (Date.now() - (c.completoEm || 0)) < umDia){
+        if (c && c.docs && c.maxU && c.versao === CACHE_ACOMP_VERSAO && !acompCacheSujo && (Date.now() - (c.completoEm || 0)) < umDia){
           const novos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col).gte('updated_at', c.maxU));
           let maxU = c.maxU;
           novos.forEach((r) => { c.docs[r.doc_id] = r.data; if (r.updated_at > maxU) maxU = r.updated_at; });
@@ -1593,7 +1594,7 @@ const store = {
         const docs = {}; let maxU = '';
         todos.forEach((r) => { docs[r.doc_id] = r.data; if (r.updated_at > maxU) maxU = r.updated_at; });
         acompCacheSujo = false;
-        cacheIdb.set(k, { docs, maxU, completoEm: Date.now() });
+        cacheIdb.set(k, { docs, maxU, completoEm: Date.now(), versao: CACHE_ACOMP_VERSAO });
         return todos.map((r) => Object.assign({ _id: r.doc_id }, r.data));
       }catch(e){ /* cai no caminho normal */ }
     }
@@ -3263,12 +3264,17 @@ async function aceitarSugestoes(ids){
    (campos alterados + eventos novos do histórico). Assim, uma ação em massa feita num aparelho
    desatualizado não apaga baixas nem o histórico que outro aparelho gravou. */
 function chaveEvento(e){ return e ? [e.t, e.em, e.por].join('|') : ''; }
+const acompanhamentoAntes = new Map(); // a tela já mostra a mudança antes de gravar: aqui fica o que era antes
+function lembrarAntes(id){ if (!acompanhamentoAntes.has(id)) acompanhamentoAntes.set(id, acompanhamento[id] || {}); }
+const vazio = (v) => v === undefined || v === null || v === '';
 function mesclarComBanco(antes, novo, banco){
   antes = antes || {}; const res = Object.assign({}, banco);
   const chaves = new Set(Object.keys(antes).concat(Object.keys(novo || {})));
   chaves.forEach((k) => {
     if (k === 'historico') return;
-    if (JSON.stringify(novo[k]) !== JSON.stringify(antes[k])){ if (novo[k] === undefined) delete res[k]; else res[k] = novo[k]; }
+    const a = antes[k], n = novo[k];
+    if ((vazio(a) && vazio(n)) || JSON.stringify(n) === JSON.stringify(a)) return;   // esta ação não mexeu neste campo
+    if (n === undefined) delete res[k]; else res[k] = n;
   });
   const ha = Array.isArray(antes.historico) ? antes.historico : [], hn = Array.isArray(novo.historico) ? novo.historico : [], hb = Array.isArray(banco.historico) ? banco.historico : [];
   const kA = new Set(ha.map(chaveEvento)), kN = new Set(hn.map(chaveEvento));
@@ -3283,8 +3289,10 @@ async function salvarAcompanhamentoComRetry(itemId, dados){
   let final = dados;
   try{
     const banco = await store.getDoc('acompanhamento', itemId);
-    if (banco && typeof banco === 'object') final = mesclarComBanco(acompanhamento[itemId], dados, banco);
+    const antes = acompanhamentoAntes.has(itemId) ? acompanhamentoAntes.get(itemId) : acompanhamento[itemId];
+    if (banco && typeof banco === 'object') final = mesclarComBanco(antes, dados, banco);
   }catch(e){}
+  acompanhamentoAntes.delete(itemId);
   let r = await store.setDoc('acompanhamento', itemId, final);
   if (!r.ok){
     await new Promise((res) => setTimeout(res, 1500));
@@ -3891,7 +3899,7 @@ async function alternarAcompanhamento(itemId, campo, modo){
   }
   novo.historico = hist;
   // mostra na hora (não espera a internet), e salva em seguida
-  acompanhamento[itemId] = novo;
+  lembrarAntes(itemId); acompanhamento[itemId] = novo;
   atualizarTelasAposAcompanhamento();
   itensGravandoAgora.add(itemId);
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
@@ -3941,7 +3949,7 @@ async function triarDivergenciaIac(itemId, tipo){
     msg = 'Triagem desfeita';
   }
   novo.historico = hist;
-  acompanhamento[itemId] = novo;
+  lembrarAntes(itemId); acompanhamento[itemId] = novo;
   atualizarTelasAposAcompanhamento();
   itensGravandoAgora.add(itemId);
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
@@ -3959,7 +3967,7 @@ async function salvarDataPrevista(itemId, dataStr){
   const anterior = acompanhamento[itemId];
   const atual = anterior || { awExecEm:null, iacOkEm:null };
   const novo = Object.assign({}, atual, { dataPrevista: dataStr || null });
-  acompanhamento[itemId] = novo;
+  lembrarAntes(itemId); acompanhamento[itemId] = novo;
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
   if (r.ok) avisoFlutuante('Previsão salva', 'ok');
   else {
@@ -9680,7 +9688,7 @@ async function salvarClassificacaoItem(itemId, novaDisc, novoForn){
   const fornecedorOverride = (novoForn && novoForn !== fornecedorPadrao) ? novoForn : null;
   const novo = Object.assign({}, atual, { disciplinaOverride, fornecedorOverride, catAutoEm: null, catAutoFonte: null }); // editado à mão: deixa de ser "auto"
   const anterior = acompanhamento[itemId];
-  acompanhamento[itemId] = novo;
+  lembrarAntes(itemId); acompanhamento[itemId] = novo;
   const r = await salvarAcompanhamentoComRetry(itemId, novo);
   if (!r.ok){
     if (anterior) acompanhamento[itemId] = anterior; else delete acompanhamento[itemId];
