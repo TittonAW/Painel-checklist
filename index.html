@@ -1409,7 +1409,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.318';
+const VERSAO_APP = '2026-10-03.319';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3315,13 +3315,17 @@ function locaisDoAndarCor(a){ const ls = agruparPorLocal(itensRevisaoAtual).filt
 function andarLiberadoOperacao(a){ const ls = locaisDoAndarCor(a); if (!ls.length) return false; const p = piorStatusEntreLocais(ls); return p === 'LIBERADO_PEND' || p === 'CONCLUIDO'; }
 function ondasDeHoje(){ const h = chaveDia(new Date()); const at = ONDAS_SOFITEL.filter((o) => h >= o.ini && h <= o.fim); if (at.length) return at.map((o) => Object.assign({ estado:'atual' }, o)); const px = ONDAS_SOFITEL.find((o) => h < o.ini); return px ? [Object.assign({ estado:'proxima' }, px)] : []; }
 function abertoOuNovo(x){ return novoForaDoAberto(x) || (contaNoTotal(x) && estaEmAberto(x)); }
-function sofitelEmAberto(a){ return itensRevisaoAtual.filter((x) => Number(x.andar) === Number(a) && origemDoItem(x) === 'SOFITEL' && abertoOuNovo(x)); }
+function entraNaOnda(x){ return abertoOuNovo(x) || iacNaoAceitou(x); } // em aberto, não aceitos e novos
+function categoriaNaOnda(x){ return novoForaDoAberto(x) ? 'novo' : (iacNaoAceitou(x) ? 'naoAceito' : 'aberto'); }
+function sofitelEmAberto(a){ return itensRevisaoAtual.filter((x) => Number(x.andar) === Number(a) && origemDoItem(x) === 'SOFITEL' && entraNaOnda(x)); }
+function resumoCategorias(lista){ const c = { aberto:0, naoAceito:0, novo:0 }; lista.forEach((x) => { c[categoriaNaOnda(x)]++; });
+  return [c.aberto ? c.aberto + ' em aberto' : '', c.naoAceito ? c.naoAceito + ' não aceitos' : '', c.novo ? c.novo + ' novos' : ''].filter(Boolean).join(' · ') || 'nada pendente'; }
 function iacRepetitivos(andares){
   const feitos = new Map();
   itensRevisaoAtual.forEach((x) => { if (andares.indexOf(Number(x.andar)) !== -1 || origemDoItem(x) === 'SOFITEL' || !baixaDaAW(x)) return;
     const k = chaveComparacao(x.desc); if (!k || k.length < 8) return; feitos.set(k, (feitos.get(k) || 0) + 1); });
   const grupos = new Map();
-  itensRevisaoAtual.forEach((x) => { if (andares.indexOf(Number(x.andar)) === -1 || origemDoItem(x) === 'SOFITEL' || x.origem === 'AW' || !abertoOuNovo(x)) return;
+  itensRevisaoAtual.forEach((x) => { if (andares.indexOf(Number(x.andar)) === -1 || origemDoItem(x) === 'SOFITEL' || x.origem === 'AW' || !entraNaOnda(x)) return;
     const k = chaveComparacao(x.desc), f = feitos.get(k) || 0; if (f < 3) return;
     if (!grupos.has(k)) grupos.set(k, { desc: x.desc, feitos: f, ids: [] }); grupos.get(k).ids.push(x.id); });
   return Array.from(grupos.values()).sort((a, b) => b.ids.length - a.ids.length || b.feitos - a.feitos);
@@ -3363,13 +3367,16 @@ function htmlAvisosChat(){
   }
   // 3) 2ª onda: Sofitel de cima para baixo + IAC repetitivos
   ondasDeHoje().forEach((o) => {
-    const linhas = o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).map((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a), ap = ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length;
-      return { a, s, ap, tot: ls.length }; });
-    const todosS = linhas.flatMap((l) => l.s.map((x) => x.id));
-    h += '<div class="rec-titulo">' + (o.estado === 'atual' ? 'Onda Sofitel' : 'Próxima onda Sofitel') + ' · ' + dataCurta(o.ini) + ' a ' + dataCurta(o.fim) + ' · executar e aprovar com a operação</div>' +
-      card('#E7EEFB', '#B7C9EE', linhas.map((l) => '<div><b>' + nomeAndar(l.a) + ':</b> ' + l.s.length + ' itens da Sofitel em aberto · aprovados Sofitel ' + l.ap + '/' + l.tot + '</div>').join('') +
-        (todosS.length ? '<div class="rec-botoes">' + botaoVerIds(todosS, 'Sofitel em aberto · onda ' + dataCurta(o.ini)) + '</div>' : ''));
     const rep = iacRepetitivos(o.andares), idsRep = rep.flatMap((g) => g.ids);
+    const porId = new Map(itensRevisaoAtual.map((x) => [x.id, x]));
+    const linhas = o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).map((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a), ap = ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length;
+      const iac = idsRep.map((id) => porId.get(id)).filter((x) => x && Number(x.andar) === a);
+      return { a, s, iac, ap, tot: ls.length }; });
+    const todos = linhas.flatMap((l) => l.s.concat(l.iac).map((x) => x.id));
+    h += '<div class="rec-titulo">' + (o.estado === 'atual' ? 'Onda Sofitel' : 'Próxima onda Sofitel') + ' · ' + dataCurta(o.ini) + ' a ' + dataCurta(o.fim) + ' · executar e aprovar com a operação</div>' +
+      card('#E7EEFB', '#B7C9EE', linhas.map((l) => '<div style="margin-bottom:6px;"><b>' + nomeAndar(l.a) + ':</b> ' + (l.s.length + l.iac.length) + ' itens · aprovados Sofitel ' + l.ap + '/' + l.tot +
+          '<div class="rec-sub" style="margin-top:1px;">Sofitel ' + l.s.length + ' (' + resumoCategorias(l.s) + ')' + (l.iac.length ? ' · IAC recorrentes ' + l.iac.length + ' (' + resumoCategorias(l.iac) + ')' : '') + '</div></div>').join('') +
+        (todos.length ? '<div class="rec-botoes">' + botaoVerIds(todos, 'Onda ' + dataCurta(o.ini) + ' · Sofitel + IAC recorrentes') + '</div>' : ''));
     if (idsRep.length) h += card('#EFE8FA', '#CDBDF0', '<b>IAC que você já resolveu em outros andares:</b> ' + idsRep.length + ' itens nos andares da onda' +
       '<div class="rec-sub">' + rep.slice(0, 5).map((g) => '“' + esc(String(g.desc).slice(0, 60)) + (String(g.desc).length > 60 ? '…' : '') + '” · ' + g.ids.length + ' aqui · feito ' + g.feitos + '× em outros andares').join('<br>') + '</div>' +
       '<div class="rec-sub">O resto da IAC fica de fora (detalhe que não vale atacar agora).</div><div class="rec-botoes">' + botaoVerIds(idsRep, 'IAC repetitivos · onda ' + dataCurta(o.ini)) + '</div>');
@@ -8872,7 +8879,7 @@ async function atualizarCronogramaEPlano(){
   ondasDeHoje().forEach((o) => { const rep = iacRepetitivos(o.andares);
     o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).forEach((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a);
       planos.push({ fase:'2-onda Sofitel ' + dataCurta(o.ini) + ' a ' + dataCurta(o.fim) + (o.estado === 'proxima' ? ' (começa em ' + dataCurta(o.ini) + ')' : ''), andar:a,
-        sofitelEmAberto: s.length, iacRepetitivos: rep.reduce((n, g) => n + g.ids.filter((id) => (itensRevisaoAtual.find((x) => x.id === id) || {}).andar == a).length, 0),
+        sofitel: s.length + ' (' + resumoCategorias(s) + ')', iacRecorrentes: rep.reduce((n, g) => n + g.ids.filter((id) => (itensRevisaoAtual.find((x) => x.id === id) || {}).andar == a).length, 0),
         aprovadosSofitel: ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length + '/' + ls.length,
         fornecedoresSofitel: topContagem(s, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3) }); }); });
   await gerarInsightDoDia(planos);
