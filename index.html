@@ -598,9 +598,40 @@ body.aba-quartos main{ max-width:1900px; }
 .sf-alca{ cursor:grab; font-size:16px; color:#8A938E; text-align:center; touch-action:none; }
 .sf-seq-n{ width:22px; height:22px; border-radius:11px; background:#E7EEFB; color:#4A6AA5; font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; }
 .sf-seq-l small{ color:#6B756F; }
-.sf-eq-l{ display:grid; grid-template-columns: minmax(110px,1fr) 64px 140px 92px 28px; gap:6px; align-items:center; font-size:12.5px; padding:3px 0; }
+.sf-eq-l{ display:grid; grid-template-columns: minmax(100px,1fr) 58px 128px 76px 92px 62px 26px; gap:6px; align-items:center; font-size:12.5px; padding:3px 0; }
+.sf-eq-l.falta input[data-eq-ipp]{ border-color:#F1C99B; background:#FFF7EC; }
+.sf-eq-l.tot .sf-c, .sf-eq-l.cab span{ white-space:nowrap; }
+.sf-eq-med{ grid-column: 1 / -1; color:#8A938E; font-size:11px; margin:-1px 0 3px 2px; }
+.sf-vel{ padding:3px 8px; font-size:11px; } .sf-vel.auto{ background:#E3F5EC; border-color:#A9DCC2; color:#2E6B4A; }
 .sf-eq-l.cab{ font-size:10.5px; color:#8A938E; } .sf-eq-l.tot{ border-top:1px solid rgba(0,0,0,.08); margin-top:4px; padding-top:6px; }
 .sf-eq-l input, .sf-eq-l select{ width:100%; padding:5px 7px; font-size:12.5px; border:1px solid rgba(0,0,0,.12); border-radius:8px; background:#fff; }
+.sf-pr-l{ display:grid; grid-template-columns: minmax(110px,1fr) minmax(140px,1.4fr) 82px 136px 82px 92px 128px 26px; gap:6px; align-items:center; font-size:12.5px; padding:4px 0; }
+.sf-pr-l.cab{ font-size:10.5px; color:#8A938E; } .sf-pr-l.cab span{ white-space:nowrap; }
+.sf-pr-l input{ width:100%; padding:5px 7px; font-size:12.5px; border:1px solid rgba(0,0,0,.12); border-radius:8px; background:#fff; }
+.sf-pr-sit{ display:inline-block; padding:3px 9px; border-radius:9px; font-size:11.5px; text-align:center; white-space:nowrap; }
+.sf-pr-barra{ grid-column: 1 / -1; padding:0 2px 4px; }
+.sf-pr-barra .sf-trilho i{ position:absolute; top:-3px; width:2px; height:16px; background:#F3B97C; border-radius:1px; }
+.sf-pr-barra .sf-trilho i.hoje{ background:#C9897A; width:1px; }
+.sf-sec{ display:flex; gap:10px; align-items:center; margin:26px 0 10px; }
+.sf-sec-n{ width:28px; height:28px; border-radius:14px; background:#33403A; color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.sf-sec-t{ font-size:16px; font-weight:700; color:#33403A; } .sf-sec-s{ font-size:12px; color:#6B756F; }
+.sf-kpis5{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1100px){ .sf-kpis5{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sf-hero{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; background:#FBEFE9; border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+.sf-hero-rot{ font-size:12px; color:#8A4B3A; } .sf-hero-data{ font-size:34px; font-weight:800; color:#5E2F22; line-height:1.1; }
+.sf-hero-mot{ font-size:13.5px; color:#33403A; margin-top:4px; } .sf-hero-sub{ font-size:12px; color:#6B756F; margin-top:4px; }
+.sf-tl-l{ display:grid; grid-template-columns: 220px 1fr; gap:4px 10px; align-items:center; font-size:12.5px; padding:4px 0; border-top:1px solid rgba(0,0,0,.05); }
+.sf-tl-l > small{ grid-column: 2; color:#6B756F; font-size:11.5px; }
+.sf-tl-l.define{ background:#FBEFE9; border-radius:8px; padding:4px 6px; } .sf-tl-l.define > span{ font-weight:700; color:#5E2F22; }
+.sf-tl-l.eixo{ border-top:0; padding-bottom:0; }
+.sf-tl-trilho{ position:relative; height:14px; background:#fff; border-radius:7px; }
+.sf-tl-l.eixo .sf-tl-trilho{ background:transparent; height:16px; }
+.sf-tl-trilho > span{ position:absolute; top:0; bottom:0; border-radius:7px; }
+.sf-tl-trilho em{ position:absolute; top:0; transform:translateX(-50%); font-style:normal; font-size:10.5px; color:#8A938E; white-space:nowrap; }
+.sf-tl-trilho em.fim{ transform:translateX(-100%); color:#8A4B3A; font-weight:700; }
+.sf-tl-final{ position:absolute; top:-4px; bottom:-4px; width:2px; margin-left:-2px; background:#C9897A; border-radius:1px; }
+.sf-tl-entrega{ position:absolute; top:-3px; width:3px; height:20px; background:#F3B97C; border-radius:2px; }
+.sf-tl-grupo{ font-size:11.5px; font-weight:600; color:#5B6660; margin:12px 0 2px; }
 .sf-gantt{ display:grid; grid-template-columns: 34px 1fr; gap:4px 8px; align-items:center; font-size:12.5px; padding:4px 0; border-top:1px solid rgba(0,0,0,.05); }
 .sf-gantt small{ grid-column: 2; color:#6B756F; font-size:11.5px; }
 .sf-trilho{ position:relative; height:14px; background:#fff; border-radius:7px; }
@@ -1456,7 +1487,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.324';
+const VERSAO_APP = '2026-10-03.329';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -9208,10 +9239,65 @@ function ajustarProblemasDoGrupo(itens){
   });
 }
 /* ---- sequência de execução (editável) e equipe por fornecedor ---- */
-let seqSof = null, equipeSof = null, modoCorteSof = 'padrao', tSalvarEquipe = null;
+let seqSof = null, equipeSof = null, modoCorteSof = 'padrao', tSalvarEquipe = null, produtosSof = null, tSalvarProdutos = null;
 async function carregarSeqEquipeSof(){
   try{ const d = await store.getDoc('config', 'sofitel_sequencia'); seqSof = (d && Array.isArray(d.ordem)) ? d.ordem.map(Number) : []; }catch(e){ seqSof = []; }
   try{ const d = await store.getDoc('config', 'sofitel_equipes'); equipeSof = (d && Array.isArray(d.linhas)) ? d.linhas : null; }catch(e){ equipeSof = null; }
+  try{ const d = await store.getDoc('config', 'sofitel_produtos'); produtosSof = (d && Array.isArray(d.linhas)) ? d.linhas : []; }catch(e){ produtosSof = []; }
+}
+/* ---- produtos comprados: entrega e instalação ---- */
+function salvarProdutosSofDepois(){ clearTimeout(tSalvarProdutos); tSalvarProdutos = setTimeout(async () => { const r = await store.setDoc('config', 'sofitel_produtos', { linhas: produtosSof, em: new Date().toISOString(), por: usuarioAtual }); if (!r || !r.ok) avisoFlutuante('Produtos não foram salvos (sem conexão?).', 'erro'); }, 700); }
+function diasEntre(aChave, bChave){ return Math.round((new Date(bChave + 'T12:00:00') - new Date(aChave + 'T12:00:00')) / 86400000); }
+function somarDiasCorridos(chave, n){ const d = new Date(chave + 'T12:00:00'); d.setDate(d.getDate() + n); return chaveDia(d); }
+function terminoDoProduto(l){ if (!l.entrega || !(Number(l.exec) > 0)) return null; return terminarDepoisDe(diaSeguinte(l.entrega), Number(l.exec)); }
+function situacaoDoProduto(l, hoje){
+  const fim = terminoDoProduto(l);
+  if (!l.entrega) return { t: 'sem data', c: '#8A938E', bg: '#F1F2F4' };
+  if (hoje < l.entrega) return { t: 'aguardando entrega', c: '#7A4A12', bg: '#FBE9D6' };
+  if (!fim || hoje <= fim) return { t: 'em instalação', c: '#4A6AA5', bg: '#E7EEFB' };
+  return { t: 'concluído', c: '#2E6B4A', bg: '#E3F5EC' };
+}
+function htmlProdutosSof(podeAjustar){
+  const hoje = chaveDia(new Date()), dis = podeAjustar ? '' : ' disabled';
+  const datas = produtosSof.flatMap((l) => [l.entrega, terminoDoProduto(l)]).filter(Boolean).concat([hoje]).sort();
+  const ini = datas[0], fim = datas[datas.length - 1], tot = Math.max(1, diasEntre(ini, fim) + 1);
+  const pos = (k) => Math.max(0, Math.min(100, diasEntre(ini, k) / tot * 100));
+  const linhas = produtosSof.map((l, i) => {
+    const fimP = terminoDoProduto(l), s = situacaoDoProduto(l, hoje), prazo = l.entrega ? Math.max(0, diasEntre(hoje, l.entrega)) : '';
+    const barra = l.entrega ? '<div class="sf-trilho" style="height:10px;"><span style="left:' + pos(l.entrega) + '%; width:' + Math.max(1.5, ((fimP ? diasEntre(l.entrega, fimP) : 0) + 1) / tot * 100) + '%; background:' + (s.t === 'concluído' ? '#8CCBA8' : '#A9C5EA') + ';"></span><i style="left:' + pos(l.entrega) + '%;"></i><i class="hoje" style="left:' + pos(hoje) + '%;"></i></div>' : '';
+    return '<div class="sf-pr-l"><input type="text" data-pr="forn" data-i="' + i + '" value="' + esc(l.forn || '') + '" placeholder="Fornecedor"' + dis + '>' +
+      '<input type="text" data-pr="prod" data-i="' + i + '" value="' + esc(l.prod || '') + '" placeholder="Produto"' + dis + '>' +
+      '<input type="number" min="0" step="1" data-pr="prazo" data-i="' + i + '" value="' + esc(String(prazo)) + '" placeholder="dias"' + dis + '>' +
+      '<input type="date" data-pr="entrega" data-i="' + i + '" value="' + esc(l.entrega || '') + '"' + dis + '>' +
+      '<input type="number" min="0" step="1" data-pr="exec" data-i="' + i + '" value="' + esc(String(l.exec == null ? '' : l.exec)) + '" placeholder="dias"' + dis + '>' +
+      '<b class="sf-c">' + (fimP ? new Date(fimP + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</b>' +
+      '<span class="sf-pr-sit" style="color:' + s.c + '; background:' + s.bg + ';">' + s.t + '</span>' +
+      (podeAjustar ? '<button type="button" class="chip-acao" data-pr-tirar="' + i + '" title="Tirar da tabela">×</button>' : '<span></span>') +
+      (barra ? '<div class="sf-pr-barra">' + barra + '</div>' : '') + '</div>';
+  }).join('');
+  const ultimo = produtosSof.map(terminoDoProduto).filter(Boolean).sort().pop();
+  return '<div class="sf-pr"><div class="sf-pr-l cab"><span>Fornecedor</span><span>Produto</span><span>Prazo de entrega</span><span>Data de entrega</span><span>Prazo de execução</span><span class="sf-c">Data de término</span><span>Situação</span><span></span></div>' +
+    (linhas || '<div class="rn-sub" style="padding:8px 0;">Nenhum produto cadastrado ainda.</div>') + '</div>' +
+    '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;">' + (podeAjustar ? '<button type="button" class="chip-acao" id="sf-pr-add">+ adicionar produto</button>' : '<span></span>') +
+    (ultimo ? '<span style="font-size:12px; color:#6B756F;">Último término previsto: <b style="color:#33403A;">' + new Date(ultimo + 'T12:00:00').toLocaleDateString('pt-BR') + '</b> · prazos de execução em dias de trabalho (seg. a sáb.)</span>' : '') + '</div>';
+}
+function ligarProdutosSof(box){
+  const redesenhar = () => { const y = window.scrollY; renderSofitel().then(() => window.scrollTo(0, y)); };
+  const hoje = chaveDia(new Date());
+  box.querySelectorAll('.sf-pr [data-pr]').forEach((el) => {
+    const i = Number(el.dataset.i), campo = el.dataset.pr;
+    el.addEventListener(el.type === 'text' ? 'input' : 'change', () => {
+      const l = produtosSof[i]; if (!l) return;
+      if (campo === 'forn' || campo === 'prod') l[campo] = el.value;
+      else if (campo === 'entrega') l.entrega = el.value || '';
+      else if (campo === 'prazo') l.entrega = el.value === '' ? '' : somarDiasCorridos(hoje, Math.max(0, Math.round(Number(el.value) || 0)));
+      else if (campo === 'exec') l.exec = el.value === '' ? '' : Math.max(0, Math.round(Number(el.value) || 0));
+      salvarProdutosSofDepois();
+      if (el.type !== 'text') redesenhar();
+    });
+  });
+  box.querySelectorAll('[data-pr-tirar]').forEach((b) => b.addEventListener('click', () => { produtosSof.splice(Number(b.dataset.prTirar), 1); salvarProdutosSofDepois(); redesenhar(); }));
+  const add = box.querySelector('#sf-pr-add'); if (add) add.addEventListener('click', () => { produtosSof.push({ forn: '', prod: '', entrega: '', exec: '' }); salvarProdutosSofDepois(); redesenhar(); });
 }
 function ordemExecucaoSof(){
   const base = (seqSof || []).concat(ONDAS_SOFITEL.flatMap((o) => o.andares), andaresConhecidos.slice().sort((a, b) => b - a));
@@ -9237,21 +9323,40 @@ function baixasSofitel(){
 }
 function velocidadesSofitel(){
   const bx = baixasSofitel(), por = new Map();
-  bx.forEach((b) => { const k = b.forn + '|' + b.andar; if (!por.has(k)) por.set(k, []); por.get(k).push(b.dia); });
+  bx.forEach((b) => { if (ANDARES_APROVADOS_SOFITEL.indexOf(b.andar) !== -1) return; // 8º–10º não representam a velocidade real
+    const k = b.forn + '|' + b.andar; if (!por.has(k)) por.set(k, []); por.get(k).push(b.dia); });
   const porForn = new Map(); let totN = 0, totDias = 0;
   por.forEach((dias, k) => { if (dias.length < 3) return; dias.sort(); const span = Math.max(1, somarTrabalho(dias[0], dias[dias.length - 1])); const f = k.split('|')[0];
     if (!porForn.has(f)) porForn.set(f, { n: 0, dias: 0, andares: 0 }); const r = porForn.get(f); r.n += dias.length; r.dias += span; r.andares++; totN += dias.length; totDias += span; });
   const media = totDias ? totN / totDias : 0;
   return { porForn, media, nBaixas: bx.length, base: totN };
 }
+function linhaEquipeSof(forn){ const k = chaveComparacao(forn || ''); return (equipeSof || []).find((l) => chaveComparacao(l.forn || '') === k) || null; }
+function taxaDoFornecedorSof(forn, vel){
+  const l = linhaEquipeSof(forn), p = l ? Number(l.pessoas) || 0 : 0, fator = l && l.modo === '2andares' ? 0.5 : 1;
+  const manual = (l && Number(l.ipp) > 0 && p > 0) ? Number(l.ipp) * p * fator : null;
+  const v = vel.porForn.get(forn) || Array.from(vel.porForn.entries()).filter(([k]) => chaveComparacao(k) === chaveComparacao(forn)).map(([, x]) => x)[0];
+  const medido = v && v.dias ? v.n / v.dias : null, andaresMed = v ? v.andares : 0;
+  const modo = (l && l.vel) || (andaresMed >= 3 ? 'auto' : 'manual');
+  const porPessoa = (medido && p) ? medido / (p * fator) : null;
+  if (modo === 'auto' && medido) return { r: medido, fonte: 'automático', medido, andaresMed, porPessoa };
+  if (manual) return { r: manual, fonte: 'manual', medido, andaresMed, porPessoa };
+  if (medido) return { r: medido, fonte: andaresMed >= 3 ? 'automático' : 'medido', medido, andaresMed, porPessoa };
+  return { r: null, fonte: 'média', medido, andaresMed, porPessoa };
+}
 function simularPrazoSofitel(pend, frentes){
   const vel = velocidadesSofitel();
-  if (!vel.media) return null;
+  const fornsPend = Array.from(new Set(pend.map((x) => fornecedorEfetivo(x) || 'Sem fornecedor')));
+  const taxas = new Map(fornsPend.map((f) => [f, taxaDoFornecedorSof(f, vel)]));
+  const conhecidas = Array.from(taxas.values()).map((x) => x.r).filter((r) => r > 0);
+  const media = conhecidas.length ? conhecidas.reduce((s, r) => s + r, 0) / conhecidas.length : vel.media;
+  if (!media) return null;
+  vel.mediaUsada = media; vel.taxas = taxas;
   const andares = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a));
   const tarefas = andares.map((a) => { const p = pend.filter((x) => Number(x.andar) === a); if (!p.length) return null;
     const porF = topContagem(p, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 50);
     let dur = 0, gargalo = null;
-    porF.forEach((f) => { const v = vel.porForn.get(f.k), r = v && v.dias ? v.n / v.dias : vel.media, d = f.n / r; if (d > dur){ dur = d; gargalo = { forn: f.k, n: f.n, r, propria: !!v }; } });
+    porF.forEach((f) => { const tx = taxas.get(f.k) || { r: null, fonte: 'média' }, r = tx.r || media, d = f.n / r; if (d > dur){ dur = d; gargalo = { forn: f.k, n: f.n, r, fonte: tx.r ? tx.fonte : 'média' }; } });
     return { a, n: p.length, dur: Math.max(0.5, Math.round(dur * 2) / 2), gargalo }; }).filter(Boolean);
   const hoje = chaveDia(new Date()), livre = Array.from({ length: frentes }, () => hoje);
   tarefas.forEach((tk) => { let i = 0; livre.forEach((l, j) => { if (l < livre[i]) i = j; }); tk.frente = i + 1; tk.ini = livre[i]; tk.fim = terminarDepoisDe(tk.ini, tk.dur); livre[i] = diaSeguinte(tk.fim); });
@@ -9265,7 +9370,7 @@ function htmlEditarSequencia(seqAtiva, linhas, pend){
     seqAtiva.map((a, i) => { const l = porA.get(a) || { p: [] };
       return '<div class="sf-seq-l" data-a="' + a + '"><span class="sf-alca" title="arrastar">≡</span><span class="sf-seq-n">' + (i + 1) + '</span><b>' + a + 'º</b><small>' + (l.p ? l.p.length : 0) + ' itens pendentes</small>' +
         '<span style="display:flex; gap:4px;"><button type="button" class="chip-acao" data-seq-sobe="' + a + '"' + (i === 0 ? ' disabled' : '') + '>↑</button><button type="button" class="chip-acao" data-seq-desce="' + a + '"' + (i === seqAtiva.length - 1 ? ' disabled' : '') + '>↓</button></span></div>'; }).join('') +
-    '</div>' + (fora.length ? '<div style="margin-top:8px;">' + fora.map((l) => '<div class="sf-seq-l fora"><span></span><span class="sf-seq-n">—</span><b>' + l.a + 'º</b><small>' + (l.aprovado ? 'aprovado pela Sofitel · fora da sequência' : 'sem pendências da Sofitel') + '</small><span></span></div>').join('') + '</div>' : '');
+    '</div>' + (fora.length ? '<div style="margin-top:8px;">' + fora.map((l) => '<div class="sf-seq-l fora"><span></span><span class="sf-seq-n">—</span><b>' + l.a + 'º</b><small>' + (l.aprovado ? 'aprovado pela Sofitel · fora da sequência' : (l.tot ? 'sem pendências da Sofitel' : 'sem itens da Sofitel')) + '</small><span></span></div>').join('') + '</div>' : '');
 }
 function ligarArrastarSequencia(box){
   const lista = box.querySelector('#sf-seq'); if (!lista) return;
@@ -9293,12 +9398,18 @@ function htmlEquipeSof(pend, podeAjustar){
   if (!equipeSof){ equipeSof = topContagem(pend, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 12).filter((f) => f.k !== 'Sem fornecedor').map((f) => ({ forn: f.k, pessoas: '', modo: 'andar' })); }
   const N = andaresJuntosSof, tot = equipeSof.reduce((s, l) => s + pessoasNecessarias(l, N), 0);
   const dis = podeAjustar ? '' : ' disabled';
-  return '<div class="sf-eq"><div class="sf-eq-l cab"><span>Fornecedor</span><span>Pessoas</span><span>Atende</span><span class="sf-c">Para ' + N + ' andar' + (N > 1 ? 'es' : '') + '</span><span></span></div>' +
-    equipeSof.map((l, i) => '<div class="sf-eq-l"><input type="text" data-eq-forn="' + i + '" value="' + esc(l.forn || '') + '" placeholder="Fornecedor"' + dis + '>' +
-      '<input type="number" min="0" step="1" data-eq-pes="' + i + '" value="' + esc(String(l.pessoas == null ? '' : l.pessoas)) + '" placeholder="0"' + dis + '>' +
-      '<select data-eq-modo="' + i + '"' + dis + '><option value="andar"' + (l.modo !== '2andares' ? ' selected' : '') + '>por andar</option><option value="2andares"' + (l.modo === '2andares' ? ' selected' : '') + '>a cada 2 andares</option></select>' +
-      '<b class="sf-c" data-eq-res="' + i + '">' + pessoasNecessarias(l, N) + '</b>' + (podeAjustar ? '<button type="button" class="chip-acao" data-eq-tirar="' + i + '" title="Tirar da tabela">×</button>' : '<span></span>') + '</div>').join('') +
-    '<div class="sf-eq-l tot"><span><b>Total na obra</b></span><span></span><span></span><b class="sf-c" id="sf-eq-total">' + tot + ' pessoas</b><span></span></div></div>' +
+  const vel = velocidadesSofitel();
+  const nf = (v) => v == null ? '' : v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  return '<div class="sf-eq"><div class="sf-eq-l cab"><span>Fornecedor</span><span>Pessoas</span><span>Atende</span><span title="quantos itens UMA pessoa resolve por dia">Itens/dia por pessoa</span><span>Velocidade</span><span class="sf-c">Para ' + N + ' andar' + (N > 1 ? 'es' : '') + '</span><span></span></div>' +
+    equipeSof.map((l, i) => { const tx = taxaDoFornecedorSof(l.forn, vel), falta = !tx.r;
+      const chip = '<button type="button" class="chip-acao sf-vel' + (tx.fonte === 'automático' ? ' auto' : '') + '" data-eq-vel="' + i + '"' + (tx.medido ? '' : ' disabled') + ' title="' + (tx.medido ? 'Trocar entre o seu número e o medido' : 'Ainda sem medição deste fornecedor') + '">' + (falta ? 'falta número' : tx.fonte) + '</button>';
+      return '<div class="sf-eq-l' + (falta ? ' falta' : '') + '"><input type="text" data-eq-forn="' + i + '" value="' + esc(l.forn || '') + '" placeholder="Fornecedor"' + dis + '>' +
+        '<input type="number" min="0" step="1" data-eq-pes="' + i + '" value="' + esc(String(l.pessoas == null ? '' : l.pessoas)) + '" placeholder="0"' + dis + '>' +
+        '<select data-eq-modo="' + i + '"' + dis + '><option value="andar"' + (l.modo !== '2andares' ? ' selected' : '') + '>por andar</option><option value="2andares"' + (l.modo === '2andares' ? ' selected' : '') + '>a cada 2 andares</option></select>' +
+        '<input type="number" min="0" step="0.5" data-eq-ipp="' + i + '" value="' + esc(String(l.ipp == null ? '' : l.ipp)) + '" placeholder="—"' + dis + '>' + chip +
+        '<b class="sf-c" data-eq-res="' + i + '">' + pessoasNecessarias(l, N) + '</b>' + (podeAjustar ? '<button type="button" class="chip-acao" data-eq-tirar="' + i + '" title="Tirar da tabela">×</button>' : '<span></span>') +
+        (tx.medido ? '<small class="sf-eq-med">medido: ' + nf(tx.medido) + ' itens/dia por andar' + (tx.porPessoa ? ' (' + nf(tx.porPessoa) + ' por pessoa)' : '') + ' · ' + tx.andaresMed + ' andar' + (tx.andaresMed === 1 ? '' : 'es') + (tx.andaresMed >= 3 ? '' : ' (automático a partir de 3)') + '</small>' : '<small class="sf-eq-med">sem medição ainda' + (falta ? ' · informe pessoas e itens/dia' : '') + '</small>') + '</div>'; }).join('') +
+    '<div class="sf-eq-l tot"><span><b>Total na obra</b></span><span></span><span></span><span></span><span></span><b class="sf-c" id="sf-eq-total">' + tot + ' pessoas</b><span></span></div></div>' +
     (podeAjustar ? '<div style="margin-top:6px;"><button type="button" class="chip-acao" id="sf-eq-add">+ adicionar fornecedor</button></div>' : '');
 }
 function ligarEquipeSof(box){
@@ -9306,10 +9417,14 @@ function ligarEquipeSof(box){
   const atualizarTotais = () => { equipeSof.forEach((l, i) => { const el = box.querySelector('[data-eq-res="' + i + '"]'); if (el) el.textContent = pessoasNecessarias(l, N()); });
     const t = box.querySelector('#sf-eq-total'); if (t) t.textContent = equipeSof.reduce((s, l) => s + pessoasNecessarias(l, N()), 0) + ' pessoas'; };
   box.querySelectorAll('[data-eq-forn]').forEach((el) => el.addEventListener('input', () => { equipeSof[Number(el.dataset.eqForn)].forn = el.value; salvarEquipeSofDepois(); }));
-  box.querySelectorAll('[data-eq-pes]').forEach((el) => el.addEventListener('input', () => { equipeSof[Number(el.dataset.eqPes)].pessoas = el.value === '' ? '' : Math.max(0, Math.round(Number(el.value) || 0)); atualizarTotais(); salvarEquipeSofDepois(); }));
-  box.querySelectorAll('[data-eq-modo]').forEach((el) => el.addEventListener('change', () => { equipeSof[Number(el.dataset.eqModo)].modo = el.value; atualizarTotais(); salvarEquipeSofDepois(); }));
+  const redesenhar = () => { const y = window.scrollY; renderSofitel().then(() => window.scrollTo(0, y)); };
+  box.querySelectorAll('[data-eq-pes]').forEach((el) => { el.addEventListener('input', () => { equipeSof[Number(el.dataset.eqPes)].pessoas = el.value === '' ? '' : Math.max(0, Math.round(Number(el.value) || 0)); atualizarTotais(); salvarEquipeSofDepois(); }); el.addEventListener('change', redesenhar); });
+  box.querySelectorAll('[data-eq-ipp]').forEach((el) => { el.addEventListener('input', () => { equipeSof[Number(el.dataset.eqIpp)].ipp = el.value === '' ? '' : Math.max(0, Number(String(el.value).replace(',', '.')) || 0); salvarEquipeSofDepois(); }); el.addEventListener('change', redesenhar); });
+  box.querySelectorAll('[data-eq-modo]').forEach((el) => el.addEventListener('change', () => { equipeSof[Number(el.dataset.eqModo)].modo = el.value; atualizarTotais(); salvarEquipeSofDepois(); redesenhar(); }));
+  box.querySelectorAll('[data-eq-vel]').forEach((el) => el.addEventListener('click', () => { const l = equipeSof[Number(el.dataset.eqVel)]; const tx = taxaDoFornecedorSof(l.forn, velocidadesSofitel()); l.vel = tx.fonte === 'automático' ? 'manual' : 'auto'; salvarEquipeSofDepois(); redesenhar(); }));
+  box.querySelectorAll('[data-eq-forn]').forEach((el) => el.addEventListener('change', redesenhar));
   box.querySelectorAll('[data-eq-tirar]').forEach((el) => el.addEventListener('click', () => { equipeSof.splice(Number(el.dataset.eqTirar), 1); salvarEquipeSofDepois(); renderSofitel(); }));
-  const add = box.querySelector('#sf-eq-add'); if (add) add.addEventListener('click', () => { equipeSof.push({ forn: '', pessoas: '', modo: 'andar' }); salvarEquipeSofDepois(); renderSofitel(); });
+  const add = box.querySelector('#sf-eq-add'); if (add) add.addEventListener('click', () => { equipeSof.push({ forn: '', pessoas: '', modo: 'andar', ipp: '' }); salvarEquipeSofDepois(); renderSofitel(); });
 }
 async function renderSofitel(){
   const box = document.getElementById('sofitel-pagina'); if (!box) return;
@@ -9338,15 +9453,15 @@ async function renderSofitel(){
     const rem = removidosTodos.filter((h) => Number(h.andar) === a).length, tot = s.length + rem;
     const ls = locaisDoAndarCor(a), ap = ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length;
     return { a, tot, res: Math.max(0, tot - p.length), p, c, pc: tot ? Math.round((tot - p.length) / tot * 100) : 0, aprovado, ap, nAmb: ls.length };
-  }).filter((l) => l.tot);
+  });
   const col = (v, cor) => '<span class="sf-c"' + (cor ? ' style="color:' + cor + ';"' : '') + '>' + (v ? fmt(v) : '—') + '</span>';
   const seqAtiva = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a) && pend.some((x) => Number(x.andar) === a));
   const posSeq = new Map(seqAtiva.map((a, i) => [a, i + 1]));
   const corte = '<div class="sf-corte-cab"><span></span><span>avanço</span><span class="sf-c">Total</span><span class="sf-c">Resolvidos</span><span class="sf-c">Em aberto</span><span class="sf-c">Não aceitos</span><span class="sf-c">Novos</span><span></span></div>' +
-    linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"><b>' + l.a + 'º' + (posSeq.has(l.a) ? '<sup class="sf-pos" title="posição na sequência de execução">' + posSeq.get(l.a) + '</sup>' : '') + '</b>' +
-      '<div class="sf-avanco"><span style="width:' + l.pc + '%;"></span><em>' + l.pc + '%</em></div>' +
+    linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"' + (!l.tot && !l.aprovado ? ' style="opacity:.55;"' : '') + '><b>' + l.a + 'º' + (posSeq.has(l.a) ? '<sup class="sf-pos" title="posição na sequência de execução">' + posSeq.get(l.a) + '</sup>' : '') + '</b>' +
+      '<div class="sf-avanco"><span style="width:' + l.pc + '%;"></span><em>' + (l.tot ? l.pc + '%' : 'sem itens da Sofitel') + '</em></div>' +
       col(l.tot) + col(l.res, '#2E6B4A') + col(l.c.aberto, '#B4661F') + col(l.c.naoAceito, '#A0522D') + col(l.c.novo, '#B4661F') +
-      (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : '<small>' + l.ap + '/' + l.nAmb + ' amb. aprovados</small>') + '</div>').join('');
+      (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : (l.tot ? '<small>' + l.ap + '/' + l.nAmb + ' amb. aprovados</small>' : '<small>sem lista da Sofitel</small>')) + '</div>').join('');
   // ---- rankings ----
   const top = (fn, n) => { const m = new Map(); pend.forEach((x) => { const k = fn(x) || '—'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return Array.from(m.entries()).map(([k, v]) => ({ k, v })).sort((a, b) => b.v.length - a.v.length).slice(0, n); };
   const forn = top((x) => fornecedorEfetivo(x) || 'Sem fornecedor', 5), disc = top((x) => disciplinaEfetiva(x) || 'Sem disciplina', 4);
@@ -9387,21 +9502,51 @@ async function renderSofitel(){
     const sub = rotuloTipo === 'forn' ? topContagem(g.v, (x) => disciplinaEfetiva(x) || '—', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ') : topContagem(g.v, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ');
     return '<div class="sf-bloco"><div class="sf-bloco-cab"><b>' + (i + 1) + '. ' + esc(g.k) + ' · ' + fmt(g.v.length) + ' itens</b><span>' + (rotuloTipo === 'forn' ? 'disciplinas: ' : 'fornecedores: ') + sub + ' · andares ' + ands.map((a) => a + 'º').join(' ') + '</span></div>' + vitrine(g.v, 6, rotuloTipo !== 'forn') + '</div>';
   }).join('');
-  // ---- previsão ----
+  // ---- previsão (execução dos pendentes) ----
+  if (!equipeSof) equipeSof = topContagem(pend, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 12).filter((f) => f.k !== 'Sem fornecedor').map((f) => ({ forn: f.k, pessoas: '', modo: 'andar', ipp: '' }));
   const sim = simularPrazoSofitel(pend, frentesSof);
   { const restam = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a) && pend.some((x) => Number(x.andar) === a)).length; andaresJuntosSof = Math.max(1, Math.min(frentesSof, restam || frentesSof)); }
-  let prazoHtml = '<div class="rn-sub">Ainda não há baixas suficientes nos itens da Sofitel para medir a velocidade.</div>';
-  if (sim){
-    const ini = new Date(sim.hoje + 'T12:00:00'), fimD = new Date(sim.fim + 'T12:00:00'), totalDias = Math.max(1, Math.round((fimD - ini) / 86400000) + 1);
-    const pos = (k) => Math.round((new Date(k + 'T12:00:00') - ini) / 86400000);
-    const corFrente = ['#A9C5EA', '#A8D5BA', '#F4D9A6', '#D8C6F0', '#F3C1B7'];
-    prazoHtml = '<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">' +
-      '<div><div style="font-size:12px; color:#6B756F;">Previsão de conclusão (itens da Sofitel pendentes)</div><div style="font-size:30px; font-weight:700; color:#33403A;">' + fimD.toLocaleDateString('pt-BR') + '</div><div style="font-size:12px; color:#6B756F;">' + totalDias + ' dias corridos · ' + sim.tarefas.length + ' andares · ' + fmt(pend.length) + ' itens</div></div>' +
-      '<div><div style="font-size:12px; color:#6B756F; margin-bottom:4px; text-align:right;">andares ao mesmo tempo</div><div class="rn-modo" id="sf-frentes">' + [1,2,3,4,5].map((n) => '<button type="button" data-fr="' + n + '"' + (n === frentesSof ? ' class="ativo"' : '') + '>' + n + '</button>').join('') + '</div></div></div>' +
-      sim.tarefas.map((tk) => '<div class="sf-gantt"><b>' + tk.a + 'º</b><div class="sf-trilho"><span style="left:' + (pos(tk.ini) / totalDias * 100) + '%; width:' + Math.max(1.5, (pos(tk.fim) - pos(tk.ini) + 1) / totalDias * 100) + '%; background:' + corFrente[(tk.frente - 1) % 5] + ';"></span></div>' +
-        '<small>' + dataCurta(tk.ini) + ' → ' + dataCurta(tk.fim) + ' · ' + tk.n + ' itens · gargalo ' + esc(tk.gargalo.forn) + ' (' + tk.gargalo.n + ' itens, ' + tk.gargalo.r.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '/dia' + (tk.gargalo.propria ? '' : ', média') + ')</small></div>').join('') +
-      '<div class="rn-leg" style="margin-top:8px;"><span>Velocidade medida em ' + fmt(sim.vel.base) + ' baixas da Sofitel (atualiza a cada baixa) · média ' + sim.vel.media.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' itens/dia por andar · seg. a sáb.; domingos e feriados a 80%</span></div>';
+  const nf1 = (v) => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const seletorFrentes = (id) => '<div style="display:flex; align-items:center; gap:6px;"><span style="font-size:11.5px; color:#6B756F;">andares ao mesmo tempo</span><div class="rn-modo" id="' + id + '">' + [1,2,3,4,5].map((n) => '<button type="button" data-fr="' + n + '"' + (n === frentesSof ? ' class="ativo"' : '') + '>' + n + '</button>').join('') + '</div></div>';
+  const legendaVel = sim ? (() => { const tx = Array.from(sim.vel.taxas.values()); const nM = tx.filter((x) => x.fonte === 'manual' && x.r).length, nA = tx.filter((x) => x.fonte === 'automático' && x.r).length, nP = tx.filter((x) => x.fonte === 'medido' && x.r).length, nS = tx.filter((x) => !x.r).length;
+      return 'Velocidade: ' + nM + ' fornecedor(es) com o seu número · ' + nA + ' automático(s) (3 andares medidos, fora do 8º–10º)' + (nP ? ' · ' + nP + ' pelo medido até agora' : '') + (nS ? ' · ' + nS + ' sem número, usando a média (' + nf1(sim.vel.mediaUsada) + '/dia)' : '') + ' · seg. a sáb.; domingos e feriados a 80%'; })()
+    : 'Ainda não há velocidade (informe pessoas e itens/dia na equipe, ou aguarde as baixas).';
+  // ---- produtos comprados no mesmo calendário ----
+  const hojeK = chaveDia(new Date());
+  const prods = (produtosSof || []).map((l) => ({ l, fim: terminoDoProduto(l) })).filter((x) => x.l.entrega);
+  const fimExec = sim && sim.tarefas.length ? sim.fim : null;
+  const fimProd = prods.map((x) => x.fim || x.l.entrega).sort().pop() || null;
+  const fimGeral = [fimExec, fimProd].filter(Boolean).sort().pop() || null;
+  let motivo = '';
+  if (fimGeral){
+    if (fimProd && fimProd === fimGeral && (!fimExec || fimProd >= fimExec)){
+      const d = prods.find((x) => (x.fim || x.l.entrega) === fimProd);
+      motivo = 'instalação de <b>' + esc(d.l.prod || 'produto') + '</b>' + (d.l.forn ? ' · ' + esc(d.l.forn) : '') + ' — entrega ' + dataCurta(d.l.entrega) + (Number(d.l.exec) ? ', ' + d.l.exec + ' dias de execução' : '');
+    } else {
+      const tk = sim.tarefas.slice().sort((x, y) => x.fim < y.fim ? 1 : -1)[0];
+      motivo = 'pendências da Sofitel no <b>' + tk.a + 'º</b> · gargalo ' + esc(tk.gargalo.forn) + ' (' + tk.gargalo.n + ' itens, ' + nf1(tk.gargalo.r) + '/dia, ' + tk.gargalo.fonte + ')';
+    }
   }
+  // ---- linha do tempo única (execução por andar + produtos), destacando o que define a data final ----
+  let linhaTempo = '<div class="rn-sub">Sem datas para montar o cronograma ainda.</div>';
+  if (fimGeral){
+    const tot = Math.max(1, diasEntre(hojeK, fimGeral) + 1), pos = (k) => Math.max(0, Math.min(100, diasEntre(hojeK, k) / tot * 100));
+    const larg = (ini, fim) => Math.max(1.2, (diasEntre(ini, fim) + 1) / tot * 100);
+    const corFrente = ['#A9C5EA', '#A8D5BA', '#F4D9A6', '#D8C6F0', '#F3C1B7'];
+    const marcas = []; for (let d = 0; d <= tot; d += Math.max(1, Math.ceil(tot / 8))) marcas.push(somarDiasCorridos(hojeK, d));
+    const eixo = '<div class="sf-tl-l eixo"><span></span><div class="sf-tl-trilho">' + marcas.map((k) => '<em style="left:' + pos(k) + '%;">' + dataCurta(k) + '</em>').join('') + '<em class="fim" style="left:100%;">' + dataCurta(fimGeral) + '</em></div><span></span></div>';
+    const linhaFinal = '<i class="sf-tl-final" style="left:100%;"></i>';
+    const execLinhas = sim && sim.tarefas.length ? sim.tarefas.map((tk) => { const define = tk.fim === fimGeral && !(fimProd && fimProd === fimGeral && fimProd >= fimExec);
+        return '<div class="sf-tl-l' + (define ? ' define' : '') + '"><span><b>' + tk.a + 'º</b> · ' + tk.n + ' itens</span><div class="sf-tl-trilho"><span style="left:' + pos(tk.ini) + '%; width:' + larg(tk.ini, tk.fim) + '%; background:' + corFrente[(tk.frente - 1) % 5] + ';"></span>' + linhaFinal + '</div><small>' + dataCurta(tk.ini) + ' → ' + dataCurta(tk.fim) + ' · gargalo ' + esc(tk.gargalo.forn) + '</small></div>'; }).join('') : '<div class="rn-sub" style="padding:4px 0;">Sem pendências da Sofitel fora dos andares aprovados.</div>';
+    const prodLinhas = prods.length ? prods.map((x) => { const fimP = x.fim || x.l.entrega, define = fimP === fimGeral && fimProd >= (fimExec || '');
+        return '<div class="sf-tl-l' + (define ? ' define' : '') + '"><span>' + esc(x.l.prod || 'Produto') + (x.l.forn ? ' · ' + esc(x.l.forn) : '') + '</span><div class="sf-tl-trilho"><i class="sf-tl-entrega" style="left:' + pos(x.l.entrega) + '%;"></i>' + (x.fim ? '<span style="left:' + pos(diaSeguinte(x.l.entrega)) + '%; width:' + larg(diaSeguinte(x.l.entrega), x.fim) + '%; background:#F3C9A0;"></span>' : '') + linhaFinal + '</div><small>entrega ' + dataCurta(x.l.entrega) + (x.fim ? ' → término ' + dataCurta(x.fim) : '') + '</small></div>'; }).join('') : '<div class="rn-sub" style="padding:4px 0;">Nenhum produto com data de entrega.</div>';
+    linhaTempo = eixo + '<div class="sf-tl-grupo">Execução dos pendentes da Sofitel (por andar, na sequência definida)</div>' + execLinhas +
+      '<div class="sf-tl-grupo">Produtos comprados (entrega → instalação)</div>' + prodLinhas +
+      '<div class="rn-leg" style="margin-top:8px;"><span><i style="background:#A9C5EA;"></i>execução por andar (uma cor por frente)</span><span><i style="background:#F3B97C;"></i>entrega</span><span><i style="background:#F3C9A0;"></i>instalação</span><span><i style="background:#C9897A;"></i>último dia de serviço</span></div>';
+  }
+  const heroFinal = fimGeral ? '<div class="sf-hero"><div><div class="sf-hero-rot">Último dia de serviço previsto</div><div class="sf-hero-data">' + new Date(fimGeral + 'T12:00:00').toLocaleDateString('pt-BR') + '</div><div class="sf-hero-mot">Motivo: ' + motivo + '</div>' +
+      '<div class="sf-hero-sub">Execução dos pendentes: ' + (fimExec ? new Date(fimExec + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + ' · Produtos comprados: ' + (fimProd ? new Date(fimProd + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</div></div>' + seletorFrentes('sf-frentes') + '</div>'
+    : '<div class="sf-hero"><div><div class="sf-hero-rot">Último dia de serviço previsto</div><div class="sf-hero-mot">Informe a equipe (pessoas e itens/dia) ou as datas dos produtos para calcular.</div></div>' + seletorFrentes('sf-frentes') + '</div>';
   // ---- tempo nos andares aprovados (1ª → última correção, por fornecedor + problema) ----
   const bxAp = baixasSofitel().filter((b) => ANDARES_APROVADOS_SOFITEL.indexOf(b.andar) !== -1);
   const gT = new Map(); bxAp.forEach((b) => { const k = b.forn + '|' + b.prob; if (!gT.has(k)) gT.set(k, { forn: b.forn, prob: b.prob, n: 0, por: {} }); const r = gT.get(k); r.n++; (r.por[b.andar] = r.por[b.andar] || []).push(b.dia); });
@@ -9413,13 +9558,16 @@ async function renderSofitel(){
       return '<span><b>' + dias + ' d</b> <small>(' + dataCurta(d[0]) + (d.length > 1 ? ' → ' + dataCurta(d[d.length - 1]) : '') + ')</small></span>'; }).join('') + '</div>').join('') + '</div>'
     : '<div class="rn-sub">Sem baixas registradas nos andares aprovados.</div>';
   const hoje = new Date();
+  const sec = (n, titulo, sub) => '<div class="sf-sec"><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
   box.innerHTML =
     '<div class="rn-topo"><h2>Sofitel Ipanema · Itens da operação</h2><div class="rn-sub">lista da Sofitel · ' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
-    '<div class="rn-kpis">' +
+    sec(1, 'Onde estamos hoje', 'o que a Sofitel listou, o que já foi resolvido e o que falta, andar por andar') +
+    '<div class="rn-kpis sf-kpis5">' +
       '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(recebidos) + '</div><div class="rn-rot">itens recebidos da Sofitel</div></div>' +
       '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(resolvidos) + '</div><div class="rn-rot">resolvidos</div></div></div>' +
       '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(pend.length) + '</div><div class="rn-rot">pendentes</div><div class="rn-leg" style="margin-top:6px;"><span><i style="background:' + COR.ab + ';"></i>' + fmt(cT.aberto) + ' em aberto</span><span><i style="background:' + COR.na + ';"></i>' + fmt(cT.naoAceito) + ' não aceitos</span><span><i style="background:' + COR.nv + ';"></i>' + fmt(cT.novo) + ' novos</span></div></div>' +
       '<div class="rn-kpi" style="display:block; background:#E3F5EC;"><div class="rn-big" style="color:#2E6B4A;">' + andaresAp.length + '</div><div class="rn-rot">andares aprovados pela Sofitel</div><div class="rn-leg" style="margin-top:6px;"><span>' + (andaresAp.length ? andaresAp.slice().sort((a, b) => a - b).map((a) => a + 'º').join(', ') : '—') + '</span></div></div>' +
+      '<div class="rn-kpi" style="display:block; background:#FBEFE9;"><div class="rn-big" style="color:#8A4B3A;">' + (fimGeral ? new Date(fimGeral + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : '—') + '</div><div class="rn-rot">último dia de serviço previsto</div><div class="rn-leg" style="margin-top:6px;"><span>ver item 4</span></div></div>' +
     '</div>' +
     '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr;">' +
       '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · itens da Sofitel</h3>' +
@@ -9428,15 +9576,19 @@ async function renderSofitel(){
       '<div class="rn-card"><h3>Onde está o foco · pendentes da Sofitel</h3><div style="font-size:12px; color:#6B756F; margin:2px 0 6px;">Fornecedores</div>' + barras(forn, maxF, '#F3B97C') +
         '<div style="font-size:12px; color:#6B756F; margin:12px 0 6px;">Disciplinas</div>' + barras(disc, maxD, '#B7C9EE') + '</div>' +
     '</div>' +
-    '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr; margin-top:14px;">' +
-      '<div class="rn-card"><h3>Previsão de conclusão · simulação</h3>' + prazoHtml +
-        '<div style="font-size:12px; font-weight:600; color:#5B6660; margin:16px 0 6px;">Equipe por fornecedor · para ' + andaresJuntosSof + ' andar' + (andaresJuntosSof > 1 ? 'es' : '') + ' ao mesmo tempo' + (andaresJuntosSof < frentesSof ? ' <span style="font-weight:400; color:#8A938E;">(só restam ' + andaresJuntosSof + ')</span>' : '') + '</div>' + htmlEquipeSof(pend, podeAjustar) + '</div>' +
-      '<div class="rn-card"><h3>Tempo de execução nos andares aprovados</h3><div style="font-size:12px; color:#6B756F; margin-bottom:6px;">da 1ª à última correção, por fornecedor e problema</div>' + tempoHtml + '</div>' +
-    '</div>' +
-    '<div style="display:flex; justify-content:flex-end; margin-top:14px;"><div class="rn-modo" id="sf-modo"><button type="button" data-m="problema"' + (modoVitrineSof === 'problema' ? ' class="ativo"' : '') + '>por problema</button><button type="button" data-m="descricao"' + (modoVitrineSof === 'descricao' ? ' class="ativo"' : '') + '>por descrição</button></div></div>' +
+    sec(2, 'O que falta fazer', 'os principais itens pendentes, com foto, por fornecedor e por disciplina') +
+    '<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div class="rn-modo" id="sf-modo"><button type="button" data-m="problema"' + (modoVitrineSof === 'problema' ? ' class="ativo"' : '') + '>por problema</button><button type="button" data-m="descricao"' + (modoVitrineSof === 'descricao' ? ' class="ativo"' : '') + '>por descrição</button></div></div>' +
     '<div class="rn-card" style="margin-top:8px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
     '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · disciplinas com mais pendências</h3>' + (blocos(disc, 'disc') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
-    ((podeAjustar && (nOcultos || verOcultosSof)) ? '<div style="text-align:right; font-size:12px; margin-top:8px;"><a href="#" id="sf-ver-ocultos">' + (verOcultosSof ? 'esconder os exemplos ocultos' : 'ver os exemplos ocultos') + '</a></div>' : '');
+    ((podeAjustar && (nOcultos || verOcultosSof)) ? '<div style="text-align:right; font-size:12px; margin-top:8px;"><a href="#" id="sf-ver-ocultos">' + (verOcultosSof ? 'esconder os exemplos ocultos' : 'ver os exemplos ocultos') + '</a></div>' : '') +
+    sec(3, 'Como vamos executar', 'a equipe de cada fornecedor e os produtos comprados que ainda vão chegar') +
+    '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;"><h3 style="margin:0;">Equipe por fornecedor · para ' + andaresJuntosSof + ' andar' + (andaresJuntosSof > 1 ? 'es' : '') + ' ao mesmo tempo' + (andaresJuntosSof < frentesSof ? ' <span style="font-weight:400; color:#8A938E; text-transform:none;">(só restam ' + andaresJuntosSof + ')</span>' : '') + '</h3>' + seletorFrentes('sf-frentes-eq') + '</div>' +
+      htmlEquipeSof(pend, podeAjustar) + '<div class="rn-leg" style="margin-top:8px;"><span>' + legendaVel + '</span></div></div>' +
+    '<div class="rn-card" style="margin-top:14px;"><h3>Produtos comprados · entrega e instalação</h3>' + htmlProdutosSof(podeAjustar) + '</div>' +
+    sec(4, 'Quando termina', 'a execução dos pendentes e os produtos comprados no mesmo calendário') +
+    '<div class="rn-card">' + heroFinal + linhaTempo + '</div>' +
+    sec(5, 'Referência', 'quanto tempo levou cada serviço nos andares já aprovados') +
+    '<div class="rn-card"><h3>Tempo de execução nos andares aprovados</h3><div style="font-size:12px; color:#6B756F; margin-bottom:6px;">da 1ª à última correção, por fornecedor e problema</div>' + tempoHtml + '</div>';
   box.querySelectorAll('[data-sf-ver]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('.sf-ajustes')) return; const r = vitrineIds[Number(el.dataset.sfVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo, () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
   box.querySelectorAll('[data-sf-foto]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfFoto)]; if (r) escolherFotoVitrine(r.chave, r.fotos); }));
   box.querySelectorAll('[data-sf-ajustar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfAjustar)]; if (r) ajustarProblemasDoGrupo(r.itens); }));
@@ -9444,9 +9596,9 @@ async function renderSofitel(){
     if (vitrineSof.ocultos[r.chave]) delete vitrineSof.ocultos[r.chave]; else vitrineSof.ocultos[r.chave] = { em: new Date().toISOString(), por: usuarioAtual };
     await salvarVitrineSof(); renderSofitel(); }));
   const lk = box.querySelector('#sf-ver-ocultos'); if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); verOcultosSof = !verOcultosSof; renderSofitel(); });
-  box.querySelectorAll('#sf-frentes [data-fr]').forEach((b) => b.addEventListener('click', () => { frentesSof = Number(b.dataset.fr); renderSofitel(); }));
+  box.querySelectorAll('#sf-frentes [data-fr], #sf-frentes-eq [data-fr]').forEach((b) => b.addEventListener('click', () => { const y = window.scrollY; frentesSof = Number(b.dataset.fr); renderSofitel().then(() => window.scrollTo(0, y)); }));
   box.querySelectorAll('#sf-modo-corte [data-mc]').forEach((b) => b.addEventListener('click', () => { modoCorteSof = b.dataset.mc; renderSofitel(); }));
-  ligarArrastarSequencia(box); ligarEquipeSof(box);
+  ligarArrastarSequencia(box); ligarEquipeSof(box); ligarProdutosSof(box);
   box.querySelectorAll('#sf-modo [data-m]').forEach((b) => b.addEventListener('click', () => { modoVitrineSof = b.dataset.m; renderSofitel(); }));
   if (podeAjustar) classificarProblemasComIA(pend); // só o que o dicionário não reconheceu, uma vez por descrição
 }
@@ -11060,7 +11212,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
@@ -11697,6 +11849,7 @@ function irParaAba(nome){
   if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
   if (nome === 'reuniao'){ try{ renderResumoGeral(); }catch(e){} setTimeout(renderReuniao, 50); }
     if (nome === 'sofitel') setTimeout(renderSofitel, 50);
+    if (nome !== 'itens' && filtroIdsPedido){ filtroIdsPedido = null; const bp = document.getElementById('barra-pedido'); if (bp) bp.remove(); }
   document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
   try{ atualizarVoltarFixo(); }catch(e){}
