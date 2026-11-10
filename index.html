@@ -585,6 +585,26 @@ body.aba-quartos main{ max-width:1900px; }
 .rn-exec .rn-c{ text-align:right; } .rn-exec .rn-c small{ display:block; font-size:10.5px; color:#8A938E; }
 .rn-exec .rn-pct{ font-weight:600; text-align:right; }
 .rn-exec-cab{ font-size:10.5px; color:#8A938E; border-top:0; padding-top:0; }
+.sf-corte-linha{ display:grid; grid-template-columns: 40px 1fr 58px 220px 150px; gap:10px; align-items:center; padding:5px 8px; border-radius:9px; font-size:12.5px; color:#33403A; }
+.sf-corte-linha + .sf-corte-linha{ margin-top:3px; }
+.sf-corte-linha.aprovado{ background:#E3F5EC; }
+.sf-corte-linha .rn-barra{ height:12px; border-radius:6px; background:#fff; overflow:hidden; display:flex; }
+.sf-corte-linha .rn-barra span{ display:block; height:100%; }
+.sf-corte-linha small{ color:#6B756F; font-size:11.5px; }
+.sf-selo-ap{ display:inline-block; background:#CBEBDA; color:#2E6B4A; border-radius:8px; padding:2px 8px; font-size:11px; font-weight:600; }
+.sf-barras .sf-b{ display:grid; grid-template-columns: 150px 1fr 44px; gap:8px; align-items:center; font-size:12.5px; padding:3px 0; }
+.sf-barras .sf-b .rn-barra{ height:12px; border-radius:6px; background:#fff; overflow:hidden; } .sf-barras .sf-b .rn-barra span{ display:block; height:100%; }
+.sf-bloco{ margin-top:16px; }
+.sf-bloco-cab{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+.sf-bloco-cab b{ font-size:14px; color:#33403A; } .sf-bloco-cab span{ font-size:12px; color:#6B756F; }
+.sf-grade{ display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap:10px; }
+.sf-item{ background:#fff; border:1px solid rgba(0,0,0,.07); border-radius:12px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+.sf-item:hover{ box-shadow:0 4px 14px rgba(0,0,0,.08); }
+.sf-item img{ width:100%; height:120px; object-fit:cover; display:block; background:#F1F2F4; }
+.sf-item .sf-sem{ height:120px; display:flex; align-items:center; justify-content:center; color:#8A938E; font-size:12px; background:#F4F5F6; }
+.sf-item .sf-txt{ padding:8px 10px 10px; font-size:12.5px; color:#33403A; line-height:1.35; }
+.sf-item .sf-n{ font-weight:700; color:#7A4A12; margin-right:4px; }
+.sf-item .sf-and{ display:block; margin-top:4px; font-size:11px; color:#8A938E; }
 .rn-limite{ margin-top:6px; font-size:11px; color:#7A4A12; background:#FBE9D6; border-radius:8px; padding:3px 6px; display:inline-block; }
 .rn-limite b{ font-size:12.5px; }
 .rx-resumo{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:6px 0 18px; }
@@ -830,6 +850,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button data-aba="comparacao">Comparação</button>
   <button data-aba="raiox" class="so-fundador">Raio-X</button>
   <button data-aba="reuniao" class="so-admin">Reunião</button>
+  <button data-aba="sofitel" class="so-admin">Sofitel</button>
   <button data-aba="tendencia">Plano</button>
   <button data-aba="enviar" class="so-admin">Enviar planilhas</button>
   <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
@@ -963,7 +984,8 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
         <option value="awExec">Executado AW</option>
         <option value="iacOk">Validado gestão AW</option>
         <option value="comReinc">Com reincidência</option>
-        <option value="novosAvaliar">Itens novos</option>
+        <option value="novosAvaliar">Itens novos (a avaliar)</option>
+        <option value="novosAceitos">Itens novos aceitos (em aberto)</option>
         <option value="conferirQuarto">Conferir no quarto</option>
         <option value="naoBaixadoIac">IAC não aceitou</option>
         <option value="naFalta">IAC não aceitou: falta analisar</option>
@@ -1032,6 +1054,10 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <!-- COMPARAÇÃO -->
   <section class="secao" id="secao-reuniao">
     <div class="card card-pad rn-pagina" id="reuniao-pagina"></div>
+  </section>
+
+  <section class="secao" id="secao-sofitel">
+    <div class="card card-pad rn-pagina" id="sofitel-pagina"></div>
   </section>
 
   <section class="secao" id="secao-raiox">
@@ -1409,7 +1435,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.319';
+const VERSAO_APP = '2026-10-03.321';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3284,6 +3310,9 @@ async function aceitarSugestoes(ids){
 let pedidosAprovacao = [], pedidoEmAplicacao = null, agrupamentoSalvouEm = 0, filtroIdsPedido = null, nAvisosAprov = 0;
 /* ---- Aprovado Sofitel (por ambiente; depois do Liberado p/ operação) ---- */
 let aprovadosSofitel = {};
+const ANDARES_APROVADOS_SOFITEL = [8, 9, 10]; // aprovados pela Sofitel (operação) — o andar inteiro
+function ambienteAprovadoSofitel(andar, tipo, quarto){ return ANDARES_APROVADOS_SOFITEL.indexOf(Number(andar)) !== -1 || !!aprovadosSofitel[chaveAreaGlobal(andar, tipo, quarto)]; }
+function andarAprovadoSofitel(a){ if (ANDARES_APROVADOS_SOFITEL.indexOf(Number(a)) !== -1) return true; const ls = locaisDoAndarCor(a); return !!ls.length && andarLiberadoOperacao(a) && ls.every((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)); }
 async function carregarAprovadosSofitel(){
   try{ const d = await store.getDoc('config', 'aprovados_sofitel'); const novo = (d && d.mapa) || {};
     const mudou = JSON.stringify(novo) !== JSON.stringify(aprovadosSofitel); aprovadosSofitel = novo;
@@ -3369,7 +3398,7 @@ function htmlAvisosChat(){
   ondasDeHoje().forEach((o) => {
     const rep = iacRepetitivos(o.andares), idsRep = rep.flatMap((g) => g.ids);
     const porId = new Map(itensRevisaoAtual.map((x) => [x.id, x]));
-    const linhas = o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).map((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a), ap = ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length;
+    const linhas = o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).map((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a), ap = ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length;
       const iac = idsRep.map((id) => porId.get(id)).filter((x) => x && Number(x.andar) === a);
       return { a, s, iac, ap, tot: ls.length }; });
     const todos = linhas.flatMap((l) => l.s.concat(l.iac).map((x) => x.id));
@@ -3383,13 +3412,13 @@ function htmlAvisosChat(){
   });
   return h;
 }
-function verIdsNaAbaItens(ids, rotulo, aoVoltar){
+function verIdsNaAbaItens(ids, rotulo, aoVoltar, rotuloVoltar){
   filtroIdsPedido = new Set(ids || []); rotuloFiltroIds = rotulo || '';
   const fechar = document.getElementById('chat-fechar'); if (fechar && !document.getElementById('painel-chat').classList.contains('oculto')) fechar.click();
   const bAba = document.querySelector('nav.abas button[data-aba="itens"]'); if (bAba) bAba.click();
   let barra = document.getElementById('barra-pedido');
   if (!barra){ barra = document.createElement('div'); barra.id = 'barra-pedido'; barra.style.cssText = 'position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:95; background:#FFF7EC; border:1px solid #F1D7B4; color:#7A4A12; border-radius:999px; padding:8px 14px; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.10); display:flex; gap:10px; align-items:center;'; document.body.appendChild(barra); }
-  barra.innerHTML = esc(rotulo) + ' (' + filtroIdsPedido.size + ') <button type="button" class="btn fantasma" id="barra-pedido-voltar" style="padding:3px 10px; font-size:12px;">Voltar ao chat</button><button type="button" class="btn fantasma" id="barra-pedido-sair" style="padding:3px 10px; font-size:12px;">✕</button>';
+  barra.innerHTML = esc(rotulo) + ' (' + filtroIdsPedido.size + ') <button type="button" class="btn fantasma" id="barra-pedido-voltar" style="padding:3px 10px; font-size:12px;">' + esc(rotuloVoltar || 'Voltar ao chat') + '</button><button type="button" class="btn fantasma" id="barra-pedido-sair" style="padding:3px 10px; font-size:12px;">✕</button>';
   const sair = () => { filtroIdsPedido = null; barra.remove(); renderItens(); };
   barra.querySelector('#barra-pedido-sair').addEventListener('click', sair);
   barra.querySelector('#barra-pedido-voltar').addEventListener('click', () => { sair(); (aoVoltar || abrirChatAvisos)(); });
@@ -5460,7 +5489,7 @@ function renderTorreAndares(){
       // andar "liberado por inteiro": nenhuma área ainda crítica ou pendente sem liberar —
       // ou já ficou tudo azul (liberado p/ operação), ou já foi tudo embora (verde)
       liberadoTotal = (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO');
-      if (liberadoTotal && locaisCor.length && locaisCor.every((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)])) statusClasse = 'status-aprovado-sof';
+      if (ANDARES_APROVADOS_SOFITEL.indexOf(Number(andar)) !== -1 || (liberadoTotal && locaisCor.length && locaisCor.every((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)))) statusClasse = 'status-aprovado-sof';
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const novosAbertosDoAndar = itensDoAndar.filter(novoAAvaliar).length;          // novos ainda sem decisão
@@ -7432,7 +7461,7 @@ function renderQuartos(){
       '<td class="col-centro">'+celPronto+'</td><td class="col-centro">'+celVist+'</td>' + '<td hidden style="font-size:12.5px; color:'+(vistoriasIac[l.andar] ? 'var(--vist)' : 'var(--faint)')+';" title="'+(vistoriasIac[l.andar] ? 'IAC vistoriou o '+esc(nomeAndarLongo(l.andar))+' em '+vistoriasIac[l.andar].em.split('-').reverse().join('/') : 'A IAC ainda não vistoriou este andar')+'">'+(vistoriasIac[l.andar] ? vistoriasIac[l.andar].em.split('-').reverse().slice(0,2).join('/') : '—')+'</td>' +
       '<td class="col-centro">'+acaoHtml+'</td>' +
       '<td class="col-centro">' + ((status === 'LIBERADO_PEND' || status === 'CONCLUIDO')
-        ? (() => { const ap = aprovadosSofitel[kAmb]; return '<button class="chip-acao btn-etapa'+(ap ? ' marcado aprovsof' : '')+'" data-acao-aprovsof="1" '+(ehAdminAtual() ? '' : 'disabled')+' title="'+(ap ? 'Aprovado em '+new Date(ap.em).toLocaleDateString('pt-BR')+' · '+esc(ap.por || '') : 'Marcar como aprovado pela Sofitel (operação)')+'">'+(ap ? '✓ Aprovado' : 'Aprovar')+'</button>'; })()
+        ? (() => { const ap = aprovadosSofitel[kAmb] || (ANDARES_APROVADOS_SOFITEL.indexOf(Number(l.andar)) !== -1 ? { em: null, por: 'andar aprovado' } : null); return '<button class="chip-acao btn-etapa'+(ap ? ' marcado aprovsof' : '')+'" data-acao-aprovsof="1" '+(ehAdminAtual() ? '' : 'disabled')+' title="'+(ap ? (ap.em ? 'Aprovado em '+new Date(ap.em).toLocaleDateString('pt-BR')+' · '+esc(ap.por || '') : 'Andar aprovado pela Sofitel') : 'Marcar como aprovado pela Sofitel (operação)')+'">'+(ap ? '✓ Aprovado' : 'Aprovar')+'</button>'; })()
         : '<span class="sem-foto">—</span>') + '</td>';
     tbody.appendChild(tr);
     linhas++;
@@ -8880,7 +8909,7 @@ async function atualizarCronogramaEPlano(){
     o.andares.filter((a) => andaresConhecidos.indexOf(a) !== -1).forEach((a) => { const s = sofitelEmAberto(a), ls = locaisDoAndarCor(a);
       planos.push({ fase:'2-onda Sofitel ' + dataCurta(o.ini) + ' a ' + dataCurta(o.fim) + (o.estado === 'proxima' ? ' (começa em ' + dataCurta(o.ini) + ')' : ''), andar:a,
         sofitel: s.length + ' (' + resumoCategorias(s) + ')', iacRecorrentes: rep.reduce((n, g) => n + g.ids.filter((id) => (itensRevisaoAtual.find((x) => x.id === id) || {}).andar == a).length, 0),
-        aprovadosSofitel: ls.filter((l) => aprovadosSofitel[chaveAreaGlobal(l.andar, l.tipo, l.quarto)]).length + '/' + ls.length,
+        aprovadosSofitel: ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length + '/' + ls.length,
         fornecedoresSofitel: topContagem(s, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3) }); }); });
   await gerarInsightDoDia(planos);
   marcarBadgeChat(recomendacoesAtuais.length + cartoesDoCronograma().length);
@@ -9084,6 +9113,78 @@ function limiteListaOperacao(entregaDDMM){
   return String(lim.getDate()).padStart(2, '0') + '/' + String(lim.getMonth() + 1).padStart(2, '0');
 }
 let reuniaoModo = 'anterior'; // 'anterior' = execução de todos os andares · 'proposta' = novo fluxo e cronograma
+/* ===================== ABA SOFITEL (apresentação ao cliente) =====================
+   Itens da Sofitel pendentes = em aberto + não aceitos + novos (a mesma regra da onda). */
+function renderSofitel(){
+  const box = document.getElementById('sofitel-pagina'); if (!box) return;
+  const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
+  const sofAll = itensRevisaoAtual.filter((x) => origemDoItem(x) === 'SOFITEL');
+  const pend = sofAll.filter(entraNaOnda);
+  let removidos = 0; try{ removidos = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL').length; }catch(e){}
+  const recebidos = sofAll.length + removidos, resolvidos = Math.max(0, recebidos - pend.length);
+  const pct = recebidos ? Math.round(resolvidos / recebidos * 100) : 0;
+  const andares = andaresConhecidos.slice().sort((a, b) => b - a);
+  const andaresAp = andares.filter(andarAprovadoSofitel);
+  const COR = { ok:'#8CCBA8', ab:'#F3B97C', na:'#E8A39A', nv:'#F8D9AE' };
+  const anel = (p, S) => { const r = S/2 - 6, c = 2*Math.PI*r, cx = S/2;
+    return '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="9"/><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+COR.ok+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(c*p/100)+' '+c+'" transform="rotate(-90 '+cx+' '+cx+')"/><text x="'+cx+'" y="'+(cx+5)+'" text-anchor="middle" font-size="'+(S*0.22)+'" font-weight="600" fill="#33403A">'+p+'%</text></svg>'; };
+  const cats = (lista) => { const c = { aberto:0, naoAceito:0, novo:0 }; lista.forEach((x) => c[categoriaNaOnda(x)]++); return c; };
+  const cT = cats(pend);
+  // ---- corte do prédio ----
+  const linhas = andares.map((a) => {
+    const s = sofAll.filter((x) => Number(x.andar) === a), p = pend.filter((x) => Number(x.andar) === a), c = cats(p);
+    let rem = 0; try{ rem = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL' && Number(h.andar) === a).length; }catch(e){}
+    const rec = s.length + rem, ls = locaisDoAndarCor(a), ap = ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length;
+    return { a, rec, p, c, pc: rec ? Math.round((rec - p.length) / rec * 100) : 0, aprovado: andarAprovadoSofitel(a), ap, tot: ls.length };
+  }).filter((l) => l.rec);
+  const corte = linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"><b>' + l.a + 'º</b>' +
+    '<div class="rn-barra"><span style="width:' + l.pc + '%; background:' + COR.ok + ';"></span><span style="width:' + (l.rec ? l.c.aberto / l.rec * 100 : 0) + '%; background:' + COR.ab + ';"></span><span style="width:' + (l.rec ? l.c.naoAceito / l.rec * 100 : 0) + '%; background:' + COR.na + ';"></span><span style="width:' + (l.rec ? l.c.novo / l.rec * 100 : 0) + '%; background:' + COR.nv + ';"></span></div>' +
+    '<span style="text-align:right; font-weight:600;">' + l.pc + '%</span>' +
+    '<small>' + fmt(l.p.length) + ' pendentes' + (l.p.length ? ' · ' + [l.c.aberto ? l.c.aberto + ' em aberto' : '', l.c.naoAceito ? l.c.naoAceito + ' não aceitos' : '', l.c.novo ? l.c.novo + ' novos' : ''].filter(Boolean).join(' · ') : '') + '</small>' +
+    (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : '<small>aprovados ' + l.ap + '/' + l.tot + ' ambientes</small>') + '</div>').join('');
+  // ---- rankings ----
+  const top = (fn, n) => { const m = new Map(); pend.forEach((x) => { const k = fn(x) || '—'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return Array.from(m.entries()).map(([k, v]) => ({ k, v })).sort((a, b) => b.v.length - a.v.length).slice(0, n); };
+  const forn = top((x) => fornecedorEfetivo(x) || 'Sem fornecedor', 5), disc = top((x) => disciplinaEfetiva(x) || 'Sem disciplina', 4);
+  const maxF = Math.max(1, ...forn.map((f) => f.v.length)), maxD = Math.max(1, ...disc.map((d) => d.v.length));
+  const barras = (lista, max, cor) => '<div class="sf-barras">' + lista.map((g) => '<div class="sf-b"><span>' + esc(g.k) + '</span><div class="rn-barra"><span style="width:' + (g.v.length / max * 100) + '%; background:' + cor + ';"></span></div><b style="text-align:right;">' + fmt(g.v.length) + '</b></div>').join('') + '</div>';
+  // ---- vitrine: os itens que mais se repetem em cada grupo, com foto ----
+  const vitrineIds = [];
+  const vitrine = (lista, n) => {
+    const g = new Map();
+    lista.forEach((x) => { const k = chaveComparacao(x.desc) || x.id; if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
+    return '<div class="sf-grade">' + Array.from(g.values()).sort((a, b) => b.length - a.length).slice(0, n).map((its) => {
+      const comFoto = its.find((x) => (x.fotos || []).length), foto = comFoto ? comFoto.fotos[0] : null;
+      const ands = Array.from(new Set(its.map((x) => Number(x.andar)))).sort((a, b) => b - a);
+      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: 'Sofitel · ' + String(its[0].desc || '').slice(0, 40) });
+      return '<div class="sf-item" data-sf-ver="' + (vitrineIds.length - 1) + '">' + (foto ? '<img src="' + esc(urlDaFoto(foto)) + '" loading="lazy" alt="">' : '<div class="sf-sem">sem foto</div>') +
+        '<div class="sf-txt"><span class="sf-n">' + its.length + '×</span>' + esc(String(its[0].desc || '').slice(0, 110)) + (String(its[0].desc || '').length > 110 ? '…' : '') +
+        '<span class="sf-and">' + ands.map((a) => a + 'º').join(' · ') + '</span></div></div>';
+    }).join('') + '</div>';
+  };
+  const blocos = (lista, rotuloTipo) => lista.map((g, i) => {
+    const ands = Array.from(new Set(g.v.map((x) => Number(x.andar)))).sort((a, b) => b - a);
+    const sub = rotuloTipo === 'forn' ? topContagem(g.v, (x) => disciplinaEfetiva(x) || '—', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ') : topContagem(g.v, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ');
+    return '<div class="sf-bloco"><div class="sf-bloco-cab"><b>' + (i + 1) + '. ' + esc(g.k) + ' · ' + fmt(g.v.length) + ' itens</b><span>' + (rotuloTipo === 'forn' ? 'disciplinas: ' : 'fornecedores: ') + sub + ' · andares ' + ands.map((a) => a + 'º').join(' ') + '</span></div>' + vitrine(g.v, 6) + '</div>';
+  }).join('');
+  const hoje = new Date();
+  box.innerHTML =
+    '<div class="rn-topo"><h2>Sofitel Ipanema · Itens da operação</h2><div class="rn-sub">lista da Sofitel · ' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
+    '<div class="rn-kpis">' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(recebidos) + '</div><div class="rn-rot">itens recebidos da Sofitel</div></div>' +
+      '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(resolvidos) + '</div><div class="rn-rot">resolvidos</div></div></div>' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(pend.length) + '</div><div class="rn-rot">pendentes</div><div class="rn-leg" style="margin-top:6px;"><span><i style="background:' + COR.ab + ';"></i>' + fmt(cT.aberto) + ' em aberto</span><span><i style="background:' + COR.na + ';"></i>' + fmt(cT.naoAceito) + ' não aceitos</span><span><i style="background:' + COR.nv + ';"></i>' + fmt(cT.novo) + ' novos</span></div></div>' +
+      '<div class="rn-kpi" style="display:block; background:#E3F5EC;"><div class="rn-big" style="color:#2E6B4A;">' + andaresAp.length + '</div><div class="rn-rot">andares aprovados pela Sofitel</div><div class="rn-leg" style="margin-top:6px;"><span>' + (andaresAp.length ? andaresAp.slice().sort((a, b) => a - b).map((a) => a + 'º').join(', ') : '—') + '</span></div></div>' +
+    '</div>' +
+    '<div class="rn-linha2" style="grid-template-columns: 1.25fr 1fr;">' +
+      '<div class="rn-card"><h3>Corte do prédio · itens da Sofitel</h3>' + corte +
+        '<div class="rn-leg" style="margin-top:8px;"><span><i style="background:' + COR.ok + ';"></i>resolvido</span><span><i style="background:' + COR.ab + ';"></i>em aberto</span><span><i style="background:' + COR.na + ';"></i>não aceitos</span><span><i style="background:' + COR.nv + ';"></i>novos</span><span><i style="background:#CBEBDA;"></i>andar aprovado pela Sofitel</span></div></div>' +
+      '<div class="rn-card"><h3>Onde está o foco · pendentes da Sofitel</h3><div style="font-size:12px; color:#6B756F; margin:2px 0 6px;">Fornecedores</div>' + barras(forn, maxF, '#F3B97C') +
+        '<div style="font-size:12px; color:#6B756F; margin:12px 0 6px;">Disciplinas</div>' + barras(disc, maxD, '#B7C9EE') + '</div>' +
+    '</div>' +
+    '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
+    '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · disciplinas com mais pendências</h3>' + (blocos(disc, 'disc') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>';
+  box.querySelectorAll('[data-sf-ver]').forEach((el) => el.addEventListener('click', () => { const r = vitrineIds[Number(el.dataset.sfVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo, () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
+}
 function renderReuniao(){
   const box = document.getElementById('reuniao-pagina'); if (!box) return;
   const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
@@ -10694,7 +10795,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
@@ -11330,6 +11431,7 @@ function irParaAba(nome){
   if (nome === 'visao-geral' && itensRevisaoAtual.length) renderEvolucaoPendencias();
   if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
   if (nome === 'reuniao'){ try{ renderResumoGeral(); }catch(e){} setTimeout(renderReuniao, 50); }
+    if (nome === 'sofitel') setTimeout(renderSofitel, 50);
   document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
   try{ atualizarVoltarFixo(); }catch(e){}
