@@ -648,13 +648,15 @@ body.aba-quartos main{ max-width:1900px; }
 .sf-barras .sf-b{ display:grid; grid-template-columns: 150px 1fr 44px; gap:8px; align-items:center; font-size:12.5px; padding:3px 0; }
 .sf-barras .sf-b .rn-barra{ height:12px; border-radius:6px; background:#fff; overflow:hidden; } .sf-barras .sf-b .rn-barra span{ display:block; height:100%; }
 .sf-bloco{ margin-top:16px; }
-.sf-bloco-cab{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+.sf-bloco-cab{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; margin-bottom:8px; }
 .sf-bloco-cab b{ font-size:14px; color:#33403A; } .sf-bloco-cab span{ font-size:12px; color:#6B756F; }
-.sf-grade{ display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap:10px; }
+.sf-grade{ display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap:12px; }
+@media (max-width: 1300px){ .sf-grade{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px){ .sf-grade{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .sf-item{ background:#fff; border:1px solid rgba(0,0,0,.07); border-radius:12px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
 .sf-item:hover{ box-shadow:0 4px 14px rgba(0,0,0,.08); }
-.sf-item img{ width:100%; height:120px; object-fit:cover; display:block; background:#F1F2F4; }
-.sf-item .sf-sem{ height:120px; display:flex; align-items:center; justify-content:center; color:#8A938E; font-size:12px; background:#F4F5F6; }
+.sf-item img{ width:100%; aspect-ratio: 4 / 3; height:auto; object-fit:cover; display:block; background:#F1F2F4; }
+.sf-item .sf-sem{ aspect-ratio: 4 / 3; height:auto; display:flex; align-items:center; justify-content:center; color:#8A938E; font-size:12px; background:#F4F5F6; }
 .sf-item .sf-txt{ padding:8px 10px 10px; font-size:12.5px; color:#33403A; line-height:1.35; }
 .sf-item .sf-n{ font-weight:700; color:#7A4A12; margin-right:4px; }
 .sf-item .sf-and{ display:block; margin-top:4px; font-size:11px; color:#8A938E; }
@@ -1487,7 +1489,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.329';
+const VERSAO_APP = '2026-10-03.331';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -9181,6 +9183,7 @@ function escolherFotoVitrine(chave, fotos){
   ov.querySelector('#fv-auto').addEventListener('click', async () => { delete vitrineSof.fotos[chave]; ov.remove(); await salvarVitrineSof(); renderSofitel(); });
   ov.querySelectorAll('[data-escolher]').forEach((im) => im.addEventListener('click', async () => { vitrineSof.fotos[chave] = im.dataset.escolher; ov.remove(); await salvarVitrineSof(); renderSofitel(); }));
 }
+function andaresCurto(ands){ const a = Array.from(new Set(ands.map(Number))).sort((x, y) => y - x); if (!a.length) return ''; return a.length <= 4 ? a.map((n) => n + 'º').join(' · ') : a.length + ' andares (' + a[0] + 'º a ' + a[a.length - 1] + 'º)'; }
 /* ---- tipo de problema (dentro de cada fornecedor) ---- */
 const PROBLEMAS_SOF = [
   { id:'riscos', nome:'Riscos e arranhões', re:/risc|arranh|ranhur/ },
@@ -9494,13 +9497,12 @@ async function renderSofitel(){
         (foto ? '<img src="' + esc(urlDaFoto(foto)) + '" loading="lazy" alt="">' : '<div class="sf-sem">sem foto</div>') +
         '<div class="sf-txt"><span class="sf-n">' + its.length + '×</span>' + esc(titulo.slice(0, 110)) + (titulo.length > 110 ? '…' : '') +
         (subs ? '<span class="sf-and" style="color:#5B6660;">' + subs + '</span>' : '') +
-        '<span class="sf-and">' + ands.map((a) => a + 'º').join(' · ') + '</span></div></div>';
+        '<span class="sf-and">' + andaresCurto(ands) + '</span></div></div>';
     }).join('') + '</div>';
   };
   const blocos = (lista, rotuloTipo) => lista.map((g, i) => {
-    const ands = Array.from(new Set(g.v.map((x) => Number(x.andar)))).sort((a, b) => b - a);
-    const sub = rotuloTipo === 'forn' ? topContagem(g.v, (x) => disciplinaEfetiva(x) || '—', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ') : topContagem(g.v, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ');
-    return '<div class="sf-bloco"><div class="sf-bloco-cab"><b>' + (i + 1) + '. ' + esc(g.k) + ' · ' + fmt(g.v.length) + ' itens</b><span>' + (rotuloTipo === 'forn' ? 'disciplinas: ' : 'fornecedores: ') + sub + ' · andares ' + ands.map((a) => a + 'º').join(' ') + '</span></div>' + vitrine(g.v, 6, rotuloTipo !== 'forn') + '</div>';
+    const sub = topContagem(g.v, (x) => rotuloTipo === 'forn' ? (disciplinaEfetiva(x) || '—') : (fornecedorEfetivo(x) || 'Sem fornecedor'), 2).map((d) => esc(d.k) + ' ' + d.n).join(' · ');
+    return '<div class="sf-bloco"><div class="sf-bloco-cab"><b>' + (i + 1) + '. ' + esc(g.k) + ' · ' + fmt(g.v.length) + ' itens</b><span>' + sub + ' · ' + andaresCurto(g.v.map((x) => x.andar)) + '</span></div>' + vitrine(g.v, 6, rotuloTipo !== 'forn') + '</div>';
   }).join('');
   // ---- previsão (execução dos pendentes) ----
   if (!equipeSof) equipeSof = topContagem(pend, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 12).filter((f) => f.k !== 'Sem fornecedor').map((f) => ({ forn: f.k, pessoas: '', modo: 'andar', ipp: '' }));
@@ -9567,7 +9569,7 @@ async function renderSofitel(){
       '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(resolvidos) + '</div><div class="rn-rot">resolvidos</div></div></div>' +
       '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(pend.length) + '</div><div class="rn-rot">pendentes</div><div class="rn-leg" style="margin-top:6px;"><span><i style="background:' + COR.ab + ';"></i>' + fmt(cT.aberto) + ' em aberto</span><span><i style="background:' + COR.na + ';"></i>' + fmt(cT.naoAceito) + ' não aceitos</span><span><i style="background:' + COR.nv + ';"></i>' + fmt(cT.novo) + ' novos</span></div></div>' +
       '<div class="rn-kpi" style="display:block; background:#E3F5EC;"><div class="rn-big" style="color:#2E6B4A;">' + andaresAp.length + '</div><div class="rn-rot">andares aprovados pela Sofitel</div><div class="rn-leg" style="margin-top:6px;"><span>' + (andaresAp.length ? andaresAp.slice().sort((a, b) => a - b).map((a) => a + 'º').join(', ') : '—') + '</span></div></div>' +
-      '<div class="rn-kpi" style="display:block; background:#FBEFE9;"><div class="rn-big" style="color:#8A4B3A;">' + (fimGeral ? new Date(fimGeral + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : '—') + '</div><div class="rn-rot">último dia de serviço previsto</div><div class="rn-leg" style="margin-top:6px;"><span>ver item 4</span></div></div>' +
+      '<div class="rn-kpi" style="display:block; background:#FBEFE9;"><div class="rn-big" style="color:#8A4B3A;">' + (fimGeral ? new Date(fimGeral + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : '—') + '</div><div class="rn-rot">último dia de serviço previsto</div><div class="rn-leg" style="margin-top:6px;"><span>ver item 6</span></div></div>' +
     '</div>' +
     '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr;">' +
       '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · itens da Sofitel</h3>' +
@@ -9581,14 +9583,15 @@ async function renderSofitel(){
     '<div class="rn-card" style="margin-top:8px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
     '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · disciplinas com mais pendências</h3>' + (blocos(disc, 'disc') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
     ((podeAjustar && (nOcultos || verOcultosSof)) ? '<div style="text-align:right; font-size:12px; margin-top:8px;"><a href="#" id="sf-ver-ocultos">' + (verOcultosSof ? 'esconder os exemplos ocultos' : 'ver os exemplos ocultos') + '</a></div>' : '') +
-    sec(3, 'Como vamos executar', 'a equipe de cada fornecedor e os produtos comprados que ainda vão chegar') +
+    sec(3, 'Como vamos executar', 'a equipe de cada fornecedor e quantos andares ao mesmo tempo') +
     '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;"><h3 style="margin:0;">Equipe por fornecedor · para ' + andaresJuntosSof + ' andar' + (andaresJuntosSof > 1 ? 'es' : '') + ' ao mesmo tempo' + (andaresJuntosSof < frentesSof ? ' <span style="font-weight:400; color:#8A938E; text-transform:none;">(só restam ' + andaresJuntosSof + ')</span>' : '') + '</h3>' + seletorFrentes('sf-frentes-eq') + '</div>' +
       htmlEquipeSof(pend, podeAjustar) + '<div class="rn-leg" style="margin-top:8px;"><span>' + legendaVel + '</span></div></div>' +
-    '<div class="rn-card" style="margin-top:14px;"><h3>Produtos comprados · entrega e instalação</h3>' + htmlProdutosSof(podeAjustar) + '</div>' +
-    sec(4, 'Quando termina', 'a execução dos pendentes e os produtos comprados no mesmo calendário') +
-    '<div class="rn-card">' + heroFinal + linhaTempo + '</div>' +
-    sec(5, 'Referência', 'quanto tempo levou cada serviço nos andares já aprovados') +
-    '<div class="rn-card"><h3>Tempo de execução nos andares aprovados</h3><div style="font-size:12px; color:#6B756F; margin-bottom:6px;">da 1ª à última correção, por fornecedor e problema</div>' + tempoHtml + '</div>';
+    sec(4, 'Referência', 'quanto tempo levou cada serviço nos andares já aprovados') +
+    '<div class="rn-card"><h3>Tempo de execução nos andares aprovados</h3><div style="font-size:12px; color:#6B756F; margin-bottom:6px;">da 1ª à última correção, por fornecedor e problema</div>' + tempoHtml + '</div>' +
+    sec(5, 'Produtos comprados', 'o que ainda vai chegar: entrega e instalação') +
+    '<div class="rn-card"><h3>Produtos comprados · entrega e instalação</h3>' + htmlProdutosSof(podeAjustar) + '</div>' +
+    sec(6, 'Quando termina', 'a execução dos pendentes e os produtos comprados no mesmo calendário') +
+    '<div class="rn-card">' + heroFinal + linhaTempo + '</div>';
   box.querySelectorAll('[data-sf-ver]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('.sf-ajustes')) return; const r = vitrineIds[Number(el.dataset.sfVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo, () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
   box.querySelectorAll('[data-sf-foto]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfFoto)]; if (r) escolherFotoVitrine(r.chave, r.fotos); }));
   box.querySelectorAll('[data-sf-ajustar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfAjustar)]; if (r) ajustarProblemasDoGrupo(r.itens); }));
