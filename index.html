@@ -879,7 +879,6 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
           <span style="white-space:nowrap;"><span class="badge pronto">●</span> <span style="color:var(--pronto);">Liberado p/ vistoria</span></span>
           <span style="white-space:nowrap;"><span class="badge vistoriado">●</span> <span style="color:var(--vist);">Vistoriado pela IAC</span></span>
           <span style="white-space:nowrap;"><span class="badge liberado-pend">●</span> <span style="color:var(--lib);">Liberado p/ operação</span></span>
-          <span style="white-space:nowrap;"><span class="badge aprov-sof">●</span> <span style="color:#4FA77C;">Aprovado Sofitel</span></span>
           <span style="white-space:nowrap;"><span class="badge semdados">●</span> sem dados na revisão</span>
         </div>
       </div>
@@ -1435,7 +1434,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.321';
+const VERSAO_APP = '2026-10-03.322';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5489,7 +5488,6 @@ function renderTorreAndares(){
       // andar "liberado por inteiro": nenhuma área ainda crítica ou pendente sem liberar —
       // ou já ficou tudo azul (liberado p/ operação), ou já foi tudo embora (verde)
       liberadoTotal = (pior === 'LIBERADO_PEND' || pior === 'CONCLUIDO');
-      if (ANDARES_APROVADOS_SOFITEL.indexOf(Number(andar)) !== -1 || (liberadoTotal && locaisCor.length && locaisCor.every((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)))) statusClasse = 'status-aprovado-sof';
       const awExecDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].awExecEm).length;
       const iacOkDoAndar = itensDoAndar.filter((it) => acompanhamento[it.id] && acompanhamento[it.id].iacOkEm).length;
       const novosAbertosDoAndar = itensDoAndar.filter(novoAAvaliar).length;          // novos ainda sem decisão
@@ -8261,7 +8259,8 @@ function abrirEdicaoItem(tr, itemId, discsConhecidas){
 function listaFornecedoresConhecidos(){
   const doMapeamento = Object.values(fornecedores);
   const dosItens = itensRevisaoAtual.map((it) => fornecedorEfetivo(it));
-  return Array.from(new Set(doMapeamento.concat(dosItens).map((n)=>(n||'').trim()).filter(Boolean)))
+  const escolhidos = Object.values(acompanhamento).map((a) => a && a.fornecedorOverride);
+  return Array.from(new Set(doMapeamento.concat(dosItens, escolhidos).map((n)=>(n||'').trim()).filter(Boolean)))
     .sort((a,b) => a.localeCompare(b,'pt-BR'));
 }
 
@@ -9115,8 +9114,24 @@ function limiteListaOperacao(entregaDDMM){
 let reuniaoModo = 'anterior'; // 'anterior' = execução de todos os andares · 'proposta' = novo fluxo e cronograma
 /* ===================== ABA SOFITEL (apresentação ao cliente) =====================
    Itens da Sofitel pendentes = em aberto + não aceitos + novos (a mesma regra da onda). */
-function renderSofitel(){
+let vitrineSof = null, verOcultosSof = false;
+async function carregarVitrineSof(){ try{ const d = await store.getDoc('config', 'sofitel_vitrine'); vitrineSof = { ocultos: (d && d.ocultos) || {}, fotos: (d && d.fotos) || {} }; }catch(e){ vitrineSof = { ocultos:{}, fotos:{} }; } }
+async function salvarVitrineSof(){ const r = await store.setDoc('config', 'sofitel_vitrine', vitrineSof); if (!r || !r.ok) avisoFlutuante('Não foi salvo (sem conexão?).', 'erro'); }
+function escolherFotoVitrine(chave, fotos){
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modal-foto-vitrine';
+  ov.innerHTML = '<div class="modal-card modal-largo" role="dialog" aria-modal="true"><div class="modal-largo-corpo"><h3>Escolher a foto do exemplo</h3><div class="modal-sub">' + fotos.length + ' foto(s) dos itens deste grupo. Toque na que melhor representa.</div>' +
+    '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; margin-top:10px;">' + fotos.map((f) => '<img src="' + esc(urlDaFoto(f)) + '" data-escolher="' + esc(f) + '" loading="lazy" style="width:100%; height:120px; object-fit:cover; border-radius:10px; cursor:pointer; border:2px solid ' + (vitrineSof.fotos[chave] === f ? '#4FA77C' : 'transparent') + ';">').join('') + '</div></div>' +
+    '<div class="modal-acoes modal-rodape-fixo"><button class="btn fantasma" id="fv-auto">Usar a automática</button><button class="btn fantasma" id="fv-fechar">Fechar</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#fv-fechar').addEventListener('click', () => ov.remove());
+  ov.querySelector('#fv-auto').addEventListener('click', async () => { delete vitrineSof.fotos[chave]; ov.remove(); await salvarVitrineSof(); renderSofitel(); });
+  ov.querySelectorAll('[data-escolher]').forEach((im) => im.addEventListener('click', async () => { vitrineSof.fotos[chave] = im.dataset.escolher; ov.remove(); await salvarVitrineSof(); renderSofitel(); }));
+}
+async function renderSofitel(){
   const box = document.getElementById('sofitel-pagina'); if (!box) return;
+  if (!vitrineSof) await carregarVitrineSof();
+  const podeAjustar = ehAdminAtual();
   const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
   const sofAll = itensRevisaoAtual.filter((x) => origemDoItem(x) === 'SOFITEL');
   const pend = sofAll.filter(entraNaOnda);
@@ -9149,14 +9164,24 @@ function renderSofitel(){
   const barras = (lista, max, cor) => '<div class="sf-barras">' + lista.map((g) => '<div class="sf-b"><span>' + esc(g.k) + '</span><div class="rn-barra"><span style="width:' + (g.v.length / max * 100) + '%; background:' + cor + ';"></span></div><b style="text-align:right;">' + fmt(g.v.length) + '</b></div>').join('') + '</div>';
   // ---- vitrine: os itens que mais se repetem em cada grupo, com foto ----
   const vitrineIds = [];
+  let nOcultos = 0;
   const vitrine = (lista, n) => {
     const g = new Map();
     lista.forEach((x) => { const k = chaveComparacao(x.desc) || x.id; if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
-    return '<div class="sf-grade">' + Array.from(g.values()).sort((a, b) => b.length - a.length).slice(0, n).map((its) => {
-      const comFoto = its.find((x) => (x.fotos || []).length), foto = comFoto ? comFoto.fotos[0] : null;
+    const grupos = Array.from(g.entries()).sort((a, b) => b[1].length - a[1].length);
+    const visiveis = grupos.filter(([k]) => verOcultosSof || !vitrineSof.ocultos[k]);
+    nOcultos += grupos.slice(0, n + 20).filter(([k]) => vitrineSof.ocultos[k]).length;
+    return '<div class="sf-grade">' + visiveis.slice(0, n).map(([k, its]) => {
+      const todasFotos = Array.from(new Set(its.flatMap((x) => x.fotos || [])));
+      const foto = (vitrineSof.fotos[k] && todasFotos.indexOf(vitrineSof.fotos[k]) !== -1) ? vitrineSof.fotos[k] : (todasFotos[0] || null);
       const ands = Array.from(new Set(its.map((x) => Number(x.andar)))).sort((a, b) => b - a);
-      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: 'Sofitel · ' + String(its[0].desc || '').slice(0, 40) });
-      return '<div class="sf-item" data-sf-ver="' + (vitrineIds.length - 1) + '">' + (foto ? '<img src="' + esc(urlDaFoto(foto)) + '" loading="lazy" alt="">' : '<div class="sf-sem">sem foto</div>') +
+      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: 'Sofitel · ' + String(its[0].desc || '').slice(0, 40), chave: k, fotos: todasFotos });
+      const i = vitrineIds.length - 1, oculto = !!vitrineSof.ocultos[k];
+      return '<div class="sf-item" data-sf-ver="' + i + '" style="position:relative;' + (oculto ? ' opacity:.45;' : '') + '">' +
+        (podeAjustar ? '<div class="sf-ajustes" style="position:absolute; top:6px; right:6px; display:flex; gap:4px;">' +
+          (todasFotos.length > 1 ? '<button type="button" class="chip-acao" data-sf-foto="' + i + '" title="Escolher a foto" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">foto (' + todasFotos.length + ')</button>' : '') +
+          '<button type="button" class="chip-acao" data-sf-ocultar="' + i + '" title="' + (oculto ? 'Voltar a mostrar' : 'Não mostrar este exemplo') + '" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">' + (oculto ? 'mostrar' : 'ocultar') + '</button></div>' : '') +
+        (foto ? '<img src="' + esc(urlDaFoto(foto)) + '" loading="lazy" alt="">' : '<div class="sf-sem">sem foto</div>') +
         '<div class="sf-txt"><span class="sf-n">' + its.length + '×</span>' + esc(String(its[0].desc || '').slice(0, 110)) + (String(its[0].desc || '').length > 110 ? '…' : '') +
         '<span class="sf-and">' + ands.map((a) => a + 'º').join(' · ') + '</span></div></div>';
     }).join('') + '</div>';
@@ -9182,8 +9207,14 @@ function renderSofitel(){
         '<div style="font-size:12px; color:#6B756F; margin:12px 0 6px;">Disciplinas</div>' + barras(disc, maxD, '#B7C9EE') + '</div>' +
     '</div>' +
     '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
-    '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · disciplinas com mais pendências</h3>' + (blocos(disc, 'disc') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>';
-  box.querySelectorAll('[data-sf-ver]').forEach((el) => el.addEventListener('click', () => { const r = vitrineIds[Number(el.dataset.sfVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo, () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
+    '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · disciplinas com mais pendências</h3>' + (blocos(disc, 'disc') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
+    ((podeAjustar && (nOcultos || verOcultosSof)) ? '<div style="text-align:right; font-size:12px; margin-top:8px;"><a href="#" id="sf-ver-ocultos">' + (verOcultosSof ? 'esconder os exemplos ocultos' : 'ver os exemplos ocultos') + '</a></div>' : '');
+  box.querySelectorAll('[data-sf-ver]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('.sf-ajustes')) return; const r = vitrineIds[Number(el.dataset.sfVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo, () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
+  box.querySelectorAll('[data-sf-foto]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfFoto)]; if (r) escolherFotoVitrine(r.chave, r.fotos); }));
+  box.querySelectorAll('[data-sf-ocultar]').forEach((b) => b.addEventListener('click', async (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfOcultar)]; if (!r) return;
+    if (vitrineSof.ocultos[r.chave]) delete vitrineSof.ocultos[r.chave]; else vitrineSof.ocultos[r.chave] = { em: new Date().toISOString(), por: usuarioAtual };
+    await salvarVitrineSof(); renderSofitel(); }));
+  const lk = box.querySelector('#sf-ver-ocultos'); if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); verOcultosSof = !verOcultosSof; renderSofitel(); });
 }
 function renderReuniao(){
   const box = document.getElementById('reuniao-pagina'); if (!box) return;
