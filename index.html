@@ -585,7 +585,29 @@ body.aba-quartos main{ max-width:1900px; }
 .rn-exec .rn-c{ text-align:right; } .rn-exec .rn-c small{ display:block; font-size:10.5px; color:#8A938E; }
 .rn-exec .rn-pct{ font-weight:600; text-align:right; }
 .rn-exec-cab{ font-size:10.5px; color:#8A938E; border-top:0; padding-top:0; }
-.sf-corte-linha{ display:grid; grid-template-columns: 40px 1fr 58px 220px 150px; gap:10px; align-items:center; padding:5px 8px; border-radius:9px; font-size:12.5px; color:#33403A; }
+.sf-corte-linha, .sf-corte-cab{ display:grid; grid-template-columns: 34px minmax(120px,1fr) 52px 70px 66px 72px 50px 118px; gap:8px; align-items:center; padding:5px 8px; border-radius:9px; font-size:12.5px; color:#33403A; }
+.sf-corte-cab{ font-size:10.5px; color:#8A938E; padding-top:0; padding-bottom:2px; }
+.sf-c{ text-align:right; }
+.sf-avanco{ position:relative; height:16px; border-radius:8px; background:#fff; overflow:hidden; }
+.sf-avanco span{ position:absolute; left:0; top:0; bottom:0; background:#7CC9A0; border-radius:8px; }
+.sf-avanco em{ position:absolute; inset:0; font-style:normal; font-size:10.5px; font-weight:700; color:#2E5040; display:flex; align-items:center; justify-content:center; }
+.sf-pos{ display:inline-block; min-width:15px; height:15px; line-height:15px; text-align:center; border-radius:8px; background:#E7EEFB; color:#4A6AA5; font-size:9.5px; font-weight:700; margin-left:3px; vertical-align:top; }
+.sf-seq-l{ display:grid; grid-template-columns: 26px 26px 40px 1fr auto; gap:8px; align-items:center; padding:7px 8px; border-radius:10px; background:#fff; border:1px solid rgba(0,0,0,.06); font-size:13px; margin-bottom:5px; user-select:none; }
+.sf-seq-l.fora{ background:transparent; opacity:.55; }
+.sf-seq-l.arrastando{ box-shadow:0 8px 20px rgba(0,0,0,.14); border-color:#B7C9EE; background:#F4F8FF; }
+.sf-alca{ cursor:grab; font-size:16px; color:#8A938E; text-align:center; touch-action:none; }
+.sf-seq-n{ width:22px; height:22px; border-radius:11px; background:#E7EEFB; color:#4A6AA5; font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.sf-seq-l small{ color:#6B756F; }
+.sf-eq-l{ display:grid; grid-template-columns: minmax(110px,1fr) 64px 140px 92px 28px; gap:6px; align-items:center; font-size:12.5px; padding:3px 0; }
+.sf-eq-l.cab{ font-size:10.5px; color:#8A938E; } .sf-eq-l.tot{ border-top:1px solid rgba(0,0,0,.08); margin-top:4px; padding-top:6px; }
+.sf-eq-l input, .sf-eq-l select{ width:100%; padding:5px 7px; font-size:12.5px; border:1px solid rgba(0,0,0,.12); border-radius:8px; background:#fff; }
+.sf-gantt{ display:grid; grid-template-columns: 34px 1fr; gap:4px 8px; align-items:center; font-size:12.5px; padding:4px 0; border-top:1px solid rgba(0,0,0,.05); }
+.sf-gantt small{ grid-column: 2; color:#6B756F; font-size:11.5px; }
+.sf-trilho{ position:relative; height:14px; background:#fff; border-radius:7px; }
+.sf-trilho span{ position:absolute; top:0; bottom:0; border-radius:7px; }
+.sf-tempo-l{ display:grid; grid-template-columns: 1fr 92px 92px 92px; gap:6px; align-items:center; font-size:12px; padding:5px 0; border-top:1px solid rgba(0,0,0,.05); }
+.sf-tempo-l.cab{ font-size:10.5px; color:#8A938E; border-top:0; }
+.sf-tempo-l small{ color:#8A938E; font-size:10.5px; }
 .sf-corte-linha + .sf-corte-linha{ margin-top:3px; }
 .sf-corte-linha.aprovado{ background:#E3F5EC; }
 .sf-corte-linha .rn-barra{ height:12px; border-radius:6px; background:#fff; overflow:hidden; display:flex; }
@@ -1434,7 +1456,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.322';
+const VERSAO_APP = '2026-10-03.324';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -9128,15 +9150,179 @@ function escolherFotoVitrine(chave, fotos){
   ov.querySelector('#fv-auto').addEventListener('click', async () => { delete vitrineSof.fotos[chave]; ov.remove(); await salvarVitrineSof(); renderSofitel(); });
   ov.querySelectorAll('[data-escolher]').forEach((im) => im.addEventListener('click', async () => { vitrineSof.fotos[chave] = im.dataset.escolher; ov.remove(); await salvarVitrineSof(); renderSofitel(); }));
 }
+/* ---- tipo de problema (dentro de cada fornecedor) ---- */
+const PROBLEMAS_SOF = [
+  { id:'riscos', nome:'Riscos e arranhões', re:/risc|arranh|ranhur/ },
+  { id:'trincas', nome:'Trincas e quebras', re:/trinc|quebr|rachad|fissur|lasc|amassad|danific|furad|\bfuro/ },
+  { id:'manchas', nome:'Manchas e sujeira', re:/manch|suj|limpez|limpar|residuo|encard|oxid|ferrug|marcas? de/ },
+  { id:'vedacao', nome:'Vedação (silicone, rejunte)', re:/silic|rejunt|vedac|calafet|mastique/ },
+  { id:'pintura', nome:'Pintura e retoque', re:/pintur|retoqu|tinta|bolha|descasc|textura/ },
+  { id:'alinhamento', nome:'Alinhamento e regulagem', re:/alinh|regul|instab|instav|desnivel|nivel|empen|torto|torta|prumo|esquadro/ },
+  { id:'fixacao', nome:'Fixação (solto, folga)', re:/solt|folg|fixa|bambo|desprend|descol|froux|caindo|balanc/ },
+  { id:'funcionamento', nome:'Funcionamento', re:/funcion|trav|nao fecha|nao abre|fechadur|dobradic|corredic|puxador|interruptor|tomada|lampada|acend|vazament|vazando|entupid|ralo/ },
+  { id:'acabamento', nome:'Acabamento (rebarba, emenda)', re:/acabament|rebarb|emend|arremat|junta|fresta|\bvao\b|perfil|recorte|corte/ },
+];
+const NOME_PROBLEMA = Object.assign({ outros:'Outros' }, ...PROBLEMAS_SOF.map((p) => ({ [p.id]: p.nome })));
+let problemasSof = null; // { mapa: { chaveDaDescricao: idDoProblema } } — ajustes à mão e o que a IA classificou
+async function carregarProblemasSof(){ try{ const d = await store.getDoc('config', 'sofitel_problemas'); problemasSof = { mapa: (d && d.mapa) || {}, ia: (d && d.ia) || {} }; }catch(e){ problemasSof = { mapa:{}, ia:{} }; } }
+const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function problemaPorDicionario(desc){ const n = normTxt(desc); const p = PROBLEMAS_SOF.find((x) => x.re.test(n)); return p ? p.id : 'outros'; }
+function problemaDoItem(x){ const k = chaveComparacao(x.desc) || x.id; const m = problemasSof && (problemasSof.mapa[k] || problemasSof.ia[k]); return m || problemaPorDicionario(x.desc); }
+let classificandoProblemasIA = false;
+async function classificarProblemasComIA(lista){
+  if (classificandoProblemasIA || !supa || !ehAdminAtual() || !problemasSof) return;
+  const ks = new Map();
+  lista.forEach((x) => { const k = chaveComparacao(x.desc) || x.id; if (problemasSof.mapa[k] || problemasSof.ia[k] || problemaPorDicionario(x.desc) !== 'outros') return; if (!ks.has(k)) ks.set(k, String(x.desc).slice(0, 160)); });
+  if (!ks.size) return;
+  classificandoProblemasIA = true;
+  try{
+    const lote = Array.from(ks.entries()).slice(0, 80);
+    const pedido = 'Classifique cada descrição de pendência de obra (hotel) num TIPO DE PROBLEMA. Tipos: ' + PROBLEMAS_SOF.map((p) => p.id + ' = ' + p.nome).join('; ') + '; outros = nenhum dos anteriores. ' +
+      'Responda SOMENTE o JSON {"itens":[{"k":"<chave>","p":"<id do tipo>"}]}. ITENS: ' + JSON.stringify(lote.map(([k, d]) => ({ k, desc: d })));
+    const { data } = await supa.functions.invoke(FUNCAO_CHAT, { body: { mensagens: [{ role:'user', content: pedido }], contexto: 'Tarefa interna de classificação: responda somente o JSON pedido, sem conversa.', ferramentas: [] } });
+    const txt = data && Array.isArray(data.content) ? data.content.filter((b) => b.type === 'text').map((b) => b.text).join('') : '';
+    const l = extrairListaDaIA(txt) || [];
+    const validos = new Set(PROBLEMAS_SOF.map((p) => p.id).concat(['outros']));
+    let n = 0; l.forEach((r) => { if (r && r.k && validos.has(r.p) && ks.has(r.k)){ problemasSof.ia[r.k] = r.p; n++; } });
+    lote.forEach(([k]) => { if (!problemasSof.ia[k]) problemasSof.ia[k] = 'outros'; }); // uma vez só: o que a IA não classificou fica em Outros
+    await store.setDoc('config', 'sofitel_problemas', { mapa: problemasSof.mapa, ia: problemasSof.ia });
+    if (n) renderSofitel();
+  }catch(e){ console.warn('classificação por problema', e); }
+  finally{ classificandoProblemasIA = false; }
+}
+function ajustarProblemasDoGrupo(itens){
+  const descs = new Map(); itens.forEach((x) => { const k = chaveComparacao(x.desc) || x.id; if (!descs.has(k)) descs.set(k, { d: x.desc, n: 0 }); descs.get(k).n++; });
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'modal-ajustar-problema';
+  const opc = (sel) => PROBLEMAS_SOF.concat([{ id:'outros', nome:'Outros' }]).map((p) => '<option value="' + p.id + '"' + (p.id === sel ? ' selected' : '') + '>' + esc(p.nome) + '</option>').join('');
+  ov.innerHTML = '<div class="modal-card modal-largo" role="dialog" aria-modal="true"><div class="modal-largo-corpo"><h3>Ajustar o tipo de problema</h3><div class="modal-sub">Mude o tipo de uma descrição se o agrupamento errou. Vale para todos os andares e fornecedores com essa mesma descrição.</div>' +
+    Array.from(descs.entries()).sort((a, b) => b[1].n - a[1].n).map(([k, v]) => { const atual = problemaDoItem({ desc: v.d, id: k });
+      return '<div style="display:grid; grid-template-columns:1fr 210px; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:13px;"><span><b>' + v.n + '×</b> ' + esc(String(v.d).slice(0, 120)) + '</span><select data-k="' + esc(k) + '">' + opc(atual) + '</select></div>'; }).join('') +
+    '</div><div class="modal-acoes modal-rodape-fixo"><button class="btn fantasma" id="ap-cancelar">Cancelar</button><button class="btn primario" id="ap-salvar">Salvar</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#ap-cancelar').addEventListener('click', () => ov.remove());
+  ov.querySelector('#ap-salvar').addEventListener('click', async () => {
+    ov.querySelectorAll('select[data-k]').forEach((s) => { const k = s.dataset.k; if (s.value !== problemaPorDicionario(descs.get(k).d) || problemasSof.mapa[k]) problemasSof.mapa[k] = s.value; });
+    const r = await store.setDoc('config', 'sofitel_problemas', { mapa: problemasSof.mapa, ia: problemasSof.ia });
+    ov.remove(); if (!r || !r.ok) avisoFlutuante('Não foi salvo (sem conexão?).', 'erro'); renderSofitel();
+  });
+}
+/* ---- sequência de execução (editável) e equipe por fornecedor ---- */
+let seqSof = null, equipeSof = null, modoCorteSof = 'padrao', tSalvarEquipe = null;
+async function carregarSeqEquipeSof(){
+  try{ const d = await store.getDoc('config', 'sofitel_sequencia'); seqSof = (d && Array.isArray(d.ordem)) ? d.ordem.map(Number) : []; }catch(e){ seqSof = []; }
+  try{ const d = await store.getDoc('config', 'sofitel_equipes'); equipeSof = (d && Array.isArray(d.linhas)) ? d.linhas : null; }catch(e){ equipeSof = null; }
+}
+function ordemExecucaoSof(){
+  const base = (seqSof || []).concat(ONDAS_SOFITEL.flatMap((o) => o.andares), andaresConhecidos.slice().sort((a, b) => b - a));
+  return Array.from(new Set(base.map(Number))).filter((a) => andaresConhecidos.indexOf(a) !== -1);
+}
+async function salvarSeqSof(ordem){ seqSof = ordem.slice(); const r = await store.setDoc('config', 'sofitel_sequencia', { ordem: seqSof, em: new Date().toISOString(), por: usuarioAtual }); if (!r || !r.ok) avisoFlutuante('Sequência não foi salva (sem conexão?).', 'erro'); }
+function salvarEquipeSofDepois(){ clearTimeout(tSalvarEquipe); tSalvarEquipe = setTimeout(async () => { const r = await store.setDoc('config', 'sofitel_equipes', { linhas: equipeSof, em: new Date().toISOString(), por: usuarioAtual }); if (!r || !r.ok) avisoFlutuante('Equipe não foi salva (sem conexão?).', 'erro'); }, 700); }
+let andaresJuntosSof = 1; // andares ao mesmo tempo, sem passar de quantos ainda faltam
+function pessoasNecessarias(l, andaresJuntos){ const p = Number(l.pessoas) || 0; return l.modo === '2andares' ? p * Math.ceil(andaresJuntos / 2) : p * andaresJuntos; }
+
+/* ---- velocidade e previsão (simulação com 1 a 5 andares ao mesmo tempo) ---- */
+let frentesSof = 3, modoVitrineSof = 'problema';
+function somarTrabalho(iniChave, fimChave){ let s = 0; const d = new Date(iniChave + 'T12:00:00'), f = new Date(fimChave + 'T12:00:00'); while (d <= f){ s += fatorDoDia(d); d.setDate(d.getDate() + 1); } return s; }
+function terminarDepoisDe(iniChave, trabalho){ const d = new Date(iniChave + 'T12:00:00'); let s = 0; if (trabalho <= 0) return iniChave; while (true){ s += fatorDoDia(d); if (s >= trabalho - 1e-9) return chaveDia(d); d.setDate(d.getDate() + 1); } }
+function diaSeguinte(k){ const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + 1); return chaveDia(d); }
+function baixasSofitel(){
+  const out = [];
+  itensRevisaoAtual.forEach((x) => { if (origemDoItem(x) !== 'SOFITEL' || !baixaDaAW(x)) return; const ac = acompanhamento[x.id] || {}; if (!ac.awExecEm) return;
+    out.push({ forn: fornecedorEfetivo(x) || 'Sem fornecedor', andar: Number(x.andar), dia: chaveDia(new Date(ac.awExecEm)), prob: problemaDoItem(x) }); });
+  try{ sairamDaPlanilha().forEach((h) => { if (h.o !== 'SOFITEL' && origemDoRemovido(h) !== 'SOFITEL') return; const id = h._id || h.id, ac = acompanhamento[id] || {}; if (!ac.awExecEm || !ac.fornecedorOverride) return;
+    out.push({ forn: ac.fornecedorOverride, andar: Number(h.andar), dia: chaveDia(new Date(ac.awExecEm)), prob: 'outros' }); }); }catch(e){}
+  return out;
+}
+function velocidadesSofitel(){
+  const bx = baixasSofitel(), por = new Map();
+  bx.forEach((b) => { const k = b.forn + '|' + b.andar; if (!por.has(k)) por.set(k, []); por.get(k).push(b.dia); });
+  const porForn = new Map(); let totN = 0, totDias = 0;
+  por.forEach((dias, k) => { if (dias.length < 3) return; dias.sort(); const span = Math.max(1, somarTrabalho(dias[0], dias[dias.length - 1])); const f = k.split('|')[0];
+    if (!porForn.has(f)) porForn.set(f, { n: 0, dias: 0, andares: 0 }); const r = porForn.get(f); r.n += dias.length; r.dias += span; r.andares++; totN += dias.length; totDias += span; });
+  const media = totDias ? totN / totDias : 0;
+  return { porForn, media, nBaixas: bx.length, base: totN };
+}
+function simularPrazoSofitel(pend, frentes){
+  const vel = velocidadesSofitel();
+  if (!vel.media) return null;
+  const andares = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a));
+  const tarefas = andares.map((a) => { const p = pend.filter((x) => Number(x.andar) === a); if (!p.length) return null;
+    const porF = topContagem(p, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 50);
+    let dur = 0, gargalo = null;
+    porF.forEach((f) => { const v = vel.porForn.get(f.k), r = v && v.dias ? v.n / v.dias : vel.media, d = f.n / r; if (d > dur){ dur = d; gargalo = { forn: f.k, n: f.n, r, propria: !!v }; } });
+    return { a, n: p.length, dur: Math.max(0.5, Math.round(dur * 2) / 2), gargalo }; }).filter(Boolean);
+  const hoje = chaveDia(new Date()), livre = Array.from({ length: frentes }, () => hoje);
+  tarefas.forEach((tk) => { let i = 0; livre.forEach((l, j) => { if (l < livre[i]) i = j; }); tk.frente = i + 1; tk.ini = livre[i]; tk.fim = terminarDepoisDe(tk.ini, tk.dur); livre[i] = diaSeguinte(tk.fim); });
+  const fim = tarefas.reduce((m, tk) => tk.fim > m ? tk.fim : m, hoje);
+  return { tarefas, fim, hoje, vel };
+}
+function htmlEditarSequencia(seqAtiva, linhas, pend){
+  const porA = new Map(linhas.map((l) => [l.a, l]));
+  const fora = linhas.filter((l) => seqAtiva.indexOf(l.a) === -1);
+  return '<div style="font-size:12px; color:#6B756F; margin-bottom:6px;">Segure ≡ e arraste para mudar a ordem (ou use as setas). O simulador segue esta sequência.</div><div id="sf-seq">' +
+    seqAtiva.map((a, i) => { const l = porA.get(a) || { p: [] };
+      return '<div class="sf-seq-l" data-a="' + a + '"><span class="sf-alca" title="arrastar">≡</span><span class="sf-seq-n">' + (i + 1) + '</span><b>' + a + 'º</b><small>' + (l.p ? l.p.length : 0) + ' itens pendentes</small>' +
+        '<span style="display:flex; gap:4px;"><button type="button" class="chip-acao" data-seq-sobe="' + a + '"' + (i === 0 ? ' disabled' : '') + '>↑</button><button type="button" class="chip-acao" data-seq-desce="' + a + '"' + (i === seqAtiva.length - 1 ? ' disabled' : '') + '>↓</button></span></div>'; }).join('') +
+    '</div>' + (fora.length ? '<div style="margin-top:8px;">' + fora.map((l) => '<div class="sf-seq-l fora"><span></span><span class="sf-seq-n">—</span><b>' + l.a + 'º</b><small>' + (l.aprovado ? 'aprovado pela Sofitel · fora da sequência' : 'sem pendências da Sofitel') + '</small><span></span></div>').join('') + '</div>' : '');
+}
+function ligarArrastarSequencia(box){
+  const lista = box.querySelector('#sf-seq'); if (!lista) return;
+  const ordemAtual = () => Array.from(lista.querySelectorAll('.sf-seq-l')).map((el) => Number(el.dataset.a));
+  const salvarEDesenhar = async () => { await salvarSeqSof(ordemAtual()); renderSofitel(); };
+  lista.querySelectorAll('[data-seq-sobe]').forEach((b) => b.addEventListener('click', async () => { const o = ordemAtual(), a = Number(b.dataset.seqSobe), i = o.indexOf(a); if (i > 0){ o.splice(i, 1); o.splice(i - 1, 0, a); await salvarSeqSof(o); renderSofitel(); } }));
+  lista.querySelectorAll('[data-seq-desce]').forEach((b) => b.addEventListener('click', async () => { const o = ordemAtual(), a = Number(b.dataset.seqDesce), i = o.indexOf(a); if (i !== -1 && i < o.length - 1){ o.splice(i, 1); o.splice(i + 1, 0, a); await salvarSeqSof(o); renderSofitel(); } }));
+  // arrastar (mouse e dedo): a linha acompanha o ponteiro e troca de lugar ao passar da metade da vizinha
+  lista.querySelectorAll('.sf-alca').forEach((h) => h.addEventListener('pointerdown', (e) => {
+    const linha = h.closest('.sf-seq-l'); if (!linha) return; e.preventDefault();
+    linha.classList.add('arrastando');
+    const ordemAntes = ordemAtual().join(',');
+    const mover = (ev) => {
+      ev.preventDefault();
+      const irmaos = Array.from(lista.querySelectorAll('.sf-seq-l:not(.arrastando)'));
+      const depois = irmaos.find((el) => { const r = el.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2; });
+      if (depois){ if (linha.nextElementSibling !== depois) lista.insertBefore(linha, depois); } else if (lista.lastElementChild !== linha) lista.appendChild(linha);
+    };
+    const soltar = () => { document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', soltar); document.removeEventListener('pointercancel', soltar);
+      linha.classList.remove('arrastando'); if (ordemAtual().join(',') !== ordemAntes) salvarEDesenhar(); };
+    document.addEventListener('pointermove', mover, { passive:false }); document.addEventListener('pointerup', soltar); document.addEventListener('pointercancel', soltar);
+  }));
+}
+function htmlEquipeSof(pend, podeAjustar){
+  if (!equipeSof){ equipeSof = topContagem(pend, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 12).filter((f) => f.k !== 'Sem fornecedor').map((f) => ({ forn: f.k, pessoas: '', modo: 'andar' })); }
+  const N = andaresJuntosSof, tot = equipeSof.reduce((s, l) => s + pessoasNecessarias(l, N), 0);
+  const dis = podeAjustar ? '' : ' disabled';
+  return '<div class="sf-eq"><div class="sf-eq-l cab"><span>Fornecedor</span><span>Pessoas</span><span>Atende</span><span class="sf-c">Para ' + N + ' andar' + (N > 1 ? 'es' : '') + '</span><span></span></div>' +
+    equipeSof.map((l, i) => '<div class="sf-eq-l"><input type="text" data-eq-forn="' + i + '" value="' + esc(l.forn || '') + '" placeholder="Fornecedor"' + dis + '>' +
+      '<input type="number" min="0" step="1" data-eq-pes="' + i + '" value="' + esc(String(l.pessoas == null ? '' : l.pessoas)) + '" placeholder="0"' + dis + '>' +
+      '<select data-eq-modo="' + i + '"' + dis + '><option value="andar"' + (l.modo !== '2andares' ? ' selected' : '') + '>por andar</option><option value="2andares"' + (l.modo === '2andares' ? ' selected' : '') + '>a cada 2 andares</option></select>' +
+      '<b class="sf-c" data-eq-res="' + i + '">' + pessoasNecessarias(l, N) + '</b>' + (podeAjustar ? '<button type="button" class="chip-acao" data-eq-tirar="' + i + '" title="Tirar da tabela">×</button>' : '<span></span>') + '</div>').join('') +
+    '<div class="sf-eq-l tot"><span><b>Total na obra</b></span><span></span><span></span><b class="sf-c" id="sf-eq-total">' + tot + ' pessoas</b><span></span></div></div>' +
+    (podeAjustar ? '<div style="margin-top:6px;"><button type="button" class="chip-acao" id="sf-eq-add">+ adicionar fornecedor</button></div>' : '');
+}
+function ligarEquipeSof(box){
+  const N = () => andaresJuntosSof;
+  const atualizarTotais = () => { equipeSof.forEach((l, i) => { const el = box.querySelector('[data-eq-res="' + i + '"]'); if (el) el.textContent = pessoasNecessarias(l, N()); });
+    const t = box.querySelector('#sf-eq-total'); if (t) t.textContent = equipeSof.reduce((s, l) => s + pessoasNecessarias(l, N()), 0) + ' pessoas'; };
+  box.querySelectorAll('[data-eq-forn]').forEach((el) => el.addEventListener('input', () => { equipeSof[Number(el.dataset.eqForn)].forn = el.value; salvarEquipeSofDepois(); }));
+  box.querySelectorAll('[data-eq-pes]').forEach((el) => el.addEventListener('input', () => { equipeSof[Number(el.dataset.eqPes)].pessoas = el.value === '' ? '' : Math.max(0, Math.round(Number(el.value) || 0)); atualizarTotais(); salvarEquipeSofDepois(); }));
+  box.querySelectorAll('[data-eq-modo]').forEach((el) => el.addEventListener('change', () => { equipeSof[Number(el.dataset.eqModo)].modo = el.value; atualizarTotais(); salvarEquipeSofDepois(); }));
+  box.querySelectorAll('[data-eq-tirar]').forEach((el) => el.addEventListener('click', () => { equipeSof.splice(Number(el.dataset.eqTirar), 1); salvarEquipeSofDepois(); renderSofitel(); }));
+  const add = box.querySelector('#sf-eq-add'); if (add) add.addEventListener('click', () => { equipeSof.push({ forn: '', pessoas: '', modo: 'andar' }); salvarEquipeSofDepois(); renderSofitel(); });
+}
 async function renderSofitel(){
   const box = document.getElementById('sofitel-pagina'); if (!box) return;
   if (!vitrineSof) await carregarVitrineSof();
+  if (!problemasSof) await carregarProblemasSof();
+  if (!seqSof) await carregarSeqEquipeSof();
   const podeAjustar = ehAdminAtual();
   const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
   const sofAll = itensRevisaoAtual.filter((x) => origemDoItem(x) === 'SOFITEL');
-  const pend = sofAll.filter(entraNaOnda);
-  let removidos = 0; try{ removidos = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL').length; }catch(e){}
-  const recebidos = sofAll.length + removidos, resolvidos = Math.max(0, recebidos - pend.length);
+  const pendTodos = sofAll.filter(entraNaOnda);
+  const pend = pendTodos.filter((x) => !andarAprovadoSofitel(x.andar)); // o que sobrou em andar aprovado não entra mais na conta
+  let removidosTodos = []; try{ removidosTodos = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL'); }catch(e){}
+  const recebidos = sofAll.length + removidosTodos.length, resolvidos = Math.max(0, recebidos - pend.length);
   const pct = recebidos ? Math.round(resolvidos / recebidos * 100) : 0;
   const andares = andaresConhecidos.slice().sort((a, b) => b - a);
   const andaresAp = andares.filter(andarAprovadoSofitel);
@@ -9145,29 +9331,34 @@ async function renderSofitel(){
     return '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="9"/><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+COR.ok+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(c*p/100)+' '+c+'" transform="rotate(-90 '+cx+' '+cx+')"/><text x="'+cx+'" y="'+(cx+5)+'" text-anchor="middle" font-size="'+(S*0.22)+'" font-weight="600" fill="#33403A">'+p+'%</text></svg>'; };
   const cats = (lista) => { const c = { aberto:0, naoAceito:0, novo:0 }; lista.forEach((x) => c[categoriaNaOnda(x)]++); return c; };
   const cT = cats(pend);
-  // ---- corte do prédio ----
+  // ---- corte do prédio: barra de avanço + colunas com título ----
   const linhas = andares.map((a) => {
-    const s = sofAll.filter((x) => Number(x.andar) === a), p = pend.filter((x) => Number(x.andar) === a), c = cats(p);
-    let rem = 0; try{ rem = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL' && Number(h.andar) === a).length; }catch(e){}
-    const rec = s.length + rem, ls = locaisDoAndarCor(a), ap = ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length;
-    return { a, rec, p, c, pc: rec ? Math.round((rec - p.length) / rec * 100) : 0, aprovado: andarAprovadoSofitel(a), ap, tot: ls.length };
-  }).filter((l) => l.rec);
-  const corte = linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"><b>' + l.a + 'º</b>' +
-    '<div class="rn-barra"><span style="width:' + l.pc + '%; background:' + COR.ok + ';"></span><span style="width:' + (l.rec ? l.c.aberto / l.rec * 100 : 0) + '%; background:' + COR.ab + ';"></span><span style="width:' + (l.rec ? l.c.naoAceito / l.rec * 100 : 0) + '%; background:' + COR.na + ';"></span><span style="width:' + (l.rec ? l.c.novo / l.rec * 100 : 0) + '%; background:' + COR.nv + ';"></span></div>' +
-    '<span style="text-align:right; font-weight:600;">' + l.pc + '%</span>' +
-    '<small>' + fmt(l.p.length) + ' pendentes' + (l.p.length ? ' · ' + [l.c.aberto ? l.c.aberto + ' em aberto' : '', l.c.naoAceito ? l.c.naoAceito + ' não aceitos' : '', l.c.novo ? l.c.novo + ' novos' : ''].filter(Boolean).join(' · ') : '') + '</small>' +
-    (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : '<small>aprovados ' + l.ap + '/' + l.tot + ' ambientes</small>') + '</div>').join('');
+    const s = sofAll.filter((x) => Number(x.andar) === a), aprovado = andarAprovadoSofitel(a);
+    const p = aprovado ? [] : pendTodos.filter((x) => Number(x.andar) === a), c = cats(p);
+    const rem = removidosTodos.filter((h) => Number(h.andar) === a).length, tot = s.length + rem;
+    const ls = locaisDoAndarCor(a), ap = ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length;
+    return { a, tot, res: Math.max(0, tot - p.length), p, c, pc: tot ? Math.round((tot - p.length) / tot * 100) : 0, aprovado, ap, nAmb: ls.length };
+  }).filter((l) => l.tot);
+  const col = (v, cor) => '<span class="sf-c"' + (cor ? ' style="color:' + cor + ';"' : '') + '>' + (v ? fmt(v) : '—') + '</span>';
+  const seqAtiva = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a) && pend.some((x) => Number(x.andar) === a));
+  const posSeq = new Map(seqAtiva.map((a, i) => [a, i + 1]));
+  const corte = '<div class="sf-corte-cab"><span></span><span>avanço</span><span class="sf-c">Total</span><span class="sf-c">Resolvidos</span><span class="sf-c">Em aberto</span><span class="sf-c">Não aceitos</span><span class="sf-c">Novos</span><span></span></div>' +
+    linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"><b>' + l.a + 'º' + (posSeq.has(l.a) ? '<sup class="sf-pos" title="posição na sequência de execução">' + posSeq.get(l.a) + '</sup>' : '') + '</b>' +
+      '<div class="sf-avanco"><span style="width:' + l.pc + '%;"></span><em>' + l.pc + '%</em></div>' +
+      col(l.tot) + col(l.res, '#2E6B4A') + col(l.c.aberto, '#B4661F') + col(l.c.naoAceito, '#A0522D') + col(l.c.novo, '#B4661F') +
+      (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : '<small>' + l.ap + '/' + l.nAmb + ' amb. aprovados</small>') + '</div>').join('');
   // ---- rankings ----
   const top = (fn, n) => { const m = new Map(); pend.forEach((x) => { const k = fn(x) || '—'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return Array.from(m.entries()).map(([k, v]) => ({ k, v })).sort((a, b) => b.v.length - a.v.length).slice(0, n); };
   const forn = top((x) => fornecedorEfetivo(x) || 'Sem fornecedor', 5), disc = top((x) => disciplinaEfetiva(x) || 'Sem disciplina', 4);
   const maxF = Math.max(1, ...forn.map((f) => f.v.length)), maxD = Math.max(1, ...disc.map((d) => d.v.length));
   const barras = (lista, max, cor) => '<div class="sf-barras">' + lista.map((g) => '<div class="sf-b"><span>' + esc(g.k) + '</span><div class="rn-barra"><span style="width:' + (g.v.length / max * 100) + '%; background:' + cor + ';"></span></div><b style="text-align:right;">' + fmt(g.v.length) + '</b></div>').join('') + '</div>';
-  // ---- vitrine: os itens que mais se repetem em cada grupo, com foto ----
-  const vitrineIds = [];
-  let nOcultos = 0;
-  const vitrine = (lista, n) => {
+  // ---- vitrine: por problema (sempre dentro do mesmo fornecedor) ou por descrição ----
+  const vitrineIds = []; let nOcultos = 0;
+  const vitrine = (lista, n, mostrarForn) => {
     const g = new Map();
-    lista.forEach((x) => { const k = chaveComparacao(x.desc) || x.id; if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
+    lista.forEach((x) => { const f = fornecedorEfetivo(x) || 'Sem fornecedor';
+      const k = modoVitrineSof === 'problema' ? 'p|' + f + '|' + problemaDoItem(x) : (chaveComparacao(x.desc) || x.id);
+      if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
     const grupos = Array.from(g.entries()).sort((a, b) => b[1].length - a[1].length);
     const visiveis = grupos.filter(([k]) => verOcultosSof || !vitrineSof.ocultos[k]);
     nOcultos += grupos.slice(0, n + 20).filter(([k]) => vitrineSof.ocultos[k]).length;
@@ -9175,22 +9366,52 @@ async function renderSofitel(){
       const todasFotos = Array.from(new Set(its.flatMap((x) => x.fotos || [])));
       const foto = (vitrineSof.fotos[k] && todasFotos.indexOf(vitrineSof.fotos[k]) !== -1) ? vitrineSof.fotos[k] : (todasFotos[0] || null);
       const ands = Array.from(new Set(its.map((x) => Number(x.andar)))).sort((a, b) => b - a);
-      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: 'Sofitel · ' + String(its[0].desc || '').slice(0, 40), chave: k, fotos: todasFotos });
+      const f0 = fornecedorEfetivo(its[0]) || 'Sem fornecedor';
+      const titulo = modoVitrineSof === 'problema' ? NOME_PROBLEMA[problemaDoItem(its[0])] + (mostrarForn ? ' · ' + f0 : '') : String(its[0].desc || '');
+      const subs = modoVitrineSof === 'problema' ? topContagem(its, (x) => String(x.desc || '').trim(), 3).map((d) => esc(d.k.slice(0, 48)) + (d.k.length > 48 ? '…' : '') + ' <b>' + d.n + '</b>').join(' · ') : '';
+      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: 'Sofitel · ' + titulo.slice(0, 50), chave: k, fotos: todasFotos, itens: its });
       const i = vitrineIds.length - 1, oculto = !!vitrineSof.ocultos[k];
       return '<div class="sf-item" data-sf-ver="' + i + '" style="position:relative;' + (oculto ? ' opacity:.45;' : '') + '">' +
-        (podeAjustar ? '<div class="sf-ajustes" style="position:absolute; top:6px; right:6px; display:flex; gap:4px;">' +
-          (todasFotos.length > 1 ? '<button type="button" class="chip-acao" data-sf-foto="' + i + '" title="Escolher a foto" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">foto (' + todasFotos.length + ')</button>' : '') +
-          '<button type="button" class="chip-acao" data-sf-ocultar="' + i + '" title="' + (oculto ? 'Voltar a mostrar' : 'Não mostrar este exemplo') + '" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">' + (oculto ? 'mostrar' : 'ocultar') + '</button></div>' : '') +
+        (podeAjustar ? '<div class="sf-ajustes" style="position:absolute; top:6px; right:6px; display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">' +
+          (todasFotos.length > 1 ? '<button type="button" class="chip-acao" data-sf-foto="' + i + '" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">foto (' + todasFotos.length + ')</button>' : '') +
+          (modoVitrineSof === 'problema' ? '<button type="button" class="chip-acao" data-sf-ajustar="' + i + '" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">ajustar</button>' : '') +
+          '<button type="button" class="chip-acao" data-sf-ocultar="' + i + '" style="padding:2px 7px; font-size:11px; background:rgba(255,255,255,.92);">' + (oculto ? 'mostrar' : 'ocultar') + '</button></div>' : '') +
         (foto ? '<img src="' + esc(urlDaFoto(foto)) + '" loading="lazy" alt="">' : '<div class="sf-sem">sem foto</div>') +
-        '<div class="sf-txt"><span class="sf-n">' + its.length + '×</span>' + esc(String(its[0].desc || '').slice(0, 110)) + (String(its[0].desc || '').length > 110 ? '…' : '') +
+        '<div class="sf-txt"><span class="sf-n">' + its.length + '×</span>' + esc(titulo.slice(0, 110)) + (titulo.length > 110 ? '…' : '') +
+        (subs ? '<span class="sf-and" style="color:#5B6660;">' + subs + '</span>' : '') +
         '<span class="sf-and">' + ands.map((a) => a + 'º').join(' · ') + '</span></div></div>';
     }).join('') + '</div>';
   };
   const blocos = (lista, rotuloTipo) => lista.map((g, i) => {
     const ands = Array.from(new Set(g.v.map((x) => Number(x.andar)))).sort((a, b) => b - a);
     const sub = rotuloTipo === 'forn' ? topContagem(g.v, (x) => disciplinaEfetiva(x) || '—', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ') : topContagem(g.v, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 3).map((d) => esc(d.k) + ' (' + d.n + ')').join(' · ');
-    return '<div class="sf-bloco"><div class="sf-bloco-cab"><b>' + (i + 1) + '. ' + esc(g.k) + ' · ' + fmt(g.v.length) + ' itens</b><span>' + (rotuloTipo === 'forn' ? 'disciplinas: ' : 'fornecedores: ') + sub + ' · andares ' + ands.map((a) => a + 'º').join(' ') + '</span></div>' + vitrine(g.v, 6) + '</div>';
+    return '<div class="sf-bloco"><div class="sf-bloco-cab"><b>' + (i + 1) + '. ' + esc(g.k) + ' · ' + fmt(g.v.length) + ' itens</b><span>' + (rotuloTipo === 'forn' ? 'disciplinas: ' : 'fornecedores: ') + sub + ' · andares ' + ands.map((a) => a + 'º').join(' ') + '</span></div>' + vitrine(g.v, 6, rotuloTipo !== 'forn') + '</div>';
   }).join('');
+  // ---- previsão ----
+  const sim = simularPrazoSofitel(pend, frentesSof);
+  { const restam = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a) && pend.some((x) => Number(x.andar) === a)).length; andaresJuntosSof = Math.max(1, Math.min(frentesSof, restam || frentesSof)); }
+  let prazoHtml = '<div class="rn-sub">Ainda não há baixas suficientes nos itens da Sofitel para medir a velocidade.</div>';
+  if (sim){
+    const ini = new Date(sim.hoje + 'T12:00:00'), fimD = new Date(sim.fim + 'T12:00:00'), totalDias = Math.max(1, Math.round((fimD - ini) / 86400000) + 1);
+    const pos = (k) => Math.round((new Date(k + 'T12:00:00') - ini) / 86400000);
+    const corFrente = ['#A9C5EA', '#A8D5BA', '#F4D9A6', '#D8C6F0', '#F3C1B7'];
+    prazoHtml = '<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">' +
+      '<div><div style="font-size:12px; color:#6B756F;">Previsão de conclusão (itens da Sofitel pendentes)</div><div style="font-size:30px; font-weight:700; color:#33403A;">' + fimD.toLocaleDateString('pt-BR') + '</div><div style="font-size:12px; color:#6B756F;">' + totalDias + ' dias corridos · ' + sim.tarefas.length + ' andares · ' + fmt(pend.length) + ' itens</div></div>' +
+      '<div><div style="font-size:12px; color:#6B756F; margin-bottom:4px; text-align:right;">andares ao mesmo tempo</div><div class="rn-modo" id="sf-frentes">' + [1,2,3,4,5].map((n) => '<button type="button" data-fr="' + n + '"' + (n === frentesSof ? ' class="ativo"' : '') + '>' + n + '</button>').join('') + '</div></div></div>' +
+      sim.tarefas.map((tk) => '<div class="sf-gantt"><b>' + tk.a + 'º</b><div class="sf-trilho"><span style="left:' + (pos(tk.ini) / totalDias * 100) + '%; width:' + Math.max(1.5, (pos(tk.fim) - pos(tk.ini) + 1) / totalDias * 100) + '%; background:' + corFrente[(tk.frente - 1) % 5] + ';"></span></div>' +
+        '<small>' + dataCurta(tk.ini) + ' → ' + dataCurta(tk.fim) + ' · ' + tk.n + ' itens · gargalo ' + esc(tk.gargalo.forn) + ' (' + tk.gargalo.n + ' itens, ' + tk.gargalo.r.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '/dia' + (tk.gargalo.propria ? '' : ', média') + ')</small></div>').join('') +
+      '<div class="rn-leg" style="margin-top:8px;"><span>Velocidade medida em ' + fmt(sim.vel.base) + ' baixas da Sofitel (atualiza a cada baixa) · média ' + sim.vel.media.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' itens/dia por andar · seg. a sáb.; domingos e feriados a 80%</span></div>';
+  }
+  // ---- tempo nos andares aprovados (1ª → última correção, por fornecedor + problema) ----
+  const bxAp = baixasSofitel().filter((b) => ANDARES_APROVADOS_SOFITEL.indexOf(b.andar) !== -1);
+  const gT = new Map(); bxAp.forEach((b) => { const k = b.forn + '|' + b.prob; if (!gT.has(k)) gT.set(k, { forn: b.forn, prob: b.prob, n: 0, por: {} }); const r = gT.get(k); r.n++; (r.por[b.andar] = r.por[b.andar] || []).push(b.dia); });
+  const apOrd = ANDARES_APROVADOS_SOFITEL.slice().sort((a, b) => b - a);
+  const linhasT = Array.from(gT.values()).sort((a, b) => b.n - a.n).slice(0, 8);
+  const tempoHtml = linhasT.length ? '<div class="sf-tempo"><div class="sf-tempo-l cab"><span>Fornecedor · problema</span>' + apOrd.map((a) => '<span>' + a + 'º</span>').join('') + '</div>' +
+    linhasT.map((r) => '<div class="sf-tempo-l"><span>' + esc(r.forn) + ' · ' + esc(NOME_PROBLEMA[r.prob] || 'Outros') + '</span>' + apOrd.map((a) => { const d = (r.por[a] || []).sort(); if (!d.length) return '<span>—</span>';
+      const dias = Math.round((new Date(d[d.length - 1] + 'T12:00:00') - new Date(d[0] + 'T12:00:00')) / 86400000) + 1;
+      return '<span><b>' + dias + ' d</b> <small>(' + dataCurta(d[0]) + (d.length > 1 ? ' → ' + dataCurta(d[d.length - 1]) : '') + ')</small></span>'; }).join('') + '</div>').join('') + '</div>'
+    : '<div class="rn-sub">Sem baixas registradas nos andares aprovados.</div>';
   const hoje = new Date();
   box.innerHTML =
     '<div class="rn-topo"><h2>Sofitel Ipanema · Itens da operação</h2><div class="rn-sub">lista da Sofitel · ' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
@@ -9200,21 +9421,34 @@ async function renderSofitel(){
       '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(pend.length) + '</div><div class="rn-rot">pendentes</div><div class="rn-leg" style="margin-top:6px;"><span><i style="background:' + COR.ab + ';"></i>' + fmt(cT.aberto) + ' em aberto</span><span><i style="background:' + COR.na + ';"></i>' + fmt(cT.naoAceito) + ' não aceitos</span><span><i style="background:' + COR.nv + ';"></i>' + fmt(cT.novo) + ' novos</span></div></div>' +
       '<div class="rn-kpi" style="display:block; background:#E3F5EC;"><div class="rn-big" style="color:#2E6B4A;">' + andaresAp.length + '</div><div class="rn-rot">andares aprovados pela Sofitel</div><div class="rn-leg" style="margin-top:6px;"><span>' + (andaresAp.length ? andaresAp.slice().sort((a, b) => a - b).map((a) => a + 'º').join(', ') : '—') + '</span></div></div>' +
     '</div>' +
-    '<div class="rn-linha2" style="grid-template-columns: 1.25fr 1fr;">' +
-      '<div class="rn-card"><h3>Corte do prédio · itens da Sofitel</h3>' + corte +
-        '<div class="rn-leg" style="margin-top:8px;"><span><i style="background:' + COR.ok + ';"></i>resolvido</span><span><i style="background:' + COR.ab + ';"></i>em aberto</span><span><i style="background:' + COR.na + ';"></i>não aceitos</span><span><i style="background:' + COR.nv + ';"></i>novos</span><span><i style="background:#CBEBDA;"></i>andar aprovado pela Sofitel</span></div></div>' +
+    '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr;">' +
+      '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · itens da Sofitel</h3>' +
+        (podeAjustar ? '<div class="rn-modo" id="sf-modo-corte"><button type="button" data-mc="padrao"' + (modoCorteSof === 'padrao' ? ' class="ativo"' : '') + '>Padrão</button><button type="button" data-mc="editar"' + (modoCorteSof === 'editar' ? ' class="ativo"' : '') + '>Editar sequência</button></div>' : '') + '</div>' +
+        (modoCorteSof === 'editar' ? htmlEditarSequencia(seqAtiva, linhas, pend) : corte) + '<div class="rn-leg" style="margin-top:8px;"><span>Total = tudo o que a Sofitel já listou no andar · Resolvidos = Total − pendentes</span><span><i style="background:#CBEBDA;"></i>andar aprovado (o que sobrou nele não entra mais na conta)</span></div></div>' +
       '<div class="rn-card"><h3>Onde está o foco · pendentes da Sofitel</h3><div style="font-size:12px; color:#6B756F; margin:2px 0 6px;">Fornecedores</div>' + barras(forn, maxF, '#F3B97C') +
         '<div style="font-size:12px; color:#6B756F; margin:12px 0 6px;">Disciplinas</div>' + barras(disc, maxD, '#B7C9EE') + '</div>' +
     '</div>' +
-    '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
+    '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr; margin-top:14px;">' +
+      '<div class="rn-card"><h3>Previsão de conclusão · simulação</h3>' + prazoHtml +
+        '<div style="font-size:12px; font-weight:600; color:#5B6660; margin:16px 0 6px;">Equipe por fornecedor · para ' + andaresJuntosSof + ' andar' + (andaresJuntosSof > 1 ? 'es' : '') + ' ao mesmo tempo' + (andaresJuntosSof < frentesSof ? ' <span style="font-weight:400; color:#8A938E;">(só restam ' + andaresJuntosSof + ')</span>' : '') + '</div>' + htmlEquipeSof(pend, podeAjustar) + '</div>' +
+      '<div class="rn-card"><h3>Tempo de execução nos andares aprovados</h3><div style="font-size:12px; color:#6B756F; margin-bottom:6px;">da 1ª à última correção, por fornecedor e problema</div>' + tempoHtml + '</div>' +
+    '</div>' +
+    '<div style="display:flex; justify-content:flex-end; margin-top:14px;"><div class="rn-modo" id="sf-modo"><button type="button" data-m="problema"' + (modoVitrineSof === 'problema' ? ' class="ativo"' : '') + '>por problema</button><button type="button" data-m="descricao"' + (modoVitrineSof === 'descricao' ? ' class="ativo"' : '') + '>por descrição</button></div></div>' +
+    '<div class="rn-card" style="margin-top:8px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
     '<div class="rn-card" style="margin-top:14px;"><h3>Principais itens · disciplinas com mais pendências</h3>' + (blocos(disc, 'disc') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
     ((podeAjustar && (nOcultos || verOcultosSof)) ? '<div style="text-align:right; font-size:12px; margin-top:8px;"><a href="#" id="sf-ver-ocultos">' + (verOcultosSof ? 'esconder os exemplos ocultos' : 'ver os exemplos ocultos') + '</a></div>' : '');
   box.querySelectorAll('[data-sf-ver]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('.sf-ajustes')) return; const r = vitrineIds[Number(el.dataset.sfVer)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo, () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
   box.querySelectorAll('[data-sf-foto]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfFoto)]; if (r) escolherFotoVitrine(r.chave, r.fotos); }));
+  box.querySelectorAll('[data-sf-ajustar]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfAjustar)]; if (r) ajustarProblemasDoGrupo(r.itens); }));
   box.querySelectorAll('[data-sf-ocultar]').forEach((b) => b.addEventListener('click', async (e) => { e.stopPropagation(); const r = vitrineIds[Number(b.dataset.sfOcultar)]; if (!r) return;
     if (vitrineSof.ocultos[r.chave]) delete vitrineSof.ocultos[r.chave]; else vitrineSof.ocultos[r.chave] = { em: new Date().toISOString(), por: usuarioAtual };
     await salvarVitrineSof(); renderSofitel(); }));
   const lk = box.querySelector('#sf-ver-ocultos'); if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); verOcultosSof = !verOcultosSof; renderSofitel(); });
+  box.querySelectorAll('#sf-frentes [data-fr]').forEach((b) => b.addEventListener('click', () => { frentesSof = Number(b.dataset.fr); renderSofitel(); }));
+  box.querySelectorAll('#sf-modo-corte [data-mc]').forEach((b) => b.addEventListener('click', () => { modoCorteSof = b.dataset.mc; renderSofitel(); }));
+  ligarArrastarSequencia(box); ligarEquipeSof(box);
+  box.querySelectorAll('#sf-modo [data-m]').forEach((b) => b.addEventListener('click', () => { modoVitrineSof = b.dataset.m; renderSofitel(); }));
+  if (podeAjustar) classificarProblemasComIA(pend); // só o que o dicionário não reconheceu, uma vez por descrição
 }
 function renderReuniao(){
   const box = document.getElementById('reuniao-pagina'); if (!box) return;
@@ -10826,7 +11060,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
