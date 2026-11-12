@@ -256,6 +256,7 @@ main{ max-width:1960px; margin:0 auto; padding:28px 28px 72px; } /* telas largas
 /* USUÁRIO QUE NÃO É ADMINISTRADOR: vê só o que está em aberto (sem novos em aprovação, sem "IAC não aceitou",
    sem comparação entre revisões) — as decisões são do administrador */
 body.nao-admin .so-admin{ display:none !important; }
+body.nao-aprovador .so-aprovador{ display:none !important; }
 body:not(.fundador) .so-fundador{ display:none !important; }
 @media (max-width:640px){
   #caixa-revisao{ flex-direction:column; align-items:flex-end; }
@@ -901,12 +902,12 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   <button class="ativa" data-aba="visao-geral">Visão geral</button>
   <button data-aba="quartos">Quartos &amp; áreas</button>
   <button data-aba="itens">Itens</button>
-  <button data-aba="disciplinas">Disciplinas &amp; fornecedores</button>
-  <button data-aba="comparacao">Comparação</button>
+  <button data-aba="disciplinas" class="so-admin">Disciplinas &amp; fornecedores</button>
+  <button data-aba="comparacao" class="so-admin">Comparação</button>
   <button data-aba="raiox" class="so-fundador">Raio-X</button>
   <button data-aba="reuniao" class="so-admin">Reunião</button>
   <button data-aba="sofitel" class="so-admin">Sofitel</button>
-  <button data-aba="tendencia">Plano</button>
+  <button data-aba="tendencia" class="so-admin">Plano</button>
   <button data-aba="enviar" class="so-admin">Enviar planilhas</button>
   <button type="button" class="chip-acao pdf-nav" id="btn-pdf-visao-geral-nav" title="Gera o PDF da Visão geral inteira">PDF da Visão geral</button>
 </nav>
@@ -1034,6 +1035,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
       </select>
       <select id="filtro-item-progresso">
         <option value="">Todos os fluxos</option>
+        <option value="faltaFazer">Tudo que falta fazer</option>
         <option value="emAberto">Em aberto</option>
         <option value="awExec">Executado AW</option>
         <option value="iacOk">Validado gestão AW</option>
@@ -1489,7 +1491,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.331';
+const VERSAO_APP = '2026-10-03.332';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3894,6 +3896,7 @@ function renderUsuarioTopo(){
   try{ atualizarBotaoTirarLote(); renderListaExcluidos(); renderListaPins(); }catch(e){}
   const eraNaoAdmin = document.body.classList.contains('nao-admin');
   document.body.classList.toggle('nao-admin', !ehAdminAtual());
+  document.body.classList.toggle('nao-aprovador', !ehAprovadorAtual());
   document.body.classList.toggle('fundador', ehFundador());
   document.querySelectorAll('option.so-admin').forEach((o) => { o.hidden = !ehAdminAtual(); o.disabled = !ehAdminAtual(); }); // iPhone ignora display:none em <option>
   if (eraNaoAdmin !== document.body.classList.contains('nao-admin')){
@@ -4059,19 +4062,21 @@ function renderListaPins(){
       '<div class="rodape-nota" style="text-align:left; margin:2px 0 0;">Endereço desta obra: '+esc(location.origin + location.pathname)+(OBRA ? '?obra='+esc(OBRA) : '')+'</div></div>' +
       '<button type="button" class="chip-acao" id="btn-nome-obra">Renomear obra</button></div>' +
     '<h2 style="margin-bottom:4px;">Equipe e PINs</h2>' +
-    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;"><b style="font-weight:500;">Fundador</b> e <b style="font-weight:500;">Administradores</b> fazem tudo (editar, enviar planilhas, liberar, decidir itens novos e não aceitos, criar fornecedor); <b style="font-weight:500;">Usuários</b> veem o que está em aberto e dão baixa. Só o Fundador torna alguém administrador. Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
+    '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;"><b style="font-weight:500;">Fundador</b> e <b style="font-weight:500;">Administradores</b> fazem tudo (editar, enviar planilhas, liberar, decidir itens novos e não aceitos, criar fornecedor); <b style="font-weight:500;">Aprovadores</b> decidem, item por item, os itens novos e os não aceitos (precisa corrigir, conferir no quarto, aceitar); <b style="font-weight:500;">Usuários</b> veem o que está em aberto e dão baixa. Só o Fundador torna alguém administrador ou aprovador. Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
     nomes.map((n) => { const p = pinsEquipe[chaveComparacao(n)];
       return '<div class="insight-item"><div><div class="local">'+esc(n)+'</div><div class="detalhe">'+(p ? 'PIN criado em '+dataHoraCurta(p.em) : 'ainda sem PIN (cria no próximo acesso)')+'</div></div>' +
         '<div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">' +
         (ehFundador(n) ? '<span class="badge liberado-pend" style="font-size:11px;">Fundador</span>'
           : (fixos.indexOf(chaveComparacao(n)) !== -1 || !ehFundador() ? '<span class="badge '+(ehAdmin(n) ? 'pronto' : 'execucao')+'" style="font-size:11px;">'+(ehAdmin(n) ? 'Administrador' : 'Usuário')+'</span>'
           : '<button type="button" class="chip-acao'+(ehAdmin(n) ? ' marcado pronto' : '')+'" data-admin="'+esc(n)+'">'+(ehAdmin(n) ? '✓ Administrador' : 'Tornar administrador')+'</button>')) +
+        (!ehFundador(n) && !ehAdmin(n) ? (ehFundador() ? '<button type="button" class="chip-acao'+(ehAprovadorNome(n) ? ' marcado pronto' : '')+'" data-aprovador="'+esc(n)+'">'+(ehAprovadorNome(n) ? '✓ Aprovador' : 'Tornar aprovador')+'</button>'
+          : (ehAprovadorNome(n) ? '<span class="badge pronto" style="font-size:11px;">Aprovador</span>' : '')) : '') +
         (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div></div>'; }).join('');
   const bNome = document.getElementById('btn-nome-obra');
   if (bNome) bNome.addEventListener('click', async () => {
     const novo = window.prompt('Nome desta obra (aparece no topo do painel e nos PDFs):', nomeDaObra());
     if (novo === null || !novo.trim()) return;
-    const r = await store.setDoc('config', 'obra', { nome: novo.trim(), admins: configObra.admins || [], criamFornecedor: configObra.criamFornecedor });
+    const r = await store.setDoc('config', 'obra', { nome: novo.trim(), admins: configObra.admins || [], aprovadores: configObra.aprovadores || [], criamFornecedor: configObra.criamFornecedor });
     if (r.ok){ configObra.nome = novo.trim(); renderNomeObra(); renderListaPins(); avisoFlutuante('Nome da obra salvo', 'ok'); }
   });
   cont.querySelectorAll('[data-criar-forn]').forEach((b) => b.addEventListener('click', async () => {
@@ -4079,7 +4084,7 @@ function renderListaPins(){
     const atual = (Array.isArray(configObra.criamFornecedor) ? configObra.criamFornecedor : (CRIAM_FORNECEDOR_PADRAO[OBRA] || [])).slice();
     const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
     if (i === -1) atual.push(n); else atual.splice(i, 1);
-    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: configObra.admins || [], criamFornecedor: atual });
+    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: configObra.admins || [], aprovadores: configObra.aprovadores || [], criamFornecedor: atual });
     if (r.ok){ configObra.criamFornecedor = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora pode criar fornecedor' : n+' não cria mais fornecedor', 'ok'); }
   }));
   cont.querySelectorAll('[data-admin]').forEach((b) => b.addEventListener('click', async () => {
@@ -4088,8 +4093,17 @@ function renderListaPins(){
     const atual = (configObra.admins || []).slice();
     const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
     if (i === -1) atual.push(n); else atual.splice(i, 1);
-    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: atual, criamFornecedor: configObra.criamFornecedor });
+    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: atual, aprovadores: configObra.aprovadores || [], criamFornecedor: configObra.criamFornecedor });
     if (r.ok){ configObra.admins = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora é administrador desta obra' : n+' não é mais administrador', 'ok'); }
+  }));
+  cont.querySelectorAll('[data-aprovador]').forEach((b) => b.addEventListener('click', async () => {
+    if (!ehFundador()){ avisoFlutuante('Só o Fundador torna ou tira aprovadores', 'erro'); return; }
+    const n = b.dataset.aprovador;
+    const atual = (configObra.aprovadores || []).slice();
+    const i = atual.findIndex((a) => chaveComparacao(a) === chaveComparacao(n));
+    if (i === -1) atual.push(n); else atual.splice(i, 1);
+    const r = await store.setDoc('config', 'obra', { nome: configObra.nome || '', admins: configObra.admins || [], aprovadores: atual, criamFornecedor: configObra.criamFornecedor });
+    if (r.ok){ configObra.aprovadores = atual; renderListaPins(); avisoFlutuante(i === -1 ? n+' agora é aprovador desta obra' : n+' não é mais aprovador', 'ok'); }
   }));
   cont.querySelectorAll('[data-apagar-pin]').forEach((b) => b.addEventListener('click', async () => {
     if (!window.confirm('Apagar o PIN de '+b.dataset.nome+'?\\n\\nNo próximo acesso, ela vai criar um PIN novo.')) return;
@@ -4279,6 +4293,7 @@ async function alternarAcompanhamento(itemId, campo, modo){
              Validado IAC e Executado AW, SEM reincidência (não foi reprovação), e o item
              continua na lista com a data prevista pra preencher. */
 async function triarDivergenciaIac(itemId, tipo){
+  if (!exigirAprovador()) return;
   if (!(await garantirUsuario())) return;
   const anterior = acompanhamento[itemId] || { awExecEm:null, iacOkEm:null };
   const agora = new Date().toISOString(), por = usuarioAtual;
@@ -4649,7 +4664,7 @@ function abrirVistoriaIac(andar){
   if (rem) rem.addEventListener('click', async () => { if (await salvarVistoriaIac(andar, '')){ avisoFlutuante('Vistoria removida', 'ok'); depois(); } });
 }
 async function carregarConfigObra(){
-  try{ const d = await store.getDoc('config', 'obra'); configObra = { nome: (d && d.nome) || '', admins: (d && Array.isArray(d.admins)) ? d.admins : [], criamFornecedor: (d && Array.isArray(d.criamFornecedor)) ? d.criamFornecedor : undefined }; }catch(e){}
+  try{ const d = await store.getDoc('config', 'obra'); configObra = { nome: (d && d.nome) || '', admins: (d && Array.isArray(d.admins)) ? d.admins : [], aprovadores: (d && Array.isArray(d.aprovadores)) ? d.aprovadores : [], criamFornecedor: (d && Array.isArray(d.criamFornecedor)) ? d.criamFornecedor : undefined }; }catch(e){}
   renderNomeObra();
 }
 function nomeDaObra(){
@@ -4710,6 +4725,11 @@ function podeTirarDaObra(){
   if (!usuarioAtual) return false;
   return ehAdminNome(usuarioAtual);
 }
+/* Aprovador: decide, item por item, os itens novos e os não aceitos (IAC/Sofitel precisa corrigir,
+   conferir no quarto, aceitar / não é novo, desfazer). Não edita, não libera, não altera em massa. */
+function ehAprovadorNome(n){ return !!n && (ehAdminNome(n) || (configObra.aprovadores || []).some((x) => chaveComparacao(x) === chaveComparacao(n))); }
+function ehAprovadorAtual(){ return ehAprovadorNome(usuarioAtual); }
+function exigirAprovador(){ if (ehAprovadorAtual()) return true; avisoFlutuante('Só aprovadores e administradores podem decidir esses itens', 'erro'); return false; }
 function exigirAdmin(){
   if (ehAdminAtual()) return true;
   avisoFlutuante('Só administradores podem fazer isso', 'erro');
@@ -6005,7 +6025,7 @@ function conferirNoQuarto(it){
 function checarNoQuarto(it){ const ac = acompanhamento[it.id]; return !!(ac && ac.checarQuartoEm && ac.awExecEm && ac.divergencia !== 'iac'); }
 function naListaConferir(it){ return conferirNoQuarto(it) || checarNoQuarto(it); }
 async function marcarChecarQuarto(ids, por){
-  if (!exigirAdmin()) return 0;
+  if (!exigirAprovador()) return 0;
   if (!(await garantirUsuario())) return 0;
   let n = 0; const agora = new Date().toISOString();
   await comLimiteDeConcorrencia(ids, 4, async (id) => {
@@ -6052,7 +6072,7 @@ function novoForaDoAberto(it){
   return !!infoItemNovo(it) && !novoDeRevisaoAnterior(it) && estaEmAberto(it) && !(ac && ac.novoAceitoEm);
 }
 async function marcarNaoNovo(ids){
-  if (!exigirAdmin()) return 0;
+  if (!exigirAprovador()) return 0;
   if (!(await garantirUsuario())) return 0;
   let n = 0; const agora = new Date().toISOString();
   await comLimiteDeConcorrencia(ids, 4, async (id) => {
@@ -6065,6 +6085,7 @@ async function marcarNaoNovo(ids){
   return n;
 }
 async function decidirItemNovo(ids, aceitar, contestar){
+  if (!exigirAprovador()) return 0;
   if (!(await garantirUsuario())) return 0;
   let feitos = 0;
   const agora = new Date().toISOString();
@@ -7802,8 +7823,10 @@ function fecharLightbox(){
 }
 
 let filtroMulti = { andares: [], fluxos: [] }; // seleção múltipla (aba Itens)
+const FALTA_FAZER = ['emAberto', 'novosAvaliar', 'conferirQuarto', 'naFalta', 'naFaltaSof']; // sem os "cobrar" (a ação é da IAC/Sofitel) e sem os já concluídos
 function passaFluxo(it, f){
   const a = acompanhamento[it.id];
+  if (f === 'faltaFazer') return FALTA_FAZER.some((k) => passaFluxo(it, k));
   if (f === 'awExec') return baixaDaAW(it);
   if (f === 'iacOk') return !!(a && a.iacOkEm);
   if (f === 'emAberto') return (it.status === 'VM' || it.status === 'AM') && estaEmAberto(it) && !novoForaDoAberto(it);
@@ -7820,19 +7843,29 @@ function passaFluxo(it, f){
 }
 function abrirFiltroMultiplo(){
   const andares = Array.from(new Set(itensRevisaoAtual.map((x) => x.andar))).sort((a, b) => a - b);
-  const fluxos = Array.from(document.querySelectorAll('#filtro-item-progresso option')).filter((o) => o.value && !o.hidden && !o.disabled).map((o) => [o.value, o.textContent]);
+  const fluxos = Array.from(document.querySelectorAll('#filtro-item-progresso option')).filter((o) => o.value && o.value !== 'faltaFazer' && !o.hidden && !o.disabled).map((o) => [o.value, o.textContent]);
+  const GRUPOS_FLUXO = [
+    ['Falta fazer', ['emAberto', 'novosAvaliar', 'novosAceitos', 'conferirQuarto']],
+    ['Não aceitos', ['naoBaixadoIac', 'naFalta', 'naCobrar', 'naoBaixadoSof', 'naFaltaSof', 'naCobrarSof']],
+    ['Já concluído', ['awExec', 'iacOk']],
+  ];
+  const usados = new Set(GRUPOS_FLUXO.flatMap((g) => g[1]));
+  const gruposComOutros = GRUPOS_FLUXO.concat([['Outros', fluxos.map((f) => f[0]).filter((v) => !usados.has(v))]]);
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   const chk = (grupo, v, rot, marcado) => '<label style="display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); border-radius:999px; font-size:13px; cursor:pointer;"><input type="checkbox" data-grupo="'+grupo+'" value="'+esc(v)+'"'+(marcado ? ' checked' : '')+'> '+esc(rot)+'</label>';
   fundo.innerHTML = '<div class="modal" style="max-width:620px;"><h2 style="margin-bottom:4px;">Filtrar seleção</h2>' +
     '<p class="rodape-nota" style="text-align:left; margin:0 0 12px;">Marque quantos quiser. Entre os fluxos vale “qualquer um deles” (ex.: em aberto <b style="font-weight:500;">ou</b> a conferir). Os outros filtros da tela continuam valendo.</p>' +
     '<div class="grupo-label" style="margin:0 0 6px;">Andares</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">' + andares.map((a) => chk('andar', a, nomeAndar(a), filtroMulti.andares.indexOf(String(a)) !== -1)).join('') + '</div>' +
-    '<div class="grupo-label" style="margin:0 0 6px;">Fluxos</div><div style="display:flex; gap:6px; flex-wrap:wrap;">' + fluxos.map(([v, r]) => chk('fluxo', v, r, filtroMulti.fluxos.indexOf(v) !== -1)).join('') + '</div>' +
+    '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 6px;"><div class="grupo-label" style="margin:0;">Fluxos</div><button type="button" class="chip-acao" id="multi-falta-fazer" style="border-color:var(--novo); color:var(--novo);">Marcar tudo que falta fazer</button></div>' +
+    gruposComOutros.map(([titulo, vals]) => { const ops = vals.map((v) => fluxos.find((f) => f[0] === v)).filter(Boolean); if (!ops.length) return '';
+      return '<div style="font-size:11.5px; color:var(--muted); margin:8px 0 4px;">' + titulo + '</div><div style="display:flex; gap:6px; flex-wrap:wrap;">' + ops.map(([v, r]) => chk('fluxo', v, r, filtroMulti.fluxos.indexOf(v) !== -1)).join('') + '</div>'; }).join('') +
     '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;"><button type="button" class="btn primario" id="multi-aplicar">Aplicar</button><button type="button" class="btn fantasma" id="multi-limpar">Limpar seleção</button><button type="button" class="btn fantasma" id="multi-fechar">Fechar</button></div></div>';
   document.body.appendChild(fundo);
   const fechar = () => fundo.remove();
   fundo.addEventListener('click', (e) => { if (e.target === fundo) fechar(); });
   fundo.querySelector('#multi-fechar').addEventListener('click', fechar);
+  fundo.querySelector('#multi-falta-fazer').addEventListener('click', () => { fundo.querySelectorAll('input[data-grupo="fluxo"]').forEach((c) => { c.checked = FALTA_FAZER.indexOf(c.value) !== -1; }); });
   const aplicar = (limpar) => {
     filtroMulti = limpar ? { andares: [], fluxos: [] } : {
       andares: Array.from(fundo.querySelectorAll('input[data-grupo="andar"]:checked')).map((c) => c.value),
@@ -7914,6 +7947,7 @@ function obterItensFiltrados(){
   if (filtroProgressoSelect){
     itens = itens.filter((it) => {
       const a = acompanhamento[it.id];
+      if (filtroProgressoSelect === 'faltaFazer') return passaFluxo(it, 'faltaFazer');
       if (filtroProgressoSelect === 'awExec') return baixaDaAW(it); // sem as cópias "a conferir"
       if (filtroProgressoSelect === 'iacOk') return a && a.iacOkEm;
       if (filtroProgressoSelect === 'liberadoPend') return classificarItemComContexto(it) === 'LIBERADO_PEND';
@@ -8049,7 +8083,7 @@ function renderItens(){
             '<button class="chip-acao" data-conferir="reabrir" data-id="'+esc(it.id)+'" style="font-size:11px;">Não foi feito: reabrir</button>' +
           '</div>'
         : '') +
-      (podeTirarDaObra() && novoForaDoAberto(it)
+      (ehAprovadorAtual() && novoForaDoAberto(it)
         ? '<div style="border:1px solid var(--novo); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--novo-soft); margin-bottom:5px;">' +
             '<span class="tag-entrou" style="align-self:center; margin:0;">Item novo</span>' +
             ((ac.novoContestadoEm)
@@ -8059,15 +8093,15 @@ function renderItens(){
             '<button class="chip-acao" data-novo-acao="aceitar" data-id="'+esc(it.id)+'" style="font-size:11px; border-color:var(--novo); color:var(--novo);" title="Entra no em aberto e continua com a etiqueta Novo">Aceitar como novo</button>' +
           '</div>'
         : '') +
-      (iacNaoAceitou(it)
+      ((iacNaoAceitou(it) && ehAprovadorAtual())
         ? '<div style="border:1px solid var(--aviso-cor); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:5px; background:var(--aviso-cor-soft);">' +
             '<span class="badge-nao-aceitou '+tipoNaoAceitou(it)+'" title="'+esc(DICA_NAO_ACEITOU[tipoNaoAceitou(it)] || '')+'">'+quemCorrige(it)+' não aceitou</span>' +
             (ac.divergencia === 'iac'
-              ? '<span style="font-size:11px; color:var(--text-2);">✓ '+quemCorrige(it)+' vai corrigir</span><button class="chip-acao so-admin" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
-              : '<button class="chip-acao so-admin" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">'+quemCorrige(it)+' precisa corrigir</button>') +
+              ? '<span style="font-size:11px; color:var(--text-2);">✓ '+quemCorrige(it)+' vai corrigir</span><button class="chip-acao so-aprovador" data-triar="desfazer" data-id="'+esc(it.id)+'" style="font-size:10.5px;">desfazer</button>'
+              : '<button class="chip-acao so-aprovador" data-triar="iac" data-id="'+esc(it.id)+'" style="font-size:11px;">'+quemCorrige(it)+' precisa corrigir</button>') +
             (ac.checarQuartoEm
-              ? '<span style="font-size:11px; color:var(--pronto);">✓ Na lista Conferir no quarto</span><button class="chip-acao so-admin" data-checar="tirar" data-id="'+esc(it.id)+'" style="font-size:10.5px;">tirar da lista</button>'
-              : '<button class="chip-acao so-admin" data-checar="por" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Manda pra lista da equipe ir olhar no quarto. Não foi feito? Desmarque o Executado AW.">Conferir no quarto</button>') +
+              ? '<span style="font-size:11px; color:var(--pronto);">✓ Na lista Conferir no quarto</span><button class="chip-acao so-aprovador" data-checar="tirar" data-id="'+esc(it.id)+'" style="font-size:10.5px;">tirar da lista</button>'
+              : '<button class="chip-acao so-aprovador" data-checar="por" data-id="'+esc(it.id)+'" style="font-size:11px;" title="Manda pra lista da equipe ir olhar no quarto. Não foi feito? Desmarque o Executado AW.">Conferir no quarto</button>') +
           '</div>'
         : (reabertoPorBaixaErrada(it) ? '<span class="badge pendente" style="font-size:10.5px; white-space:normal;" title="'+esc('Reaberto por '+(ac.divergenciaPor||'—')+' em '+dataHoraCurta(ac.divergenciaEm))+'">Reaberto: baixa errada</span>'
           : (iacManteveExecutado(it) ? '<span class="badge-nao-aceitou sozinha" title="'+esc(DICA_NAO_ACEITOU.sozinha)+'">IAC não aceitou</span>' + (ac.divergencia === 'iac' ? '<div style="font-size:10.5px; color:var(--text-2); margin-top:2px;">✓ IAC vai corrigir</div>' : '')
@@ -11215,7 +11249,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
@@ -11844,6 +11878,8 @@ async function apagarTudo(){
 
 /* ===================== NAVEGAÇÃO ===================== */
 function irParaAba(nome){
+  { const bt = document.querySelector('nav.abas button[data-aba="' + nome + '"]'); // atalhos não abrem aba que a pessoa não pode ver
+    if (bt && ((bt.classList.contains('so-admin') && !ehAdminAtual()) || (bt.classList.contains('so-fundador') && !ehFundador()))) nome = 'visao-geral'; }
   document.querySelectorAll('nav.abas button[data-aba]').forEach((b) => b.classList.toggle('ativa', b.dataset.aba===nome));
   const bPdf = document.getElementById('btn-pdf-visao-geral-nav');
   if (bPdf) bPdf.hidden = nome !== 'visao-geral'; // só aparece na Visão geral
@@ -13216,8 +13252,8 @@ function rotulosTelaDoItem(it){
   const quem = quemCorrige(it);
   if (conferirNoQuarto(it)) L('Conferir no quarto', 'azul');
   if (ac.dataPrevista && estaEmAberto(it)) L('Previsão ' + ac.dataPrevista.split('-').reverse().slice(0, 2).join('/') + (ac.dataPrevista < chaveDiaLocal(new Date()) ? ' · vencida' : ''), ac.dataPrevista < chaveDiaLocal(new Date()) ? 'vm' : 'muted');
-  if (podeTirarDaObra() && novoForaDoAberto(it)){ L('Item novo', 'novo'); L(ac.novoContestadoEm ? '✓ ' + quem + ' vai corrigir' : 'a avaliar', 'novo'); }
-  if (iacNaoAceitou(it)){
+  if (ehAprovadorAtual() && novoForaDoAberto(it)){ L('Item novo', 'novo'); L(ac.novoContestadoEm ? '✓ ' + quem + ' vai corrigir' : 'a avaliar', 'novo'); }
+  if (iacNaoAceitou(it) && ehAprovadorAtual()){
     L(quem + ' não aceitou', 'aviso');
     if (ac.divergencia === 'iac') L('✓ ' + quem + ' vai corrigir', 'aviso');
     if (ac.checarQuartoEm) L('✓ Na lista Conferir no quarto', 'azul');
