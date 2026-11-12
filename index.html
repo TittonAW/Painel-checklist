@@ -586,7 +586,8 @@ body.aba-quartos main{ max-width:1900px; }
 .rn-exec .rn-c{ text-align:right; } .rn-exec .rn-c small{ display:block; font-size:10.5px; color:#8A938E; }
 .rn-exec .rn-pct{ font-weight:600; text-align:right; }
 .rn-exec-cab{ font-size:10.5px; color:#8A938E; border-top:0; padding-top:0; }
-.sf-corte-linha, .sf-corte-cab{ display:grid; grid-template-columns: 34px minmax(120px,1fr) 52px 70px 66px 72px 50px 118px; gap:8px; align-items:center; padding:5px 8px; border-radius:9px; font-size:12.5px; color:#33403A; }
+.sf-inc{ color:#B08A6A; font-size:10.5px; }
+.sf-corte-linha, .sf-corte-cab{ display:grid; grid-template-columns: 34px minmax(120px,1fr) 70px 56px 104px 68px 118px; gap:8px; align-items:center; padding:5px 8px; border-radius:9px; font-size:12.5px; color:#33403A; }
 .sf-corte-cab{ font-size:10.5px; color:#8A938E; padding-top:0; padding-bottom:2px; }
 .sf-c{ text-align:right; }
 .sf-avanco{ position:relative; height:16px; border-radius:8px; background:#fff; overflow:hidden; }
@@ -617,6 +618,7 @@ body.aba-quartos main{ max-width:1900px; }
 .sf-sec-n{ width:28px; height:28px; border-radius:14px; background:#33403A; color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .sf-sec-t{ font-size:16px; font-weight:700; color:#33403A; } .sf-sec-s{ font-size:12px; color:#6B756F; }
 .sf-kpis5{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.sf-kpis5.sf-kpis6{ grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1100px){ .sf-kpis5{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .sf-hero{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; background:#FBEFE9; border-radius:12px; padding:14px 16px; margin-bottom:12px; }
 .sf-hero-rot{ font-size:12px; color:#8A4B3A; } .sf-hero-data{ font-size:34px; font-weight:800; color:#5E2F22; line-height:1.1; }
@@ -633,6 +635,17 @@ body.aba-quartos main{ max-width:1900px; }
 .sf-tl-final{ position:absolute; top:-4px; bottom:-4px; width:2px; margin-left:-2px; background:#C9897A; border-radius:1px; }
 .sf-tl-entrega{ position:absolute; top:-3px; width:3px; height:20px; background:#F3B97C; border-radius:2px; }
 .sf-tl-grupo{ font-size:11.5px; font-weight:600; color:#5B6660; margin:12px 0 2px; }
+.sf-tf-grupo{ font-size:11.5px; font-weight:600; color:#5B6660; margin:10px 0 6px; }
+.sf-tf-grade{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; } .sf-tf-grade.dois{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px){ .sf-tf-grade, .sf-tf-grade.dois{ grid-template-columns: 1fr; } }
+.sf-tf-b{ background:#fff; border:1px solid rgba(0,0,0,.06); border-radius:12px; padding:10px 12px; }
+.sf-tf-t{ font-size:13px; font-weight:700; color:#33403A; }
+.sf-tf-b .sf-avanco{ background:#EEF0EF; }
+.sf-tf-3{ display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center; }
+.sf-tf-3 small{ display:block; font-size:10.5px; color:#8A938E; }
+.sf-tf-n{ font-size:20px; color:#33403A; } .sf-tf-sub .sf-tf-n{ font-size:13px; }
+.sf-tf-link{ cursor:pointer; text-decoration:underline; text-decoration-color:rgba(0,0,0,.15); text-underline-offset:3px; }
+.sf-tf-sub{ font-size:12px; color:#5B6660; margin-top:6px; line-height:1.6; }
 .sf-gantt{ display:grid; grid-template-columns: 34px 1fr; gap:4px 8px; align-items:center; font-size:12.5px; padding:4px 0; border-top:1px solid rgba(0,0,0,.05); }
 .sf-gantt small{ grid-column: 2; color:#6B756F; font-size:11.5px; }
 .sf-trilho{ position:relative; height:14px; background:#fff; border-radius:7px; }
@@ -1491,7 +1504,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.332';
+const VERSAO_APP = '2026-10-03.333';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3708,8 +3721,15 @@ function avisoFlutuante(texto, tipo){
    antes só a aba Itens e o resumo eram atualizados, e a torre de andares e a aba Quartos
    ficavam com o número antigo até recarregar a página */
 let tRecs = null;
+let tSofitelAuto = null, sofitelAtualizadoEm = null;
+function atualizarSofitelSeAberta(){
+  const s = document.getElementById('secao-sofitel'); if (!s || !s.classList.contains('ativa')) return;
+  if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#sofitel-pagina') && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return; // não atrapalha quem está digitando
+  clearTimeout(tSofitelAuto); tSofitelAuto = setTimeout(() => { const y = window.scrollY; renderSofitel().then(() => window.scrollTo(0, y)).catch(() => {}); }, 800);
+}
 function atualizarTelasAposAcompanhamento(){
   clearTimeout(tRecs); tRecs = setTimeout(() => { atualizarRecomendacoes().catch(() => {}); }, 1500);
+  atualizarSofitelSeAberta();
   renderItens();
   renderTorreAndares();
   renderQuartos();
@@ -9463,6 +9483,48 @@ function ligarEquipeSof(box){
   box.querySelectorAll('[data-eq-tirar]').forEach((el) => el.addEventListener('click', () => { equipeSof.splice(Number(el.dataset.eqTirar), 1); salvarEquipeSofDepois(); renderSofitel(); }));
   const add = box.querySelector('#sf-eq-add'); if (add) add.addEventListener('click', () => { equipeSof.push({ forn: '', pessoas: '', modo: 'andar', ipp: '' }); salvarEquipeSofDepois(); renderSofitel(); });
 }
+let andarFaltaFazerSof = 'todos';
+function htmlTudoQueFaltaSof(){
+  const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
+  const noEscopo = (a) => andarFaltaFazerSof === 'todos' || Number(a) === Number(andarFaltaFazerSof);
+  const its = itensRevisaoAtual.filter((x) => x.origem !== 'AW' && noEscopo(x.andar));
+  let rem = []; try{ rem = sairamDaPlanilha().filter((h) => noEscopo(h.andar)); }catch(e){}
+  const ehSof = (x) => origemDoItem(x) === 'SOFITEL';
+  const ids = [];
+  const num = (lista, rotulo, cor) => { if (!lista || !lista.length) return '<b class="sf-tf-n"' + (cor ? ' style="color:' + cor + ';"' : '') + '>0</b>'; ids.push({ ids: lista.map((x) => x.id), rotulo }); return '<b class="sf-tf-n sf-tf-link" data-tf="' + (ids.length - 1) + '"' + (cor ? ' style="color:' + cor + ';"' : '') + '>' + fmt(lista.length) + '</b>'; };
+  const numSo = (n, cor) => '<b class="sf-tf-n"' + (cor ? ' style="color:' + cor + ';"' : '') + '>' + fmt(n) + '</b>';
+  const bloco = (titulo, tinham, feitosN, faltamLista, rotulo) => { const pc = tinham ? Math.round(feitosN / tinham * 100) : 0;
+    return '<div class="sf-tf-b"><div class="sf-tf-t">' + titulo + '</div><div class="sf-avanco" style="margin:4px 0 6px;"><span style="width:' + pc + '%;"></span><em>' + pc + '%</em></div>' +
+      '<div class="sf-tf-3"><div>' + numSo(tinham) + '<small>tinham</small></div><div>' + numSo(feitosN, '#2E6B4A') + '<small>feitos</small></div><div>' + num(faltamLista, rotulo, '#B4661F') + '<small>faltam</small></div></div></div>'; };
+  // execução: 1ª lista (original) e novos de cada origem
+  const novos = its.filter((x) => infoItemNovo(x));
+  const novosS = novos.filter(ehSof), novosI = novos.filter((x) => !ehSof(x));
+  const orig = its.filter((x) => !infoItemNovo(x));
+  const remOrig = rem.filter((h) => origemDoRemovido(h) !== 'SOFITEL').length;
+  const abertoDe = (l) => l.filter((x) => estaEmAberto(x) && (contaNoTotal(x) || novoForaDoAberto(x)));
+  const fOrig = abertoDe(orig), fNI = abertoDe(novosI), fNS = abertoDe(novosS);
+  // aprovação: do que a AW baixou, quanto a IAC / a Sofitel já aprovou e o que falta (e as decisões)
+  const aprov = (sof) => { const exec = its.filter((x) => ehSof(x) === sof && baixaDaAW(x)); const remN = rem.filter((h) => (origemDoRemovido(h) === 'SOFITEL') === sof).length;
+    const verdes = exec.filter((x) => x.status === 'VD').length, tinham = exec.length + remN, aprovados = remN + verdes;
+    const faltam = exec.filter((x) => x.status !== 'VD'), na = faltam.filter(iacNaoAceitou);
+    const corrigir = na.filter((x) => decisaoNaoValidado(x) === 'naCobrar'), quarto = na.filter((x) => decisaoNaoValidado(x) === 'naConferir'), analisar = na.filter((x) => decisaoNaoValidado(x) === 'naFalta');
+    return { tinham, aprovados, faltam, aguardando: faltam.filter((x) => !iacNaoAceitou(x)), na, corrigir, quarto, analisar }; };
+  const aI = aprov(false), aS = aprov(true);
+  const blocoAprov = (titulo, quem, a) => { const pc = a.tinham ? Math.round(a.aprovados / a.tinham * 100) : 0;
+    return '<div class="sf-tf-b"><div class="sf-tf-t">' + titulo + '</div><div class="sf-avanco" style="margin:4px 0 6px;"><span style="width:' + pc + '%; background:#9EC3E6;"></span><em>' + pc + '%</em></div>' +
+      '<div class="sf-tf-3"><div>' + numSo(a.tinham) + '<small>baixados pela AW</small></div><div>' + numSo(a.aprovados, '#2E6B4A') + '<small>aprovados</small></div><div>' + num(a.faltam, quem + ' · baixados sem aprovação', '#B4661F') + '<small>faltam</small></div></div>' +
+      '<div class="sf-tf-sub">Dos que faltam: ' + num(a.aguardando, quem + ' · aguardando vistoria') + ' aguardando vistoria · ' + num(a.na, quem + ' não aceitou', '#A0522D') + ' não aceitos</div>' +
+      '<div class="sf-tf-sub">Dos não aceitos: ' + num(a.corrigir, quem + ' precisa corrigir') + ' ' + quem + ' precisa corrigir · ' + num(a.quarto, quem + ' · conferir no quarto') + ' conferir no quarto · ' + num(a.analisar, quem + ' · falta analisar', '#B4661F') + ' falta analisar</div></div>'; };
+  const opcAnd = ['todos'].concat(andaresConhecidos.slice().sort((a, b) => b - a)).map((a) => '<option value="' + a + '"' + (String(a) === String(andarFaltaFazerSof) ? ' selected' : '') + '>' + (a === 'todos' ? 'Todos os andares' : a + 'º andar') + '</option>').join('');
+  const html = '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Tudo que falta fazer · IAC + Sofitel</h3><select id="sf-tf-andar" style="padding:5px 8px; border-radius:8px; border:1px solid rgba(0,0,0,.12); font-size:12.5px;">' + opcAnd + '</select></div>' +
+    '<div class="sf-tf-grupo">Execução</div><div class="sf-tf-grade">' +
+      bloco('1ª lista (original)', orig.length + remOrig, Math.max(0, orig.length + remOrig - fOrig.length), fOrig, '1ª lista · falta fazer') +
+      bloco('Novos da IAC', novosI.length, novosI.length - fNI.length, fNI, 'Novos da IAC · faltam') +
+      bloco('Novos da Sofitel', novosS.length, novosS.length - fNS.length, fNS, 'Novos da Sofitel · faltam') + '</div>' +
+    '<div class="sf-tf-grupo">Aprovação</div><div class="sf-tf-grade dois">' + blocoAprov('Aprovação da IAC', 'IAC', aI) + blocoAprov('Aprovação da Sofitel', 'Sofitel', aS) + '</div>' +
+    '<div class="rn-leg" style="margin-top:8px;"><span>Toque num número para ver os itens na aba Itens · os "precisa corrigir" são as decisões do seu time na tarja laranja</span></div>';
+  return { html, ids };
+}
 async function renderSofitel(){
   const box = document.getElementById('sofitel-pagina'); if (!box) return;
   if (!vitrineSof) await carregarVitrineSof();
@@ -9474,7 +9536,10 @@ async function renderSofitel(){
   const pendTodos = sofAll.filter(entraNaOnda);
   const pend = pendTodos.filter((x) => !andarAprovadoSofitel(x.andar)); // o que sobrou em andar aprovado não entra mais na conta
   let removidosTodos = []; try{ removidosTodos = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL'); }catch(e){}
-  const recebidos = sofAll.length + removidosTodos.length, resolvidos = Math.max(0, recebidos - pend.length);
+  const recebidos = sofAll.length + removidosTodos.length;
+  const faltaTop = pend.filter((x) => categoriaNaOnda(x) !== 'naoAceito').length, recusTop = pend.filter((x) => categoriaNaOnda(x) === 'naoAceito').length;
+  const novosTop = pend.filter((x) => categoriaNaOnda(x) !== 'naoAceito' && infoItemNovo(x)).length;
+  const resolvidos = Math.max(0, recebidos - faltaTop - recusTop);
   const pct = recebidos ? Math.round(resolvidos / recebidos * 100) : 0;
   const andares = andaresConhecidos.slice().sort((a, b) => b - a);
   const andaresAp = andares.filter(andarAprovadoSofitel);
@@ -9488,16 +9553,18 @@ async function renderSofitel(){
     const s = sofAll.filter((x) => Number(x.andar) === a), aprovado = andarAprovadoSofitel(a);
     const p = aprovado ? [] : pendTodos.filter((x) => Number(x.andar) === a), c = cats(p);
     const rem = removidosTodos.filter((h) => Number(h.andar) === a).length, tot = s.length + rem;
+    const falta = c.aberto + c.novo, recus = c.naoAceito, feitos = Math.max(0, tot - falta - recus);
+    const novosFalta = p.filter((x) => categoriaNaOnda(x) !== 'naoAceito' && infoItemNovo(x)).length;
     const ls = locaisDoAndarCor(a), ap = ls.filter((l) => ambienteAprovadoSofitel(l.andar, l.tipo, l.quarto)).length;
-    return { a, tot, res: Math.max(0, tot - p.length), p, c, pc: tot ? Math.round((tot - p.length) / tot * 100) : 0, aprovado, ap, nAmb: ls.length };
+    return { a, tot, feitos, falta, recus, novosFalta, p, c, pc: tot ? Math.round(feitos / tot * 100) : 0, aprovado, ap, nAmb: ls.length };
   });
   const col = (v, cor) => '<span class="sf-c"' + (cor ? ' style="color:' + cor + ';"' : '') + '>' + (v ? fmt(v) : '—') + '</span>';
   const seqAtiva = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a) && pend.some((x) => Number(x.andar) === a));
   const posSeq = new Map(seqAtiva.map((a, i) => [a, i + 1]));
-  const corte = '<div class="sf-corte-cab"><span></span><span>avanço</span><span class="sf-c">Total</span><span class="sf-c">Resolvidos</span><span class="sf-c">Em aberto</span><span class="sf-c">Não aceitos</span><span class="sf-c">Novos</span><span></span></div>' +
+  const corte = '<div class="sf-corte-cab"><span></span><span>avanço (feitos ÷ lista)</span><span class="sf-c">Lista da Sofitel</span><span class="sf-c">Feitos</span><span class="sf-c">Falta fazer</span><span class="sf-c">Recusados</span><span></span></div>' +
     linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"' + (!l.tot && !l.aprovado ? ' style="opacity:.55;"' : '') + '><b>' + l.a + 'º' + (posSeq.has(l.a) ? '<sup class="sf-pos" title="posição na sequência de execução">' + posSeq.get(l.a) + '</sup>' : '') + '</b>' +
       '<div class="sf-avanco"><span style="width:' + l.pc + '%;"></span><em>' + (l.tot ? l.pc + '%' : 'sem itens da Sofitel') + '</em></div>' +
-      col(l.tot) + col(l.res, '#2E6B4A') + col(l.c.aberto, '#B4661F') + col(l.c.naoAceito, '#A0522D') + col(l.c.novo, '#B4661F') +
+      col(l.tot) + col(l.feitos, '#2E6B4A') + '<span class="sf-c" style="color:#B4661F;">' + (l.falta ? fmt(l.falta) + (l.novosFalta ? '<small class="sf-inc"> · ' + l.novosFalta + ' novos</small>' : '') : '—') + '</span>' + col(l.recus, '#A0522D') +
       (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : (l.tot ? '<small>' + l.ap + '/' + l.nAmb + ' amb. aprovados</small>' : '<small>sem lista da Sofitel</small>')) + '</div>').join('');
   // ---- rankings ----
   const top = (fn, n) => { const m = new Map(); pend.forEach((x) => { const k = fn(x) || '—'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return Array.from(m.entries()).map(([k, v]) => ({ k, v })).sort((a, b) => b.v.length - a.v.length).slice(0, n); };
@@ -9593,25 +9660,28 @@ async function renderSofitel(){
       const dias = Math.round((new Date(d[d.length - 1] + 'T12:00:00') - new Date(d[0] + 'T12:00:00')) / 86400000) + 1;
       return '<span><b>' + dias + ' d</b> <small>(' + dataCurta(d[0]) + (d.length > 1 ? ' → ' + dataCurta(d[d.length - 1]) : '') + ')</small></span>'; }).join('') + '</div>').join('') + '</div>'
     : '<div class="rn-sub">Sem baixas registradas nos andares aprovados.</div>';
+  const tfSof = htmlTudoQueFaltaSof();
   const hoje = new Date();
   const sec = (n, titulo, sub) => '<div class="sf-sec"><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
   box.innerHTML =
-    '<div class="rn-topo"><h2>Sofitel Ipanema · Itens da operação</h2><div class="rn-sub">lista da Sofitel · ' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
+    '<div class="rn-topo"><h2>Sofitel Ipanema · Itens da operação</h2><div class="rn-sub">lista da Sofitel · ' + hoje.toLocaleDateString('pt-BR') + ' · atualizado às ' + hoje.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div></div>' +
     sec(1, 'Onde estamos hoje', 'o que a Sofitel listou, o que já foi resolvido e o que falta, andar por andar') +
-    '<div class="rn-kpis sf-kpis5">' +
-      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(recebidos) + '</div><div class="rn-rot">itens recebidos da Sofitel</div></div>' +
-      '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(resolvidos) + '</div><div class="rn-rot">resolvidos</div></div></div>' +
-      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(pend.length) + '</div><div class="rn-rot">pendentes</div><div class="rn-leg" style="margin-top:6px;"><span><i style="background:' + COR.ab + ';"></i>' + fmt(cT.aberto) + ' em aberto</span><span><i style="background:' + COR.na + ';"></i>' + fmt(cT.naoAceito) + ' não aceitos</span><span><i style="background:' + COR.nv + ';"></i>' + fmt(cT.novo) + ' novos</span></div></div>' +
+    '<div class="rn-kpis sf-kpis5 sf-kpis6">' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(recebidos) + '</div><div class="rn-rot">lista da Sofitel</div></div>' +
+      '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(resolvidos) + '</div><div class="rn-rot">feitos</div></div></div>' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big" style="color:#B4661F;">' + fmt(faltaTop) + '</div><div class="rn-rot">falta fazer</div>' + (novosTop ? '<div class="rn-leg" style="margin-top:6px;"><span>inclui ' + fmt(novosTop) + ' novos</span></div>' : '') + '</div>' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big" style="color:#A0522D;">' + fmt(recusTop) + '</div><div class="rn-rot">recusados pela Sofitel</div></div>' +
       '<div class="rn-kpi" style="display:block; background:#E3F5EC;"><div class="rn-big" style="color:#2E6B4A;">' + andaresAp.length + '</div><div class="rn-rot">andares aprovados pela Sofitel</div><div class="rn-leg" style="margin-top:6px;"><span>' + (andaresAp.length ? andaresAp.slice().sort((a, b) => a - b).map((a) => a + 'º').join(', ') : '—') + '</span></div></div>' +
       '<div class="rn-kpi" style="display:block; background:#FBEFE9;"><div class="rn-big" style="color:#8A4B3A;">' + (fimGeral ? new Date(fimGeral + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : '—') + '</div><div class="rn-rot">último dia de serviço previsto</div><div class="rn-leg" style="margin-top:6px;"><span>ver item 6</span></div></div>' +
     '</div>' +
     '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr;">' +
-      '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · itens da Sofitel</h3>' +
+      '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · somente itens da lista da Sofitel</h3>' +
         (podeAjustar ? '<div class="rn-modo" id="sf-modo-corte"><button type="button" data-mc="padrao"' + (modoCorteSof === 'padrao' ? ' class="ativo"' : '') + '>Padrão</button><button type="button" data-mc="editar"' + (modoCorteSof === 'editar' ? ' class="ativo"' : '') + '>Editar sequência</button></div>' : '') + '</div>' +
-        (modoCorteSof === 'editar' ? htmlEditarSequencia(seqAtiva, linhas, pend) : corte) + '<div class="rn-leg" style="margin-top:8px;"><span>Total = tudo o que a Sofitel já listou no andar · Resolvidos = Total − pendentes</span><span><i style="background:#CBEBDA;"></i>andar aprovado (o que sobrou nele não entra mais na conta)</span></div></div>' +
+        (modoCorteSof === 'editar' ? htmlEditarSequencia(seqAtiva, linhas, pend) : corte) + '<div class="rn-leg" style="margin-top:8px;"><span>Só itens da lista da Sofitel · Feitos = baixa da AW ou já retirados pela Sofitel · Recusados = a AW deu baixa e a Sofitel não aceitou</span><span><i style="background:#CBEBDA;"></i>andar aprovado (o que sobrou nele não entra mais na conta)</span></div></div>' +
       '<div class="rn-card"><h3>Onde está o foco · pendentes da Sofitel</h3><div style="font-size:12px; color:#6B756F; margin:2px 0 6px;">Fornecedores</div>' + barras(forn, maxF, '#F3B97C') +
         '<div style="font-size:12px; color:#6B756F; margin:12px 0 6px;">Disciplinas</div>' + barras(disc, maxD, '#B7C9EE') + '</div>' +
     '</div>' +
+    '<div class="rn-card" style="margin-top:14px;">' + tfSof.html + '</div>' +
     sec(2, 'O que falta fazer', 'os principais itens pendentes, com foto, por fornecedor e por disciplina') +
     '<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div class="rn-modo" id="sf-modo"><button type="button" data-m="problema"' + (modoVitrineSof === 'problema' ? ' class="ativo"' : '') + '>por problema</button><button type="button" data-m="descricao"' + (modoVitrineSof === 'descricao' ? ' class="ativo"' : '') + '>por descrição</button></div></div>' +
     '<div class="rn-card" style="margin-top:8px;"><h3>Principais itens · 5 fornecedores com mais pendências</h3>' + (blocos(forn, 'forn') || '<div class="rn-sub">Nenhum item pendente.</div>') + '</div>' +
@@ -9636,6 +9706,8 @@ async function renderSofitel(){
   box.querySelectorAll('#sf-frentes [data-fr], #sf-frentes-eq [data-fr]').forEach((b) => b.addEventListener('click', () => { const y = window.scrollY; frentesSof = Number(b.dataset.fr); renderSofitel().then(() => window.scrollTo(0, y)); }));
   box.querySelectorAll('#sf-modo-corte [data-mc]').forEach((b) => b.addEventListener('click', () => { modoCorteSof = b.dataset.mc; renderSofitel(); }));
   ligarArrastarSequencia(box); ligarEquipeSof(box); ligarProdutosSof(box);
+  box.querySelectorAll('[data-tf]').forEach((el) => el.addEventListener('click', () => { const r = tfSof.ids[Number(el.dataset.tf)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo + (andarFaltaFazerSof !== 'todos' ? ' · ' + andarFaltaFazerSof + 'º' : ''), () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
+  const selTf = box.querySelector('#sf-tf-andar'); if (selTf) selTf.addEventListener('change', () => { andarFaltaFazerSof = selTf.value; const y = window.scrollY; renderSofitel().then(() => window.scrollTo(0, y)); });
   box.querySelectorAll('#sf-modo [data-m]').forEach((b) => b.addEventListener('click', () => { modoVitrineSof = b.dataset.m; renderSofitel(); }));
   if (podeAjustar) classificarProblemasComIA(pend); // só o que o dicionário não reconheceu, uma vez por descrição
 }
@@ -11249,7 +11321,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
