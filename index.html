@@ -944,7 +944,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-qcard{ border:1px solid #EEF0EF; border-radius:14px; background:#FCFCFB; padding:8px 10px; }
 .ff-qcard-cab{ display:flex; justify-content:space-between; align-items:baseline; padding-bottom:6px; border-bottom:1px solid #F0F1F0; }
 .ff-qcard-cab b{ font-size:17px; color:#7A4A18; } .ff-qcard-cab span{ font-size:11.5px; color:#8A938E; }
-.ff-qi{ display:flex; gap:8px; align-items:flex-start; justify-content:space-between; padding:6px 0; border-bottom:1px solid #F4F5F4; }
+.ff-qi{ padding:6px 0; border-bottom:1px solid #F4F5F4; }
+.ff-qi-l{ display:flex; gap:8px; align-items:flex-start; justify-content:space-between; }
+.ff-qi-sels{ display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
 .ff-qi:last-child{ border-bottom:0; }
 .ff-qi-t{ display:flex; flex-direction:column; cursor:pointer; font-size:13px; color:#33403A; min-width:0; }
 .ff-qi-t small{ color:#8A938E; font-size:11px; }
@@ -976,15 +978,25 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-forn-l{ display:inline-flex; gap:5px; align-items:center; font-size:11px; color:#6B756F; }
 .ff-sel-forn{ font:inherit; font-size:12px; padding:3px 6px; border:1px solid #E3C9A8; border-radius:8px; background:#FFF8F0; color:#7A4A18; max-width:220px; }
 .ff-forn-l.sug .ff-sel-forn{ border-style:dashed; }
-.ff-forn-l.vazio .ff-sel-forn{ border-color:#E8A39A; background:#FBE9E6; color:#8A3B30; }
-.ff-forn{ font-size:12px; color:#7A4A18; background:#FFF8F0; border-radius:8px; padding:2px 8px; } .ff-forn small{ color:#9A8670; } .ff-forn.vazio{ color:#8A3B30; background:#FBE9E6; }
+.ff-forn-l.ff-semforn .ff-sel-forn{ border-color:#E8A39A; background:#FBE9E6; color:#8A3B30; }
+.ff-forn{ font-size:12px; color:#7A4A18; background:#FFF8F0; border-radius:8px; padding:2px 8px; } .ff-forn small{ color:#9A8670; } .ff-forn.ff-semforn{ color:#8A3B30; background:#FBE9E6; }
 .ff-forn-mini{ white-space:nowrap; display:inline-block; font-weight:500; font-size:11px; color:#9A5418; background:#FFF0D6; border-radius:6px; padding:0 5px; margin-left:4px; }
+.ff-pend-sels{ display:inline-flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+.ff-sel-pend{ font:inherit; font-size:11px; max-width:170px; padding:2px 4px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--muted); }
+.ff-sel-pend.proprio{ border-color:#E3C9A8; background:#FFF8F0; color:#7A4A18; font-weight:600; }
+.ff-h-pends{ display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:0 12px 6px; padding:6px 10px; background:#F6F7F6; border-radius:10px; font-size:12px; }
+.ff-h-pends small{ color:#6B756F; flex-basis:100%; }
+.ff-relatos{ display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; margin:0 2px 6px; padding:6px 10px; background:#F6F3EE; border-radius:10px; font-size:12px; color:#33403A; }
+.ff-relatos > small{ flex-basis:100%; color:#6B756F; }
+.ff-sel-tipo{ font:inherit; font-size:11px; max-width:200px; padding:2px 4px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--muted); }
+.ff-hotel .ff-relatos{ margin:0 12px 6px; }
 @media (max-width: 760px){
   .ff-corte-cab{ display:none; }
   .ff-corte-linha{ grid-template-columns: 34px minmax(0, 1fr) 44px 44px; }
   .ff-corte-linha > .sf-c:nth-of-type(1){ display:none; }
   .ff-corte-linha .ff-qchips{ grid-column: 1 / -1; }
   .ff-l{ grid-template-columns: 54px minmax(0, 1fr); }
+  .ff-pend-sels{ justify-content:flex-start; }
   .ff-acoes{ grid-column: 2; justify-content:flex-start; }
   .ff-det{ margin-left:0; } .ff-det-l{ grid-template-columns: 1fr; gap:1px; }
   .ff-conf-l{ grid-template-columns: 1fr; gap:2px; }
@@ -1619,7 +1631,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.336';
+const VERSAO_APP = '2026-10-03.338';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -12197,6 +12209,7 @@ const FF_ITENS = {};
   ['cafe', 'Café e frigobar (abastecimento)', 'operacao', 'ope', ['cafe', 'frigobar']],
   ['secador', 'Secador', 'operacao', 'ope', ['secador']],
   ['tel_instrucoes', 'Telefone: instruções e recepção', 'operacao', 'ope', ['tel_instrucoes', 'recepcao']],
+  ['instrucoes', 'Instruções ao hóspede (como usar)', 'operacao', 'ope', []],
   ['servico', 'Atendimento e arrumação', 'operacao', 'ope', ['servico', 'turndown', 'tapete']],
   ['equip_outros', 'Equipamentos (outros)', 'operacao', 'ope', ['equip_outros']],
   ['outros', 'Outros (a classificar)', 'clas', 'clas', ['outros']]
@@ -12359,7 +12372,9 @@ function ffLerPlanilha(wb){
 }
 
 
-let ffDias = null, ffStatus = {}, ffRegras = { quem:{}, ajustes:{}, ajustesPor:{}, fornecedor:{} };
+let ffDias = null, ffStatus = {}, ffRegras = { quem:{}, ajustes:{}, ajustesPor:{}, fornecedor:{}, quemPend:{}, fornPend:{}, itemTipo:{}, itemPend:{} };
+let ffUltimo = null; // último ffMontar (para os seletores acharem a pendência)
+let ffRecem = new Set(); // baixas dadas agora: continuam na tela (com ✓) até trocar o filtro, para a lista não pular
 let ffFiltro = { andar:'todos', sit:'falta', busca:'', visao:'disc', forn:'' }, ffExpandidos = new Set(), ffCarregando = null;
 async function ffCarregar(forcar){
   if (ffDias && !forcar) return;
@@ -12368,7 +12383,7 @@ async function ffCarregar(forcar){
     const [dias, st, rg] = await Promise.all([store.listCollection('ff_dias'), store.listCollection('ff_status'), store.getDoc('config', 'ff_regras').catch(() => null)]);
     ffDias = (dias || []).filter((d) => d && Array.isArray(d.linhas));
     ffStatus = {}; (st || []).forEach((d) => { ffStatus[d._id] = d; });
-    ffRegras = { quem: (rg && rg.quem) || {}, ajustes: (rg && rg.ajustes) || {}, ajustesPor: (rg && rg.ajustesPor) || {}, fornecedor: (rg && rg.fornecedor) || {} };
+    ffRegras = { quem: (rg && rg.quem) || {}, ajustes: (rg && rg.ajustes) || {}, ajustesPor: (rg && rg.ajustesPor) || {}, fornecedor: (rg && rg.fornecedor) || {}, quemPend: (rg && rg.quemPend) || {}, fornPend: (rg && rg.fornPend) || {}, itemTipo: (rg && rg.itemTipo) || {}, itemPend: (rg && rg.itemPend) || {} };
   })();
   try{ await ffCarregando; } finally { ffCarregando = null; }
 }
@@ -12433,6 +12448,36 @@ function ffFornecedorDoItem(item){
   const c = ffContagemFornecedores(), top = (c.porItem[item] || [])[0] || (FF_BASE_FORN[item] ? (c.porItem[FF_BASE_FORN[item]] || [])[0] : null);
   return { nome: top ? top[0] : '', sugerido: !!top, escolhido:false };
 }
+async function ffDefinirPend(k, campo, valor){
+  if (!exigirAdmin()){ renderFF(); return; }
+  if (!(await garantirUsuario())){ renderFF(); return; }
+  const alvo = campo === 'quem' ? 'quemPend' : 'fornPend';
+  ffRegras[alvo] = ffRegras[alvo] || {};
+  if (!valor) delete ffRegras[alvo][k]; else ffRegras[alvo][k] = valor;
+  renderFF(); await ffSalvarRegras();
+}
+async function ffDefinirItemPend(k, novo){
+  if (!exigirAdmin()){ renderFF(); return; }
+  if (!(await garantirUsuario())){ renderFF(); return; }
+  const p = ffUltimo && ffUltimo.problemas.find((x) => x.k === k); if (!p){ renderFF(); return; }
+  ffRegras.itemPend = ffRegras.itemPend || {};
+  p.k0s.forEach((k0) => { const it0 = k0.split('|').slice(2).join('|'); if (novo === it0) delete ffRegras.itemPend[k0]; else ffRegras.itemPend[k0] = novo; });
+  renderFF(); await ffSalvarRegras();
+}
+async function ffDefinirItemTipo(tipo, novo){
+  if (!exigirAdmin()){ renderFF(); return; }
+  if (!(await garantirUsuario())){ renderFF(); return; }
+  ffRegras.itemTipo = ffRegras.itemTipo || {};
+  if (!novo || novo === ffItemDoTipo(tipo)) delete ffRegras.itemTipo[tipo]; else ffRegras.itemTipo[tipo] = novo;
+  renderFF(); await ffSalvarRegras();
+}
+function ffOpcoesItens(atual){
+  return FF_DISCIPLINAS.filter((d) => d[0] !== 'comum').map(([d, nome]) => {
+    const its = Object.values(FF_ITENS).filter((it) => it.disc === d); if (!its.length) return '';
+    const g = FF_GRUPOS.find((x) => x.id === its[0].quem);
+    return '<optgroup label="' + esc(nome + (g && its[0].quem !== 'aw' ? ' · ' + g.nome : '')) + '">' + its.map((it) => '<option value="' + it.id + '"' + (atual === it.id ? ' selected' : '') + '>' + esc(it.nome) + '</option>').join('') + '</optgroup>';
+  }).join('');
+}
 async function ffDefinirFornecedor(item, valor){
   if (!exigirAdmin()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
@@ -12449,6 +12494,12 @@ function ffTiposDaLinha(l){
   const rev = FF_AJUSTES_REVISADOS[ffChaveRevisada(l)];
   return Array.isArray(rev) ? rev : ffClassificarLinha(l);
 }
+function ffItemPadraoDoTipo(tipo){ return (ffRegras.itemTipo || {})[tipo] || ffItemDoTipo(tipo); }
+function ffItemFinal(tipo, local){
+  const it = ffItemPadraoDoTipo(tipo);
+  if (String(it).indexOf('comum:') === 0) return it;
+  return (ffRegras.itemPend || {})['q|' + local + '|' + it] || it;
+}
 function ffChaveStatus(onde, item){ return 'q' + String(onde || '').replace(/[^0-9A-Za-z_-]+/g, '_') + '__' + String(item).replace(/[^0-9A-Za-z_-]+/g, '_'); }
 /* junta tudo: linha → itens; mesmo item no mesmo quarto = 1 pendência */
 function ffMontar(){
@@ -12458,20 +12509,26 @@ function ffMontar(){
   linhas.forEach((l) => {
     const tipos = ffTiposDaLinha(l);
     l.tipos = tipos;
-    l.itens = Array.from(new Set(tipos.map(ffItemDoTipo)));
     const quarto = ffQuartoDe(l.local);
+    l.itens = Array.from(new Set(tipos.map((t) => ffItemFinal(t, quarto || l.local))));
     tipos.forEach((tipo) => {
-      const item = ffItemDoTipo(tipo), comum = String(item).indexOf('comum:') === 0;
+      const item = ffItemFinal(tipo, quarto || l.local), comum = String(item).indexOf('comum:') === 0, item0 = ffItemPadraoDoTipo(tipo);
       const local = comum ? item.slice(6).split(': ')[0] : (quarto || l.local);
       const k = comum ? 'c|' + item : 'q|' + local + '|' + item;
-      if (!probs.has(k)) probs.set(k, { k, item, tipo:item, disc:ffDiscDoItem(item), quarto: comum ? null : quarto, local, andar: comum || !quarto ? null : ffAndarDoQuarto(quarto, l.andar), linhas:[], variantes:new Set(), citado:0, primeiro:'9999', ultimo:'', chegouEm:'9999' });
+      if (!probs.has(k)) probs.set(k, { k, item, tipo:item, disc:ffDiscDoItem(item), quarto: comum ? null : quarto, local, andar: comum || !quarto ? null : ffAndarDoQuarto(quarto, l.andar), linhas:[], variantes:new Set(), k0s:new Set(), citado:0, primeiro:'9999', ultimo:'', chegouEm:'9999' });
       const p = probs.get(k);
       if (p.linhas.indexOf(l) === -1){ p.linhas.push(l); p.citado += (l.n || 1); if (l.dia < p.primeiro) p.primeiro = l.dia; if (l.dia > p.ultimo) p.ultimo = l.dia; if ((l.chegouEm || '') < p.chegouEm) p.chegouEm = l.chegouEm || ''; }
-      if (!comum) p.variantes.add(tipo);
+      if (!comum){ p.variantes.add(tipo); p.k0s.add('q|' + local + '|' + item0); }
     });
   });
   let lista = Array.from(probs.values());
-  lista.forEach((p) => { p.quem = ffQuemDoItem(p.item); if (p.quem === 'aw') p.forn = ffFornecedorDoItem(p.item); });
+  lista.forEach((p) => {
+    p.quemProprio = (ffRegras.quemPend || {})[p.k] || '';
+    p.quem = p.quemProprio || ffQuemDoItem(p.item);
+    if (p.quem !== 'aw') return;
+    const fp = (ffRegras.fornPend || {})[p.k];
+    p.forn = fp ? { nome: fp === '__sem__' ? '' : fp, sugerido:false, escolhido:true, proprio:true } : ffFornecedorDoItem(p.item);
+  });
   // "toda a tecnologia: não" não conta de novo no quarto que já tem TV/telefone/Wi-Fi com problema
   // (as linhas dela passam para o outro item de tecnologia do quarto, para nenhuma linha ficar sem destino)
   lista = lista.filter((p) => { if (p.item !== 'tec_geral') return true;
@@ -12497,7 +12554,8 @@ function ffMontar(){
     } else p.sit = 'falta';
   });
   const semPend = linhas.filter((l) => !l.itens.length);
-  return { linhas, problemas: lista, ultimaLeva, semPend };
+  ffUltimo = { linhas, problemas: lista, ultimaLeva, semPend };
+  return ffUltimo;
 }
 
 /* ===================== FAMILY & FRIENDS · IMPORTAÇÃO ===================== */
@@ -12546,7 +12604,7 @@ async function ffMarcar(chave, acao){
   if (!r || !r.ok){ if (antes) ffStatus[chave] = antes; else delete ffStatus[chave]; renderFF(); avisoFlutuante('Não foi salvo (sem conexão?). Tente de novo.', 'erro'); }
 }
 async function ffSalvarRegras(){
-  const r = await store.setDoc('config', 'ff_regras', { quem:ffRegras.quem, ajustes:ffRegras.ajustes, ajustesPor:ffRegras.ajustesPor, fornecedor:ffRegras.fornecedor, em:new Date().toISOString(), por:usuarioAtual });
+  const r = await store.setDoc('config', 'ff_regras', { quem:ffRegras.quem, ajustes:ffRegras.ajustes, ajustesPor:ffRegras.ajustesPor, fornecedor:ffRegras.fornecedor, quemPend:ffRegras.quemPend, fornPend:ffRegras.fornPend, itemTipo:ffRegras.itemTipo, itemPend:ffRegras.itemPend, em:new Date().toISOString(), por:usuarioAtual });
   if (!r || !r.ok) avisoFlutuante('Não foi salvo (sem conexão?).', 'erro');
 }
 /* administrador reclassifica uma linha: 'auto' (volta ao automático), 'sem' (sem pendência) ou um item */
@@ -12591,7 +12649,7 @@ function ffExportar(){
   ffDias.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).forEach((d) => {
     const aoa = [['Pendências de manutenção – Sofitel Rio de Janeiro Ipanema'], ['Data de hospedagem', 'Local', 'Andar', 'Seção', 'Parte', 'Pergunta', 'Resposta de quem ficou hospedado', 'Especialidade', 'Status', 'Responsável', 'Solução', 'Prazo', 'Item (agrupado)']];
     d.linhas.forEach((l0) => {
-      const l = Object.assign({ dia:d.dia, aba:d.aba }, l0), itens = Array.from(new Set(ffTiposDaLinha(l).map(ffItemDoTipo))), quarto = ffQuartoDe(l.local);
+      const l = Object.assign({ dia:d.dia, aba:d.aba }, l0), quarto = ffQuartoDe(l.local), itens = Array.from(new Set(ffTiposDaLinha(l).map((t) => ffItemFinal(t, quarto || l.local))));
       const ps = itens.map((it) => porK.get(String(it).indexOf('comum:') === 0 ? 'c|' + it : 'q|' + (quarto || l.local) + '|' + it)).filter(Boolean);
       const resp = Array.from(new Set(ps.map((p) => nomeG(p.quem)))).join(' + ') || (itens.length ? '' : 'Sem pendência (' + ffMotivoSemPendencia(l).txt + ')');
       const feitos = ps.filter((p) => p.sit === 'feito');
@@ -12626,14 +12684,15 @@ function ffTrechoDoProblema(p){
   if (!l) return '';
   if (Array.isArray(l.itens) && l.itens.length > 1){
     const pedacos = String(l.resposta || '').replace(/([.!;])\s+/g, '$1\n').replace(/,\s+(?=(?:and )?[a-z]+ing\b)/gi, '\n').replace(/,\s+and\s+/gi, '\n').split(/\n+/).map((x) => x.replace(/^[-•*]\s*/, '').trim()).filter((x) => x.length > 3);
-    const achou = pedacos.find((x) => { const n = ffNorm(x); return String(p.item).indexOf('comum:') === 0 ? ffAssuntoAreaComum(n, '', ffNorm(p.local)) === ffNomeItem(p.item) : ffItemDoTipo(ffTipoDoTexto(n, n, '', '') || '') === p.item; });
+    const achou = pedacos.find((x) => { const n = ffNorm(x); return String(p.item).indexOf('comum:') === 0 ? ffAssuntoAreaComum(n, '', ffNorm(p.local)) === ffNomeItem(p.item) : ffItemFinal(ffTipoDoTexto(n, n, '', '') || '', p.local) === p.item; });
     if (achou) return achou;
   }
   return ffTrecho(l);
 }
 function ffOrdQuarto(a, b){ return (Number(a) || 0) - (Number(b) || 0) || String(a).localeCompare(String(b)); }
 function ffVariantesTxt(p){
-  const it = FF_ITENS[p.item]; if (!it || it.tipos.length < 2) return '';
+  const it = FF_ITENS[p.item]; if (!it) return '';
+  if (it.tipos.length < 2 && Array.from(p.variantes).every((v) => it.tipos.indexOf(v) !== -1)) return '';
   return Array.from(p.variantes).map((v) => FF_CURTO[v] || ffNomeTipo(v)).join(' · ');
 }
 async function renderFF(){
@@ -12697,15 +12756,15 @@ async function renderFF(){
   // ---- 3. o que a AW precisa fazer ----
   const bq = ffNorm(ffFiltro.busca);
   const passa = (p) => (ffFiltro.andar === 'todos' || String(p.andar) === ffFiltro.andar) && (!ffFiltro.forn || (ffFiltro.forn === '__sem__' ? !(p.forn && p.forn.nome) : (p.forn && p.forn.nome) === ffFiltro.forn)) &&
-    (ffFiltro.sit === 'todos' || (ffFiltro.sit === 'falta' && (p.sit === 'falta' || p.sit === 'voltou')) || (ffFiltro.sit === 'feito' && p.sit === 'feito') || (ffFiltro.sit === 'naoProcede' && p.sit === 'naoProcede')) &&
+    (ffFiltro.sit === 'todos' || (ffFiltro.sit === 'falta' && (p.sit === 'falta' || p.sit === 'voltou' || ffRecem.has(p.k))) || (ffFiltro.sit === 'feito' && p.sit === 'feito') || (ffFiltro.sit === 'naoProcede' && p.sit === 'naoProcede')) &&
     (!bq || ffOnde(p).indexOf(bq.replace(/^0+/, '')) !== -1 || ffNorm(ffNomeItem(p.item) + ' ' + ffNomeDisc(p.disc) + ' ' + ffVariantesTxt(p)).indexOf(bq) !== -1);
   const awVis = aw.filter(passa);
   const fornNomes = ffContagemFornecedores().nomes;
   const selForn = (item) => { const f = ffFornecedorDoItem(item), sugN = ffRegras.fornecedor && ffRegras.fornecedor[item] ? ((ffContagemFornecedores().porItem[item] || [])[0] || (FF_BASE_FORN[item] ? (ffContagemFornecedores().porItem[FF_BASE_FORN[item]] || [])[0] : null)) : (f.sugerido ? [f.nome] : null), sug = sugN;
-    if (!adm) return '<span class="ff-forn' + (f.nome ? '' : ' vazio') + '">' + (f.nome ? esc(f.nome) + (f.sugerido ? ' <small>(sugerido)</small>' : '') : 'sem fornecedor') + '</span>';
+    if (!adm) return '<span class="ff-forn' + (f.nome ? '' : ' ff-semforn') + '">' + (f.nome ? esc(f.nome) + (f.sugerido ? ' <small>(sugerido)</small>' : '') : 'sem fornecedor') + '</span>';
     const atual = ffRegras.fornecedor && ffRegras.fornecedor[item] ? ffRegras.fornecedor[item] : '';
     const nomes = Array.from(new Set(fornNomes.concat(atual && atual !== '__sem__' ? [atual] : [])));
-    return '<label class="ff-forn-l' + (f.sugerido ? ' sug' : '') + (f.nome ? '' : ' vazio') + '">Fornecedor <select class="ff-sel-forn" data-ff-item="' + esc(item) + '" title="Fornecedor deste item">' +
+    return '<label class="ff-forn-l' + (f.sugerido ? ' sug' : '') + (f.nome ? '' : ' ff-semforn') + '">Fornecedor <select class="ff-sel-forn" data-ff-item="' + esc(item) + '" title="Fornecedor deste item">' +
       '<option value=""' + (!atual ? ' selected' : '') + '>' + (sug ? 'Sugerido: ' + esc(sug[0]) : 'Sem sugestão') + '</option>' +
       nomes.map((n) => '<option value="' + esc(n) + '"' + (atual === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
       '<option value="__sem__"' + (atual === '__sem__' ? ' selected' : '') + '>Sem fornecedor</option></select></label>'; };
@@ -12717,27 +12776,48 @@ async function renderFF(){
     (p.status && p.status.naoProcedeEm ? '<div class="ff-det-baixa">Não procede: ' + dataHoraCurta(p.status.naoProcedeEm) + (p.status.naoProcedePor ? ' · ' + esc(p.status.naoProcedePor) : '') + '</div>' : '') + (extra ? '<div class="ff-det-baixa">' + extra + '</div>' : '') + '</div>';
   const botao = (p) => p.sit === 'feito' ? '<button type="button" class="chip-acao marcado" data-ff-acao="desfazer" data-ff-ch="' + esc(p.chave) + '">✓ Feito</button>'
       : p.sit === 'naoProcede' ? (adm ? '<button type="button" class="chip-acao" data-ff-acao="procede" data-ff-ch="' + esc(p.chave) + '">Reabrir</button>' : '<small>não procede</small>')
-      : '<button type="button" class="chip-acao" data-ff-acao="feito" data-ff-ch="' + esc(p.chave) + '">Feito</button>';
+      : '<button type="button" class="chip-acao" data-ff-acao="feito" data-ff-k="' + esc(p.k) + '" data-ff-ch="' + esc(p.chave) + '">Feito</button>';
   const extraDet = (p) => adm && (p.sit === 'falta' || p.sit === 'voltou') ? '<button type="button" class="chip-acao" data-ff-acao="naoProcede" data-ff-ch="' + esc(p.chave) + '">Não procede (tirar da lista)</button>' : '';
+  const selFornPend = (p) => {
+    if (!adm) return '';
+    const fp = (ffRegras.fornPend || {})[p.k] || '', doItem = ffFornecedorDoItem(p.item);
+    const nomes = Array.from(new Set(fornNomes.concat(fp && fp !== '__sem__' ? [fp] : [])));
+    return '<select class="ff-sel-pend' + (fp ? ' proprio' : '') + '" data-ff-pend="' + esc(p.k) + '" data-ff-campo="forn" title="Fornecedor desta pendência">' +
+      '<option value=""' + (!fp ? ' selected' : '') + '>' + (doItem.nome ? esc(doItem.nome) : 'Sem fornecedor') + ' (do item)</option>' +
+      nomes.map((n) => '<option value="' + esc(n) + '"' + (fp === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
+      '<option value="__sem__"' + (fp === '__sem__' ? ' selected' : '') + '>Sem fornecedor</option></select>'; };
+  const selQuemPend = (p) => adm ? '<select class="ff-sel-pend' + (p.quemProprio ? ' proprio' : '') + '" data-ff-pend="' + esc(p.k) + '" data-ff-campo="quem" title="Quem resolve esta pendência">' +
+      '<option value=""' + (!p.quemProprio ? ' selected' : '') + '>' + esc(G(ffQuemDoItem(p.item)).nome) + ' (do item)</option>' +
+      FF_GRUPOS.map((g) => '<option value="' + g.id + '"' + (p.quemProprio === g.id ? ' selected' : '') + '>' + g.nome + '</option>').join('') + '</select>' : '';
+  const selItemPend = (p) => adm && !String(p.item).startsWith('comum:') ? '<select class="ff-sel-pend' + (Array.from(p.k0s).some((k0) => (ffRegras.itemPend || {})[k0]) ? ' proprio' : '') + '" data-ff-pend="' + esc(p.k) + '" data-ff-campo="item" title="Item (função) desta pendência">' + ffOpcoesItens(p.item) + '</select>' : '';
+  const relatos = (item, lista) => { if (!adm || String(item).startsWith('comum:')) return '';
+    const c = new Map(); lista.filter((p) => p.item === item).forEach((p) => p.variantes.forEach((v) => c.set(v, (c.get(v) || 0) + 1)));
+    const it = FF_ITENS[item] || { tipos:[] };
+    if (c.size < 2 && Array.from(c.keys()).every((v) => it.tipos.indexOf(v) !== -1)) return '';
+    return '<div class="ff-relatos"><small>Relatos neste item · mude para mover <b>todos</b> os quartos com esse relato:</small>' + Array.from(c.entries()).sort((a, b) => b[1] - a[1]).map(([v, n]) =>
+      '<span>' + esc(FF_CURTO[v] || ffNomeTipo(v)) + ' <b>' + n + '</b> <select class="ff-sel-tipo" data-ff-tipo="' + esc(v) + '">' + ffOpcoesItens(ffItemPadraoDoTipo(v)) + '</select></span>').join('') + '</div>'; };
+  const fornChip = (p) => !adm && p.forn && p.forn.nome ? '<span class="ff-forn-mini">' + esc(p.forn.nome) + '</span>' : '';
   const novoTag = (p) => p.chegouEm === m.ultimaLeva && !primeiraLeva ? ' · <b class="ff-tag-novo">novo</b>' : '';
   const meta = (p) => (p.citado > 1 ? 'citado ' + p.citado + '× · ' : '') + 'último ' + dataCurta(p.ultimo) + novoTag(p);
   // por disciplina → item → quarto
   const linhaAw = (p) => { const aberto = ffExpandidos.has(p.k), tr = ffTrechoDoProblema(p), vt = ffVariantesTxt(p);
     return '<div class="ff-l ' + p.sit + '"><button type="button" class="ff-q" data-ff-exp="' + esc(p.k) + '">' + esc(ffOnde(p)) + '<small>' + (p.andar ? p.andar + 'º' : '') + '</small></button>' +
       '<span class="ff-trecho" data-ff-exp="' + esc(p.k) + '">' + (p.sit === 'voltou' ? '<em class="ff-tag-voltou">voltou</em> ' : '') + (vt ? '<b class="ff-var">' + esc(vt) + '</b> ' : '') + '<span class="ff-cit">' + esc(tr.slice(0, 120)) + (tr.length > 120 ? '…' : '') + '</span><small> · ' + meta(p) + '</small></span>' +
-      '<span class="ff-acoes">' + botao(p) + '</span></div>' + (aberto ? detalhe(p, extraDet(p)) : ''); };
+      '<span class="ff-acoes">' + (adm ? '<span class="ff-pend-sels">' + selItemPend(p) + selFornPend(p) + selQuemPend(p) + '</span>' : (p.forn && p.forn.proprio ? fornChip(p) : '')) + botao(p) + '</span></div>' + (aberto ? detalhe(p, extraDet(p)) : ''); };
   const contaTxt = (todos, vis) => { const f = todos.filter((p) => p.sit === 'feito').length, q = new Set(todos.map((p) => p.local)).size;
     return (vis && vis.length !== todos.length ? vis.length + ' de ' : '') + todos.length + ' pendência' + (todos.length > 1 ? 's' : '') + ' · ' + q + ' quarto' + (q > 1 ? 's' : '') + ' · ' + f + ' feita' + (f === 1 ? '' : 's'); };
+  const totD = new Map(), totI = new Map(); awAtivos.forEach((p) => { totD.set(p.disc, (totD.get(p.disc) || 0) + 1); totI.set(p.item, (totI.get(p.item) || 0) + 1); });
+  const ordDisc = (d) => FF_DISCIPLINAS.findIndex((x) => x[0] === d);
   const discs = new Map(); awVis.forEach((p) => { if (!discs.has(p.disc)) discs.set(p.disc, []); discs.get(p.disc).push(p); });
-  const porDisc = Array.from(discs.entries()).sort((a, b) => b[1].length - a[1].length).map(([d, psD]) => {
+  const porDisc = Array.from(discs.entries()).sort((a, b) => (totD.get(b[0]) || 0) - (totD.get(a[0]) || 0) || ordDisc(a[0]) - ordDisc(b[0])).map(([d, psD]) => {
     const itens = new Map(); psD.forEach((p) => { if (!itens.has(p.item)) itens.set(p.item, []); itens.get(p.item).push(p); });
     const todosD = awAtivos.filter((p) => p.disc === d);
     const um = itens.size === 1 && ffNomeItem(Array.from(itens.keys())[0]) === ffNomeDisc(d);
     return '<div class="ff-disc"><div class="ff-disc-cab"><b>' + esc(ffNomeDisc(d)) + '</b><span>' + contaTxt(todosD, psD) + '</span>' + (um ? '<span class="ff-cab-dir">' + selForn(Array.from(itens.keys())[0]) + selQuem(Array.from(itens.keys())[0]) + '</span>' : '') + '</div>' +
-      Array.from(itens.entries()).sort((a, b) => b[1].length - a[1].length).map(([item, ps]) => {
+      Array.from(itens.entries()).sort((a, b) => (totI.get(b[0]) || 0) - (totI.get(a[0]) || 0) || String(a[0]).localeCompare(String(b[0]))).map(([item, ps]) => {
         ps.sort((a, b) => ffOrdQuarto(a.quarto || a.local, b.quarto || b.local));
         const todosI = awAtivos.filter((p) => p.item === item);
-        return '<div class="ff-grupo">' + (um ? '' : '<div class="ff-grupo-cab"><b>' + esc(ffNomeItem(item)) + '</b><span>' + contaTxt(todosI, ps) + '</span><span class="ff-cab-dir">' + selForn(item) + selQuem(item) + '</span></div>') + ps.map(linhaAw).join('') + '</div>';
+        return '<div class="ff-grupo">' + (um ? '' : '<div class="ff-grupo-cab"><b>' + esc(ffNomeItem(item)) + '</b><span>' + contaTxt(todosI, ps) + '</span><span class="ff-cab-dir">' + selForn(item) + selQuem(item) + '</span></div>') + relatos(item, awAtivos) + ps.map(linhaAw).join('') + '</div>';
       }).join('') + '</div>'; }).join('');
   // por andar → quarto → itens
   const andaresVis = Array.from(new Set(awVis.map((p) => p.andar))).sort((a, b) => (b || 0) - (a || 0));
@@ -12751,7 +12831,8 @@ async function renderFF(){
         const falta = ps.filter((p) => p.sit === 'falta' || p.sit === 'voltou').length;
         return '<div class="ff-qcard"><div class="ff-qcard-cab"><b>' + esc(ffQuartoCurto(q)) + '</b><span>' + (falta ? falta + ' falta' + (falta > 1 ? 'm' : '') : 'tudo feito') + '</span></div>' +
           ord.map((p) => { const vt = ffVariantesTxt(p);
-            return '<div class="ff-qi ' + p.sit + '"><span class="ff-qi-t" data-ff-exp="' + esc(p.k) + '">' + (p.sit === 'voltou' ? '<em class="ff-tag-voltou">voltou</em> ' : '') + '<b>' + esc(ffNomeItem(p.item)) + (p.forn && p.forn.nome ? ' <span class="ff-forn-mini">' + esc(p.forn.nome) + '</span>' : '') + '</b>' + (vt ? '<small>' + esc(vt) + '</small>' : '') + '<small>' + meta(p) + '</small></span>' + botao(p) + '</div>' +
+            return '<div class="ff-qi ' + p.sit + '"><div class="ff-qi-l"><span class="ff-qi-t" data-ff-exp="' + esc(p.k) + '">' + (p.sit === 'voltou' ? '<em class="ff-tag-voltou">voltou</em> ' : '') + '<b>' + esc(ffNomeItem(p.item)) + fornChip(p) + '</b>' + (vt ? '<small>' + esc(vt) + '</small>' : '') + '<small>' + meta(p) + '</small></span>' + botao(p) + '</div>' +
+              (adm ? '<div class="ff-qi-sels">' + selItemPend(p) + selFornPend(p) + selQuemPend(p) + '</div>' : '') + '</div>' +
               (ffExpandidos.has(p.k) ? detalhe(p, extraDet(p)) : ''); }).join('') + '</div>';
       }).join('') + '</div></div>'; }).join('');
   const optAndar = '<option value="todos">Todos os andares</option>' + andaresTodos.filter((a) => aw.some((p) => Number(p.andar) === a)).map((a) => '<option value="' + a + '"' + (ffFiltro.andar === String(a) ? ' selected' : '') + '>' + a + 'º andar</option>').join('');
@@ -12772,6 +12853,7 @@ async function renderFF(){
       ordenado.map(([item, ps]) => { const k = 'h|' + item, aberto = ffExpandidos.has(k);
         const locais = ps.map(ffOnde).sort(ffOrdQuarto), vars = Array.from(new Set(ps.flatMap((p) => Array.from(p.variantes)))).filter(() => FF_ITENS[item] && FF_ITENS[item].tipos.length > 1).map((v) => FF_CURTO[v] || ffNomeTipo(v));
         return '<div class="ff-h-l"><span class="ff-h-t" data-ff-exp="' + esc(k) + '">' + (g.id === 'comum' ? '<small>' + esc(ps[0].local) + ' · </small>' : '') + '<b>' + esc(ffNomeItem(item)) + '</b>' + (vars.length ? ' <small>(' + esc(vars.join(', ')) + ')</small>' : '') + '</span><span class="ff-h-q">' + (g.id === 'comum' ? (ps.reduce((s, p) => s + p.citado, 0) + '×') : locais.length + ' · ' + esc(locais.slice(0, 16).join(', ')) + (locais.length > 16 ? '…' : '')) + '</span>' + selQuem(item) + '</div>' +
+          (aberto && adm ? relatos(item, ps) + '<div class="ff-h-pends"><small>Por local: item e quem resolve</small>' + ps.slice().sort((a, b) => ffOrdQuarto(ffOnde(a), ffOnde(b))).map((p) => '<span>' + esc(ffOnde(p)) + ' ' + selItemPend(p) + selQuemPend(p) + '</span>').join('') + '</div>' : '') +
           (aberto ? '<div class="ff-det">' + ps.flatMap((p) => p.linhas.map((l) => ({ p, l }))).sort((a, b) => String(b.l.dia).localeCompare(String(a.l.dia))).slice(0, 80).map(({ p, l }) => linhaComent(l, p.quarto ? ffQuartoCurto(p.quarto) + ' · ' : '')).join('') + '</div>' : ''); }).join('') + '</div>'; };
   const hotelHtml = blocoHotel(P.filter((p) => p.quem === 'ope'), G('ope')) + blocoHotel(P.filter((p) => p.quem === 'tec'), G('tec')) + blocoHotel(comum, G('comum')) + blocoHotel(clas, G('clas'));
   // ---- 5. conferência: toda linha da planilha tem destino ----
@@ -12806,19 +12888,21 @@ function ffLigar(box){
   if (inp) inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; if (!f) return; await ffImportarBuffer(await f.arrayBuffer(), f.name); inp.value = ''; renderFF(); });
   const ex = box.querySelector('#ff-exportar'); if (ex) ex.addEventListener('click', () => { try{ ffExportar(); }catch(e){ avisoFlutuante('Não consegui gerar a planilha: ' + (e.message || e), 'erro'); } });
   box.querySelectorAll('[data-ff-exp]').forEach((el) => el.addEventListener('click', () => { const k = el.dataset.ffExp; if (ffExpandidos.has(k)) ffExpandidos.delete(k); else ffExpandidos.add(k); renderFF(); }));
-  box.querySelectorAll('[data-ff-acao]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); ffMarcar(el.dataset.ffCh, el.dataset.ffAcao); }));
+  box.querySelectorAll('[data-ff-acao]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); if (el.dataset.ffAcao === 'feito' && el.dataset.ffK) ffRecem.add(el.dataset.ffK); ffMarcar(el.dataset.ffCh, el.dataset.ffAcao); }));
+  box.querySelectorAll('.ff-sel-pend').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => el.dataset.ffCampo === 'item' ? ffDefinirItemPend(el.dataset.ffPend, el.value) : ffDefinirPend(el.dataset.ffPend, el.dataset.ffCampo, el.value)); });
+  box.querySelectorAll('.ff-sel-tipo').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirItemTipo(el.dataset.ffTipo, el.value)); });
   box.querySelectorAll('.ff-sel-quem').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', async () => { if (!exigirAdmin()) { renderFF(); return; } const it = el.dataset.ffItem; const padrao = String(it).indexOf('comum:') === 0 ? 'comum' : ((FF_ITENS[it] || {}).quem || 'clas'); if (el.value === padrao) delete ffRegras.quem[it]; else ffRegras.quem[it] = el.value; renderFF(); await ffSalvarRegras(); }); });
   box.querySelectorAll('.ff-sel-linha').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffAjustarLinha(el.dataset.ffLinha, el.value)); });
-  box.querySelectorAll('[data-ff-andar]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('[data-ff-quarto]')) return; const a = el.dataset.ffAndar; ffFiltro.andar = ffFiltro.andar === a ? 'todos' : a; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
-  box.querySelectorAll('[data-ff-quarto]').forEach((el) => el.addEventListener('click', () => { ffFiltro.busca = ffQuartoCurto(el.dataset.ffQuarto); ffFiltro.andar = 'todos'; renderFF(); ffRolarLista(); }));
+  box.querySelectorAll('[data-ff-andar]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('[data-ff-quarto]')) return; const a = el.dataset.ffAndar; ffRecem.clear(); ffFiltro.andar = ffFiltro.andar === a ? 'todos' : a; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
+  box.querySelectorAll('[data-ff-quarto]').forEach((el) => el.addEventListener('click', () => { ffRecem.clear(); ffFiltro.busca = ffQuartoCurto(el.dataset.ffQuarto); ffFiltro.andar = 'todos'; renderFF(); ffRolarLista(); }));
   box.querySelectorAll('[data-ff-ir]').forEach((el) => { el.style.cursor = 'pointer'; el.addEventListener('click', () => { const alvo = document.getElementById(el.dataset.ffIr); if (alvo) alvo.scrollIntoView({ behavior:'smooth', block:'start' }); }); });
-  const ffo = box.querySelector('#ff-f-forn'); if (ffo) ffo.addEventListener('change', () => { ffFiltro.forn = ffo.value; renderFF(); });
+  const ffo = box.querySelector('#ff-f-forn'); if (ffo) ffo.addEventListener('change', () => { ffFiltro.forn = ffo.value; ffRecem.clear(); renderFF(); });
   box.querySelectorAll('.ff-sel-forn').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirFornecedor(el.dataset.ffItem, el.value)); });
-  const fa = box.querySelector('#ff-f-andar'); if (fa) fa.addEventListener('change', () => { ffFiltro.andar = fa.value; renderFF(); });
-  box.querySelectorAll('[data-ff-sit]').forEach((el) => el.addEventListener('click', () => { ffFiltro.sit = el.dataset.ffSit; renderFF(); }));
-  box.querySelectorAll('[data-ff-visao]').forEach((el) => el.addEventListener('click', () => { ffFiltro.visao = el.dataset.ffVisao; try{ localStorage.setItem('ff_visao', ffFiltro.visao); }catch(e){} renderFF(); }));
-  const fb = box.querySelector('#ff-f-busca'); if (fb){ let t; fb.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { ffFiltro.busca = fb.value; renderFF(); const n = document.getElementById('ff-f-busca'); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 350); }); }
-  const fl = box.querySelector('#ff-f-limpar'); if (fl) fl.addEventListener('click', () => { ffFiltro.andar = 'todos'; ffFiltro.busca = ''; ffFiltro.forn = ''; renderFF(); });
+  const fa = box.querySelector('#ff-f-andar'); if (fa) fa.addEventListener('change', () => { ffFiltro.andar = fa.value; ffRecem.clear(); renderFF(); });
+  box.querySelectorAll('[data-ff-sit]').forEach((el) => el.addEventListener('click', () => { ffFiltro.sit = el.dataset.ffSit; ffRecem.clear(); renderFF(); }));
+  box.querySelectorAll('[data-ff-visao]').forEach((el) => el.addEventListener('click', () => { ffFiltro.visao = el.dataset.ffVisao; ffRecem.clear(); try{ localStorage.setItem('ff_visao', ffFiltro.visao); }catch(e){} renderFF(); }));
+  const fb = box.querySelector('#ff-f-busca'); if (fb){ let t; fb.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { ffFiltro.busca = fb.value; ffRecem.clear(); renderFF(); const n = document.getElementById('ff-f-busca'); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 350); }); }
+  const fl = box.querySelector('#ff-f-limpar'); if (fl) fl.addEventListener('click', () => { ffFiltro.andar = 'todos'; ffFiltro.busca = ''; ffFiltro.forn = ''; ffRecem.clear(); renderFF(); });
 }
 try{ const v = localStorage.getItem('ff_visao'); if (v === 'andar' || v === 'disc') ffFiltro.visao = v; }catch(e){}
 function ffRolarLista(){ const el = document.getElementById('ff-lista-aw'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }
@@ -12838,7 +12922,7 @@ function irParaAba(nome){
   if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
   if (nome === 'reuniao'){ try{ renderResumoGeral(); }catch(e){} setTimeout(renderReuniao, 50); }
     if (nome === 'sofitel') setTimeout(renderSofitel, 50);
-    if (nome === 'ff') setTimeout(() => { ffCarregar(true).then(renderFF).catch(() => renderFF()); }, 50);
+    if (nome === 'ff') setTimeout(() => { ffRecem.clear(); ffCarregar(true).then(renderFF).catch(() => renderFF()); }, 50);
     if (nome !== 'itens' && filtroIdsPedido){ filtroIdsPedido = null; const bp = document.getElementById('barra-pedido'); if (bp) bp.remove(); }
   document.body.classList.toggle('aba-itens', nome === 'itens');
   window.scrollTo({top:0, behavior:'instant'});
