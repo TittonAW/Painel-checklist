@@ -990,7 +990,45 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-relatos > small{ flex-basis:100%; color:#6B756F; }
 .ff-sel-tipo{ font:inherit; font-size:11px; max-width:200px; padding:2px 4px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--muted); }
 .ff-hotel .ff-relatos{ margin:0 12px 6px; }
+.ff-acoes-topo{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.ff-res-cols{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px; }
+.ff-res-card{ margin-top:12px; } .ff-res-cols .ff-res-card{ margin-top:0; }
+.ff-res-card h3{ margin:0 0 8px; }
+.ff-tab{ width:100%; min-width:0; border-collapse:collapse; font-size:12.5px; color:#33403A; }
+.ff-tab th{ font-weight:500; font-size:11px; color:#8A938E; text-align:right; padding:4px 6px; border-bottom:1px solid #EEF0EF; white-space:nowrap; }
+.ff-tab th:first-child, .ff-tab td:first-child{ text-align:left; }
+.ff-tab td{ text-align:right; padding:5px 6px; border-bottom:1px solid #F3F4F3; white-space:nowrap; }
+.ff-tab td:first-child{ white-space:normal; } .ff-tab td small{ color:#8A938E; font-size:10.5px; margin-left:4px; }
+.ff-tab-clic{ cursor:pointer; } .ff-tab-clic:hover td{ background:#FFF8F0; }
+.ff-bar{ display:inline-block; width:70px; height:6px; border-radius:3px; background:#EEF0EF; vertical-align:middle; margin-right:6px; overflow:hidden; }
+.ff-bar i{ display:block; height:100%; background:#8CCBA8; border-radius:3px; }
+.ff-andares{ display:flex; flex-direction:column; gap:8px; }
+.ff-andar{ border:1px solid #EEF0EF; border-radius:12px; padding:6px 10px 8px; background:#FCFCFB; }
+.ff-andar.sel{ border-color:#F3B97C; background:#FFF8F0; }
+.ff-andar.vazio-a{ padding:6px 10px; background:transparent; border-style:dashed; }
+.ff-andar-cab{ display:grid; grid-template-columns: 38px minmax(120px, 260px) 1fr; gap:10px; align-items:center; cursor:pointer; font-size:12.5px; color:#33403A; }
+.ff-andar-cab > b{ font-size:15px; } .ff-andar-n{ color:#6B756F; } .ff-andar-sem{ color:#8A938E; font-size:12px; }
+.ff-qminis{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.ff-qmini{ all:unset; cursor:pointer; display:flex; flex-direction:column; gap:2px; min-width:120px; max-width:220px; padding:5px 8px; border-radius:9px; background:#FFF8F0; border:1px solid #F0DCC4; }
+.ff-qmini.ok{ background:#EEF8F2; border-color:#CDE9D8; }
+.ff-qmini-n{ font-weight:700; font-size:14px; color:#7A4A18; } .ff-qmini.ok .ff-qmini-n{ color:#2E6B4A; }
+.ff-qmini-c{ font-size:11px; color:#8A938E; }
+.ff-qmini-f{ display:flex; flex-wrap:wrap; gap:3px; }
+.ff-qmini-f i{ font-style:normal; font-size:10.5px; color:#5B4A2E; background:#fff; border:1px solid #EFE3D2; border-radius:99px; padding:1px 6px; white-space:nowrap; }
+.ff-qmini-f i b{ color:#B4661F; }
+.ff-subs{ display:flex; flex-direction:column; gap:5px; padding:6px 8px; margin-bottom:6px; background:#FFF8F0; border:1px dashed #EBD3B8; border-radius:9px; }
+.ff-subs > small{ color:#7A6650; font-size:11px; }
+.ff-sub-l{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; font-size:12px; }
+.ff-sub-l > b{ min-width:150px; color:#7A4A18; }
+.ff-sel-sub{ font:inherit; font-size:11px; max-width:190px; padding:2px 4px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--muted); }
+.ff-sel-sub.proprio{ border-color:#E3C9A8; background:#FFF0D6; color:#7A4A18; font-weight:600; }
+.ff-btn-pdf{ margin-left:auto; }
 @media (max-width: 760px){
+  .ff-res-cols{ grid-template-columns: 1fr; }
+  .ff-andar-cab{ grid-template-columns: 34px 1fr; } .ff-andar-n{ grid-column: 1 / -1; }
+  .ff-qmini{ min-width:0; flex:1 1 140px; }
+  .ff-btn-pdf{ margin-left:0; }
+  .ff-sub-l > b{ min-width:0; flex-basis:100%; }
   .ff-corte-cab{ display:none; }
   .ff-corte-linha{ grid-template-columns: 34px minmax(0, 1fr) 44px 44px; }
   .ff-corte-linha > .sf-c:nth-of-type(1){ display:none; }
@@ -1631,7 +1669,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.338';
+const VERSAO_APP = '2026-10-03.339';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -9507,11 +9545,22 @@ let frentesSof = 3, modoVitrineSof = 'problema';
 function somarTrabalho(iniChave, fimChave){ let s = 0; const d = new Date(iniChave + 'T12:00:00'), f = new Date(fimChave + 'T12:00:00'); while (d <= f){ s += fatorDoDia(d); d.setDate(d.getDate() + 1); } return s; }
 function terminarDepoisDe(iniChave, trabalho){ const d = new Date(iniChave + 'T12:00:00'); let s = 0; if (trabalho <= 0) return iniChave; while (true){ s += fatorDoDia(d); if (s >= trabalho - 1e-9) return chaveDia(d); d.setDate(d.getDate() + 1); } }
 function diaSeguinte(k){ const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + 1); return chaveDia(d); }
+/* aba Sofitel: qual lista entra em tudo (Sofitel, IAC ou as duas) */
+let origemSof = 'SOFITEL';
+try{ const o = localStorage.getItem('sof_origem'); if (o === 'IAC' || o === 'TODOS' || o === 'SOFITEL') origemSof = o; }catch(e){}
+function itemDaOrigemSof(x){ if (x.origem === 'AW') return false; const o = origemDoItem(x); return origemSof === 'TODOS' ? true : origemSof === 'SOFITEL' ? o === 'SOFITEL' : o !== 'SOFITEL'; }
+function removidoDaOrigemSof(h){ const o = origemDoRemovido(h); return origemSof === 'TODOS' ? true : origemSof === 'SOFITEL' ? o === 'SOFITEL' : o !== 'SOFITEL'; }
+function rotuloOrigemSof(tipo){
+  const R = { SOFITEL:{ lista:'lista da Sofitel', de:'da Sofitel', recus:'recusados pela Sofitel', curto:'Sofitel', titulo:'Itens da operação' },
+              IAC:{ lista:'lista da IAC', de:'da IAC', recus:'não aceitos pela IAC', curto:'IAC', titulo:'Itens da IAC' },
+              TODOS:{ lista:'lista IAC + Sofitel', de:'IAC + Sofitel', recus:'não aceitos (IAC + Sofitel)', curto:'IAC + Sofitel', titulo:'Todos os itens (IAC + Sofitel)' } };
+  return R[origemSof][tipo];
+}
 function baixasSofitel(){
   const out = [];
-  itensRevisaoAtual.forEach((x) => { if (origemDoItem(x) !== 'SOFITEL' || !baixaDaAW(x)) return; const ac = acompanhamento[x.id] || {}; if (!ac.awExecEm) return;
+  itensRevisaoAtual.forEach((x) => { if (!itemDaOrigemSof(x) || !baixaDaAW(x)) return; const ac = acompanhamento[x.id] || {}; if (!ac.awExecEm) return;
     out.push({ forn: fornecedorEfetivo(x) || 'Sem fornecedor', andar: Number(x.andar), dia: chaveDia(new Date(ac.awExecEm)), prob: problemaDoItem(x) }); });
-  try{ sairamDaPlanilha().forEach((h) => { if (h.o !== 'SOFITEL' && origemDoRemovido(h) !== 'SOFITEL') return; const id = h._id || h.id, ac = acompanhamento[id] || {}; if (!ac.awExecEm || !ac.fornecedorOverride) return;
+  try{ sairamDaPlanilha().forEach((h) => { if (!removidoDaOrigemSof(h)) return; const id = h._id || h.id, ac = acompanhamento[id] || {}; if (!ac.awExecEm || !ac.fornecedorOverride) return;
     out.push({ forn: ac.fornecedorOverride, andar: Number(h.andar), dia: chaveDia(new Date(ac.awExecEm)), prob: 'outros' }); }); }catch(e){}
   return out;
 }
@@ -9669,10 +9718,11 @@ async function renderSofitel(){
   if (!seqSof) await carregarSeqEquipeSof();
   const podeAjustar = ehAdminAtual();
   const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
-  const sofAll = itensRevisaoAtual.filter((x) => origemDoItem(x) === 'SOFITEL');
+  const sofAll = itensRevisaoAtual.filter(itemDaOrigemSof);
   const pendTodos = sofAll.filter(entraNaOnda);
+  const RO = rotuloOrigemSof;
   const pend = pendTodos.filter((x) => !andarAprovadoSofitel(x.andar)); // o que sobrou em andar aprovado não entra mais na conta
-  let removidosTodos = []; try{ removidosTodos = sairamDaPlanilha().filter((h) => origemDoRemovido(h) === 'SOFITEL'); }catch(e){}
+  let removidosTodos = []; try{ removidosTodos = sairamDaPlanilha().filter(removidoDaOrigemSof); }catch(e){}
   const recebidos = sofAll.length + removidosTodos.length;
   const faltaTop = pend.filter((x) => categoriaNaOnda(x) !== 'naoAceito').length, recusTop = pend.filter((x) => categoriaNaOnda(x) === 'naoAceito').length;
   const novosTop = pend.filter((x) => categoriaNaOnda(x) !== 'naoAceito' && infoItemNovo(x)).length;
@@ -9698,11 +9748,11 @@ async function renderSofitel(){
   const col = (v, cor) => '<span class="sf-c"' + (cor ? ' style="color:' + cor + ';"' : '') + '>' + (v ? fmt(v) : '—') + '</span>';
   const seqAtiva = ordemExecucaoSof().filter((a) => !andarAprovadoSofitel(a) && pend.some((x) => Number(x.andar) === a));
   const posSeq = new Map(seqAtiva.map((a, i) => [a, i + 1]));
-  const corte = '<div class="sf-corte-cab"><span></span><span>avanço (feitos ÷ lista)</span><span class="sf-c">Lista da Sofitel</span><span class="sf-c">Feitos</span><span class="sf-c">Falta fazer</span><span class="sf-c">Recusados</span><span></span></div>' +
+  const corte = '<div class="sf-corte-cab"><span></span><span>avanço (feitos ÷ lista)</span><span class="sf-c">Lista</span><span class="sf-c">Feitos</span><span class="sf-c">Falta fazer</span><span class="sf-c">' + (origemSof === 'SOFITEL' ? 'Recusados' : 'Não aceitos') + '</span><span></span></div>' +
     linhas.map((l) => '<div class="sf-corte-linha' + (l.aprovado ? ' aprovado' : '') + '"' + (!l.tot && !l.aprovado ? ' style="opacity:.55;"' : '') + '><b>' + l.a + 'º' + (posSeq.has(l.a) ? '<sup class="sf-pos" title="posição na sequência de execução">' + posSeq.get(l.a) + '</sup>' : '') + '</b>' +
-      '<div class="sf-avanco"><span style="width:' + l.pc + '%;"></span><em>' + (l.tot ? l.pc + '%' : 'sem itens da Sofitel') + '</em></div>' +
+      '<div class="sf-avanco"><span style="width:' + l.pc + '%;"></span><em>' + (l.tot ? l.pc + '%' : 'sem itens ' + RO('de')) + '</em></div>' +
       col(l.tot) + col(l.feitos, '#2E6B4A') + '<span class="sf-c" style="color:#B4661F;">' + (l.falta ? fmt(l.falta) + (l.novosFalta ? '<small class="sf-inc"> · ' + l.novosFalta + ' novos</small>' : '') : '—') + '</span>' + col(l.recus, '#A0522D') +
-      (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : (l.tot ? '<small>' + l.ap + '/' + l.nAmb + ' amb. aprovados</small>' : '<small>sem lista da Sofitel</small>')) + '</div>').join('');
+      (l.aprovado ? '<span class="sf-selo-ap">✓ Aprovado Sofitel</span>' : (l.tot ? '<small>' + l.ap + '/' + l.nAmb + ' amb. aprovados</small>' : '<small>sem itens ' + RO('de') + '</small>')) + '</div>').join('');
   // ---- rankings ----
   const top = (fn, n) => { const m = new Map(); pend.forEach((x) => { const k = fn(x) || '—'; if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return Array.from(m.entries()).map(([k, v]) => ({ k, v })).sort((a, b) => b.v.length - a.v.length).slice(0, n); };
   const forn = top((x) => fornecedorEfetivo(x) || 'Sem fornecedor', 5), disc = top((x) => disciplinaEfetiva(x) || 'Sem disciplina', 4);
@@ -9713,7 +9763,7 @@ async function renderSofitel(){
   const vitrine = (lista, n, mostrarForn) => {
     const g = new Map();
     lista.forEach((x) => { const f = fornecedorEfetivo(x) || 'Sem fornecedor';
-      const k = modoVitrineSof === 'problema' ? 'p|' + f + '|' + problemaDoItem(x) : (chaveComparacao(x.desc) || x.id);
+      const k = (origemSof === 'SOFITEL' ? '' : origemSof + '|') + (modoVitrineSof === 'problema' ? 'p|' + f + '|' + problemaDoItem(x) : (chaveComparacao(x.desc) || x.id));
       if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
     const grupos = Array.from(g.entries()).sort((a, b) => b[1].length - a[1].length);
     const visiveis = grupos.filter(([k]) => verOcultosSof || !vitrineSof.ocultos[k]);
@@ -9725,7 +9775,7 @@ async function renderSofitel(){
       const f0 = fornecedorEfetivo(its[0]) || 'Sem fornecedor';
       const titulo = modoVitrineSof === 'problema' ? NOME_PROBLEMA[problemaDoItem(its[0])] + (mostrarForn ? ' · ' + f0 : '') : String(its[0].desc || '');
       const subs = modoVitrineSof === 'problema' ? topContagem(its, (x) => String(x.desc || '').trim(), 3).map((d) => esc(d.k.slice(0, 48)) + (d.k.length > 48 ? '…' : '') + ' <b>' + d.n + '</b>').join(' · ') : '';
-      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: 'Sofitel · ' + titulo.slice(0, 50), chave: k, fotos: todasFotos, itens: its });
+      vitrineIds.push({ ids: its.map((x) => x.id), rotulo: RO('curto') + ' · ' + titulo.slice(0, 50), chave: k, fotos: todasFotos, itens: its });
       const i = vitrineIds.length - 1, oculto = !!vitrineSof.ocultos[k];
       return '<div class="sf-item" data-sf-ver="' + i + '" style="position:relative;' + (oculto ? ' opacity:.45;' : '') + '">' +
         (podeAjustar ? '<div class="sf-ajustes" style="position:absolute; top:6px; right:6px; display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end;">' +
@@ -9764,7 +9814,7 @@ async function renderSofitel(){
       motivo = 'instalação de <b>' + esc(d.l.prod || 'produto') + '</b>' + (d.l.forn ? ' · ' + esc(d.l.forn) : '') + ' — entrega ' + dataCurta(d.l.entrega) + (Number(d.l.exec) ? ', ' + d.l.exec + ' dias de execução' : '');
     } else {
       const tk = sim.tarefas.slice().sort((x, y) => x.fim < y.fim ? 1 : -1)[0];
-      motivo = 'pendências da Sofitel no <b>' + tk.a + 'º</b> · gargalo ' + esc(tk.gargalo.forn) + ' (' + tk.gargalo.n + ' itens, ' + nf1(tk.gargalo.r) + '/dia, ' + tk.gargalo.fonte + ')';
+      motivo = 'pendências ' + RO('de') + ' no <b>' + tk.a + 'º</b> · gargalo ' + esc(tk.gargalo.forn) + ' (' + tk.gargalo.n + ' itens, ' + nf1(tk.gargalo.r) + '/dia, ' + tk.gargalo.fonte + ')';
     }
   }
   // ---- linha do tempo única (execução por andar + produtos), destacando o que define a data final ----
@@ -9777,10 +9827,10 @@ async function renderSofitel(){
     const eixo = '<div class="sf-tl-l eixo"><span></span><div class="sf-tl-trilho">' + marcas.map((k) => '<em style="left:' + pos(k) + '%;">' + dataCurta(k) + '</em>').join('') + '<em class="fim" style="left:100%;">' + dataCurta(fimGeral) + '</em></div><span></span></div>';
     const linhaFinal = '<i class="sf-tl-final" style="left:100%;"></i>';
     const execLinhas = sim && sim.tarefas.length ? sim.tarefas.map((tk) => { const define = tk.fim === fimGeral && !(fimProd && fimProd === fimGeral && fimProd >= fimExec);
-        return '<div class="sf-tl-l' + (define ? ' define' : '') + '"><span><b>' + tk.a + 'º</b> · ' + tk.n + ' itens</span><div class="sf-tl-trilho"><span style="left:' + pos(tk.ini) + '%; width:' + larg(tk.ini, tk.fim) + '%; background:' + corFrente[(tk.frente - 1) % 5] + ';"></span>' + linhaFinal + '</div><small>' + dataCurta(tk.ini) + ' → ' + dataCurta(tk.fim) + ' · gargalo ' + esc(tk.gargalo.forn) + '</small></div>'; }).join('') : '<div class="rn-sub" style="padding:4px 0;">Sem pendências da Sofitel fora dos andares aprovados.</div>';
+        return '<div class="sf-tl-l' + (define ? ' define' : '') + '"><span><b>' + tk.a + 'º</b> · ' + tk.n + ' itens</span><div class="sf-tl-trilho"><span style="left:' + pos(tk.ini) + '%; width:' + larg(tk.ini, tk.fim) + '%; background:' + corFrente[(tk.frente - 1) % 5] + ';"></span>' + linhaFinal + '</div><small>' + dataCurta(tk.ini) + ' → ' + dataCurta(tk.fim) + ' · gargalo ' + esc(tk.gargalo.forn) + '</small></div>'; }).join('') : '<div class="rn-sub" style="padding:4px 0;">Sem pendências ' + RO('de') + ' fora dos andares aprovados.</div>';
     const prodLinhas = prods.length ? prods.map((x) => { const fimP = x.fim || x.l.entrega, define = fimP === fimGeral && fimProd >= (fimExec || '');
         return '<div class="sf-tl-l' + (define ? ' define' : '') + '"><span>' + esc(x.l.prod || 'Produto') + (x.l.forn ? ' · ' + esc(x.l.forn) : '') + '</span><div class="sf-tl-trilho"><i class="sf-tl-entrega" style="left:' + pos(x.l.entrega) + '%;"></i>' + (x.fim ? '<span style="left:' + pos(diaSeguinte(x.l.entrega)) + '%; width:' + larg(diaSeguinte(x.l.entrega), x.fim) + '%; background:#F3C9A0;"></span>' : '') + linhaFinal + '</div><small>entrega ' + dataCurta(x.l.entrega) + (x.fim ? ' → término ' + dataCurta(x.fim) : '') + '</small></div>'; }).join('') : '<div class="rn-sub" style="padding:4px 0;">Nenhum produto com data de entrega.</div>';
-    linhaTempo = eixo + '<div class="sf-tl-grupo">Execução dos pendentes da Sofitel (por andar, na sequência definida)</div>' + execLinhas +
+    linhaTempo = eixo + '<div class="sf-tl-grupo">Execução dos pendentes ' + RO('de') + ' (por andar, na sequência definida)</div>' + execLinhas +
       '<div class="sf-tl-grupo">Produtos comprados (entrega → instalação)</div>' + prodLinhas +
       '<div class="rn-leg" style="margin-top:8px;"><span><i style="background:#A9C5EA;"></i>execução por andar (uma cor por frente)</span><span><i style="background:#F3B97C;"></i>entrega</span><span><i style="background:#F3C9A0;"></i>instalação</span><span><i style="background:#C9897A;"></i>último dia de serviço</span></div>';
   }
@@ -9801,21 +9851,22 @@ async function renderSofitel(){
   const hoje = new Date();
   const sec = (n, titulo, sub) => '<div class="sf-sec"><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
   box.innerHTML =
-    '<div class="rn-topo"><h2>Sofitel Ipanema · Itens da operação</h2><div class="rn-sub">lista da Sofitel · ' + hoje.toLocaleDateString('pt-BR') + ' · atualizado às ' + hoje.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div></div>' +
-    sec(1, 'Onde estamos hoje', 'o que a Sofitel listou, o que já foi resolvido e o que falta, andar por andar') +
+    '<div class="rn-topo"><div><h2>Sofitel Ipanema · ' + RO('titulo') + '</h2><div class="rn-sub">' + RO('lista') + ' · ' + hoje.toLocaleDateString('pt-BR') + ' · atualizado às ' + hoje.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div></div>' +
+      '<div style="display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#6B756F;">Mostrar</span><div class="rn-modo" id="sf-origem">' + [['SOFITEL', 'Sofitel'], ['IAC', 'IAC'], ['TODOS', 'Todos']].map(([v, t]) => '<button type="button" data-o="' + v + '"' + (origemSof === v ? ' class="ativo"' : '') + '>' + t + '</button>').join('') + '</div></div></div>' +
+    sec(1, 'Onde estamos hoje', 'o que está na ' + RO('lista') + ', o que já foi resolvido e o que falta, andar por andar') +
     '<div class="rn-kpis sf-kpis5 sf-kpis6">' +
-      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(recebidos) + '</div><div class="rn-rot">lista da Sofitel</div></div>' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(recebidos) + '</div><div class="rn-rot">' + RO('lista') + '</div></div>' +
       '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(resolvidos) + '</div><div class="rn-rot">feitos</div></div></div>' +
       '<div class="rn-kpi" style="display:block;"><div class="rn-big" style="color:#B4661F;">' + fmt(faltaTop) + '</div><div class="rn-rot">falta fazer</div>' + (novosTop ? '<div class="rn-leg" style="margin-top:6px;"><span>inclui ' + fmt(novosTop) + ' novos</span></div>' : '') + '</div>' +
-      '<div class="rn-kpi" style="display:block;"><div class="rn-big" style="color:#A0522D;">' + fmt(recusTop) + '</div><div class="rn-rot">recusados pela Sofitel</div></div>' +
+      '<div class="rn-kpi" style="display:block;"><div class="rn-big" style="color:#A0522D;">' + fmt(recusTop) + '</div><div class="rn-rot">' + RO('recus') + '</div></div>' +
       '<div class="rn-kpi" style="display:block; background:#E3F5EC;"><div class="rn-big" style="color:#2E6B4A;">' + andaresAp.length + '</div><div class="rn-rot">andares aprovados pela Sofitel</div><div class="rn-leg" style="margin-top:6px;"><span>' + (andaresAp.length ? andaresAp.slice().sort((a, b) => a - b).map((a) => a + 'º').join(', ') : '—') + '</span></div></div>' +
       '<div class="rn-kpi" style="display:block; background:#FBEFE9;"><div class="rn-big" style="color:#8A4B3A;">' + (fimGeral ? new Date(fimGeral + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : '—') + '</div><div class="rn-rot">último dia de serviço previsto</div><div class="rn-leg" style="margin-top:6px;"><span>ver item 6</span></div></div>' +
     '</div>' +
     '<div class="rn-linha2" style="grid-template-columns: 1.35fr 1fr;">' +
-      '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · somente itens da lista da Sofitel</h3>' +
+      '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;"><h3 style="margin:0;">Corte do prédio · somente itens da ' + RO('lista') + '</h3>' +
         (podeAjustar ? '<div class="rn-modo" id="sf-modo-corte"><button type="button" data-mc="padrao"' + (modoCorteSof === 'padrao' ? ' class="ativo"' : '') + '>Padrão</button><button type="button" data-mc="editar"' + (modoCorteSof === 'editar' ? ' class="ativo"' : '') + '>Editar sequência</button></div>' : '') + '</div>' +
-        (modoCorteSof === 'editar' ? htmlEditarSequencia(seqAtiva, linhas, pend) : corte) + '<div class="rn-leg" style="margin-top:8px;"><span>Só itens da lista da Sofitel · Feitos = baixa da AW ou já retirados pela Sofitel · Recusados = a AW deu baixa e a Sofitel não aceitou</span><span><i style="background:#CBEBDA;"></i>andar aprovado (o que sobrou nele não entra mais na conta)</span></div></div>' +
-      '<div class="rn-card"><h3>Onde está o foco · pendentes da Sofitel</h3><div style="font-size:12px; color:#6B756F; margin:2px 0 6px;">Fornecedores</div>' + barras(forn, maxF, '#F3B97C') +
+        (modoCorteSof === 'editar' ? htmlEditarSequencia(seqAtiva, linhas, pend) : corte) + '<div class="rn-leg" style="margin-top:8px;"><span>Só itens da ' + RO('lista') + ' · Feitos = baixa da AW ou já retirados da planilha · ' + (origemSof === 'SOFITEL' ? 'Recusados = a AW deu baixa e a Sofitel não aceitou' : 'Não aceitos = a AW deu baixa e quem fez a lista não aceitou') + '</span><span><i style="background:#CBEBDA;"></i>andar aprovado (o que sobrou nele não entra mais na conta)</span></div></div>' +
+      '<div class="rn-card"><h3>Onde está o foco · pendentes ' + RO('de') + '</h3><div style="font-size:12px; color:#6B756F; margin:2px 0 6px;">Fornecedores</div>' + barras(forn, maxF, '#F3B97C') +
         '<div style="font-size:12px; color:#6B756F; margin:12px 0 6px;">Disciplinas</div>' + barras(disc, maxD, '#B7C9EE') + '</div>' +
     '</div>' +
     '<div class="rn-card" style="margin-top:14px;">' + tfSof.html + '</div>' +
@@ -9826,7 +9877,8 @@ async function renderSofitel(){
     ((podeAjustar && (nOcultos || verOcultosSof)) ? '<div style="text-align:right; font-size:12px; margin-top:8px;"><a href="#" id="sf-ver-ocultos">' + (verOcultosSof ? 'esconder os exemplos ocultos' : 'ver os exemplos ocultos') + '</a></div>' : '') +
     sec(3, 'Como vamos executar', 'a equipe de cada fornecedor e quantos andares ao mesmo tempo') +
     '<div class="rn-card"><div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;"><h3 style="margin:0;">Equipe por fornecedor · para ' + andaresJuntosSof + ' andar' + (andaresJuntosSof > 1 ? 'es' : '') + ' ao mesmo tempo' + (andaresJuntosSof < frentesSof ? ' <span style="font-weight:400; color:#8A938E; text-transform:none;">(só restam ' + andaresJuntosSof + ')</span>' : '') + '</h3>' + seletorFrentes('sf-frentes-eq') + '</div>' +
-      htmlEquipeSof(pend, podeAjustar) + '<div class="rn-leg" style="margin-top:8px;"><span>' + legendaVel + '</span></div></div>' +
+      htmlEquipeSof(pend, podeAjustar) + (() => { const naEq = new Set((equipeSof || []).map((l) => chaveComparacao(l.forn || ''))); const sem = topContagem(pend, (x) => fornecedorEfetivo(x) || 'Sem fornecedor', 60).filter((f) => f.k !== 'Sem fornecedor' && !naEq.has(chaveComparacao(f.k)));
+        return sem.length ? '<div class="rn-sub" style="margin-top:6px;">Fornecedores desta lista sem equipe informada (o prazo usa a média): ' + sem.slice(0, 12).map((f) => esc(f.k) + ' (' + f.n + ')').join(' · ') + (sem.length > 12 ? '…' : '') + '</div>' : ''; })() + '<div class="rn-leg" style="margin-top:8px;"><span>' + legendaVel + '</span></div></div>' +
     sec(4, 'Referência', 'quanto tempo levou cada serviço nos andares já aprovados') +
     '<div class="rn-card"><h3>Tempo de execução nos andares aprovados</h3><div style="font-size:12px; color:#6B756F; margin-bottom:6px;">da 1ª à última correção, por fornecedor e problema</div>' + tempoHtml + '</div>' +
     sec(5, 'Produtos comprados', 'o que ainda vai chegar: entrega e instalação') +
@@ -9846,7 +9898,8 @@ async function renderSofitel(){
   box.querySelectorAll('[data-tf]').forEach((el) => el.addEventListener('click', () => { const r = tfSof.ids[Number(el.dataset.tf)]; if (r) verIdsNaAbaItens(r.ids, r.rotulo + (andarFaltaFazerSof !== 'todos' ? ' · ' + andarFaltaFazerSof + 'º' : ''), () => { const b = document.querySelector('nav.abas button[data-aba="sofitel"]'); if (b) b.click(); }, 'Voltar à aba Sofitel'); }));
   const selTf = box.querySelector('#sf-tf-andar'); if (selTf) selTf.addEventListener('change', () => { andarFaltaFazerSof = selTf.value; const y = window.scrollY; renderSofitel().then(() => window.scrollTo(0, y)); });
   box.querySelectorAll('#sf-modo [data-m]').forEach((b) => b.addEventListener('click', () => { modoVitrineSof = b.dataset.m; renderSofitel(); }));
-  if (podeAjustar) classificarProblemasComIA(pend); // só o que o dicionário não reconheceu, uma vez por descrição
+  box.querySelectorAll('#sf-origem [data-o]').forEach((b) => b.addEventListener('click', () => { origemSof = b.dataset.o; try{ localStorage.setItem('sof_origem', origemSof); }catch(e){} const y = window.scrollY; renderSofitel().then(() => window.scrollTo(0, y)); }));
+  if (podeAjustar && origemSof === 'SOFITEL') classificarProblemasComIA(pend); // só o que o dicionário não reconheceu, uma vez por descrição
 }
 function renderReuniao(){
   const box = document.getElementById('reuniao-pagina'); if (!box) return;
@@ -12090,11 +12143,11 @@ async function apagarTudo(){
    O tipo define quem resolve (AW, Tecnologia, Operação do hotel, Áreas comuns); o administrador
    pode trocar quem resolve cada tipo na própria aba. */
 const FF_GRUPOS = [
-  { id:'aw',    nome:'Obra AW',            cor:'#F3B97C', fundo:'#FCEBDA', texto:'#9A5418' },
-  { id:'tec',   nome:'Tecnologia',         cor:'#9CC9E8', fundo:'#E5F1FA', texto:'#2F5F80' },
-  { id:'ope',   nome:'Operação do hotel',  cor:'#F2D27A', fundo:'#FBF3DA', texto:'#7A5E12' },
-  { id:'comum', nome:'Áreas comuns',       cor:'#C9C2E6', fundo:'#EEEBF7', texto:'#53487F' },
-  { id:'clas',  nome:'A classificar',      cor:'#E8A39A', fundo:'#FBE9E6', texto:'#8A3B30' }
+  { id:'aw',    nome:'Obra AW · Quartos',       cor:'#F3B97C', fundo:'#FCEBDA', texto:'#9A5418' },
+  { id:'comum', nome:'Obra AW · Áreas comuns',  cor:'#C9C2E6', fundo:'#EEEBF7', texto:'#53487F' },
+  { id:'ope',   nome:'Operação do hotel',       cor:'#F2D27A', fundo:'#FBF3DA', texto:'#7A5E12' },
+  { id:'tec',   nome:'Tecnologia',              cor:'#9CC9E8', fundo:'#E5F1FA', texto:'#2F5F80' },
+  { id:'clas',  nome:'A classificar',           cor:'#E8A39A', fundo:'#FBE9E6', texto:'#8A3B30' }
 ];
 function ffNorm(s){ return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\u2010-\u2015]/g, '-').replace(/\s+/g, ' ').trim(); }
 /* [id, nome, quem padrão, teste(t, r, p, pt)] — t = pergunta + resposta, r = resposta, p = pergunta,
@@ -12372,7 +12425,7 @@ function ffLerPlanilha(wb){
 }
 
 
-let ffDias = null, ffStatus = {}, ffRegras = { quem:{}, ajustes:{}, ajustesPor:{}, fornecedor:{}, quemPend:{}, fornPend:{}, itemTipo:{}, itemPend:{} };
+let ffDias = null, ffStatus = {}, ffRegras = { quem:{}, ajustes:{}, ajustesPor:{}, fornecedor:{}, quemPend:{}, fornPend:{}, itemTipo:{}, itemPend:{}, sub:{} };
 let ffUltimo = null; // último ffMontar (para os seletores acharem a pendência)
 let ffRecem = new Set(); // baixas dadas agora: continuam na tela (com ✓) até trocar o filtro, para a lista não pular
 let ffFiltro = { andar:'todos', sit:'falta', busca:'', visao:'disc', forn:'' }, ffExpandidos = new Set(), ffCarregando = null;
@@ -12383,7 +12436,7 @@ async function ffCarregar(forcar){
     const [dias, st, rg] = await Promise.all([store.listCollection('ff_dias'), store.listCollection('ff_status'), store.getDoc('config', 'ff_regras').catch(() => null)]);
     ffDias = (dias || []).filter((d) => d && Array.isArray(d.linhas));
     ffStatus = {}; (st || []).forEach((d) => { ffStatus[d._id] = d; });
-    ffRegras = { quem: (rg && rg.quem) || {}, ajustes: (rg && rg.ajustes) || {}, ajustesPor: (rg && rg.ajustesPor) || {}, fornecedor: (rg && rg.fornecedor) || {}, quemPend: (rg && rg.quemPend) || {}, fornPend: (rg && rg.fornPend) || {}, itemTipo: (rg && rg.itemTipo) || {}, itemPend: (rg && rg.itemPend) || {} };
+    ffRegras = { quem: (rg && rg.quem) || {}, ajustes: (rg && rg.ajustes) || {}, ajustesPor: (rg && rg.ajustesPor) || {}, fornecedor: (rg && rg.fornecedor) || {}, quemPend: (rg && rg.quemPend) || {}, fornPend: (rg && rg.fornPend) || {}, itemTipo: (rg && rg.itemTipo) || {}, itemPend: (rg && rg.itemPend) || {}, sub: (rg && rg.sub) || {} };
   })();
   try{ await ffCarregando; } finally { ffCarregando = null; }
 }
@@ -12460,8 +12513,21 @@ async function ffDefinirItemPend(k, novo){
   if (!exigirAdmin()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
   const p = ffUltimo && ffUltimo.problemas.find((x) => x.k === k); if (!p){ renderFF(); return; }
+  if (p.sub){ const kt = 'q|' + p.local + '|' + p.sub; ffRegras.sub = ffRegras.sub || {}; const sb = Object.assign({}, ffRegras.sub[kt] || {}); if (novo === ffItemFinal(p.sub, p.local)) delete sb.item; else sb.item = novo; if (Object.keys(sb).length) ffRegras.sub[kt] = sb; else delete ffRegras.sub[kt]; renderFF(); await ffSalvarRegras(); return; }
   ffRegras.itemPend = ffRegras.itemPend || {};
   p.k0s.forEach((k0) => { const it0 = k0.split('|').slice(2).join('|'); if (novo === it0) delete ffRegras.itemPend[k0]; else ffRegras.itemPend[k0] = novo; });
+  renderFF(); await ffSalvarRegras();
+}
+async function ffDefinirSub(kt, campo, valor){
+  if (!exigirAdmin()){ renderFF(); return; }
+  if (!(await garantirUsuario())){ renderFF(); return; }
+  ffRegras.sub = ffRegras.sub || {};
+  const s = Object.assign({}, ffRegras.sub[kt] || {});
+  if (campo === 'reset'){ delete ffRegras.sub[kt]; renderFF(); await ffSalvarRegras(); return; }
+  const partes = kt.split('|'), local = partes[1], tipo = partes.slice(2).join('|');
+  if (campo === 'item'){ if (!valor || valor === ffItemFinal(tipo, local)) delete s.item; else s.item = valor; }
+  else if (!valor) delete s[campo]; else s[campo] = valor;
+  if (Object.keys(s).length) ffRegras.sub[kt] = s; else delete ffRegras.sub[kt];
   renderFF(); await ffSalvarRegras();
 }
 async function ffDefinirItemTipo(tipo, novo){
@@ -12500,6 +12566,14 @@ function ffItemFinal(tipo, local){
   if (String(it).indexOf('comum:') === 0) return it;
   return (ffRegras.itemPend || {})['q|' + local + '|' + it] || it;
 }
+/* subitem (o que o hóspede relatou) num quarto: pode ir para outro item e, se mudar fornecedor ou
+   quem resolve, vira uma pendência separada (só ele) */
+function ffSubDe(local, tipo){ return String(tipo).indexOf('comum:') === 0 ? null : ((ffRegras.sub || {})['q|' + local + '|' + tipo] || null); }
+function ffDestinoDoTipo(tipo, local){
+  const sb = ffSubDe(local, tipo), item = (sb && sb.item) || ffItemFinal(tipo, local);
+  const comum = String(item).indexOf('comum:') === 0, separado = !!(sb && (sb.forn || sb.quem));
+  return { item, comum, separado, sb, k: comum ? 'c|' + item : 'q|' + local + '|' + item + (separado ? '|' + tipo : '') };
+}
 function ffChaveStatus(onde, item){ return 'q' + String(onde || '').replace(/[^0-9A-Za-z_-]+/g, '_') + '__' + String(item).replace(/[^0-9A-Za-z_-]+/g, '_'); }
 /* junta tudo: linha → itens; mesmo item no mesmo quarto = 1 pendência */
 function ffMontar(){
@@ -12510,23 +12584,24 @@ function ffMontar(){
     const tipos = ffTiposDaLinha(l);
     l.tipos = tipos;
     const quarto = ffQuartoDe(l.local);
-    l.itens = Array.from(new Set(tipos.map((t) => ffItemFinal(t, quarto || l.local))));
+    l.itens = Array.from(new Set(tipos.map((t) => ffDestinoDoTipo(t, quarto || l.local).item)));
     tipos.forEach((tipo) => {
-      const item = ffItemFinal(tipo, quarto || l.local), comum = String(item).indexOf('comum:') === 0, item0 = ffItemPadraoDoTipo(tipo);
+      const dst = ffDestinoDoTipo(tipo, quarto || l.local), item = dst.item, comum = dst.comum, item0 = ffItemPadraoDoTipo(tipo);
       const local = comum ? item.slice(6).split(': ')[0] : (quarto || l.local);
-      const k = comum ? 'c|' + item : 'q|' + local + '|' + item;
-      if (!probs.has(k)) probs.set(k, { k, item, tipo:item, disc:ffDiscDoItem(item), quarto: comum ? null : quarto, local, andar: comum || !quarto ? null : ffAndarDoQuarto(quarto, l.andar), linhas:[], variantes:new Set(), k0s:new Set(), citado:0, primeiro:'9999', ultimo:'', chegouEm:'9999' });
+      const k = dst.k;
+      if (!probs.has(k)) probs.set(k, { k, item, tipo:item, disc:ffDiscDoItem(item), quarto: comum ? null : quarto, local, andar: comum || !quarto ? null : ffAndarDoQuarto(quarto, l.andar), linhas:[], variantes:new Set(), k0s:new Set(), sub: dst.separado ? tipo : null, citado:0, primeiro:'9999', ultimo:'', chegouEm:'9999' });
       const p = probs.get(k);
       if (p.linhas.indexOf(l) === -1){ p.linhas.push(l); p.citado += (l.n || 1); if (l.dia < p.primeiro) p.primeiro = l.dia; if (l.dia > p.ultimo) p.ultimo = l.dia; if ((l.chegouEm || '') < p.chegouEm) p.chegouEm = l.chegouEm || ''; }
-      if (!comum){ p.variantes.add(tipo); p.k0s.add('q|' + local + '|' + item0); }
+      if (!comum){ p.variantes.add(tipo); if (!(dst.sb && dst.sb.item)) p.k0s.add('q|' + local + '|' + item0); }
     });
   });
   let lista = Array.from(probs.values());
   lista.forEach((p) => {
-    p.quemProprio = (ffRegras.quemPend || {})[p.k] || '';
+    const sb = p.sub ? ffSubDe(p.local, p.sub) : null;
+    p.quemProprio = (ffRegras.quemPend || {})[p.k] || (sb && sb.quem) || '';
     p.quem = p.quemProprio || ffQuemDoItem(p.item);
     if (p.quem !== 'aw') return;
-    const fp = (ffRegras.fornPend || {})[p.k];
+    const fp = (ffRegras.fornPend || {})[p.k] || (sb && sb.forn);
     p.forn = fp ? { nome: fp === '__sem__' ? '' : fp, sugerido:false, escolhido:true, proprio:true } : ffFornecedorDoItem(p.item);
   });
   // "toda a tecnologia: não" não conta de novo no quarto que já tem TV/telefone/Wi-Fi com problema
@@ -12538,7 +12613,7 @@ function ffMontar(){
     return false; });
   lista.forEach((p) => {
     if (p.quem !== 'aw'){ p.sit = 'hotel'; return; }
-    p.chave = ffChaveStatus(p.quarto || p.local, p.item);
+    p.chave = ffChaveStatus(p.quarto || p.local, p.item + (p.sub ? '__' + p.sub : ''));
     let s = ffStatus[p.chave];
     if (!s){ // baixas dadas na versão anterior (por tipo relatado): vale se todos os relatos do item tiveram baixa
       const vs = Array.from(p.variantes).map((v) => ffStatus[ffChaveStatus(p.quarto || p.local, v)]);
@@ -12604,7 +12679,7 @@ async function ffMarcar(chave, acao){
   if (!r || !r.ok){ if (antes) ffStatus[chave] = antes; else delete ffStatus[chave]; renderFF(); avisoFlutuante('Não foi salvo (sem conexão?). Tente de novo.', 'erro'); }
 }
 async function ffSalvarRegras(){
-  const r = await store.setDoc('config', 'ff_regras', { quem:ffRegras.quem, ajustes:ffRegras.ajustes, ajustesPor:ffRegras.ajustesPor, fornecedor:ffRegras.fornecedor, quemPend:ffRegras.quemPend, fornPend:ffRegras.fornPend, itemTipo:ffRegras.itemTipo, itemPend:ffRegras.itemPend, em:new Date().toISOString(), por:usuarioAtual });
+  const r = await store.setDoc('config', 'ff_regras', { quem:ffRegras.quem, ajustes:ffRegras.ajustes, ajustesPor:ffRegras.ajustesPor, fornecedor:ffRegras.fornecedor, quemPend:ffRegras.quemPend, fornPend:ffRegras.fornPend, itemTipo:ffRegras.itemTipo, itemPend:ffRegras.itemPend, sub:ffRegras.sub, em:new Date().toISOString(), por:usuarioAtual });
   if (!r || !r.ok) avisoFlutuante('Não foi salvo (sem conexão?).', 'erro');
 }
 /* administrador reclassifica uma linha: 'auto' (volta ao automático), 'sem' (sem pendência) ou um item */
@@ -12649,8 +12724,8 @@ function ffExportar(){
   ffDias.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).forEach((d) => {
     const aoa = [['Pendências de manutenção – Sofitel Rio de Janeiro Ipanema'], ['Data de hospedagem', 'Local', 'Andar', 'Seção', 'Parte', 'Pergunta', 'Resposta de quem ficou hospedado', 'Especialidade', 'Status', 'Responsável', 'Solução', 'Prazo', 'Item (agrupado)']];
     d.linhas.forEach((l0) => {
-      const l = Object.assign({ dia:d.dia, aba:d.aba }, l0), quarto = ffQuartoDe(l.local), itens = Array.from(new Set(ffTiposDaLinha(l).map((t) => ffItemFinal(t, quarto || l.local))));
-      const ps = itens.map((it) => porK.get(String(it).indexOf('comum:') === 0 ? 'c|' + it : 'q|' + (quarto || l.local) + '|' + it)).filter(Boolean);
+      const l = Object.assign({ dia:d.dia, aba:d.aba }, l0), quarto = ffQuartoDe(l.local), dsts = ffTiposDaLinha(l).map((t) => ffDestinoDoTipo(t, quarto || l.local)), itens = Array.from(new Set(dsts.map((d) => d.item)));
+      const ps = Array.from(new Set(dsts.map((d) => porK.get(d.k)).filter(Boolean)));
       const resp = Array.from(new Set(ps.map((p) => nomeG(p.quem)))).join(' + ') || (itens.length ? '' : 'Sem pendência (' + ffMotivoSemPendencia(l).txt + ')');
       const feitos = ps.filter((p) => p.sit === 'feito');
       const sol = feitos.map((p) => 'Executado AW ' + new Date(p.status.feitoEm).toLocaleDateString('pt-BR')).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
@@ -12684,13 +12759,14 @@ function ffTrechoDoProblema(p){
   if (!l) return '';
   if (Array.isArray(l.itens) && l.itens.length > 1){
     const pedacos = String(l.resposta || '').replace(/([.!;])\s+/g, '$1\n').replace(/,\s+(?=(?:and )?[a-z]+ing\b)/gi, '\n').replace(/,\s+and\s+/gi, '\n').split(/\n+/).map((x) => x.replace(/^[-•*]\s*/, '').trim()).filter((x) => x.length > 3);
-    const achou = pedacos.find((x) => { const n = ffNorm(x); return String(p.item).indexOf('comum:') === 0 ? ffAssuntoAreaComum(n, '', ffNorm(p.local)) === ffNomeItem(p.item) : ffItemFinal(ffTipoDoTexto(n, n, '', '') || '', p.local) === p.item; });
+    const achou = pedacos.find((x) => { const n = ffNorm(x); return String(p.item).indexOf('comum:') === 0 ? ffAssuntoAreaComum(n, '', ffNorm(p.local)) === ffNomeItem(p.item) : ffDestinoDoTipo(ffTipoDoTexto(n, n, '', '') || '', p.local).item === p.item; });
     if (achou) return achou;
   }
   return ffTrecho(l);
 }
 function ffOrdQuarto(a, b){ return (Number(a) || 0) - (Number(b) || 0) || String(a).localeCompare(String(b)); }
 function ffVariantesTxt(p){
+  if (p.sub) return FF_CURTO[p.sub] || ffNomeTipo(p.sub);
   const it = FF_ITENS[p.item]; if (!it) return '';
   if (it.tipos.length < 2 && Array.from(p.variantes).every((v) => it.tipos.indexOf(v) !== -1)) return '';
   return Array.from(p.variantes).map((v) => FF_CURTO[v] || ffNomeTipo(v)).join(' · ');
@@ -12708,10 +12784,11 @@ async function renderFF(){
   const diasOrd = (ffDias || []).map((d) => d.dia).filter(Boolean).sort();
   const imp = (ffDias || []).reduce((a, d) => (!a || (d.importadoEm || '') > (a.importadoEm || '') ? d : a), null);
   const primeiraLeva = m.linhas.every((l) => l.chegouEm === m.ultimaLeva);
-  const acoes = '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+  const acoes = '<div class="ff-acoes-topo">' +
     (adm ? '<label class="btn fantasma" style="cursor:pointer;">Importar planilha<input type="file" id="ff-input" accept=".xlsx" hidden></label>' : '') +
-    (adm && P.length ? '<button type="button" class="btn fantasma" id="ff-exportar">Exportar para o cliente</button>' : '') + '</div>';
-  const topo = '<div class="rn-topo"><div><h2>Family &amp; Friends · comentários dos hóspedes</h2><div class="rn-sub">' +
+    (P.length ? '<button type="button" class="btn fantasma" id="ff-pdf-resumo">PDF resumo</button>' : '') +
+    (adm && P.length ? '<button type="button" class="btn fantasma" id="ff-exportar">Planilha para o cliente</button>' : '') + '</div>';
+  const topo = '<div class="rn-topo"><div><h2>Family &amp; Friends — Comentários hóspedes</h2><div class="rn-sub">' +
     (diasOrd.length ? diasOrd.length + ' dias de hospedagem (' + dataCurta(diasOrd[0]) + ' a ' + dataCurta(diasOrd[diasOrd.length - 1]) + ')' + (imp ? ' · planilha importada em ' + dataHoraCurta(imp.importadoEm) + (imp.importadoPor ? ' por ' + esc(imp.importadoPor) : '') : '') : 'nenhuma planilha importada') +
     ' · separado da lista IAC/Sofitel (não soma nos totais)</div></div>' + acoes + '</div>';
   if (!P.length && !m.linhas.length){
@@ -12722,14 +12799,7 @@ async function renderFF(){
     return '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="9"/><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#8CCBA8" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(c*p/100)+' '+c+'" transform="rotate(-90 '+cx+' '+cx+')"/><text x="'+cx+'" y="'+(cx+5)+'" text-anchor="middle" font-size="15" font-weight="700" fill="#2E6B4A">'+p+'%</text></svg>'; };
   const hotel = P.filter((p) => p.quem === 'tec' || p.quem === 'ope'), comum = P.filter((p) => p.quem === 'comum'), clas = P.filter((p) => p.quem === 'clas');
   const quartosAw = new Set(awFalta.map((p) => p.local));
-  const kpis = '<div class="rn-kpis ff-kpis">' +
-    '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(totalComent) + '</div><div class="rn-rot">comentários recebidos</div><div class="rn-leg" style="margin-top:6px;"><span>' + fmt(P.length) + ' pendências agrupadas</span></div></div>' +
-    '<div class="rn-kpi" style="display:block; background:#FCEBDA;"><div class="rn-big" style="color:#B4661F;">' + fmt(awFalta.length) + '</div><div class="rn-rot">da AW · falta fazer</div><div class="rn-leg" style="margin-top:6px;"><span>em ' + quartosAw.size + ' quartos' + (voltaram.length ? ' · ' + voltaram.length + ' voltaram' : '') + '</span></div></div>' +
-    '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(awFeito.length) + '</div><div class="rn-rot">da AW · feitas</div></div></div>' +
-    '<div class="rn-kpi" style="display:block; background:#E5F1FA;"><div class="rn-big" style="color:#2F5F80;">' + fmt(hotel.length) + '</div><div class="rn-rot">para o hotel</div><div class="rn-leg" style="margin-top:6px;"><span>tecnologia ' + P.filter((p) => p.quem === 'tec').length + ' · operação ' + P.filter((p) => p.quem === 'ope').length + '</span></div></div>' +
-    '<div class="rn-kpi" style="display:block; background:#EEEBF7;"><div class="rn-big" style="color:#53487F;">' + fmt(comum.length) + '</div><div class="rn-rot">áreas comuns</div></div>' +
-    '<div class="rn-kpi" style="display:block;" data-ff-ir="ff-conf"><div class="rn-big" style="color:#6B756F;">' + fmt(semPendN) + '</div><div class="rn-rot">sem pendência</div><div class="rn-leg" style="margin-top:6px;"><span>ver na conferência ↓</span></div></div>' +
-  '</div>';
+  const R = ffResumo(m), RH = ffHtmlResumo(R, fmt);
   // ---- o que mudou na última importação com novidade ----
   let novidade = '';
   if (m.ultimaLeva){
@@ -12743,21 +12813,12 @@ async function renderFF(){
   const totP = Math.max(1, P.length);
   const exemplos = (gid) => { const c = new Map(); P.filter((p) => p.quem === gid).forEach((p) => { const n = gid === 'comum' ? p.local : ffNomeItem(p.item); c.set(n, (c.get(n) || 0) + 1); }); return Array.from(c.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]).join(', '); };
   const sep = '<div class="ff-sep">' + FF_GRUPOS.map((g) => { const n = P.filter((p) => p.quem === g.id).length; return n ? '<span style="width:' + (n / totP * 100) + '%; background:' + g.cor + ';" title="' + g.nome + ': ' + n + '"></span>' : ''; }).join('') + '</div>' +
-    '<div class="ff-sep-leg">' + FF_GRUPOS.map((g) => { const n = P.filter((p) => p.quem === g.id).length; if (!n) return '';
-      return '<div class="ff-sep-item" style="background:' + g.fundo + ';"><b style="color:' + g.texto + ';">' + fmt(n) + '</b><span><b>' + g.nome + '</b><small>' + esc(exemplos(g.id)) + '</small></span></div>'; }).join('') + '</div>';
+    '';
   // ---- 2. AW por andar (resumo) ----
   const andaresTodos = Array.from(new Set((andaresConhecidos || []).map(Number).filter((a) => a >= 1 && a < 100).concat(awAtivos.map((p) => Number(p.andar)).filter(Boolean)))).sort((a, b) => b - a);
-  const corte = '<div class="ff-corte-cab"><span></span><span>avanço (feitas ÷ pendências da AW)</span><span class="sf-c">Pendências</span><span class="sf-c">Feitas</span><span class="sf-c">Falta fazer</span><span>Quartos com pendência</span></div>' +
-    andaresTodos.map((a) => { const ps = awAtivos.filter((p) => Number(p.andar) === a), f = ps.filter((p) => p.sit === 'feito').length, fa = ps.length - f, pc = ps.length ? Math.round(f / ps.length * 100) : 0;
-      const qMap = new Map(); ps.filter((p) => p.sit !== 'feito').forEach((p) => qMap.set(p.quarto, (qMap.get(p.quarto) || 0) + 1));
-      const chips = Array.from(qMap.entries()).sort((x, y) => ffOrdQuarto(x[0], y[0])).map(([q, n]) => '<button type="button" class="ff-qchip" data-ff-quarto="' + esc(q) + '">' + esc(ffQuartoCurto(q)) + ' <b>' + n + '</b></button>').join('');
-      return '<div class="ff-corte-linha' + (ffFiltro.andar === String(a) ? ' sel' : '') + '"' + (!ps.length ? ' style="opacity:.5;"' : '') + ' data-ff-andar="' + a + '"><b>' + a + 'º</b><div class="sf-avanco"><span style="width:' + pc + '%;"></span><em>' + (ps.length ? pc + '%' : 'sem comentários da AW') + '</em></div>' +
-        '<span class="sf-c">' + (ps.length ? fmt(ps.length) : '—') + '</span><span class="sf-c" style="color:#2E6B4A;">' + (f ? fmt(f) : '—') + '</span><span class="sf-c" style="color:#B4661F;">' + (fa ? fmt(fa) : '—') + '</span><div class="ff-qchips">' + chips + '</div></div>'; }).join('');
+  const corte = ffHtmlAndares(R, andaresTodos, fmt);
   // ---- 3. o que a AW precisa fazer ----
-  const bq = ffNorm(ffFiltro.busca);
-  const passa = (p) => (ffFiltro.andar === 'todos' || String(p.andar) === ffFiltro.andar) && (!ffFiltro.forn || (ffFiltro.forn === '__sem__' ? !(p.forn && p.forn.nome) : (p.forn && p.forn.nome) === ffFiltro.forn)) &&
-    (ffFiltro.sit === 'todos' || (ffFiltro.sit === 'falta' && (p.sit === 'falta' || p.sit === 'voltou' || ffRecem.has(p.k))) || (ffFiltro.sit === 'feito' && p.sit === 'feito') || (ffFiltro.sit === 'naoProcede' && p.sit === 'naoProcede')) &&
-    (!bq || ffOnde(p).indexOf(bq.replace(/^0+/, '')) !== -1 || ffNorm(ffNomeItem(p.item) + ' ' + ffNomeDisc(p.disc) + ' ' + ffVariantesTxt(p)).indexOf(bq) !== -1);
+  const passa = (p) => ffPassaFiltro(p, true);
   const awVis = aw.filter(passa);
   const fornNomes = ffContagemFornecedores().nomes;
   const selForn = (item) => { const f = ffFornecedorDoItem(item), sugN = ffRegras.fornecedor && ffRegras.fornecedor[item] ? ((ffContagemFornecedores().porItem[item] || [])[0] || (FF_BASE_FORN[item] ? (ffContagemFornecedores().porItem[FF_BASE_FORN[item]] || [])[0] : null)) : (f.sugerido ? [f.nome] : null), sug = sugN;
@@ -12771,7 +12832,20 @@ async function renderFF(){
   const selQuem = (item) => adm ? '<select class="ff-sel-quem" data-ff-item="' + esc(item) + '" title="Quem resolve este item">' + FF_GRUPOS.map((g) => '<option value="' + g.id + '"' + (ffQuemDoItem(item) === g.id ? ' selected' : '') + '>' + g.nome + '</option>').join('') + '</select>' : '';
   const linhaComent = (l, prefixo) => '<div class="ff-det-l"><span class="ff-det-d">' + (prefixo || '') + dataCurta(l.dia) + (l.n > 1 ? ' · ' + l.n + '×' : '') + '</span><span>' + (l.pergunta ? '<i>' + esc(l.pergunta) + '</i> ' : '') + esc(l.resposta || '—') + '</span>' +
     (adm ? '<select class="ff-sel-linha" data-ff-linha="' + esc(l.id) + '" title="Classificação desta linha">' + ffOpcoesLinha(l) + '</select>' : '') + '</div>';
-  const detalhe = (p, extra) => '<div class="ff-det">' + p.linhas.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((l) => linhaComent(l)).join('') +
+  const blocoSubs = (p) => { if (!adm || String(p.item).indexOf('comum:') === 0) return '';
+    const tipos = p.sub ? [p.sub] : Array.from(p.variantes);
+    if (!tipos.length) return '';
+    return '<div class="ff-subs"><small>' + (p.sub ? 'Subitem separado neste quarto (tem fornecedor ou responsável próprio)' : 'Subitens neste quarto · mude só um deles: outro item (disciplina), outro fornecedor ou outro responsável') + '</small>' +
+      tipos.map((t) => { const kt = 'q|' + p.local + '|' + t, sb = ffSubDe(p.local, t) || {}, itemAtual = sb.item || ffItemFinal(t, p.local), doItem = ffFornecedorDoItem(itemAtual);
+        const nomes = Array.from(new Set(fornNomes.concat(sb.forn && sb.forn !== '__sem__' ? [sb.forn] : [])));
+        return '<div class="ff-sub-l"><b>' + esc(FF_CURTO[t] || ffNomeTipo(t)) + '</b>' +
+          '<select class="ff-sel-sub' + (sb.item ? ' proprio' : '') + '" data-ff-sub="' + esc(kt) + '" data-ff-subcampo="item" title="Item (disciplina) deste subitem">' + ffOpcoesItens(itemAtual) + '</select>' +
+          '<select class="ff-sel-sub' + (sb.forn ? ' proprio' : '') + '" data-ff-sub="' + esc(kt) + '" data-ff-subcampo="forn" title="Fornecedor deste subitem"><option value=""' + (!sb.forn ? ' selected' : '') + '>' + (doItem.nome ? esc(doItem.nome) : 'Sem fornecedor') + ' (do item)</option>' +
+            nomes.map((n) => '<option value="' + esc(n) + '"' + (sb.forn === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '<option value="__sem__"' + (sb.forn === '__sem__' ? ' selected' : '') + '>Sem fornecedor</option></select>' +
+          '<select class="ff-sel-sub' + (sb.quem ? ' proprio' : '') + '" data-ff-sub="' + esc(kt) + '" data-ff-subcampo="quem" title="Quem resolve este subitem"><option value=""' + (!sb.quem ? ' selected' : '') + '>' + esc(G(ffQuemDoItem(itemAtual)).nome) + ' (do item)</option>' +
+            FF_GRUPOS.map((g) => '<option value="' + g.id + '"' + (sb.quem === g.id ? ' selected' : '') + '>' + g.nome + '</option>').join('') + '</select>' +
+          (Object.keys(sb).length ? '<button type="button" class="chip-acao" data-ff-sub="' + esc(kt) + '" data-ff-subcampo="reset">Desfazer</button>' : '') + '</div>'; }).join('') + '</div>'; };
+  const detalhe = (p, extra) => '<div class="ff-det">' + blocoSubs(p) + p.linhas.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((l) => linhaComent(l)).join('') +
     (p.status && p.status.feitoEm ? '<div class="ff-det-baixa">Baixa AW: ' + dataHoraCurta(p.status.feitoEm) + (p.status.feitoPor ? ' · ' + esc(p.status.feitoPor) : '') + '</div>' : '') +
     (p.status && p.status.naoProcedeEm ? '<div class="ff-det-baixa">Não procede: ' + dataHoraCurta(p.status.naoProcedeEm) + (p.status.naoProcedePor ? ' · ' + esc(p.status.naoProcedePor) : '') + '</div>' : '') + (extra ? '<div class="ff-det-baixa">' + extra + '</div>' : '') + '</div>';
   const botao = (p) => p.sit === 'feito' ? '<button type="button" class="chip-acao marcado" data-ff-acao="desfazer" data-ff-ch="' + esc(p.chave) + '">✓ Feito</button>'
@@ -12836,14 +12910,15 @@ async function renderFF(){
               (ffExpandidos.has(p.k) ? detalhe(p, extraDet(p)) : ''); }).join('') + '</div>';
       }).join('') + '</div></div>'; }).join('');
   const optAndar = '<option value="todos">Todos os andares</option>' + andaresTodos.filter((a) => aw.some((p) => Number(p.andar) === a)).map((a) => '<option value="' + a + '"' + (ffFiltro.andar === String(a) ? ' selected' : '') + '>' + a + 'º andar</option>').join('');
+  const pdfLista = '<button type="button" class="btn fantasma ff-btn-pdf" id="ff-pdf-lista" title="Gera o PDF exatamente com o que está filtrado abaixo">PDF ' + (ffFiltro.forn ? 'do fornecedor' : 'da lista') + '</button>';
   const filtros = '<div class="ff-filtros"><div class="ff-seg ff-visao">' + [['disc', 'Por disciplina'], ['andar', 'Por andar']].map(([v, t]) => '<button type="button" data-ff-visao="' + v + '" class="' + (ffFiltro.visao === v ? 'ativo' : '') + '">' + t + '</button>').join('') + '</div>' +
     '<select id="ff-f-andar">' + optAndar + '</select>' +
     '<div class="ff-seg">' + [['falta', 'Falta fazer', awFalta.length], ['feito', 'Feitas', awFeito.length], ['todos', 'Todas', aw.length]].concat(aw.some((p) => p.sit === 'naoProcede') ? [['naoProcede', 'Não procede', aw.filter((p) => p.sit === 'naoProcede').length]] : []).map(([v, t, n]) => '<button type="button" data-ff-sit="' + v + '" class="' + (ffFiltro.sit === v ? 'ativo' : '') + '">' + t + ' <b>' + n + '</b></button>').join('') + '</div>' +
     (() => { const cont = new Map(); let sem = 0; aw.filter((p) => p.sit === 'falta' || p.sit === 'voltou').forEach((p) => { const n = p.forn && p.forn.nome; if (n) cont.set(n, (cont.get(n) || 0) + 1); else sem++; });
       const nomes = Array.from(new Set(Array.from(cont.keys()).concat(ffFiltro.forn && ffFiltro.forn !== '__sem__' ? [ffFiltro.forn] : []))).sort((a, b) => (cont.get(b) || 0) - (cont.get(a) || 0) || a.localeCompare(b, 'pt-BR'));
       return '<select id="ff-f-forn"><option value="">Todos os fornecedores</option>' + nomes.map((n) => '<option value="' + esc(n) + '"' + (ffFiltro.forn === n ? ' selected' : '') + '>' + esc(n) + ' (' + (cont.get(n) || 0) + ' a fazer)</option>').join('') + (sem || ffFiltro.forn === '__sem__' ? '<option value="__sem__"' + (ffFiltro.forn === '__sem__' ? ' selected' : '') + '>Sem fornecedor (' + sem + ')</option>' : '') + '</select>'; })() +
-    '<input type="search" id="ff-f-busca" placeholder="Buscar quarto, item ou disciplina" value="' + esc(ffFiltro.busca) + '">' +
-    (ffFiltro.andar !== 'todos' || ffFiltro.busca || ffFiltro.forn ? '<button type="button" class="chip-acao" id="ff-f-limpar">Limpar filtro</button>' : '') + '</div>';
+    '<input type="search" id="ff-f-busca" placeholder="Buscar quarto, item, disciplina ou fornecedor" value="' + esc(ffFiltro.busca) + '">' +
+    (ffFiltro.andar !== 'todos' || ffFiltro.busca || ffFiltro.forn ? '<button type="button" class="chip-acao" id="ff-f-limpar">Limpar filtro</button>' : '') + pdfLista + '</div>';
   const listaAw = (ffFiltro.visao === 'andar' ? porAndar : porDisc) || '<div class="rn-sub" style="padding:10px 0;">Nada nesse filtro.</div>';
   // ---- 4. para o hotel / áreas comuns ----
   const blocoHotel = (lista, g) => { if (!lista.length) return '';
@@ -12853,9 +12928,9 @@ async function renderFF(){
       ordenado.map(([item, ps]) => { const k = 'h|' + item, aberto = ffExpandidos.has(k);
         const locais = ps.map(ffOnde).sort(ffOrdQuarto), vars = Array.from(new Set(ps.flatMap((p) => Array.from(p.variantes)))).filter(() => FF_ITENS[item] && FF_ITENS[item].tipos.length > 1).map((v) => FF_CURTO[v] || ffNomeTipo(v));
         return '<div class="ff-h-l"><span class="ff-h-t" data-ff-exp="' + esc(k) + '">' + (g.id === 'comum' ? '<small>' + esc(ps[0].local) + ' · </small>' : '') + '<b>' + esc(ffNomeItem(item)) + '</b>' + (vars.length ? ' <small>(' + esc(vars.join(', ')) + ')</small>' : '') + '</span><span class="ff-h-q">' + (g.id === 'comum' ? (ps.reduce((s, p) => s + p.citado, 0) + '×') : locais.length + ' · ' + esc(locais.slice(0, 16).join(', ')) + (locais.length > 16 ? '…' : '')) + '</span>' + selQuem(item) + '</div>' +
-          (aberto && adm ? relatos(item, ps) + '<div class="ff-h-pends"><small>Por local: item e quem resolve</small>' + ps.slice().sort((a, b) => ffOrdQuarto(ffOnde(a), ffOnde(b))).map((p) => '<span>' + esc(ffOnde(p)) + ' ' + selItemPend(p) + selQuemPend(p) + '</span>').join('') + '</div>' : '') +
+          (aberto && adm ? relatos(item, ps) + '<div class="ff-h-pends"><small>Por local: item e quem resolve</small>' + ps.slice().sort((a, b) => ffOrdQuarto(ffOnde(a), ffOnde(b))).map((p) => '<span>' + esc(ffOnde(p)) + (p.sub ? ' · ' + esc(FF_CURTO[p.sub] || ffNomeTipo(p.sub)) : '') + ' ' + selItemPend(p) + selQuemPend(p) + (p.sub ? '<button type="button" class="chip-acao" data-ff-sub="' + esc('q|' + p.local + '|' + p.sub) + '" data-ff-subcampo="reset">Voltar ao item</button>' : '') + '</span>').join('') + '</div>' : '') +
           (aberto ? '<div class="ff-det">' + ps.flatMap((p) => p.linhas.map((l) => ({ p, l }))).sort((a, b) => String(b.l.dia).localeCompare(String(a.l.dia))).slice(0, 80).map(({ p, l }) => linhaComent(l, p.quarto ? ffQuartoCurto(p.quarto) + ' · ' : '')).join('') + '</div>' : ''); }).join('') + '</div>'; };
-  const hotelHtml = blocoHotel(P.filter((p) => p.quem === 'ope'), G('ope')) + blocoHotel(P.filter((p) => p.quem === 'tec'), G('tec')) + blocoHotel(comum, G('comum')) + blocoHotel(clas, G('clas'));
+  const hotelHtml = blocoHotel(comum, G('comum')) + blocoHotel(P.filter((p) => p.quem === 'ope'), G('ope')) + blocoHotel(P.filter((p) => p.quem === 'tec'), G('tec')) + blocoHotel(clas, G('clas'));
   // ---- 5. conferência: toda linha da planilha tem destino ----
   const comPendN = totalComent - semPendN;
   const conf = (() => {
@@ -12873,11 +12948,11 @@ async function renderFF(){
       (lista ? '<div class="ff-conf-lista">' + lista + '</div>' : '');
   })();
   const sec = (n, titulo, sub, id) => '<div class="sf-sec"' + (id ? ' id="' + id + '"' : '') + '><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
-  box.innerHTML = topo + kpis + novidade +
-    sec(1, 'Quem resolve', 'Cada comentário vira uma pendência por item (o que a equipe resolve) e quarto: "Automação no 808" é uma pendência, mesmo que o hóspede tenha citado painel aceso e master off.' + (adm ? ' Para mudar quem resolve um item, use a caixa ao lado do nome.' : '')) + sep +
-    sec(2, 'Da AW por andar', 'Toque num andar ou num quarto para filtrar a lista abaixo.') + '<div class="ff-corte">' + corte + '</div>' +
-    sec(3, 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Toque no quarto ou no item para ver o que o hóspede escreveu. "Feito" dá baixa; se voltar a aparecer numa planilha nova, fica marcado "voltou".') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
-    (hotelHtml ? sec(4, 'Para o hotel encaminhar', 'Não é da AW: fica aqui para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
+  box.innerHTML = topo + novidade +
+    sec(1, 'Resumo', 'O mesmo que sai no "PDF resumo". Obra AW · Quartos é a sua obra; áreas comuns, operação e tecnologia ficam em "Outras frentes".') + RH.cards + sep + RH.tabelas +
+    sec(2, 'Por andar · Obra AW · Quartos', 'Em cada quarto: quanto falta e os fornecedores do que falta. Toque no andar ou no quarto para filtrar a lista.') + '<div class="ff-andares">' + corte + '</div>' +
+    sec(3, 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Escolha um fornecedor e gere o PDF só dele. Toque no quarto para ver o que o hóspede escreveu e mudar o subitem.') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
+    (hotelHtml ? sec(4, 'Outras frentes', 'Obra AW · Áreas comuns, operação e tecnologia: para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
     sec(hotelHtml ? 5 : 4, 'Conferência da planilha', 'Toda linha da planilha do cliente tem destino: virou pendência ou está aqui como sem pendência, com o motivo.', 'ff-conf') + conf +
     '<div class="rn-sub" style="margin-top:18px;">Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div>';
   ffLigar(box);
@@ -12886,10 +12961,15 @@ function ffOndeLinha(l){ const q = ffQuartoDe(l.local); return q ? ffQuartoCurto
 function ffLigar(box){
   const inp = box.querySelector('#ff-input');
   if (inp) inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; if (!f) return; await ffImportarBuffer(await f.arrayBuffer(), f.name); inp.value = ''; renderFF(); });
+  const pr = box.querySelector('#ff-pdf-resumo'); if (pr) pr.addEventListener('click', async () => { pr.disabled = true; try{ await ffPdfResumo(); }catch(e){ avisoFlutuante('Não consegui gerar o PDF: ' + (e.message || e), 'erro'); } finally { pr.disabled = false; } });
+  const pl = box.querySelector('#ff-pdf-lista'); if (pl) pl.addEventListener('click', async () => { pl.disabled = true; try{ await ffPdfLista(); }catch(e){ avisoFlutuante('Não consegui gerar o PDF: ' + (e.message || e), 'erro'); } finally { pl.disabled = false; } });
+  box.querySelectorAll('[data-ff-forn]').forEach((el) => el.addEventListener('click', () => { ffRecem.clear(); ffFiltro.forn = el.dataset.ffForn; ffFiltro.andar = 'todos'; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
   const ex = box.querySelector('#ff-exportar'); if (ex) ex.addEventListener('click', () => { try{ ffExportar(); }catch(e){ avisoFlutuante('Não consegui gerar a planilha: ' + (e.message || e), 'erro'); } });
   box.querySelectorAll('[data-ff-exp]').forEach((el) => el.addEventListener('click', () => { const k = el.dataset.ffExp; if (ffExpandidos.has(k)) ffExpandidos.delete(k); else ffExpandidos.add(k); renderFF(); }));
   box.querySelectorAll('[data-ff-acao]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); if (el.dataset.ffAcao === 'feito' && el.dataset.ffK) ffRecem.add(el.dataset.ffK); ffMarcar(el.dataset.ffCh, el.dataset.ffAcao); }));
   box.querySelectorAll('.ff-sel-pend').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => el.dataset.ffCampo === 'item' ? ffDefinirItemPend(el.dataset.ffPend, el.value) : ffDefinirPend(el.dataset.ffPend, el.dataset.ffCampo, el.value)); });
+  box.querySelectorAll('.ff-sel-sub').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirSub(el.dataset.ffSub, el.dataset.ffSubcampo, el.value)); });
+  box.querySelectorAll('button[data-ff-subcampo="reset"]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); ffDefinirSub(el.dataset.ffSub, 'reset'); }));
   box.querySelectorAll('.ff-sel-tipo').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirItemTipo(el.dataset.ffTipo, el.value)); });
   box.querySelectorAll('.ff-sel-quem').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', async () => { if (!exigirAdmin()) { renderFF(); return; } const it = el.dataset.ffItem; const padrao = String(it).indexOf('comum:') === 0 ? 'comum' : ((FF_ITENS[it] || {}).quem || 'clas'); if (el.value === padrao) delete ffRegras.quem[it]; else ffRegras.quem[it] = el.value; renderFF(); await ffSalvarRegras(); }); });
   box.querySelectorAll('.ff-sel-linha').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffAjustarLinha(el.dataset.ffLinha, el.value)); });
@@ -12906,6 +12986,234 @@ function ffLigar(box){
 }
 try{ const v = localStorage.getItem('ff_visao'); if (v === 'andar' || v === 'disc') ffFiltro.visao = v; }catch(e){}
 function ffRolarLista(){ const el = document.getElementById('ff-lista-aw'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+
+/* ===================== FAMILY & FRIENDS · RESUMO (o mesmo na aba e no PDF) ===================== */
+function ffFornNome(p){ return (p.forn && p.forn.nome) || 'Sem fornecedor'; }
+function ffPassaFiltro(p, comRecem){
+  const bq = ffNorm(ffFiltro.busca);
+  return (ffFiltro.andar === 'todos' || String(p.andar) === ffFiltro.andar) &&
+    (!ffFiltro.forn || (ffFiltro.forn === '__sem__' ? !(p.forn && p.forn.nome) : (p.forn && p.forn.nome) === ffFiltro.forn)) &&
+    (ffFiltro.sit === 'todos' || (ffFiltro.sit === 'falta' && (p.sit === 'falta' || p.sit === 'voltou' || (comRecem && ffRecem.has(p.k)))) || (ffFiltro.sit === 'feito' && p.sit === 'feito') || (ffFiltro.sit === 'naoProcede' && p.sit === 'naoProcede')) &&
+    (!bq || ffOnde(p).indexOf(bq.replace(/^0+/, '')) !== -1 || ffNorm(ffNomeItem(p.item) + ' ' + ffNomeDisc(p.disc) + ' ' + ffVariantesTxt(p) + ' ' + ffFornNome(p)).indexOf(bq) !== -1);
+}
+function ffResumo(m){
+  const P = m.problemas, ehFeita = (p) => p.sit === 'feito';
+  const aw = P.filter((p) => p.quem === 'aw' && p.sit !== 'naoProcede');
+  const agrupar = (lista, chave, nome) => { const mp = new Map();
+    lista.forEach((p) => { const k = chave(p); if (!mp.has(k)) mp.set(k, { k, nome: nome(k), tot:0, feitas:0, quartos:new Set() }); const r = mp.get(k); r.tot++; if (ehFeita(p)) r.feitas++; r.quartos.add(p.local); });
+    return Array.from(mp.values()).map((r) => Object.assign(r, { falta: r.tot - r.feitas, pct: r.tot ? Math.round(r.feitas / r.tot * 100) : 0 }))
+      .sort((a, b) => b.tot - a.tot || b.falta - a.falta || String(a.nome).localeCompare(String(b.nome), 'pt-BR')); };
+  const disciplinas = agrupar(aw, (p) => p.disc, (k) => ffNomeDisc(k));
+  const fornecedores = agrupar(aw, ffFornNome, (k) => k);
+  // os que mais se repetem: o que o hóspede relatou (subitem), em quantos quartos
+  const sub = new Map();
+  aw.forEach((p) => p.variantes.forEach((v) => { const k = v + '|' + p.item; if (!sub.has(k)) sub.set(k, { tipo:v, item:p.item, quartos:new Set(), citado:0, feitas:0 });
+    const r = sub.get(k); r.quartos.add(p.local); r.citado += p.citado; if (ehFeita(p)) r.feitas++; }));
+  const repetidos = Array.from(sub.values()).sort((a, b) => b.quartos.size - a.quartos.size || b.citado - a.citado).slice(0, 5);
+  // por andar → quarto → fornecedores do que falta
+  const andares = Array.from(new Set(aw.map((p) => Number(p.andar)).filter(Boolean))).sort((a, b) => b - a).map((a) => {
+    const ps = aw.filter((p) => Number(p.andar) === a), f = ps.filter(ehFeita).length, qm = new Map();
+    ps.forEach((p) => { if (!qm.has(p.local)) qm.set(p.local, []); qm.get(p.local).push(p); });
+    const quartos = Array.from(qm.entries()).sort((x, y) => ffOrdQuarto(x[0], y[0])).map(([q, qs]) => { const fq = qs.filter(ehFeita).length, fm = new Map();
+      qs.forEach((p) => { if (ehFeita(p)) return; const n = ffFornNome(p); fm.set(n, (fm.get(n) || 0) + 1); });
+      return { q, tot: qs.length, feitas: fq, falta: qs.length - fq, forns: Array.from(fm.entries()).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0], 'pt-BR')).map(([nome, n]) => ({ nome, n })) }; });
+    return { a, tot: ps.length, feitas: f, falta: ps.length - f, pct: ps.length ? Math.round(f / ps.length * 100) : 0, quartos }; });
+  const grupos = FF_GRUPOS.map((g) => { const ps = P.filter((p) => p.quem === g.id && p.sit !== 'naoProcede'); return { id:g.id, nome:g.nome, g, tot: ps.length, locais: new Set(ps.map((p) => p.local)).size }; });
+  const outras = ['comum', 'ope', 'tec', 'clas'].map((gid) => { const ps = P.filter((p) => p.quem === gid), mp = new Map();
+    ps.forEach((p) => { const k = p.item + (p.sub ? '|' + p.sub : ''); if (!mp.has(k)) mp.set(k, { nome: (gid === 'comum' ? p.local + ' · ' : '') + ffNomeItem(p.item) + (p.sub ? ' · ' + (FF_CURTO[p.sub] || ffNomeTipo(p.sub)) : ''), locais:[], citado:0 });
+      const r = mp.get(k); r.locais.push(ffOnde(p)); r.citado += p.citado; });
+    return { gid, g: FF_GRUPOS.find((x) => x.id === gid), tot: ps.length, itens: Array.from(mp.values()).map((r) => Object.assign(r, { locais: r.locais.sort(ffOrdQuarto) }))
+      .sort((a, b) => gid === 'comum' ? a.nome.localeCompare(b.nome, 'pt-BR') : b.locais.length - a.locais.length || a.nome.localeCompare(b.nome, 'pt-BR')) }; }).filter((o) => o.tot);
+  const awFeitas = aw.filter(ehFeita).length;
+  return { totalComent: m.linhas.reduce((s, l) => s + (l.n || 1), 0), semPendN: m.semPend.reduce((s, l) => s + (l.n || 1), 0), pendencias: P.filter((p) => p.sit !== 'naoProcede').length,
+    awTot: aw.length, awFeitas, awFalta: aw.length - awFeitas, awPct: aw.length ? Math.round(awFeitas / aw.length * 100) : 0,
+    quartosAw: new Set(aw.filter((p) => !ehFeita(p)).map((p) => p.local)).size, voltaram: aw.filter((p) => p.sit === 'voltou').length,
+    grupos, disciplinas, fornecedores, repetidos, andares, outras };
+}
+function ffHtmlResumo(R, fmt){
+  const g = (id) => R.grupos.find((x) => x.id === id) || { tot:0 };
+  const anel = (p, S) => { const r = S/2 - 6, c = 2*Math.PI*r, cx = S/2;
+    return '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="9"/><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#8CCBA8" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(c*p/100)+' '+c+'" transform="rotate(-90 '+cx+' '+cx+')"/><text x="'+cx+'" y="'+(cx+5)+'" text-anchor="middle" font-size="15" font-weight="700" fill="#2E6B4A">'+p+'%</text></svg>'; };
+  const cards = '<div class="rn-kpis ff-kpis">' +
+    '<div class="rn-kpi" style="display:block;" data-ff-ir="ff-conf"><div class="rn-big">' + fmt(R.totalComent) + '</div><div class="rn-rot">comentários recebidos</div><div class="rn-leg" style="margin-top:6px;"><span>' + fmt(R.pendencias) + ' pendências · ' + fmt(R.semPendN) + ' sem pendência</span></div></div>' +
+    '<div class="rn-kpi" style="display:block; background:#FCEBDA;"><div class="rn-big" style="color:#B4661F;">' + fmt(R.awTot) + '</div><div class="rn-rot">Obra AW · Quartos</div><div class="rn-leg" style="margin-top:6px;"><span>falta ' + fmt(R.awFalta) + ' em ' + R.quartosAw + ' quartos' + (R.voltaram ? ' · ' + R.voltaram + ' voltaram' : '') + '</span></div></div>' +
+    '<div class="rn-kpi">' + anel(R.awPct, 78) + '<div><div class="rn-big">' + fmt(R.awFeitas) + '</div><div class="rn-rot">feitas (Obra AW · Quartos)</div></div></div>' +
+    '<div class="rn-kpi" style="display:block; background:#EEEBF7;"><div class="rn-big" style="color:#53487F;">' + fmt(g('comum').tot) + '</div><div class="rn-rot">Obra AW · Áreas comuns</div></div>' +
+    '<div class="rn-kpi" style="display:block; background:#FBF3DA;"><div class="rn-big" style="color:#7A5E12;">' + fmt(g('ope').tot) + '</div><div class="rn-rot">Operação do hotel</div></div>' +
+    '<div class="rn-kpi" style="display:block; background:#E5F1FA;"><div class="rn-big" style="color:#2F5F80;">' + fmt(g('tec').tot) + '</div><div class="rn-rot">Tecnologia</div>' + (g('clas').tot ? '<div class="rn-leg" style="margin-top:6px;"><span>+ ' + g('clas').tot + ' a classificar</span></div>' : '') + '</div>' +
+  '</div>';
+  const tabela = (titulo, lista, rotulo, attr) => '<div class="rn-card ff-res-card"><h3>' + titulo + '</h3><table class="ff-tab"><thead><tr><th>' + rotulo + '</th><th>Pendências</th><th>Feitas</th><th>Falta</th><th>Avanço</th></tr></thead><tbody>' +
+    lista.map((r) => '<tr' + (attr ? ' class="ff-tab-clic" ' + attr(r) : '') + '><td>' + esc(r.nome) + ' <small>' + r.quartos.size + ' qtos</small></td><td>' + fmt(r.tot) + '</td><td style="color:#2E6B4A;">' + (r.feitas ? fmt(r.feitas) : '—') + '</td><td style="color:#B4661F;">' + (r.falta ? fmt(r.falta) : '—') + '</td><td><span class="ff-bar"><i style="width:' + r.pct + '%;"></i></span><small>' + r.pct + '%</small></td></tr>').join('') + '</tbody></table></div>';
+  const rep = '<div class="rn-card ff-res-card"><h3>Os 5 que mais se repetem · Obra AW · Quartos</h3><table class="ff-tab"><thead><tr><th>O que o hóspede relatou</th><th>Item</th><th>Quartos</th><th>Citações</th></tr></thead><tbody>' +
+    R.repetidos.map((r, i) => '<tr><td><b>' + (i + 1) + '.</b> ' + esc(FF_CURTO[r.tipo] || ffNomeTipo(r.tipo)) + '</td><td>' + esc(ffNomeItem(r.item)) + '</td><td>' + r.quartos.size + '</td><td>' + r.citado + '</td></tr>').join('') + '</tbody></table></div>';
+  return { cards, tabelas: '<div class="ff-res-cols">' + tabela('Por disciplina · Obra AW · Quartos', R.disciplinas, 'Disciplina') + tabela('Por fornecedor · Obra AW · Quartos', R.fornecedores, 'Fornecedor', (r) => 'data-ff-forn="' + esc(r.k === 'Sem fornecedor' ? '__sem__' : r.k) + '"') + '</div>' + rep };
+}
+function ffHtmlAndares(R, andaresTodos, fmt){
+  const vazios = andaresTodos.filter((a) => !R.andares.some((x) => x.a === a));
+  return andaresTodos.filter((a) => R.andares.some((x) => x.a === a)).map((a) => { const r = R.andares.find((x) => x.a === a);
+    return '<div class="ff-andar' + (ffFiltro.andar === String(a) ? ' sel' : '') + '"><div class="ff-andar-cab" data-ff-andar="' + a + '"><b>' + a + 'º</b><div class="sf-avanco"><span style="width:' + r.pct + '%;"></span><em>' + r.pct + '%</em></div>' +
+      '<span class="ff-andar-n">' + fmt(r.tot) + ' pendências · <b style="color:#2E6B4A;">' + fmt(r.feitas) + ' feitas</b> · <b style="color:#B4661F;">' + fmt(r.falta) + ' falta</b></span></div>' +
+      '<div class="ff-qminis">' + r.quartos.map((q) => '<button type="button" class="ff-qmini' + (q.falta ? '' : ' ok') + '" data-ff-quarto="' + esc(q.q) + '"><span class="ff-qmini-n">' + esc(ffQuartoCurto(q.q)) + '</span><span class="ff-qmini-c">' + (q.falta ? 'falta ' + q.falta + ' de ' + q.tot : 'tudo feito') + '</span>' +
+        (q.forns.length ? '<span class="ff-qmini-f">' + q.forns.slice(0, 3).map((f) => '<i>' + esc(f.nome) + ' <b>' + f.n + '</b></i>').join('') + (q.forns.length > 3 ? '<i>+' + (q.forns.length - 3) + '</i>' : '') + '</span>' : '') + '</button>').join('') + '</div></div>'; }).join('') +
+    (vazios.length ? '<div class="ff-andar vazio-a"><span class="ff-andar-sem">Sem comentários da obra: ' + vazios.map((a) => a + 'º').join(', ') + '</span></div>' : '');
+}
+
+/* ===================== FAMILY & FRIENDS · PDF (mesmo layout dos relatórios do app) ===================== */
+const FF_TITULO_PDF = 'Family & Friends - Comentários hóspedes';
+function ffPdfCab(doc, ctx){
+  const PW = doc.internal.pageSize.getWidth(), M = PDF_M;
+  pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F');
+  const logos = pdfLogos();
+  pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6);
+  doc.roundedRect(M, 28, 78, 30, 6, 6, 'FD');
+  if (logos.sofitel){ let lh = 22, lw = lh*logos.sofitel.ratio; if (lw > 64){ lw = 64; lh = lw/logos.sofitel.ratio; } try{ doc.addImage(logos.sofitel.src, 'PNG', M+39-lw/2, 43-lh/2, lw, lh); }catch(e){} }
+  if (logos.aw){ try{ doc.addImage(logos.aw.src, 'PNG', M+86, 28, 30, 30); }catch(e){} }
+  pdfTxt(doc, M+128, 43, pdfCaber(doc, ctx.titulo, 14, PW - M - (M+128) - 60), 14, PDF_COR.ink);
+  pdfTxt(doc, M+128, 55, 'Relatório · Hotel Sofitel Ipanema · ' + nomeDaObra(), 8, PDF_COR.muted);
+  pdfTxt(doc, PW-M, 56, ctx.dataHora, 7.5, PDF_COR.muted, 'right');
+  pdfTxt(doc, M, 80, 'Filtro', 7.5, PDF_COR.muted);
+  const filtro = pdfCaber(doc, ctx.filtro, 7.5, PW - 2*M - 140), fw = pdfLarg(doc, filtro, 7.5) + 16;
+  pdfFill(doc, PDF_COR.paper); doc.roundedRect(M+26, 70, fw, 14, 7, 7, 'F');
+  pdfTxt(doc, M+26+fw/2, 80, filtro, 7.5, PDF_COR.ink2, 'center');
+  pdfTxt(doc, M+34+fw, 80, ctx.contagem, 7.5, PDF_COR.muted);
+  const gap = 8, n = ctx.cartoes.length, cw = (PW - 2*M - (n-1)*gap)/n, top = 92;
+  ctx.cartoes.forEach((cd, i) => { const x = M + i*(cw+gap);
+    pdfFill(doc, cd.destaque ? PDF_COR.grafite : PDF_COR.paper); doc.roundedRect(x, top, cw, 54, 8, 8, 'F');
+    pdfTxt(doc, x+9, top+16, pdfCaber(doc, cd.rotulo, 7, cw - 14), 7, cd.destaque ? PDF_COR.heroLabel : PDF_COR.muted);
+    pdfTxt(doc, x+9, top+37, cd.texto != null ? cd.texto : pdfNum(cd.valor), 18, cd.destaque ? PDF_COR.white : (cd.cor || PDF_COR.ink));
+    pdfTxt(doc, x+9, top+47, pdfCaber(doc, cd.sub || '', 6.5, cw - 14), 6.5, cd.destaque ? PDF_COR.heroSub : PDF_COR.faint); });
+  const a = ctx.andamento, bw = PW - 2*M;
+  pdfTxt(doc, M, 166, a.titulo, 8.5, PDF_COR.ink2);
+  pdfTxt(doc, PW-M, 166, pdfPct(a.feitas, a.total) + '% feito  ·  ' + pdfNum(a.total - a.feitas) + ' falta fazer', 7.5, PDF_COR.muted, 'right');
+  pdfFill(doc, PDF_COR.line); doc.roundedRect(M, 172, bw, 6, 3, 3, 'F');
+  const wf = a.total ? bw*a.feitas/a.total : 0; if (wf >= 6){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(M, 172, wf, 6, 3, 3, 'F'); }
+  pdfTxt(doc, M, 198, ctx.rotuloPills || 'Quem resolve', 7.5, PDF_COR.muted);
+  let x = M + pdfLarg(doc, ctx.rotuloPills || 'Quem resolve', 7.5) + 10;
+  (ctx.pills || []).forEach((p) => { if (x > PW - M - 60) return; x += pdfPill(doc, x, 198, p.txt, p.fg, p.bg) + 6; });
+  return 214;
+}
+function ffRgb(hex){ const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+/* blocos: [{h, draw(doc, x, y, W), cab?, secao?, junto?}] — quebra de página sem cortar bloco; cabeçalho de
+   tabela se repete na página seguinte; título de seção não fica sozinho no pé da página */
+function ffPdfPaginar(doc, ctx, blocos){
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M, LIM = PH - 52;
+  const pags = [[]]; let y = 214, cab = null;
+  blocos.forEach((b) => {
+    if (b.secao) cab = null;
+    if (b.cab) cab = b;
+    const precisa = b.h + (b.junto || 0);
+    if (y + precisa > LIM && pags[pags.length - 1].length){
+      pags.push([]); y = 40;
+      if (cab && !b.cab && !b.secao){ pags[pags.length - 1].push(cab); y += cab.h; }
+    }
+    pags[pags.length - 1].push(b); y += b.h;
+  });
+  pags.forEach((pg, i) => {
+    let yy;
+    if (i === 0) yy = ffPdfCab(doc, ctx);
+    else { doc.addPage(); pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F'); pdfTxt(doc, M, 26, ctx.titulo, 9, PDF_COR.ink2); pdfTxt(doc, PW-M, 26, pdfCaber(doc, ctx.filtro, 7.5, 300), 7.5, PDF_COR.muted, 'right'); yy = 40; }
+    pg.forEach((b) => { b.draw(doc, M, yy, PW - 2*M); yy += b.h; });
+    pdfRodape(doc, i + 1, pags.length);
+  });
+  return pags.length;
+}
+function ffPdfSecao(titulo, sub){ return { h: sub ? 30 : 24, secao:true, junto: 34, draw:(doc, x, y) => { pdfTxt(doc, x, y + 16, titulo, 10.5, PDF_COR.ink); if (sub) pdfTxt(doc, x, y + 26, sub, 7, PDF_COR.muted); } }; }
+function ffPdfTabela(blocos, titulo, sub, cols, linhas){
+  blocos.push(ffPdfSecao(titulo, sub));
+  const posCols = (W) => { let cx = 8; return cols.map((c) => { const cw = c.w * (W - 16), r = { x: cx, w: cw }; cx += cw; return r; }); };
+  blocos.push({ h:18, cab:true, draw:(doc, x, y, W) => { const pc = posCols(W); pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 2, W, 14, 4, 4, 'F');
+    cols.forEach((c, i) => pdfTxt(doc, c.align === 'right' ? x + pc[i].x + pc[i].w - 4 : x + pc[i].x, y + 12, c.rot, 7, PDF_COR.muted, c.align === 'right' ? 'right' : undefined)); } });
+  linhas.forEach((ln) => blocos.push({ h:16, draw:(doc, x, y, W) => { const pc = posCols(W);
+    cols.forEach((c, i) => { const v = ln[i], cx = x + pc[i].x, cw = pc[i].w;
+      if (c.tipo === 'barra'){ const p = Number(v) || 0, bw = Math.max(20, cw - 34); pdfFill(doc, PDF_COR.line); doc.roundedRect(cx, y + 6, bw, 5, 2.5, 2.5, 'F'); if (p > 0){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(cx, y + 6, Math.max(5, bw * p / 100), 5, 2.5, 2.5, 'F'); } pdfTxt(doc, cx + cw - 4, y + 11, p + '%', 7.5, PDF_COR.ink2, 'right'); }
+      else pdfTxt(doc, c.align === 'right' ? cx + cw - 4 : cx, y + 11, pdfCaber(doc, String(v == null ? '' : v), 8, cw - 6), 8, c.cor || (i === 0 ? PDF_COR.ink : PDF_COR.ink2), c.align === 'right' ? 'right' : undefined); });
+    pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.4); doc.line(x, y + 16, x + W, y + 16); } }));
+}
+function ffPdfCartoesResumo(R){
+  const g = (id) => (R.grupos.find((x) => x.id === id) || { tot:0 }).tot;
+  return [
+    { rotulo:'Comentários', valor:R.totalComent, sub: pdfNum(R.pendencias) + ' pendências' },
+    { rotulo:'Obra AW · Quartos', valor:R.awTot, sub:'em ' + R.quartosAw + ' quartos', cor: ffRgb('#B4661F') },
+    { rotulo:'Feitas', valor:R.awFeitas, sub: R.awPct + '% feito', cor: PDF_COR.vd },
+    { rotulo:'Falta fazer', valor:R.awFalta, sub: R.voltaram ? R.voltaram + ' voltaram' : 'Obra AW · Quartos', destaque:true },
+    { rotulo:'Outras frentes', valor:g('comum') + g('ope') + g('tec') + g('clas'), sub:'áreas ' + g('comum') + ' · op. ' + g('ope') + ' · tec. ' + g('tec') }
+  ];
+}
+function ffPdfPills(R){ return R.grupos.filter((x) => x.tot).map((x) => ({ txt: x.nome + '  ' + pdfNum(x.tot), fg: ffRgb(x.g.texto), bg: ffRgb(x.g.fundo) })).concat(R.semPendN ? [{ txt:'Sem pendência  ' + pdfNum(R.semPendN), fg: PDF_COR.muted, bg: PDF_COR.paper }] : []); }
+function ffPdfDataHora(){ const a = new Date(); return a.toLocaleDateString('pt-BR') + ' · ' + a.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }); }
+function ffNomeArquivo(parte){ const h = new Date(); return 'Family & Friends - Comentarios hospedes - ' + parte + ' - ' + String(h.getDate()).padStart(2, '0') + '-' + String(h.getMonth() + 1).padStart(2, '0') + '.pdf'; }
+async function ffPdfResumo(){
+  if (!jsPdfDisponivel()){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
+  const m = ffMontar(), R = ffResumo(m), dias = (ffDias || []).map((d) => d.dia).filter(Boolean).sort();
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' });
+  const ctx = { titulo: FF_TITULO_PDF, dataHora: ffPdfDataHora(), filtro: 'Resumo geral', contagem: dias.length ? dias.length + ' dias de hospedagem (' + dataCurta(dias[0]) + ' a ' + dataCurta(dias[dias.length - 1]) + ')' : '',
+    cartoes: ffPdfCartoesResumo(R), andamento: { titulo:'Avanço · Obra AW · Quartos', feitas: R.awFeitas, total: R.awTot }, pills: ffPdfPills(R) };
+  const B = [];
+  ffPdfTabela(B, 'Por disciplina · Obra AW · Quartos', 'da maior para a menor', [{ rot:'Disciplina', w:.38 }, { rot:'Quartos', w:.1, align:'right' }, { rot:'Pendências', w:.12, align:'right' }, { rot:'Feitas', w:.1, align:'right', cor:PDF_COR.vd }, { rot:'Falta', w:.1, align:'right', cor:ffRgb('#B4661F') }, { rot:'Avanço', w:.2, tipo:'barra' }],
+    R.disciplinas.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]));
+  ffPdfTabela(B, 'Por fornecedor · Obra AW · Quartos', 'do maior para o menor', [{ rot:'Fornecedor', w:.38 }, { rot:'Quartos', w:.1, align:'right' }, { rot:'Pendências', w:.12, align:'right' }, { rot:'Feitas', w:.1, align:'right', cor:PDF_COR.vd }, { rot:'Falta', w:.1, align:'right', cor:ffRgb('#B4661F') }, { rot:'Avanço', w:.2, tipo:'barra' }],
+    R.fornecedores.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]));
+  ffPdfTabela(B, 'Os 5 que mais se repetem · Obra AW · Quartos', 'o que o hóspede relatou, em quantos quartos', [{ rot:'O que o hóspede relatou', w:.4 }, { rot:'Item', w:.36 }, { rot:'Quartos', w:.12, align:'right' }, { rot:'Citações', w:.12, align:'right' }],
+    R.repetidos.map((r, i) => [(i + 1) + '. ' + (FF_CURTO[r.tipo] || ffNomeTipo(r.tipo)), ffNomeItem(r.item), r.quartos.size, r.citado]));
+  // por andar: linha do andar + quartos em grade (o que falta e os fornecedores)
+  B.push(ffPdfSecao('Por andar · Obra AW · Quartos', 'em cada quarto: quanto falta e os fornecedores do que falta'));
+  R.andares.forEach((r) => {
+    B.push({ h:22, junto: 40, draw:(doc, x, y, W) => { pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 3, W, 17, 5, 5, 'F'); pdfTxt(doc, x + 8, y + 15, r.a + 'º andar', 9, PDF_COR.ink);
+      const bx = x + 70, bw = 140; pdfFill(doc, PDF_COR.line); doc.roundedRect(bx, y + 9, bw, 5, 2.5, 2.5, 'F'); if (r.pct > 0){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(bx, y + 9, Math.max(5, bw * r.pct / 100), 5, 2.5, 2.5, 'F'); }
+      pdfTxt(doc, bx + bw + 8, y + 15, r.pct + '%', 7.5, PDF_COR.ink2); pdfTxt(doc, x + W - 8, y + 15, pdfNum(r.tot) + ' pendências · ' + pdfNum(r.feitas) + ' feitas · ' + pdfNum(r.falta) + ' falta', 7.5, PDF_COR.muted, 'right'); } });
+    const porLinha = 4;
+    for (let i = 0; i < r.quartos.length; i += porLinha){ const fatia = r.quartos.slice(i, i + porLinha);
+      B.push({ h:40, draw:(doc, x, y, W) => { const cw = (W - (porLinha - 1) * 6) / porLinha;
+        fatia.forEach((q, j) => { const cx = x + j * (cw + 6); pdfFill(doc, q.falta ? ffRgb('#FFF8F0') : ffRgb('#EEF8F2')); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(cx, y + 3, cw, 34, 5, 5, 'FD');
+          pdfTxt(doc, cx + 7, y + 15, ffQuartoCurto(q.q), 10, q.falta ? ffRgb('#7A4A18') : PDF_COR.vd);
+          pdfTxt(doc, cx + cw - 7, y + 15, q.falta ? 'falta ' + q.falta + ' de ' + q.tot : 'tudo feito', 7, PDF_COR.muted, 'right');
+          pdfTxt(doc, cx + 7, y + 29, pdfCaber(doc, q.forns.map((f) => f.nome + ' ' + f.n).join(' · ') || '-', 6.8, cw - 14), 6.8, PDF_COR.ink2); }); } });
+    }
+  });
+  // outras frentes
+  R.outras.forEach((o) => {
+    ffPdfTabela(B, o.g.nome + ' · ' + o.tot + ' pendências', o.gid === 'comum' ? 'outra frente da obra AW' : 'encaminhar ao hotel', [{ rot:'Item', w:.46 }, { rot:'Onde', w:.42 }, { rot:'Citações', w:.12, align:'right' }],
+      o.itens.map((r) => [r.nome, o.gid === 'comum' ? '' : r.locais.length + ' · ' + r.locais.join(', '), r.citado]));
+  });
+  B.push({ h:30, draw:(doc, x, y, W) => pdfTxt(doc, x, y + 18, 'Conferência: ' + pdfNum(R.totalComent) + ' linhas na planilha do cliente = ' + pdfNum(R.totalComent - R.semPendN) + ' com pendência + ' + pdfNum(R.semPendN) + ' sem pendência. O mesmo item no mesmo quarto conta uma vez.', 7.5, PDF_COR.muted) });
+  ffPdfPaginar(doc, ctx, B);
+  await compartilharOuBaixarPdf(doc.output('blob'), ffNomeArquivo('Resumo'), null);
+}
+/* PDF da lista: exatamente o que está filtrado na seção "O que a AW precisa fazer" (ideal: um fornecedor) */
+async function ffPdfLista(){
+  if (!jsPdfDisponivel()){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
+  const m = ffMontar(), lista = m.problemas.filter((p) => p.quem === 'aw' && ffPassaFiltro(p, false));
+  if (!lista.length){ avisoFlutuante('Nada nesse filtro para gerar o PDF.', 'erro'); return; }
+  const forn = ffFiltro.forn === '__sem__' ? 'Sem fornecedor' : ffFiltro.forn;
+  const sitTxt = { falta:'Falta fazer', feito:'Feitas', todos:'Todas', naoProcede:'Não procede' }[ffFiltro.sit] || '';
+  const filtro = [forn || 'Todos os fornecedores', ffFiltro.andar !== 'todos' ? ffFiltro.andar + 'º andar' : '', sitTxt, ffFiltro.busca ? '"' + ffFiltro.busca + '"' : ''].filter(Boolean).join(' · ');
+  const feitas = lista.filter((p) => p.sit === 'feito').length, quartos = new Set(lista.map((p) => p.local)).size, andares = Array.from(new Set(lista.map((p) => Number(p.andar)).filter(Boolean))).sort((a, b) => b - a);
+  const discs = new Map(); lista.forEach((p) => discs.set(p.disc, (discs.get(p.disc) || 0) + 1));
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' });
+  const ctx = { titulo: FF_TITULO_PDF, dataHora: ffPdfDataHora(), filtro, contagem: lista.length + ' pendências',
+    cartoes: [{ rotulo:'Pendências', valor: lista.length, sub:'nesta lista' }, { rotulo:'Falta fazer', valor: lista.length - feitas, sub: lista.filter((p) => p.sit === 'voltou').length ? lista.filter((p) => p.sit === 'voltou').length + ' voltaram' : 'Obra AW', destaque:true },
+      { rotulo:'Feitas', valor: feitas, sub: pdfPct(feitas, lista.length) + '%', cor: PDF_COR.vd }, { rotulo:'Quartos', valor: quartos, sub: 'nesta lista' }, { rotulo:'Andares', valor: andares.length, sub: andares.map((a) => a + 'º').join(', ') }],
+    andamento: { titulo:'Avanço desta lista', feitas, total: lista.length }, rotuloPills:'Disciplinas',
+    pills: Array.from(discs.entries()).sort((a, b) => b[1] - a[1]).map(([d, n]) => ({ txt: ffNomeDisc(d) + '  ' + n, fg: ffRgb('#7A4A18'), bg: ffRgb('#FCEBDA') })) };
+  const B = [];
+  andares.forEach((a) => {
+    const ps = lista.filter((p) => Number(p.andar) === a).sort((x, y) => ffOrdQuarto(x.local, y.local) || ffNomeItem(x.item).localeCompare(ffNomeItem(y.item), 'pt-BR'));
+    B.push(ffPdfSecao(a + 'º andar · ' + ps.length + ' pendência' + (ps.length > 1 ? 's' : ''), null));
+    ps.forEach((p) => { const tr = ffTrechoDoProblema(p), vt = ffVariantesTxt(p);
+      B.push({ h:38, draw:(doc, x, y, W) => {
+        pdfFill(doc, PDF_COR.white); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(x, y + 2, W, 34, 6, 6, 'FD');
+        pdfFill(doc, ffRgb(p.sit === 'feito' ? '#E3F5EC' : p.sit === 'voltou' ? '#FBE3DE' : '#FCEBDA')); doc.roundedRect(x + 6, y + 6, 40, 26, 5, 5, 'F');
+        pdfTxt(doc, x + 26, y + 20, ffQuartoCurto(p.local), 10, ffRgb(p.sit === 'feito' ? '#2E6B4A' : '#7A4A18'), 'center'); pdfTxt(doc, x + 26, y + 28, (p.andar || '') + 'º', 6.5, PDF_COR.muted, 'center');
+        const tx = x + 54, tw = W - 54 - 96;
+        pdfTxt(doc, tx, y + 14, pdfCaber(doc, ffNomeItem(p.item) + (vt ? ' · ' + vt : '') + (forn ? '' : ' · ' + ffFornNome(p)), 8.5, tw), 8.5, PDF_COR.ink);
+        pdfTxt(doc, tx, y + 24, pdfCaber(doc, 'Hóspede: "' + tr + '"', 7.2, tw), 7.2, PDF_COR.ink2);
+        pdfTxt(doc, tx, y + 32, (p.citado > 1 ? 'citado ' + p.citado + 'x · ' : '') + 'último ' + dataCurta(p.ultimo) + (p.status && p.status.feitoEm ? ' · baixa ' + dataCurta(String(p.status.feitoEm).slice(0, 10)) + (p.status.feitoPor ? ' por ' + p.status.feitoPor : '') : ''), 6.5, PDF_COR.muted);
+        const st = p.sit === 'feito' ? ['Feito', PDF_COR.vd, PDF_COR.vds] : p.sit === 'voltou' ? ['Voltou', PDF_COR.vm, PDF_COR.vms] : p.sit === 'naoProcede' ? ['Não procede', PDF_COR.muted, PDF_COR.paper] : ['Falta fazer', PDF_COR.am, PDF_COR.ams];
+        const pw = pdfLarg(doc, st[0], 7.5) + 14; pdfPill(doc, x + W - 8 - pw, y + 22, st[0], st[1], st[2]); } }); });
+  });
+  ffPdfPaginar(doc, ctx, B);
+  await compartilharOuBaixarPdf(doc.output('blob'), ffNomeArquivo(forn ? forn : 'Lista'), null);
+}
 
 /* Family & Friends é da obra Quartos (hóspedes nos quartos) */
 try{ if (OBRA){ const nf = document.getElementById('nav-ff'); if (nf) nf.style.display = 'none'; } }catch(e){}
