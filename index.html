@@ -998,14 +998,15 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-tab th{ font-weight:500; font-size:11px; color:#8A938E; text-align:right; padding:4px 6px; border-bottom:1px solid #EEF0EF; white-space:nowrap; }
 .ff-tab th:first-child, .ff-tab td:first-child{ text-align:left; }
 .ff-tab td{ text-align:right; padding:5px 6px; border-bottom:1px solid #F3F4F3; white-space:nowrap; }
+.ff-tab tfoot td{ font-weight:600; color:#33403A; background:#F6F7F6; border-top:1px solid #E3E6E4; border-bottom:0; }
 .ff-tab td:first-child{ white-space:normal; } .ff-tab td small{ color:#8A938E; font-size:10.5px; margin-left:4px; }
 .ff-tab-clic{ cursor:pointer; } .ff-tab-clic:hover td{ background:#FFF8F0; }
 .ff-bar{ display:inline-block; width:70px; height:6px; border-radius:3px; background:#EEF0EF; vertical-align:middle; margin-right:6px; overflow:hidden; }
 .ff-bar i{ display:block; height:100%; background:#8CCBA8; border-radius:3px; }
-.ff-andares{ display:flex; flex-direction:column; gap:8px; }
+.ff-andares{ display:flex; flex-direction:column; gap:12px; }
 .ff-andar{ border:1px solid #EEF0EF; border-radius:12px; padding:6px 10px 8px; background:#FCFCFB; }
 .ff-andar.sel{ border-color:#F3B97C; background:#FFF8F0; }
-.ff-andar.vazio-a{ padding:6px 10px; background:transparent; border-style:dashed; }
+.ff-andar.vazio-a{ padding:5px 10px; background:#fff; border-style:dashed; } .ff-andar.vazio-a b{ color:#9AA29D; } .ff-andar.vazio-a .ff-andar-sem{ color:#9AA29D; }
 .ff-andar-cab{ display:grid; grid-template-columns: 38px minmax(120px, 260px) 1fr; gap:10px; align-items:center; cursor:pointer; font-size:12.5px; color:#33403A; }
 .ff-andar-cab > b{ font-size:15px; } .ff-andar-n{ color:#6B756F; } .ff-andar-sem{ color:#8A938E; font-size:12px; }
 .ff-qminis{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
@@ -1669,7 +1670,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.339';
+const VERSAO_APP = '2026-10-03.340';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -13011,7 +13012,8 @@ function ffResumo(m){
     const r = sub.get(k); r.quartos.add(p.local); r.citado += p.citado; if (ehFeita(p)) r.feitas++; }));
   const repetidos = Array.from(sub.values()).sort((a, b) => b.quartos.size - a.quartos.size || b.citado - a.citado).slice(0, 5);
   // por andar → quarto → fornecedores do que falta
-  const andares = Array.from(new Set(aw.map((p) => Number(p.andar)).filter(Boolean))).sort((a, b) => b - a).map((a) => {
+  const conhecidos = (typeof andaresConhecidos !== 'undefined' && andaresConhecidos) ? andaresConhecidos : [];
+  const andares = Array.from(new Set(conhecidos.map(Number).filter((a) => a >= 1 && a < 100).concat(aw.map((p) => Number(p.andar)).filter(Boolean)))).sort((a, b) => b - a).map((a) => {
     const ps = aw.filter((p) => Number(p.andar) === a), f = ps.filter(ehFeita).length, qm = new Map();
     ps.forEach((p) => { if (!qm.has(p.local)) qm.set(p.local, []); qm.get(p.local).push(p); });
     const quartos = Array.from(qm.entries()).sort((x, y) => ffOrdQuarto(x[0], y[0])).map(([q, qs]) => { const fq = qs.filter(ehFeita).length, fm = new Map();
@@ -13025,7 +13027,8 @@ function ffResumo(m){
     return { gid, g: FF_GRUPOS.find((x) => x.id === gid), tot: ps.length, itens: Array.from(mp.values()).map((r) => Object.assign(r, { locais: r.locais.sort(ffOrdQuarto) }))
       .sort((a, b) => gid === 'comum' ? a.nome.localeCompare(b.nome, 'pt-BR') : b.locais.length - a.locais.length || a.nome.localeCompare(b.nome, 'pt-BR')) }; }).filter((o) => o.tot);
   const awFeitas = aw.filter(ehFeita).length;
-  return { totalComent: m.linhas.reduce((s, l) => s + (l.n || 1), 0), semPendN: m.semPend.reduce((s, l) => s + (l.n || 1), 0), pendencias: P.filter((p) => p.sit !== 'naoProcede').length,
+  const total = { nome:'Total', tot: aw.length, feitas: awFeitas, falta: aw.length - awFeitas, pct: aw.length ? Math.round(awFeitas / aw.length * 100) : 0, quartos: new Set(aw.map((p) => p.local)) };
+  return { total, totalComent: m.linhas.reduce((s, l) => s + (l.n || 1), 0), semPendN: m.semPend.reduce((s, l) => s + (l.n || 1), 0), pendencias: P.filter((p) => p.sit !== 'naoProcede').length,
     awTot: aw.length, awFeitas, awFalta: aw.length - awFeitas, awPct: aw.length ? Math.round(awFeitas / aw.length * 100) : 0,
     quartosAw: new Set(aw.filter((p) => !ehFeita(p)).map((p) => p.local)).size, voltaram: aw.filter((p) => p.sit === 'voltou').length,
     grupos, disciplinas, fornecedores, repetidos, andares, outras };
@@ -13043,19 +13046,19 @@ function ffHtmlResumo(R, fmt){
     '<div class="rn-kpi" style="display:block; background:#E5F1FA;"><div class="rn-big" style="color:#2F5F80;">' + fmt(g('tec').tot) + '</div><div class="rn-rot">Tecnologia</div>' + (g('clas').tot ? '<div class="rn-leg" style="margin-top:6px;"><span>+ ' + g('clas').tot + ' a classificar</span></div>' : '') + '</div>' +
   '</div>';
   const tabela = (titulo, lista, rotulo, attr) => '<div class="rn-card ff-res-card"><h3>' + titulo + '</h3><table class="ff-tab"><thead><tr><th>' + rotulo + '</th><th>Pendências</th><th>Feitas</th><th>Falta</th><th>Avanço</th></tr></thead><tbody>' +
-    lista.map((r) => '<tr' + (attr ? ' class="ff-tab-clic" ' + attr(r) : '') + '><td>' + esc(r.nome) + ' <small>' + r.quartos.size + ' qtos</small></td><td>' + fmt(r.tot) + '</td><td style="color:#2E6B4A;">' + (r.feitas ? fmt(r.feitas) : '—') + '</td><td style="color:#B4661F;">' + (r.falta ? fmt(r.falta) : '—') + '</td><td><span class="ff-bar"><i style="width:' + r.pct + '%;"></i></span><small>' + r.pct + '%</small></td></tr>').join('') + '</tbody></table></div>';
+    lista.map((r) => '<tr' + (attr ? ' class="ff-tab-clic" ' + attr(r) : '') + '><td>' + esc(r.nome) + ' <small>' + r.quartos.size + ' qtos</small></td><td>' + fmt(r.tot) + '</td><td style="color:#2E6B4A;">' + (r.feitas ? fmt(r.feitas) : '—') + '</td><td style="color:#B4661F;">' + (r.falta ? fmt(r.falta) : '—') + '</td><td><span class="ff-bar"><i style="width:' + r.pct + '%;"></i></span><small>' + r.pct + '%</small></td></tr>').join('') +
+    '</tbody><tfoot><tr class="ff-tab-total"><td>Total <small>' + R.total.quartos.size + ' qtos</small></td><td>' + fmt(R.total.tot) + '</td><td style="color:#2E6B4A;">' + fmt(R.total.feitas) + '</td><td style="color:#B4661F;">' + fmt(R.total.falta) + '</td><td><span class="ff-bar"><i style="width:' + R.total.pct + '%;"></i></span><small>' + R.total.pct + '%</small></td></tr></tfoot></table></div>';
   const rep = '<div class="rn-card ff-res-card"><h3>Os 5 que mais se repetem · Obra AW · Quartos</h3><table class="ff-tab"><thead><tr><th>O que o hóspede relatou</th><th>Item</th><th>Quartos</th><th>Citações</th></tr></thead><tbody>' +
     R.repetidos.map((r, i) => '<tr><td><b>' + (i + 1) + '.</b> ' + esc(FF_CURTO[r.tipo] || ffNomeTipo(r.tipo)) + '</td><td>' + esc(ffNomeItem(r.item)) + '</td><td>' + r.quartos.size + '</td><td>' + r.citado + '</td></tr>').join('') + '</tbody></table></div>';
   return { cards, tabelas: '<div class="ff-res-cols">' + tabela('Por disciplina · Obra AW · Quartos', R.disciplinas, 'Disciplina') + tabela('Por fornecedor · Obra AW · Quartos', R.fornecedores, 'Fornecedor', (r) => 'data-ff-forn="' + esc(r.k === 'Sem fornecedor' ? '__sem__' : r.k) + '"') + '</div>' + rep };
 }
 function ffHtmlAndares(R, andaresTodos, fmt){
-  const vazios = andaresTodos.filter((a) => !R.andares.some((x) => x.a === a));
-  return andaresTodos.filter((a) => R.andares.some((x) => x.a === a)).map((a) => { const r = R.andares.find((x) => x.a === a);
+  return R.andares.map((r) => { const a = r.a;
+    if (!r.tot) return '<div class="ff-andar vazio-a"><div class="ff-andar-cab"><b>' + a + 'º</b><span class="ff-andar-sem">Sem apontamento</span></div></div>';
     return '<div class="ff-andar' + (ffFiltro.andar === String(a) ? ' sel' : '') + '"><div class="ff-andar-cab" data-ff-andar="' + a + '"><b>' + a + 'º</b><div class="sf-avanco"><span style="width:' + r.pct + '%;"></span><em>' + r.pct + '%</em></div>' +
       '<span class="ff-andar-n">' + fmt(r.tot) + ' pendências · <b style="color:#2E6B4A;">' + fmt(r.feitas) + ' feitas</b> · <b style="color:#B4661F;">' + fmt(r.falta) + ' falta</b></span></div>' +
       '<div class="ff-qminis">' + r.quartos.map((q) => '<button type="button" class="ff-qmini' + (q.falta ? '' : ' ok') + '" data-ff-quarto="' + esc(q.q) + '"><span class="ff-qmini-n">' + esc(ffQuartoCurto(q.q)) + '</span><span class="ff-qmini-c">' + (q.falta ? 'falta ' + q.falta + ' de ' + q.tot : 'tudo feito') + '</span>' +
-        (q.forns.length ? '<span class="ff-qmini-f">' + q.forns.slice(0, 3).map((f) => '<i>' + esc(f.nome) + ' <b>' + f.n + '</b></i>').join('') + (q.forns.length > 3 ? '<i>+' + (q.forns.length - 3) + '</i>' : '') + '</span>' : '') + '</button>').join('') + '</div></div>'; }).join('') +
-    (vazios.length ? '<div class="ff-andar vazio-a"><span class="ff-andar-sem">Sem comentários da obra: ' + vazios.map((a) => a + 'º').join(', ') + '</span></div>' : '');
+        (q.forns.length ? '<span class="ff-qmini-f">' + q.forns.slice(0, 3).map((f) => '<i>' + esc(f.nome) + ' <b>' + f.n + '</b></i>').join('') + (q.forns.length > 3 ? '<i>+' + (q.forns.length - 3) + '</i>' : '') + '</span>' : '') + '</button>').join('') + '</div></div>'; }).join('');
 }
 
 /* ===================== FAMILY & FRIENDS · PDF (mesmo layout dos relatórios do app) ===================== */
@@ -13092,42 +13095,76 @@ function ffPdfCab(doc, ctx){
   (ctx.pills || []).forEach((p) => { if (x > PW - M - 60) return; x += pdfPill(doc, x, 198, p.txt, p.fg, p.bg) + 6; });
   return 214;
 }
+let ffPdfDoc = null;
+/* quebra um texto em até "max" linhas que cabem na largura (corta a última com reticências) */
+function ffPdfLinhas(s, size, w, max, sep){
+  sep = sep || ' '; const partes = String(s || '').split(sep), linhas = []; let at = '';
+  const cabe = (t) => !ffPdfDoc || pdfLarg(ffPdfDoc, t, size) <= w;
+  partes.forEach((pt) => { const t = at ? at + sep + pt : pt; if (cabe(t) || !at) at = t; else { linhas.push(at); at = pt; } });
+  if (at) linhas.push(at);
+  if (linhas.length > (max || 99)){ const resto = linhas.slice(max - 1).join(sep); linhas.length = max - 1; linhas.push(ffPdfDoc ? pdfCaber(ffPdfDoc, resto, size, w) : resto); }
+  return linhas.map((l) => ffPdfDoc && !cabe(l) ? pdfCaber(ffPdfDoc, l, size, w) : l);
+}
 function ffRgb(hex){ const h = String(hex).replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
-/* blocos: [{h, draw(doc, x, y, W), cab?, secao?, junto?}] — quebra de página sem cortar bloco; cabeçalho de
-   tabela se repete na página seguinte; título de seção não fica sozinho no pé da página */
+/* blocos: [{h, draw(doc, x, y, W), cab?, secao?, junto?, antes?, grupoAlt?}]
+   - antes: espaço acima do bloco (não usado no topo da página)
+   - grupoAlt: o bloco abre um grupo (tópico/andar) que vai inteiro para a próxima página se não couber
+   - tabela maior que uma página quebra por linha e repete o cabeçalho; título nunca fica sozinho no pé */
 function ffPdfPaginar(doc, ctx, blocos){
-  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M, LIM = PH - 52;
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = PDF_M, LIM = PH - 52, TOPO = 40;
   const pags = [[]]; let y = 214, cab = null;
+  const vazia = () => !pags[pags.length - 1].length, quebra = () => { pags.push([]); y = TOPO; };
   blocos.forEach((b) => {
     if (b.secao) cab = null;
     if (b.cab) cab = b;
-    const precisa = b.h + (b.junto || 0);
-    if (y + precisa > LIM && pags[pags.length - 1].length){
-      pags.push([]); y = 40;
-      if (cab && !b.cab && !b.secao){ pags[pags.length - 1].push(cab); y += cab.h; }
+    if (b.grupoAlt && !vazia() && y + (b.antes || 0) + b.grupoAlt > LIM && b.grupoAlt <= LIM - TOPO) quebra();
+    let antes = vazia() ? 0 : (b.antes || 0);
+    if (!vazia() && y + antes + b.h + (b.junto || 0) > LIM){
+      quebra(); antes = 0;
+      if (cab && !b.cab && !b.secao){ pags[pags.length - 1].push({ b: cab, y }); y += cab.h; }
     }
-    pags[pags.length - 1].push(b); y += b.h;
+    y += antes; pags[pags.length - 1].push({ b, y }); y += b.h;
   });
   pags.forEach((pg, i) => {
-    let yy;
-    if (i === 0) yy = ffPdfCab(doc, ctx);
-    else { doc.addPage(); pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F'); pdfTxt(doc, M, 26, ctx.titulo, 9, PDF_COR.ink2); pdfTxt(doc, PW-M, 26, pdfCaber(doc, ctx.filtro, 7.5, 300), 7.5, PDF_COR.muted, 'right'); yy = 40; }
-    pg.forEach((b) => { b.draw(doc, M, yy, PW - 2*M); yy += b.h; });
+    if (i === 0) ffPdfCab(doc, ctx);
+    else { doc.addPage(); pdfFill(doc, PDF_COR.acc); doc.rect(0, 0, PW, 4, 'F'); pdfTxt(doc, M, 26, ctx.titulo, 9, PDF_COR.ink2); pdfTxt(doc, PW-M, 26, pdfCaber(doc, ctx.filtro, 7.5, 300), 7.5, PDF_COR.muted, 'right'); }
+    pg.forEach((it) => it.b.draw(doc, M, it.y, PW - 2*M));
     pdfRodape(doc, i + 1, pags.length);
   });
   return pags.length;
 }
-function ffPdfSecao(titulo, sub){ return { h: sub ? 30 : 24, secao:true, junto: 34, draw:(doc, x, y) => { pdfTxt(doc, x, y + 16, titulo, 10.5, PDF_COR.ink); if (sub) pdfTxt(doc, x, y + 26, sub, 7, PDF_COR.muted); } }; }
-function ffPdfTabela(blocos, titulo, sub, cols, linhas){
+/* marca blocos[ini..fim] como um grupo; se logo antes houver um título de tópico, ele entra junto */
+function ffPdfGrupo(blocos, ini){
+  if (ini > 0 && blocos[ini - 1].secao && !blocos[ini - 1].emGrupo) ini--;
+  let alt = 0; for (let k = ini; k < blocos.length; k++){ alt += blocos[k].h + (k === ini ? 0 : (blocos[k].antes || 0)); blocos[k].emGrupo = true; }
+  blocos[ini].grupoAlt = alt;
+}
+function ffPdfSecao(titulo, sub, antes){ return { h: sub ? 30 : 24, secao:true, junto: 34, antes: antes == null ? 26 : antes, draw:(doc, x, y, W) => {
+  pdfFill(doc, PDF_COR.acc); doc.roundedRect(x, y + 6, 3, sub ? 22 : 13, 1.5, 1.5, 'F');
+  pdfTxt(doc, x + 10, y + 16, titulo, 10.5, PDF_COR.ink); if (sub) pdfTxt(doc, x + 10, y + 26, sub, 7, PDF_COR.muted); } }; }
+function ffPdfTabela(blocos, titulo, sub, cols, linhas, total){
+  const ini = blocos.length;
   blocos.push(ffPdfSecao(titulo, sub));
-  const posCols = (W) => { let cx = 8; return cols.map((c) => { const cw = c.w * (W - 16), r = { x: cx, w: cw }; cx += cw; return r; }); };
+  const posCols = (W) => { let cx = 8; return cols.map((c) => { const cw = c.w * (W - 16), r = c.tipo === 'barra' ? { x: cx + 14, w: cw - 14 } : { x: cx, w: cw }; cx += cw; return r; }); };
+  const W0 = (ffPdfDoc ? ffPdfDoc.internal.pageSize.getWidth() : 595.28) - 2 * PDF_M, pc0 = posCols(W0);
+  const barra = (doc, v, cx, cw, y, fs, cor) => { const p = Number(v) || 0, bw = Math.max(20, cw - 34); pdfFill(doc, PDF_COR.line); doc.roundedRect(cx, y - 5, bw, 5, 2.5, 2.5, 'F'); if (p > 0){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(cx, y - 5, Math.max(5, bw * p / 100), 5, 2.5, 2.5, 'F'); } pdfTxt(doc, cx + cw - 4, y, p + '%', fs, cor, 'right'); };
   blocos.push({ h:18, cab:true, draw:(doc, x, y, W) => { const pc = posCols(W); pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 2, W, 14, 4, 4, 'F');
     cols.forEach((c, i) => pdfTxt(doc, c.align === 'right' ? x + pc[i].x + pc[i].w - 4 : x + pc[i].x, y + 12, c.rot, 7, PDF_COR.muted, c.align === 'right' ? 'right' : undefined)); } });
-  linhas.forEach((ln) => blocos.push({ h:16, draw:(doc, x, y, W) => { const pc = posCols(W);
-    cols.forEach((c, i) => { const v = ln[i], cx = x + pc[i].x, cw = pc[i].w;
-      if (c.tipo === 'barra'){ const p = Number(v) || 0, bw = Math.max(20, cw - 34); pdfFill(doc, PDF_COR.line); doc.roundedRect(cx, y + 6, bw, 5, 2.5, 2.5, 'F'); if (p > 0){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(cx, y + 6, Math.max(5, bw * p / 100), 5, 2.5, 2.5, 'F'); } pdfTxt(doc, cx + cw - 4, y + 11, p + '%', 7.5, PDF_COR.ink2, 'right'); }
-      else pdfTxt(doc, c.align === 'right' ? cx + cw - 4 : cx, y + 11, pdfCaber(doc, String(v == null ? '' : v), 8, cw - 6), 8, c.cor || (i === 0 ? PDF_COR.ink : PDF_COR.ink2), c.align === 'right' ? 'right' : undefined); });
-    pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.4); doc.line(x, y + 16, x + W, y + 16); } }));
+  linhas.forEach((ln) => {
+    const qb = cols.map((c, i) => c.quebra ? ffPdfLinhas(String(ln[i] == null ? '' : ln[i]), 8, pc0[i].w - 6, c.quebra, c.sep) : null);
+    const nl = Math.max(1, ...qb.filter(Boolean).map((q) => q.length)), h = 16 + (nl - 1) * 10;
+    blocos.push({ h, draw:(doc, x, y, W) => { const pc = posCols(W);
+      cols.forEach((c, i) => { const v = ln[i], cx = x + pc[i].x, cw = pc[i].w, cor = c.cor || (i === 0 ? PDF_COR.ink : PDF_COR.ink2);
+        if (c.tipo === 'barra') barra(doc, v, cx, cw, y + 11, 7.5, PDF_COR.ink2);
+        else if (qb[i]) qb[i].forEach((t, k) => pdfTxt(doc, cx, y + 11 + k * 10, t, 8, cor));
+        else pdfTxt(doc, c.align === 'right' ? cx + cw - 4 : cx, y + 11, pdfCaber(doc, String(v == null ? '' : v), 8, cw - 6), 8, cor, c.align === 'right' ? 'right' : undefined); });
+      pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.4); doc.line(x, y + h, x + W, y + h); } });
+  });
+  if (total) blocos.push({ h:20, draw:(doc, x, y, W) => { const pc = posCols(W); pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 3, W, 16, 4, 4, 'F');
+    cols.forEach((c, i) => { const v = total[i], cx = x + pc[i].x, cw = pc[i].w;
+      if (c.tipo === 'barra') barra(doc, v, cx, cw, y + 14, 8, PDF_COR.ink);
+      else pdfTxt(doc, c.align === 'right' ? cx + cw - 4 : cx, y + 14, String(v == null ? '' : v), 8.5, c.cor || PDF_COR.ink, c.align === 'right' ? 'right' : undefined); }); } });
+  ffPdfGrupo(blocos, ini);
 }
 function ffPdfCartoesResumo(R){
   const g = (id) => (R.grupos.find((x) => x.id === id) || { tot:0 }).tot;
@@ -13145,37 +13182,49 @@ function ffNomeArquivo(parte){ const h = new Date(); return 'Family & Friends - 
 async function ffPdfResumo(){
   if (!jsPdfDisponivel()){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
   const m = ffMontar(), R = ffResumo(m), dias = (ffDias || []).map((d) => d.dia).filter(Boolean).sort();
-  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' });
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' }); ffPdfDoc = doc;
   const ctx = { titulo: FF_TITULO_PDF, dataHora: ffPdfDataHora(), filtro: 'Resumo geral', contagem: dias.length ? dias.length + ' dias de hospedagem (' + dataCurta(dias[0]) + ' a ' + dataCurta(dias[dias.length - 1]) + ')' : '',
     cartoes: ffPdfCartoesResumo(R), andamento: { titulo:'Avanço · Obra AW · Quartos', feitas: R.awFeitas, total: R.awTot }, pills: ffPdfPills(R) };
   const B = [];
+  B.push({ h:14, secao:true, draw:(doc, x, y, W) => pdfTxt(doc, x, y + 10, 'Conferência: ' + pdfNum(R.totalComent) + ' linhas na planilha do cliente = ' + pdfNum(R.totalComent - R.semPendN) + ' com pendência + ' + pdfNum(R.semPendN) + ' sem pendência. O mesmo item no mesmo quarto conta uma vez.', 7.5, PDF_COR.muted) });
   ffPdfTabela(B, 'Por disciplina · Obra AW · Quartos', 'da maior para a menor', [{ rot:'Disciplina', w:.38 }, { rot:'Quartos', w:.1, align:'right' }, { rot:'Pendências', w:.12, align:'right' }, { rot:'Feitas', w:.1, align:'right', cor:PDF_COR.vd }, { rot:'Falta', w:.1, align:'right', cor:ffRgb('#B4661F') }, { rot:'Avanço', w:.2, tipo:'barra' }],
-    R.disciplinas.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]));
+    R.disciplinas.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]), ['Total', R.total.quartos.size, R.total.tot, R.total.feitas, R.total.falta, R.total.pct]);
   ffPdfTabela(B, 'Por fornecedor · Obra AW · Quartos', 'do maior para o menor', [{ rot:'Fornecedor', w:.38 }, { rot:'Quartos', w:.1, align:'right' }, { rot:'Pendências', w:.12, align:'right' }, { rot:'Feitas', w:.1, align:'right', cor:PDF_COR.vd }, { rot:'Falta', w:.1, align:'right', cor:ffRgb('#B4661F') }, { rot:'Avanço', w:.2, tipo:'barra' }],
-    R.fornecedores.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]));
+    R.fornecedores.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]), ['Total', R.total.quartos.size, R.total.tot, R.total.feitas, R.total.falta, R.total.pct]);
   ffPdfTabela(B, 'Os 5 que mais se repetem · Obra AW · Quartos', 'o que o hóspede relatou, em quantos quartos', [{ rot:'O que o hóspede relatou', w:.4 }, { rot:'Item', w:.36 }, { rot:'Quartos', w:.12, align:'right' }, { rot:'Citações', w:.12, align:'right' }],
     R.repetidos.map((r, i) => [(i + 1) + '. ' + (FF_CURTO[r.tipo] || ffNomeTipo(r.tipo)), ffNomeItem(r.item), r.quartos.size, r.citado]));
-  // por andar: linha do andar + quartos em grade (o que falta e os fornecedores)
+  // por andar: todos os andares; cada andar (linha + quartos) fica inteiro na mesma página
   B.push(ffPdfSecao('Por andar · Obra AW · Quartos', 'em cada quarto: quanto falta e os fornecedores do que falta'));
-  R.andares.forEach((r) => {
-    B.push({ h:22, junto: 40, draw:(doc, x, y, W) => { pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 3, W, 17, 5, 5, 'F'); pdfTxt(doc, x + 8, y + 15, r.a + 'º andar', 9, PDF_COR.ink);
-      const bx = x + 70, bw = 140; pdfFill(doc, PDF_COR.line); doc.roundedRect(bx, y + 9, bw, 5, 2.5, 2.5, 'F'); if (r.pct > 0){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(bx, y + 9, Math.max(5, bw * r.pct / 100), 5, 2.5, 2.5, 'F'); }
-      pdfTxt(doc, bx + bw + 8, y + 15, r.pct + '%', 7.5, PDF_COR.ink2); pdfTxt(doc, x + W - 8, y + 15, pdfNum(r.tot) + ' pendências · ' + pdfNum(r.feitas) + ' feitas · ' + pdfNum(r.falta) + ' falta', 7.5, PDF_COR.muted, 'right'); } });
-    const porLinha = 4;
-    for (let i = 0; i < r.quartos.length; i += porLinha){ const fatia = r.quartos.slice(i, i + porLinha);
-      B.push({ h:40, draw:(doc, x, y, W) => { const cw = (W - (porLinha - 1) * 6) / porLinha;
-        fatia.forEach((q, j) => { const cx = x + j * (cw + 6); pdfFill(doc, q.falta ? ffRgb('#FFF8F0') : ffRgb('#EEF8F2')); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(cx, y + 3, cw, 34, 5, 5, 'FD');
-          pdfTxt(doc, cx + 7, y + 15, ffQuartoCurto(q.q), 10, q.falta ? ffRgb('#7A4A18') : PDF_COR.vd);
-          pdfTxt(doc, cx + cw - 7, y + 15, q.falta ? 'falta ' + q.falta + ' de ' + q.tot : 'tudo feito', 7, PDF_COR.muted, 'right');
-          pdfTxt(doc, cx + 7, y + 29, pdfCaber(doc, q.forns.map((f) => f.nome + ' ' + f.n).join(' · ') || '-', 6.8, cw - 14), 6.8, PDF_COR.ink2); }); } });
+  R.andares.forEach((r, ia) => {
+    const ini = B.length;
+    if (!r.tot){
+      B.push({ h:20, antes: ia ? 8 : 6, draw:(doc, x, y, W) => { pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.6); pdfFill(doc, PDF_COR.white); doc.roundedRect(x, y + 2, W, 17, 5, 5, 'FD');
+        pdfTxt(doc, x + 8, y + 14, r.a + 'º andar', 9, PDF_COR.muted); pdfTxt(doc, x + W - 8, y + 14, 'Sem apontamento', 7.5, PDF_COR.faint, 'right'); } });
+      return;
     }
+    B.push({ h:24, antes: ia ? 16 : 6, draw:(doc, x, y, W) => { pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 3, W, 19, 5, 5, 'F'); pdfTxt(doc, x + 8, y + 16, r.a + 'º andar', 9.5, PDF_COR.ink);
+      const bx = x + 74, bw = 140; pdfFill(doc, PDF_COR.line); doc.roundedRect(bx, y + 10, bw, 5, 2.5, 2.5, 'F'); if (r.pct > 0){ pdfFill(doc, PDF_COR.vd); doc.roundedRect(bx, y + 10, Math.max(5, bw * r.pct / 100), 5, 2.5, 2.5, 'F'); }
+      pdfTxt(doc, bx + bw + 8, y + 16, r.pct + '%', 7.5, PDF_COR.ink2); pdfTxt(doc, x + W - 8, y + 16, pdfNum(r.tot) + ' pendências · ' + pdfNum(r.feitas) + ' feitas · ' + pdfNum(r.falta) + ' falta', 7.5, PDF_COR.muted, 'right'); } });
+    const porLinha = 4;
+    const cw0 = ((doc.internal.pageSize.getWidth() - 2 * PDF_M) - (porLinha - 1) * 6) / porLinha;
+    for (let i = 0; i < r.quartos.length; i += porLinha){ const fatia = r.quartos.slice(i, i + porLinha);
+      const fl = fatia.map((q) => ffPdfLinhas(q.forns.map((f) => f.nome + ' ' + f.n).join(' · ') || '-', 6.8, cw0 - 14, 2, ' · ')), duas = fl.some((l) => l.length > 1);
+      const hc = duas ? 44 : 35;
+      B.push({ h: hc + 7, antes: 2, draw:(doc, x, y, W) => { const cw = (W - (porLinha - 1) * 6) / porLinha;
+        fatia.forEach((q, j) => { const cx = x + j * (cw + 6); pdfFill(doc, q.falta ? ffRgb('#FFF8F0') : ffRgb('#EEF8F2')); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(cx, y + 4, cw, hc, 5, 5, 'FD');
+          pdfTxt(doc, cx + 7, y + 17, ffQuartoCurto(q.q), 10, q.falta ? ffRgb('#7A4A18') : PDF_COR.vd);
+          pdfTxt(doc, cx + cw - 7, y + 17, q.falta ? 'falta ' + q.falta + ' de ' + q.tot : 'tudo feito', 7, PDF_COR.muted, 'right');
+          fl[j].forEach((t, k) => pdfTxt(doc, cx + 7, y + 31 + k * 9, t, 6.8, PDF_COR.ink2)); }); } });
+    }
+    ffPdfGrupo(B, ini);
   });
   // outras frentes
   R.outras.forEach((o) => {
-    ffPdfTabela(B, o.g.nome + ' · ' + o.tot + ' pendências', o.gid === 'comum' ? 'outra frente da obra AW' : 'encaminhar ao hotel', [{ rot:'Item', w:.46 }, { rot:'Onde', w:.42 }, { rot:'Citações', w:.12, align:'right' }],
-      o.itens.map((r) => [r.nome, o.gid === 'comum' ? '' : r.locais.length + ' · ' + r.locais.join(', '), r.citado]));
+    if (o.gid === 'comum') ffPdfTabela(B, o.g.nome + ' · ' + o.tot + ' pendências', 'outra frente da obra AW', [{ rot:'Área · item', w:.88 }, { rot:'Citações', w:.12, align:'right' }],
+      o.itens.map((r) => [r.nome, r.citado]));
+    else ffPdfTabela(B, o.g.nome + ' · ' + o.tot + ' pendências', 'encaminhar ao hotel', [{ rot:'Item', w:.4 }, { rot:'Onde (quartos)', w:.48, quebra:3 }, { rot:'Citações', w:.12, align:'right' }],
+      o.itens.map((r) => [r.nome, r.locais.length + ' · ' + r.locais.join(', '), r.citado]));
   });
-  B.push({ h:30, draw:(doc, x, y, W) => pdfTxt(doc, x, y + 18, 'Conferência: ' + pdfNum(R.totalComent) + ' linhas na planilha do cliente = ' + pdfNum(R.totalComent - R.semPendN) + ' com pendência + ' + pdfNum(R.semPendN) + ' sem pendência. O mesmo item no mesmo quarto conta uma vez.', 7.5, PDF_COR.muted) });
   ffPdfPaginar(doc, ctx, B);
   await compartilharOuBaixarPdf(doc.output('blob'), ffNomeArquivo('Resumo'), null);
 }
@@ -13189,7 +13238,7 @@ async function ffPdfLista(){
   const filtro = [forn || 'Todos os fornecedores', ffFiltro.andar !== 'todos' ? ffFiltro.andar + 'º andar' : '', sitTxt, ffFiltro.busca ? '"' + ffFiltro.busca + '"' : ''].filter(Boolean).join(' · ');
   const feitas = lista.filter((p) => p.sit === 'feito').length, quartos = new Set(lista.map((p) => p.local)).size, andares = Array.from(new Set(lista.map((p) => Number(p.andar)).filter(Boolean))).sort((a, b) => b - a);
   const discs = new Map(); lista.forEach((p) => discs.set(p.disc, (discs.get(p.disc) || 0) + 1));
-  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' });
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' }); ffPdfDoc = doc;
   const ctx = { titulo: FF_TITULO_PDF, dataHora: ffPdfDataHora(), filtro, contagem: lista.length + ' pendências',
     cartoes: [{ rotulo:'Pendências', valor: lista.length, sub:'nesta lista' }, { rotulo:'Falta fazer', valor: lista.length - feitas, sub: lista.filter((p) => p.sit === 'voltou').length ? lista.filter((p) => p.sit === 'voltou').length + ' voltaram' : 'Obra AW', destaque:true },
       { rotulo:'Feitas', valor: feitas, sub: pdfPct(feitas, lista.length) + '%', cor: PDF_COR.vd }, { rotulo:'Quartos', valor: quartos, sub: 'nesta lista' }, { rotulo:'Andares', valor: andares.length, sub: andares.map((a) => a + 'º').join(', ') }],
@@ -13198,6 +13247,7 @@ async function ffPdfLista(){
   const B = [];
   andares.forEach((a) => {
     const ps = lista.filter((p) => Number(p.andar) === a).sort((x, y) => ffOrdQuarto(x.local, y.local) || ffNomeItem(x.item).localeCompare(ffNomeItem(y.item), 'pt-BR'));
+    const ini = B.length;
     B.push(ffPdfSecao(a + 'º andar · ' + ps.length + ' pendência' + (ps.length > 1 ? 's' : ''), null));
     ps.forEach((p) => { const tr = ffTrechoDoProblema(p), vt = ffVariantesTxt(p);
       B.push({ h:38, draw:(doc, x, y, W) => {
@@ -13210,6 +13260,7 @@ async function ffPdfLista(){
         pdfTxt(doc, tx, y + 32, (p.citado > 1 ? 'citado ' + p.citado + 'x · ' : '') + 'último ' + dataCurta(p.ultimo) + (p.status && p.status.feitoEm ? ' · baixa ' + dataCurta(String(p.status.feitoEm).slice(0, 10)) + (p.status.feitoPor ? ' por ' + p.status.feitoPor : '') : ''), 6.5, PDF_COR.muted);
         const st = p.sit === 'feito' ? ['Feito', PDF_COR.vd, PDF_COR.vds] : p.sit === 'voltou' ? ['Voltou', PDF_COR.vm, PDF_COR.vms] : p.sit === 'naoProcede' ? ['Não procede', PDF_COR.muted, PDF_COR.paper] : ['Falta fazer', PDF_COR.am, PDF_COR.ams];
         const pw = pdfLarg(doc, st[0], 7.5) + 14; pdfPill(doc, x + W - 8 - pw, y + 22, st[0], st[1], st[2]); } }); });
+    ffPdfGrupo(B, ini);
   });
   ffPdfPaginar(doc, ctx, B);
   await compartilharOuBaixarPdf(doc.output('blob'), ffNomeArquivo(forn ? forn : 'Lista'), null);
