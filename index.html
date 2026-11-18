@@ -932,7 +932,36 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-tag-voltou{ font-style:normal; background:#FBE3DE; color:#A0522D; border-radius:6px; padding:0 6px; font-size:11px; font-weight:700; }
 .ff-tag-novo{ background:#FFF0D6; color:#9A5418; border-radius:6px; padding:0 5px; font-size:10.5px; }
 .ff-det{ margin:2px 0 8px 72px; padding:8px 10px; background:#F6F7F6; border-radius:10px; font-size:12.5px; color:#33403A; display:flex; flex-direction:column; gap:5px; }
-.ff-det > div{ display:grid; grid-template-columns: 92px minmax(0, 1fr); gap:8px; }
+.ff-det-l{ display:grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap:8px; align-items:start; }
+.ff-sel-linha{ font:inherit; font-size:11px; max-width:210px; padding:2px 4px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--muted); }
+.ff-var{ font-weight:600; color:#7A4A18; font-size:12.5px; }
+.ff-cit{ color:#4A5550; }
+.ff-disc{ margin-bottom:16px; }
+.ff-disc-cab{ display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; padding:8px 12px; border-radius:12px; background:#F3EEE6; margin-bottom:8px; }
+.ff-disc-cab b{ font-size:15px; color:#3D3326; } .ff-disc-cab span{ font-size:12px; color:#6B5E4C; }
+.ff-disc-cab .ff-sel-quem{ margin-left:auto; }
+.ff-qgrid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:10px; align-items:start; }
+.ff-qcard{ border:1px solid #EEF0EF; border-radius:14px; background:#FCFCFB; padding:8px 10px; }
+.ff-qcard-cab{ display:flex; justify-content:space-between; align-items:baseline; padding-bottom:6px; border-bottom:1px solid #F0F1F0; }
+.ff-qcard-cab b{ font-size:17px; color:#7A4A18; } .ff-qcard-cab span{ font-size:11.5px; color:#8A938E; }
+.ff-qi{ display:flex; gap:8px; align-items:flex-start; justify-content:space-between; padding:6px 0; border-bottom:1px solid #F4F5F4; }
+.ff-qi:last-child{ border-bottom:0; }
+.ff-qi-t{ display:flex; flex-direction:column; cursor:pointer; font-size:13px; color:#33403A; min-width:0; }
+.ff-qi-t small{ color:#8A938E; font-size:11px; }
+.ff-qi.feito{ opacity:.6; } .ff-qi.naoProcede{ opacity:.5; }
+.ff-qcard .ff-det{ margin:0 0 6px; }
+.ff-conf-resumo{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; background:#F3F4F3; border-radius:14px; padding:12px 14px; }
+.ff-conf-resumo > div{ display:flex; flex-direction:column; } .ff-conf-resumo > div b{ font-size:24px; color:#33403A; line-height:1.1; } .ff-conf-resumo > div span{ font-size:11.5px; color:#6B756F; }
+.ff-conf-resumo em{ font-style:normal; font-size:20px; color:#8A938E; }
+.ff-conf-resumo p{ flex-basis:100%; margin:4px 0 0; font-size:12.5px; color:#4A5550; }
+.ff-conf-tab{ border-collapse:collapse; margin:10px 0; font-size:12.5px; max-width:100%; width:auto; min-width:0; }
+.ff-conf-tab th, .ff-conf-tab td{ padding:4px 12px; text-align:right; border-bottom:1px solid #EEF0EF; } .ff-conf-tab th:first-child, .ff-conf-tab td:first-child{ text-align:left; }
+.ff-conf-tab th{ font-weight:500; color:#8A938E; font-size:11px; }
+.ff-conf-lista{ display:flex; flex-direction:column; gap:4px; }
+.ff-conf-l{ display:grid; grid-template-columns: 120px minmax(0, 1fr) 190px auto; gap:8px; align-items:start; padding:6px 8px; border-radius:9px; background:#FAFAF9; font-size:12.5px; color:#33403A; }
+.ff-conf-l.conferir{ background:#FFF6E8; }
+.ff-conf-l i{ color:#6B756F; font-style:normal; }
+.ff-conf-m{ color:#6B756F; font-size:11.5px; } .ff-conf-l.conferir .ff-conf-m{ color:#9A5418; font-weight:600; }
 .ff-det i{ color:#6B756F; font-style:normal; }
 .ff-det-d{ color:#8A938E; font-size:11.5px; }
 .ff-det-baixa{ display:block !important; color:#2E6B4A; font-size:12px; }
@@ -942,6 +971,14 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-h-t{ cursor:pointer; } .ff-h-t small{ color:#8A938E; }
 .ff-h-q{ color:#5B6660; overflow-wrap:anywhere; }
 .ff-hotel .ff-det{ margin:0 12px 8px; }
+.ff-cab-dir{ margin-left:auto; display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.ff-cab-dir .ff-sel-quem{ margin-left:0; }
+.ff-forn-l{ display:inline-flex; gap:5px; align-items:center; font-size:11px; color:#6B756F; }
+.ff-sel-forn{ font:inherit; font-size:12px; padding:3px 6px; border:1px solid #E3C9A8; border-radius:8px; background:#FFF8F0; color:#7A4A18; max-width:220px; }
+.ff-forn-l.sug .ff-sel-forn{ border-style:dashed; }
+.ff-forn-l.vazio .ff-sel-forn{ border-color:#E8A39A; background:#FBE9E6; color:#8A3B30; }
+.ff-forn{ font-size:12px; color:#7A4A18; background:#FFF8F0; border-radius:8px; padding:2px 8px; } .ff-forn small{ color:#9A8670; } .ff-forn.vazio{ color:#8A3B30; background:#FBE9E6; }
+.ff-forn-mini{ white-space:nowrap; display:inline-block; font-weight:500; font-size:11px; color:#9A5418; background:#FFF0D6; border-radius:6px; padding:0 5px; margin-left:4px; }
 @media (max-width: 760px){
   .ff-corte-cab{ display:none; }
   .ff-corte-linha{ grid-template-columns: 34px minmax(0, 1fr) 44px 44px; }
@@ -949,9 +986,14 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   .ff-corte-linha .ff-qchips{ grid-column: 1 / -1; }
   .ff-l{ grid-template-columns: 54px minmax(0, 1fr); }
   .ff-acoes{ grid-column: 2; justify-content:flex-start; }
-  .ff-det{ margin-left:0; } .ff-det > div{ grid-template-columns: 1fr; gap:1px; }
+  .ff-det{ margin-left:0; } .ff-det-l{ grid-template-columns: 1fr; gap:1px; }
+  .ff-conf-l{ grid-template-columns: 1fr; gap:2px; }
+  .ff-conf-tab{ width:100%; font-size:12px; } .ff-conf-tab th, .ff-conf-tab td{ padding:4px 6px; } .ff-conf-tab th{ white-space:normal; }
+  .ff-qgrid{ grid-template-columns: 1fr; }
+  .ff-disc-cab .ff-sel-quem{ margin-left:0; }
   .ff-h-l{ grid-template-columns: 1fr; gap:2px; }
   .ff-sel-quem{ margin-left:0; }
+  .ff-cab-dir{ margin-left:0; width:100%; }
 }
 </style>
 </head>
@@ -1577,7 +1619,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.334';
+const VERSAO_APP = '2026-10-03.336';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -12116,12 +12158,81 @@ const FF_TIPOS = {};
 FF_PROBLEMAS.forEach((p) => { FF_TIPOS[p[0]] = { id:p[0], nome:p[1], quem:p[2] }; });
 FF_EXTRAS.forEach((p) => { FF_TIPOS[p[0]] = { id:p[0], nome:p[1], quem:p[2] }; });
 
+/* Agrupamento: o que o hóspede relatou (tipo) → ITEM (o que a equipe resolve) → DISCIPLINA.
+   A contagem e a baixa são por item no quarto: "Automação no 808" é uma pendência, mesmo que o
+   hóspede tenha citado painel aceso e master off. */
+const FF_DISCIPLINAS = [
+  ['automacao', 'Automação'], ['eletrica', 'Elétrica e iluminação'], ['clima', 'Climatização'], ['hidraulica', 'Hidráulica'],
+  ['cofre', 'Cofre'], ['portas', 'Portas e fechaduras'], ['cortinas', 'Cortinas'], ['acabamento', 'Acabamento e limpeza'], ['outros_aw', 'Outros da obra'],
+  ['tecnologia', 'TV, telefone e rede'], ['operacao', 'Operação do hotel'], ['comum', 'Áreas comuns'], ['clas', 'A classificar']
+];
+const FF_ITENS = {};
+[ // id, nome, disciplina, quem, [tipos relatados]
+  ['automacao', 'Automação', 'automacao', 'aw', ['painel', 'master_off', 'luz_instavel', 'cena_noite', 'campainha', 'abajur', 'controle_cortina', 'tecla_cabeceira', 'dimmer']],
+  ['iluminacao', 'Iluminação', 'eletrica', 'aw', ['luz_banheiro', 'espelho_maquiagem', 'luz_leitura', 'luz_armario', 'luz_azul']],
+  ['carregador', 'Carregador por indução', 'eletrica', 'aw', ['carregador', 'carregador_lento', 'carregador_ruido']],
+  ['tomadas', 'Tomadas e USB', 'eletrica', 'aw', ['tomada', 'usb', 'cafe_tensao']],
+  ['espelho_aquecido', 'Espelho aquecido', 'eletrica', 'aw', ['espelho_desemb']],
+  ['eletrica_outros', 'Elétrica (outros)', 'eletrica', 'aw', ['eletrica_outros']],
+  ['ar', 'Ar-condicionado', 'clima', 'aw', ['ar', 'ar20', 'ventilacao']],
+  ['agua', 'Água quente e pressão', 'hidraulica', 'aw', ['agua_quente', 'pressao', 'vazamento']],
+  ['escoamento', 'Escoamento (cuba, ralo, box)', 'hidraulica', 'aw', ['escoamento', 'ralo_box', 'sifao']],
+  ['ducha', 'Ducha higiênica', 'hidraulica', 'aw', ['ducha']],
+  ['vaso', 'Vaso sanitário', 'hidraulica', 'aw', ['vaso']],
+  ['hidraulica_outros', 'Hidráulica (outros)', 'hidraulica', 'aw', ['hidraulica_outros']],
+  ['cofre', 'Cofre', 'cofre', 'aw', ['cofre']],
+  ['portas', 'Portas e fechaduras', 'portas', 'aw', ['trinco', 'trava_entrada', 'porta_conectante', 'porta_box', 'portas_outros']],
+  ['cortinas', 'Cortinas', 'cortinas', 'aw', ['cortina_vao', 'cortina_furada']],
+  ['acabamento', 'Acabamento (riscos, manchas, danos)', 'acabamento', 'aw', ['acabamento']],
+  ['limpeza', 'Limpeza fina', 'acabamento', 'aw', ['limpeza']],
+  ['cabos', 'Cabos aparentes', 'acabamento', 'aw', ['cabos']],
+  ['acustica', 'Isolamento acústico', 'outros_aw', 'aw', ['acustica']],
+  ['rota_fuga', 'Rota de fuga no quarto', 'outros_aw', 'aw', ['rota_fuga']],
+  ['mobiliario', 'Mobiliário / marcenaria', 'outros_aw', 'aw', ['mobiliario']],
+  ['tv', 'TV e streaming', 'tecnologia', 'tec', ['tv']],
+  ['tec_geral', 'Tecnologia (sem detalhe)', 'tecnologia', 'tec', ['tec_geral']],
+  ['telefone', 'Telefone não funciona', 'tecnologia', 'tec', ['telefone']],
+  ['rede', 'Wi-Fi e Bluetooth', 'tecnologia', 'tec', ['wifi', 'bluetooth']],
+  ['fechadura_cartao', 'Fechadura por cartão', 'tecnologia', 'tec', ['fechadura_cartao']],
+  ['cafe', 'Café e frigobar (abastecimento)', 'operacao', 'ope', ['cafe', 'frigobar']],
+  ['secador', 'Secador', 'operacao', 'ope', ['secador']],
+  ['tel_instrucoes', 'Telefone: instruções e recepção', 'operacao', 'ope', ['tel_instrucoes', 'recepcao']],
+  ['servico', 'Atendimento e arrumação', 'operacao', 'ope', ['servico', 'turndown', 'tapete']],
+  ['equip_outros', 'Equipamentos (outros)', 'operacao', 'ope', ['equip_outros']],
+  ['outros', 'Outros (a classificar)', 'clas', 'clas', ['outros']]
+].forEach(([id, nome, disc, quem, tipos]) => { FF_ITENS[id] = { id, nome, disc, quem, tipos }; });
+const FF_ITEM_DE = {};
+Object.values(FF_ITENS).forEach((it) => it.tipos.forEach((t) => { FF_ITEM_DE[t] = it.id; }));
+/* nome curto do que foi relatado, para mostrar dentro do item */
+const FF_CURTO = { painel:'painel/termostato aceso à noite', master_off:'master off', luz_instavel:'luz instável', cena_noite:'cena noturna', campainha:'campainha',
+  abajur:'abajures fora da automação', controle_cortina:'controle da cortina', tecla_cabeceira:'tecla da cabeceira', dimmer:'sem luz noturna/dimmer',
+  luz_banheiro:'luz do banheiro fraca', espelho_maquiagem:'espelho de maquiagem', luz_leitura:'luz de leitura', luz_armario:'luz do armário não apaga', luz_azul:'luz azul no criado-mudo',
+  carregador:'não carrega', carregador_lento:'lento', carregador_ruido:'ruído', tomada:'tomada sem energia', usb:'sem USB', cafe_tensao:'café 127 V × 220 V',
+  ar:'não regula/desarma', ar20:'mínimo 20 °C', ventilacao:'ventilação/exaustão', agua_quente:'água quente', pressao:'pressão fraca', vazamento:'vazamento',
+  escoamento:'cuba', ralo_box:'ralo/box', sifao:'sifão', trinco:'banheiro sem trinco', trava_entrada:'trava/visor da entrada', porta_conectante:'porta conectante', porta_box:'porta do box',
+  cortina_vao:'vão de luz', cortina_furada:'furada', tv:'canais/streaming', wifi:'Wi-Fi', bluetooth:'Bluetooth', cafe:'café', frigobar:'frigobar',
+  tel_instrucoes:'sem número/instruções', recepcao:'recepção não atendeu', servico:'atendimento', turndown:'turndown', tapete:'tapete' };
+function ffItemDoTipo(t){ if (String(t).indexOf('comum:') === 0) return t; return FF_ITEM_DE[t] || (FF_ITENS[t] ? t : 'outros'); }
+function ffNomeItem(item){ if (String(item).indexOf('comum:') === 0) return item.slice(6).replace(/^[^:]+: /, ''); return (FF_ITENS[item] || {}).nome || item; }
+function ffDiscDoItem(item){ if (String(item).indexOf('comum:') === 0) return 'comum'; return (FF_ITENS[item] || {}).disc || 'clas'; }
+function ffNomeDisc(d){ const x = FF_DISCIPLINAS.find((z) => z[0] === d); return x ? x[1] : d; }
+/* por que uma linha não virou pendência (para a conferência) */
+function ffMotivoSemPendencia(l){
+  const p = ffNorm(l.pergunta), r = ffNorm(l.resposta);
+  if (!r || !r.replace(/[\s/|.-]+/g, '')) return { txt:'Resposta vazia', conferir:false };
+  if (/nao testado|did not test/.test(r)) return { txt:'Não testado', conferir:false };
+  if (/mofo|bolor|mould/.test(p + ' ' + r) && r !== 'nao') return { txt:'Sem mofo', conferir:false };
+  if (r === 'nao') return { txt:'Só "Não", sem detalhe (provável: não havia o problema)', conferir:true };
+  if (/mais gostou|excellent stay/.test(p + ' ' + r)) return { txt:'Elogio', conferir:false };
+  if (/funcionou/.test(r)) return { txt:'Respondeu que funcionou', conferir:false };
+  return { txt:'Texto incompleto', conferir:true };
+}
+
 /* respostas que não são pendência: elogio, "não tinha mofo", "funcionou", não testado */
 function ffSemPendencia(p, r){
   if (!r || /^nao$/.test(r) && /bolor|presenca de mofo|riscos, arranhoes ou danos/.test(p)) return true;
-  if (/nao tinha mofo|sem bolor|no mould|nao testado|did not test|excellent stay|nao foi um incomodo/.test(r)) return true;
-  if (/^(tudo )?funcionou\b|^no geral, tudo funcionou/.test(r) && !/nao funcionou/.test(r)) return true;
-  if (/resolveu|foi solucionado$/.test(r) && !/nao/.test(r.replace(/^nao\s*-\s*/, ''))) return true;
+  if (/nao tinha mofo|sem bolor|no mould|nao testado|did not test|excellent stay/.test(r)) return true;
+  if (/^(tudo )?funcionou[.!]?$/.test(r)) return true;
   if (/mais gostou/.test(p)) return true;
   if (/^uma observacao como sao duas$/.test(r)) return true;
   return false;
@@ -12133,12 +12244,14 @@ function ffTipoDoTexto(t, r, p, pt){
 /* Classifica uma linha da planilha. Comentário livre com várias pendências (lista, várias frases)
    é dividido em pedaços e cada pedaço vira um problema. */
 function ffClassificarLinha(l){
-  const p = ffNorm(l.pergunta), rRaw = String(l.resposta || ''), r = ffNorm(rRaw), pt = ffNorm((l.secao || '') + ' | ' + (l.parte || ''));
+  const p0 = ffNorm(l.pergunta), rRaw = String(l.resposta || ''), r = ffNorm(rRaw), pt = ffNorm((l.secao || '') + ' | ' + (l.parte || ''));
+  // pergunta-modelo "Onde foi e o que aconteceu? (torneira, mesa bamba, lâmpada…)": os exemplos não contam
+  const p = /onde foi e o que aconteceu/.test(p0) ? '' : p0;
   const quarto = /^quarto\b/i.test(String(l.local || '').trim());
   if (!quarto) return ffClassificarAreaComum(l, p, r);
   const tipos = [];
   const add = (id) => { if (id && tipos.indexOf(id) === -1) tipos.push(id); };
-  const livre = !p || /onde foi e o que aconteceu|algo nao funcionou|impressao geral/.test(p);
+  const livre = !p || /onde foi e o que aconteceu|algo nao funcionou|impressao geral/.test(p0);
   const linhasTxt = rRaw.split(/\n+/).map((s) => s.trim()).filter(Boolean);
   if (livre && (linhasTxt.length >= 3 || r.length > 160)){
     const pedacos = rRaw.replace(/([.!;])\s+/g, '$1\n').replace(/,\s+(?=(?:and )?[a-z]+ing\b)/gi, '\n').replace(/,\s+and\s+/gi, '\n').split(/\n+/).map((s) => s.trim()).filter((s) => s.length > 3);
@@ -12204,7 +12317,7 @@ function ffHash(str){
 }
 function ffIdLinha(aba, l){ return ffHash([aba, l.local, l.pergunta, l.resposta].map((x) => String(x || '').trim()).join('|')); }
 /* linhas da planilha de 17/11 revisadas uma a uma (comentário com mais de uma pendência na mesma frase) */
-const FF_AJUSTES_REVISADOS = {"1pa8sh2pftj":["luz_instavel","ar","cortina_furada"],"2g2slft8yaw":["cofre","cafe"],"1nj6w5f26j3":["tecla_cabeceira","carregador"],"1j83pd9geh2":["luz_armario","luz_azul","tapete","porta_box"],"1zgb760apam":["ar","limpeza"],"125rmkf0z0r":["comum:Rive Sud: Torneira colada na cuba"]};
+const FF_AJUSTES_REVISADOS = {"1pa8sh2pftj":["luz_instavel","ar","cortina_furada"],"2g2slft8yaw":["cofre","cafe"],"1nj6w5f26j3":["tecla_cabeceira","carregador"],"1j83pd9geh2":["luz_armario","luz_azul","tapete","porta_box"],"1zgb760apam":["ar","limpeza"],"125rmkf0z0r":["comum:Rive Sud: Torneira colada na cuba"],"207nl6vg4wv":["agua_quente","ar"]};
 function ffDiaDaAba(aba, dataHosp){
   const m = String(aba).match(/^(\d{1,2})[-_.\/](\d{1,2})[-_.\/](\d{2,4})$/);
   if (m){ const y = m[3].length === 2 ? '20' + m[3] : m[3]; return y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); }
@@ -12245,8 +12358,9 @@ function ffLerPlanilha(wb){
   return dias;
 }
 
-let ffDias = null, ffStatus = {}, ffRegras = { quem:{}, ajustes:{} };
-let ffFiltro = { andar:'todos', sit:'falta', busca:'' }, ffExpandidos = new Set(), ffCarregando = null;
+
+let ffDias = null, ffStatus = {}, ffRegras = { quem:{}, ajustes:{}, ajustesPor:{}, fornecedor:{} };
+let ffFiltro = { andar:'todos', sit:'falta', busca:'', visao:'disc', forn:'' }, ffExpandidos = new Set(), ffCarregando = null;
 async function ffCarregar(forcar){
   if (ffDias && !forcar) return;
   if (ffCarregando && !forcar) return ffCarregando;
@@ -12254,55 +12368,135 @@ async function ffCarregar(forcar){
     const [dias, st, rg] = await Promise.all([store.listCollection('ff_dias'), store.listCollection('ff_status'), store.getDoc('config', 'ff_regras').catch(() => null)]);
     ffDias = (dias || []).filter((d) => d && Array.isArray(d.linhas));
     ffStatus = {}; (st || []).forEach((d) => { ffStatus[d._id] = d; });
-    ffRegras = { quem: (rg && rg.quem) || {}, ajustes: (rg && rg.ajustes) || {} };
+    ffRegras = { quem: (rg && rg.quem) || {}, ajustes: (rg && rg.ajustes) || {}, ajustesPor: (rg && rg.ajustesPor) || {}, fornecedor: (rg && rg.fornecedor) || {} };
   })();
   try{ await ffCarregando; } finally { ffCarregando = null; }
 }
-function ffQuemDoTipo(tipo){
-  if (String(tipo).indexOf('comum:') === 0) return ffRegras.quem[tipo] || 'comum';
-  return ffRegras.quem[tipo] || (FF_TIPOS[tipo] || {}).quem || 'clas';
+function ffQuemDoItem(item){
+  if (ffRegras.quem[item]) return ffRegras.quem[item];
+  if (String(item).indexOf('comum:') === 0) return 'comum';
+  return (FF_ITENS[item] || {}).quem || 'clas';
+}
+/* ===== Fornecedor de cada item da AW =====
+   Sugestão puxada do próprio app: os itens da IAC/Sofitel da revisão aberta que tratam do mesmo
+   assunto (pela disciplina e pela descrição) e o padrão de cada disciplina da aba "Disciplinas &
+   fornecedores" → vale o fornecedor que mais aparece. O administrador pode trocar. */
+const FF_PALAVRAS_FORN = {
+  automacao: { disc:/automa/, desc:/automa|master ?off|keypad|cenario|dimmer|grms|campainha|controle de (luz|ilumina)|painel de (controle|comando)/ },
+  iluminacao: { disc:/ilumina|luminot/, desc:/ilumina|luminaria|lampada|\bled\b|spot|arandela|abajur|pendente/ },
+  carregador: { disc:null, desc:/inducao|carregador/ },
+  tomadas: { disc:/eletric/, desc:/tomada|usb/ },
+  espelho_aquecido: { disc:null, desc:/espelho.*(aquec|desemb)|(aquec|desemb).*espelho/ },
+  eletrica_outros: { disc:/eletric/, desc:null },
+  ar: { disc:/ar.?condicionado|climatiza|hvac|refrigera/, desc:/ar.?condicionado|climatiza|fan.?coil|split|grelha|difusor|termostato/ },
+  agua: { disc:/hidraul/, desc:/agua quente|aquecedor|pressao|misturador|registro|chuveiro/ },
+  escoamento: { disc:/hidraul/, desc:/ralo|sifao|escoa|cuba|caimento/ },
+  ducha: { disc:/hidraul|louca|metais/, desc:/ducha|chuveirinho/ },
+  vaso: { disc:/louca|hidraul/, desc:/vaso|bacia sanit/ },
+  hidraulica_outros: { disc:/hidraul/, desc:null },
+  cofre: { disc:/cofre/, desc:/cofre/ },
+  portas: { disc:/porta|esquadria|serralh|ferragem|fechadura/, desc:/porta|fechadura|trinco|batente|dobradica|visor|puxador/ },
+  cortinas: { disc:/cortina|persiana/, desc:/cortina|persiana|black ?out|trilho/ },
+  acabamento: { disc:/pintura|acabamento/, desc:/pintura|retoque|risco|mancha|rodape|massa corrida/ },
+  limpeza: { disc:/limpeza/, desc:/limpeza|sujeira|residuo|sujo/ },
+  cabos: { disc:null, desc:/cabo|fiacao|fio aparente|fios aparentes/ },
+  acustica: { disc:/acustic|drywall|gesso/, desc:/acustic|isolamento/ },
+  rota_fuga: { disc:/comunica|sinaliza/, desc:/rota de fuga|sinaliza/ },
+  mobiliario: { disc:/marcenaria|mobiliario/, desc:/marcenaria|movel|moveis|armario/ }
+};
+/* sem nenhum item parecido no app, usa o fornecedor da disciplina de base */
+const FF_BASE_FORN = { automacao:'eletrica_outros', iluminacao:'eletrica_outros', carregador:'eletrica_outros', tomadas:'eletrica_outros', espelho_aquecido:'eletrica_outros', cabos:'eletrica_outros',
+  agua:'hidraulica_outros', escoamento:'hidraulica_outros', ducha:'hidraulica_outros', vaso:'hidraulica_outros', cofre:'mobiliario', portas:'mobiliario' };
+let ffCacheForn = null;
+function ffContagemFornecedores(){
+  const lista = (typeof itensRevisaoAtual !== 'undefined' && itensRevisaoAtual) || [], mapaDisc = (typeof fornecedores !== 'undefined' && fornecedores) || {};
+  const chave = String(typeof revisaoSelecionada !== 'undefined' ? revisaoSelecionada : '') + '|' + lista.length + '|' + JSON.stringify(mapaDisc);
+  if (ffCacheForn && ffCacheForn.chave === chave) return ffCacheForn;
+  const porItem = {}, nomes = new Set();
+  Object.values(mapaDisc).forEach((n) => { if (n && String(n).trim()) nomes.add(String(n).trim()); });
+  const itensIac = lista.map((it) => { let f = ''; try{ f = String(fornecedorEfetivo(it) || '').trim(); }catch(e){} if (f) nomes.add(f);
+    let d = ''; try{ d = disciplinaEfetiva(it); }catch(e){ d = it.disciplina; } return { d: ffNorm(d), x: ffNorm(it.desc), f }; });
+  Object.entries(FF_PALAVRAS_FORN).forEach(([item, re]) => {
+    const c = new Map(), soma = (n, p) => { if (n) c.set(n, (c.get(n) || 0) + p); };
+    if (re.disc) Object.entries(mapaDisc).forEach(([disc, n]) => { if (n && re.disc.test(ffNorm(disc))) soma(String(n).trim(), 3); });
+    itensIac.forEach((it) => { const p = (re.disc && re.disc.test(it.d) ? 1 : 0) + (re.desc && re.desc.test(it.x) ? 2 : 0); if (p) soma(it.f, p); });
+    porItem[item] = Array.from(c.entries()).sort((a, b) => b[1] - a[1]);
+  });
+  ffCacheForn = { chave, porItem, nomes: Array.from(nomes).sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+  return ffCacheForn;
+}
+/* { nome, sugerido } — nome '' quando não há fornecedor */
+function ffFornecedorDoItem(item){
+  const esc0 = ffRegras.fornecedor && ffRegras.fornecedor[item];
+  if (esc0 === '__sem__') return { nome:'', sugerido:false, escolhido:true };
+  if (esc0) return { nome:esc0, sugerido:false, escolhido:true };
+  const c = ffContagemFornecedores(), top = (c.porItem[item] || [])[0] || (FF_BASE_FORN[item] ? (c.porItem[FF_BASE_FORN[item]] || [])[0] : null);
+  return { nome: top ? top[0] : '', sugerido: !!top, escolhido:false };
+}
+async function ffDefinirFornecedor(item, valor){
+  if (!exigirAdmin()){ renderFF(); return; }
+  if (!(await garantirUsuario())){ renderFF(); return; }
+  ffRegras.fornecedor = ffRegras.fornecedor || {};
+  if (!valor) delete ffRegras.fornecedor[item]; else ffRegras.fornecedor[item] = valor;
+  renderFF(); await ffSalvarRegras();
 }
 function ffChaveRevisada(l){ return ffHash(ffNorm([l.aba, l.local, l.resposta].join('|'))); }
 function ffNomeCurto(tipo){ return String(tipo).indexOf('comum:') === 0 ? ffNomeTipo(tipo).replace(/^[^:]+: /, '') : ffNomeTipo(tipo); }
+/* tipos relatados na linha: ajuste manual do administrador > revisão da planilha de 17/11 > regras */
 function ffTiposDaLinha(l){
-  const aj = ffRegras.ajustes[l.id] || FF_AJUSTES_REVISADOS[ffChaveRevisada(l)];
-  return Array.isArray(aj) ? aj : ffClassificarLinha(l);
+  const aj = ffRegras.ajustes[l.id];
+  if (Array.isArray(aj)) return aj;
+  const rev = FF_AJUSTES_REVISADOS[ffChaveRevisada(l)];
+  return Array.isArray(rev) ? rev : ffClassificarLinha(l);
 }
-function ffChaveStatus(quarto, tipo){ return 'q' + quarto + '__' + String(tipo).replace(/[^0-9A-Za-z_-]+/g, '_'); }
-/* junta tudo: linhas → problemas (mesmo tipo no mesmo local = 1 problema) */
+function ffChaveStatus(onde, item){ return 'q' + String(onde || '').replace(/[^0-9A-Za-z_-]+/g, '_') + '__' + String(item).replace(/[^0-9A-Za-z_-]+/g, '_'); }
+/* junta tudo: linha → itens; mesmo item no mesmo quarto = 1 pendência */
 function ffMontar(){
   const linhas = [], probs = new Map();
   let ultimaLeva = '';
   (ffDias || []).forEach((d) => d.linhas.forEach((l) => { linhas.push(Object.assign({ dia:d.dia, aba:d.aba }, l)); if (l.chegouEm && l.chegouEm > ultimaLeva) ultimaLeva = l.chegouEm; }));
   linhas.forEach((l) => {
-    const tipos = ffTiposDaLinha(l); l.tipos = tipos;
+    const tipos = ffTiposDaLinha(l);
+    l.tipos = tipos;
+    l.itens = Array.from(new Set(tipos.map(ffItemDoTipo)));
     const quarto = ffQuartoDe(l.local);
     tipos.forEach((tipo) => {
-      const comum = String(tipo).indexOf('comum:') === 0;
-      const local = comum ? tipo.slice(6).split(': ')[0] : (quarto || l.local);
-      const k = (comum ? 'c|' : 'q|' + quarto + '|') + tipo;
-      if (!probs.has(k)) probs.set(k, { k, tipo, quarto: comum ? null : quarto, local, andar: comum ? null : ffAndarDoQuarto(quarto, l.andar), linhas:[], citado:0, primeiro:'9999', ultimo:'', chegouEm:'9999' });
-      const p = probs.get(k); p.linhas.push(l); p.citado += (l.n || 1);
-      if (l.dia < p.primeiro) p.primeiro = l.dia; if (l.dia > p.ultimo) p.ultimo = l.dia;
-      if ((l.chegouEm || '') < p.chegouEm) p.chegouEm = l.chegouEm || '';
+      const item = ffItemDoTipo(tipo), comum = String(item).indexOf('comum:') === 0;
+      const local = comum ? item.slice(6).split(': ')[0] : (quarto || l.local);
+      const k = comum ? 'c|' + item : 'q|' + local + '|' + item;
+      if (!probs.has(k)) probs.set(k, { k, item, tipo:item, disc:ffDiscDoItem(item), quarto: comum ? null : quarto, local, andar: comum || !quarto ? null : ffAndarDoQuarto(quarto, l.andar), linhas:[], variantes:new Set(), citado:0, primeiro:'9999', ultimo:'', chegouEm:'9999' });
+      const p = probs.get(k);
+      if (p.linhas.indexOf(l) === -1){ p.linhas.push(l); p.citado += (l.n || 1); if (l.dia < p.primeiro) p.primeiro = l.dia; if (l.dia > p.ultimo) p.ultimo = l.dia; if ((l.chegouEm || '') < p.chegouEm) p.chegouEm = l.chegouEm || ''; }
+      if (!comum) p.variantes.add(tipo);
     });
   });
   let lista = Array.from(probs.values());
-  lista.forEach((p) => { p.quem = ffQuemDoTipo(p.tipo); });
+  lista.forEach((p) => { p.quem = ffQuemDoItem(p.item); if (p.quem === 'aw') p.forn = ffFornecedorDoItem(p.item); });
   // "toda a tecnologia: não" não conta de novo no quarto que já tem TV/telefone/Wi-Fi com problema
-  lista = lista.filter((p) => !(p.tipo === 'tec_geral' && lista.some((o) => o !== p && o.quarto === p.quarto && o.quem === 'tec' && o.tipo !== 'tec_geral')));
+  // (as linhas dela passam para o outro item de tecnologia do quarto, para nenhuma linha ficar sem destino)
+  lista = lista.filter((p) => { if (p.item !== 'tec_geral') return true;
+    const outro = lista.find((o) => o !== p && o.local === p.local && o.quem === 'tec' && o.item !== 'tec_geral');
+    if (!outro) return true;
+    p.linhas.forEach((l) => { if (outro.linhas.indexOf(l) === -1){ outro.linhas.push(l); outro.citado += (l.n || 1); } });
+    return false; });
   lista.forEach((p) => {
     if (p.quem !== 'aw'){ p.sit = 'hotel'; return; }
-    const s = ffStatus[ffChaveStatus(p.quarto, p.tipo)] || {};
-    p.status = s;
-    if (s.naoProcedeEm){ p.sit = 'naoProcede'; return; }
-    if (s.feitoEm){
-      const diaBaixa = String(s.feitoEm).slice(0, 10);
-      p.voltouLinhas = p.linhas.filter((l) => (l.chegouEm || '') > s.feitoEm && l.dia >= diaBaixa);
+    p.chave = ffChaveStatus(p.quarto || p.local, p.item);
+    let s = ffStatus[p.chave];
+    if (!s){ // baixas dadas na versão anterior (por tipo relatado): vale se todos os relatos do item tiveram baixa
+      const vs = Array.from(p.variantes).map((v) => ffStatus[ffChaveStatus(p.quarto || p.local, v)]);
+      if (vs.length && vs.every((x) => x && x.feitoEm)){ const u = vs.slice().sort((a, b) => String(b.feitoEm).localeCompare(String(a.feitoEm)))[0]; s = { feitoEm:u.feitoEm, feitoPor:u.feitoPor }; }
+      else if (vs.length && vs.every((x) => x && x.naoProcedeEm)){ const u = vs[0]; s = { naoProcedeEm:u.naoProcedeEm, naoProcedePor:u.naoProcedePor }; }
+    }
+    p.status = s || {};
+    if (p.status.naoProcedeEm){ p.sit = 'naoProcede'; return; }
+    if (p.status.feitoEm){
+      const diaBaixa = String(p.status.feitoEm).slice(0, 10);
+      p.voltouLinhas = p.linhas.filter((l) => (l.chegouEm || '') > p.status.feitoEm && l.dia >= diaBaixa);
       p.sit = p.voltouLinhas.length ? 'voltou' : 'feito';
     } else p.sit = 'falta';
   });
-  const semPend = linhas.filter((l) => !l.tipos.length);
+  const semPend = linhas.filter((l) => !l.itens.length);
   return { linhas, problemas: lista, ultimaLeva, semPend };
 }
 
@@ -12318,7 +12512,7 @@ async function ffImportarBuffer(buf, nomeArq){
   try{
     await ffCarregar(true);
     const agora = new Date().toISOString();
-    let novas = 0, diasGravados = 0, falhas = 0, total = 0;
+    let novas = 0, falhas = 0, total = 0;
     for (const d of dias){
       const ant = ffDias.find((x) => x._id === d.docId);
       const antMap = new Map(((ant && ant.linhas) || []).map((l) => [l.id, l]));
@@ -12328,7 +12522,7 @@ async function ffImportarBuffer(buf, nomeArq){
         else { l.chegouEm = agora; novas += l.n; mudou = true; } });
       if (!mudou) continue;
       const r = await store.setDoc('ff_dias', d.docId, { aba:d.aba, dia:d.dia, linhas:d.linhas, importadoEm:agora, importadoPor:usuarioAtual, arquivo:nomeArq || '' });
-      if (!r || !r.ok) falhas++; else diasGravados++;
+      if (!r || !r.ok) falhas++;
     }
     await ffCarregar(true);
     if (falhas) avisoFlutuante('Family & Friends: ' + falhas + ' dia(s) não foram salvos (sem conexão?). Tente de novo.', 'erro');
@@ -12341,7 +12535,7 @@ async function ffMarcar(chave, acao){
   if (acao === 'naoProcede' || acao === 'procede'){ if (!exigirAdmin()) return; }
   if (!(await garantirUsuario())) return;
   const agora = new Date().toISOString(), antes = ffStatus[chave] ? JSON.parse(JSON.stringify(ffStatus[chave])) : null;
-  const s = Object.assign({}, ffStatus[chave] || {}); s.hist = Array.isArray(s.hist) ? s.hist.slice() : [];
+  const s = Object.assign({ feitoEm:null, feitoPor:null, naoProcedeEm:null, naoProcedePor:null }, ffStatus[chave] || {}); s.hist = Array.isArray(s.hist) ? s.hist.slice() : [];
   if (acao === 'feito'){ s.feitoEm = agora; s.feitoPor = usuarioAtual; }
   else if (acao === 'desfazer'){ s.feitoEm = null; s.feitoPor = null; }
   else if (acao === 'naoProcede'){ s.naoProcedeEm = agora; s.naoProcedePor = usuarioAtual; }
@@ -12352,43 +12546,63 @@ async function ffMarcar(chave, acao){
   if (!r || !r.ok){ if (antes) ffStatus[chave] = antes; else delete ffStatus[chave]; renderFF(); avisoFlutuante('Não foi salvo (sem conexão?). Tente de novo.', 'erro'); }
 }
 async function ffSalvarRegras(){
-  const r = await store.setDoc('config', 'ff_regras', { quem:ffRegras.quem, ajustes:ffRegras.ajustes, em:new Date().toISOString(), por:usuarioAtual });
+  const r = await store.setDoc('config', 'ff_regras', { quem:ffRegras.quem, ajustes:ffRegras.ajustes, ajustesPor:ffRegras.ajustesPor, fornecedor:ffRegras.fornecedor, em:new Date().toISOString(), por:usuarioAtual });
   if (!r || !r.ok) avisoFlutuante('Não foi salvo (sem conexão?).', 'erro');
+}
+/* administrador reclassifica uma linha: 'auto' (volta ao automático), 'sem' (sem pendência) ou um item */
+async function ffAjustarLinha(id, valor){
+  if (!exigirAdmin()) { renderFF(); return; }
+  if (!(await garantirUsuario())) { renderFF(); return; }
+  if (valor === 'auto'){ delete ffRegras.ajustes[id]; delete ffRegras.ajustesPor[id]; }
+  else { ffRegras.ajustes[id] = valor === 'sem' ? [] : [valor]; ffRegras.ajustesPor[id] = { por:usuarioAtual, em:new Date().toISOString() }; }
+  renderFF(); await ffSalvarRegras();
+}
+function ffOpcoesLinha(l){
+  const atual = Array.isArray(ffRegras.ajustes[l.id]) ? (ffRegras.ajustes[l.id].length ? ffItemDoTipo(ffRegras.ajustes[l.id][0]) : 'sem') : 'auto';
+  let h = '<option value="auto"' + (atual === 'auto' ? ' selected' : '') + '>Automático' + (atual === 'auto' && l.itens ? ' (' + (l.itens.length ? l.itens.map(ffNomeItem).join(' + ') : 'sem pendência') + ')' : '') + '</option>' +
+    '<option value="sem"' + (atual === 'sem' ? ' selected' : '') + '>Sem pendência</option>';
+  FF_DISCIPLINAS.filter((d) => d[0] !== 'comum').forEach(([d, nome]) => {
+    const its = Object.values(FF_ITENS).filter((it) => it.disc === d); if (!its.length) return;
+    h += '<optgroup label="' + esc(nome) + '">' + its.map((it) => '<option value="' + it.id + '"' + (atual === it.id ? ' selected' : '') + '>' + esc(it.nome) + '</option>').join('') + '</optgroup>';
+  });
+  return h;
 }
 
 /* ===================== FAMILY & FRIENDS · EXPORTAR PARA O CLIENTE =====================
    Mesma planilha que o cliente mandou (uma aba por dia), com "Responsável" preenchido,
-   "Solução" com a baixa da AW e uma coluna "Problema (agrupado)". */
+   "Solução" com a baixa da AW e uma coluna "Item (agrupado)". */
 function ffExportar(){
   if (!ffDias || !ffDias.length){ avisoFlutuante('Importe a planilha primeiro.', 'erro'); return; }
   const m = ffMontar(), porK = new Map(m.problemas.map((p) => [p.k, p]));
   const nomeG = (id) => (FF_GRUPOS.find((g) => g.id === id) || {}).nome || id;
+  const sitTxt = (p) => p.sit === 'feito' ? 'Feito' : p.sit === 'voltou' ? 'Voltou após a baixa' : p.sit === 'naoProcede' ? 'Não procede' : p.sit === 'falta' ? 'Falta fazer' : 'Encaminhar ao hotel';
   const wb = XLSX.utils.book_new();
-  // resumo
+  const totL = m.linhas.reduce((s, l) => s + (l.n || 1), 0), semL = m.semPend.reduce((s, l) => s + (l.n || 1), 0);
   const grupos = FF_GRUPOS.map((g) => { const ps = m.problemas.filter((p) => p.quem === g.id); return [g.nome, ps.length, ps.filter((p) => p.sit === 'feito').length, ps.filter((p) => p.sit === 'falta' || p.sit === 'voltou').length]; }).filter((r) => r[1]);
-  const res = [['Family & Friends · separação por quem resolve'], ['Gerado em ' + new Date().toLocaleString('pt-BR') + ' · mesmo problema no mesmo local conta uma vez'], [],
-    ['Responsável', 'Problemas', 'Feitos', 'Falta fazer']].concat(grupos).concat([['Total', m.problemas.length, '', ''], [], ['Responsável', 'Problema', 'Local', 'Andar', 'Citado', 'Situação', 'Baixa']]);
-  m.problemas.slice().sort((a, b) => FF_GRUPOS.findIndex((g) => g.id === a.quem) - FF_GRUPOS.findIndex((g) => g.id === b.quem) || ffNomeTipo(a.tipo).localeCompare(ffNomeTipo(b.tipo)) || String(a.local).localeCompare(String(b.local)))
-    .forEach((p) => res.push([nomeG(p.quem), ffNomeCurto(p.tipo), p.quarto ? 'Quarto ' + p.quarto : p.local, p.andar || '', p.citado,
-      p.sit === 'feito' ? 'Feito' : p.sit === 'voltou' ? 'Voltou após a baixa' : p.sit === 'naoProcede' ? 'Não procede' : p.sit === 'falta' ? 'Falta fazer' : 'Encaminhar ao hotel',
-      p.status && p.status.feitoEm ? new Date(p.status.feitoEm).toLocaleDateString('pt-BR') + ' · ' + (p.status.feitoPor || '') : '']));
-  const wsR = XLSX.utils.aoa_to_sheet(res); wsR['!cols'] = [{ wch:20 }, { wch:44 }, { wch:16 }, { wch:7 }, { wch:7 }, { wch:20 }, { wch:24 }];
+  const res = [['Family & Friends · separação por quem resolve'], ['Gerado em ' + new Date().toLocaleString('pt-BR') + ' · o mesmo item no mesmo local conta uma vez'],
+    ['Linhas da planilha: ' + totL + ' = ' + (totL - semL) + ' com pendência + ' + semL + ' sem pendência'], [],
+    ['Responsável', 'Pendências', 'Feitas', 'Falta fazer']].concat(grupos).concat([['Total', m.problemas.length, '', ''], [], ['Responsável', 'Disciplina', 'Item', 'Fornecedor', 'O que foi relatado', 'Local', 'Andar', 'Citado', 'Situação', 'Baixa']]);
+  const ordG = (id) => FF_GRUPOS.findIndex((g) => g.id === id), ordD = (d) => FF_DISCIPLINAS.findIndex((x) => x[0] === d);
+  m.problemas.slice().sort((a, b) => ordG(a.quem) - ordG(b.quem) || ordD(a.disc) - ordD(b.disc) || ffNomeItem(a.item).localeCompare(ffNomeItem(b.item)) || ffOrdQuarto(a.quarto || a.local, b.quarto || b.local))
+    .forEach((p) => res.push([nomeG(p.quem), p.disc === 'comum' ? 'Áreas comuns' : ffNomeDisc(p.disc), ffNomeItem(p.item), p.forn && p.forn.nome ? p.forn.nome + (p.forn.sugerido ? ' (sugerido)' : '') : '', Array.from(p.variantes).map((v) => FF_CURTO[v] || ffNomeTipo(v)).join(' · '),
+      p.quarto ? 'Quarto ' + p.quarto : p.local, p.andar || '', p.citado, sitTxt(p), p.status && p.status.feitoEm ? new Date(p.status.feitoEm).toLocaleDateString('pt-BR') + ' · ' + (p.status.feitoPor || '') : '']));
+  const wsR = XLSX.utils.aoa_to_sheet(res); wsR['!cols'] = [{ wch:18 }, { wch:20 }, { wch:30 }, { wch:22 }, { wch:40 }, { wch:16 }, { wch:7 }, { wch:7 }, { wch:20 }, { wch:24 }];
   XLSX.utils.book_append_sheet(wb, wsR, 'Separação');
   ffDias.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).forEach((d) => {
-    const aoa = [['Pendências de manutenção – Sofitel Rio de Janeiro Ipanema'], ['Data de hospedagem', 'Local', 'Andar', 'Seção', 'Parte', 'Pergunta', 'Resposta de quem ficou hospedado', 'Especialidade', 'Status', 'Responsável', 'Solução', 'Prazo', 'Problema (agrupado)']];
+    const aoa = [['Pendências de manutenção – Sofitel Rio de Janeiro Ipanema'], ['Data de hospedagem', 'Local', 'Andar', 'Seção', 'Parte', 'Pergunta', 'Resposta de quem ficou hospedado', 'Especialidade', 'Status', 'Responsável', 'Solução', 'Prazo', 'Item (agrupado)']];
     d.linhas.forEach((l0) => {
-      const l = Object.assign({ dia:d.dia }, l0), tipos = ffTiposDaLinha(l), quarto = ffQuartoDe(l.local);
-      const ps = tipos.map((t) => porK.get((String(t).indexOf('comum:') === 0 ? 'c|' : 'q|' + quarto + '|') + t)).filter(Boolean);
-      const resp = Array.from(new Set(ps.map((p) => nomeG(p.quem)))).join(' + ') || (tipos.length ? '' : 'Sem pendência');
+      const l = Object.assign({ dia:d.dia, aba:d.aba }, l0), itens = Array.from(new Set(ffTiposDaLinha(l).map(ffItemDoTipo))), quarto = ffQuartoDe(l.local);
+      const ps = itens.map((it) => porK.get(String(it).indexOf('comum:') === 0 ? 'c|' + it : 'q|' + (quarto || l.local) + '|' + it)).filter(Boolean);
+      const resp = Array.from(new Set(ps.map((p) => nomeG(p.quem)))).join(' + ') || (itens.length ? '' : 'Sem pendência (' + ffMotivoSemPendencia(l).txt + ')');
       const feitos = ps.filter((p) => p.sit === 'feito');
       const sol = feitos.map((p) => 'Executado AW ' + new Date(p.status.feitoEm).toLocaleDateString('pt-BR')).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
       const status = ps.length && feitos.length === ps.length ? 'Resolvida' : (l.status || 'Aberta');
-      const dataTxt = new Date(d.dia + 'T12:00:00'); const dt = isNaN(dataTxt) ? d.dia : dataTxt.toLocaleDateString('pt-BR');
-      for (let i = 0; i < (l.n || 1); i++) aoa.push([dt, l.local, l.andar, l.secao, l.parte, l.pergunta, l.resposta, l.esp, status, resp, sol, '', ps.map((p) => ffNomeTipo(p.tipo)).join(' · ')]);
+      const dt0 = new Date(d.dia + 'T12:00:00'), dt = isNaN(dt0) ? d.dia : dt0.toLocaleDateString('pt-BR');
+      for (let i = 0; i < (l.n || 1); i++) aoa.push([dt, l.local, l.andar, l.secao, l.parte, l.pergunta, l.resposta, l.esp, status, resp, sol, '', ps.map((p) => ffNomeItem(p.item)).join(' · ')]);
     });
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [{ s:{ r:0, c:0 }, e:{ r:0, c:11 } }];
-    ws['!cols'] = [{ wch:14 }, { wch:20 }, { wch:7 }, { wch:24 }, { wch:24 }, { wch:46 }, { wch:50 }, { wch:24 }, { wch:12 }, { wch:22 }, { wch:24 }, { wch:10 }, { wch:40 }];
+    ws['!cols'] = [{ wch:14 }, { wch:20 }, { wch:7 }, { wch:24 }, { wch:24 }, { wch:46 }, { wch:50 }, { wch:24 }, { wch:12 }, { wch:22 }, { wch:24 }, { wch:10 }, { wch:34 }];
     ws['!autofilter'] = { ref:'A2:M' + aoa.length };
     XLSX.utils.book_append_sheet(wb, ws, String(d.aba).slice(0, 31));
   });
@@ -12398,25 +12612,30 @@ function ffExportar(){
 
 /* ===================== FAMILY & FRIENDS · ABA ===================== */
 function ffQuartoCurto(q){ return String(q || '').replace(/^0+/, ''); }
+function ffOnde(p){ return p.quarto ? ffQuartoCurto(p.quarto) : p.local; }
 function ffTrecho(l){
   let r = String(l.resposta || '').replace(/^\s*n[aã]o\s*[–-]\s*/i, '').replace(/\s+/g, ' ').trim();
   if (!r || /^n[aã]o$/i.test(r)) r = String(l.pergunta || '').trim() + ' → Não';
   return r;
 }
-/* o que mostrar na linha do problema: o comentário mais explicativo (mais recente entre eles) e,
-   se o hóspede escreveu várias pendências no mesmo texto, só o pedaço deste problema */
+/* o comentário mais explicativo (mais recente entre eles); se o hóspede escreveu várias
+   pendências no mesmo texto, só o pedaço deste item */
 function ffTrechoDoProblema(p){
   const info = (l) => { const r = String(l.resposta || '').replace(/^\s*n[aã]o\s*[–-]?\s*/i, '').trim(); return r.length > 3 ? 1 : 0; };
   const l = p.linhas.slice().sort((a, b) => info(b) - info(a) || String(b.dia).localeCompare(String(a.dia)))[0];
   if (!l) return '';
-  if (Array.isArray(l.tipos) && l.tipos.length > 1){
-    const pedacos = String(l.resposta || '').replace(/([.!;])\s+/g, '$1\n').split(/\n+/).map((x) => x.replace(/^[-•*]\s*/, '').trim()).filter((x) => x.length > 3);
-    const achou = pedacos.find((x) => { const n = ffNorm(x); return String(p.tipo).indexOf('comum:') === 0 ? ffAssuntoAreaComum(n, '', ffNorm(p.local)) === ffNomeCurto(p.tipo) : ffTipoDoTexto(n, n, '', '') === p.tipo; });
+  if (Array.isArray(l.itens) && l.itens.length > 1){
+    const pedacos = String(l.resposta || '').replace(/([.!;])\s+/g, '$1\n').replace(/,\s+(?=(?:and )?[a-z]+ing\b)/gi, '\n').replace(/,\s+and\s+/gi, '\n').split(/\n+/).map((x) => x.replace(/^[-•*]\s*/, '').trim()).filter((x) => x.length > 3);
+    const achou = pedacos.find((x) => { const n = ffNorm(x); return String(p.item).indexOf('comum:') === 0 ? ffAssuntoAreaComum(n, '', ffNorm(p.local)) === ffNomeItem(p.item) : ffItemDoTipo(ffTipoDoTexto(n, n, '', '') || '') === p.item; });
     if (achou) return achou;
   }
   return ffTrecho(l);
 }
 function ffOrdQuarto(a, b){ return (Number(a) || 0) - (Number(b) || 0) || String(a).localeCompare(String(b)); }
+function ffVariantesTxt(p){
+  const it = FF_ITENS[p.item]; if (!it || it.tipos.length < 2) return '';
+  return Array.from(p.variantes).map((v) => FF_CURTO[v] || ffNomeTipo(v)).join(' · ');
+}
 async function renderFF(){
   const box = document.getElementById('ff-pagina'); if (!box) return;
   if (!ffDias){ box.innerHTML = '<div class="rn-sub" style="padding:20px 0;">Carregando…</div>'; await ffCarregar(); }
@@ -12426,10 +12645,10 @@ async function renderFF(){
   const aw = P.filter((p) => p.quem === 'aw'), awAtivos = aw.filter((p) => p.sit !== 'naoProcede');
   const awFalta = awAtivos.filter((p) => p.sit === 'falta' || p.sit === 'voltou'), awFeito = awAtivos.filter((p) => p.sit === 'feito'), voltaram = aw.filter((p) => p.sit === 'voltou');
   const pct = awAtivos.length ? Math.round(awFeito.length / awAtivos.length * 100) : 0;
-  const totalComent = m.linhas.reduce((s, l) => s + (l.n || 1), 0);
+  const totalComent = m.linhas.reduce((s, l) => s + (l.n || 1), 0), semPendN = m.semPend.reduce((s, l) => s + (l.n || 1), 0);
   const diasOrd = (ffDias || []).map((d) => d.dia).filter(Boolean).sort();
   const imp = (ffDias || []).reduce((a, d) => (!a || (d.importadoEm || '') > (a.importadoEm || '') ? d : a), null);
-  const hoje = new Date();
+  const primeiraLeva = m.linhas.every((l) => l.chegouEm === m.ultimaLeva);
   const acoes = '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
     (adm ? '<label class="btn fantasma" style="cursor:pointer;">Importar planilha<input type="file" id="ff-input" accept=".xlsx" hidden></label>' : '') +
     (adm && P.length ? '<button type="button" class="btn fantasma" id="ff-exportar">Exportar para o cliente</button>' : '') + '</div>';
@@ -12438,103 +12657,170 @@ async function renderFF(){
     ' · separado da lista IAC/Sofitel (não soma nos totais)</div></div>' + acoes + '</div>';
   if (!P.length && !m.linhas.length){
     box.innerHTML = topo + '<div class="ff-vazio">' + (adm ? 'Importe aqui a planilha "Pendências de manutenção" que o cliente manda com os comentários dos hóspedes (pode ser a planilha inteira, com todas as abas de dias). Ela também é reconhecida se você soltar o arquivo em "Enviar planilhas".' : 'Ainda não há comentários de hóspedes importados.') + '</div>';
-    ffLigar(box, m); return;
+    ffLigar(box); return;
   }
   const anel = (p, S) => { const r = S/2 - 6, c = 2*Math.PI*r, cx = S/2;
     return '<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#fff" stroke-width="9"/><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#8CCBA8" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(c*p/100)+' '+c+'" transform="rotate(-90 '+cx+' '+cx+')"/><text x="'+cx+'" y="'+(cx+5)+'" text-anchor="middle" font-size="15" font-weight="700" fill="#2E6B4A">'+p+'%</text></svg>'; };
   const hotel = P.filter((p) => p.quem === 'tec' || p.quem === 'ope'), comum = P.filter((p) => p.quem === 'comum'), clas = P.filter((p) => p.quem === 'clas');
-  const quartosAw = new Set(awFalta.map((p) => p.quarto));
+  const quartosAw = new Set(awFalta.map((p) => p.local));
   const kpis = '<div class="rn-kpis ff-kpis">' +
-    '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(totalComent) + '</div><div class="rn-rot">comentários recebidos</div><div class="rn-leg" style="margin-top:6px;"><span>' + fmt(P.length) + ' problemas diferentes</span></div></div>' +
+    '<div class="rn-kpi" style="display:block;"><div class="rn-big">' + fmt(totalComent) + '</div><div class="rn-rot">comentários recebidos</div><div class="rn-leg" style="margin-top:6px;"><span>' + fmt(P.length) + ' pendências agrupadas</span></div></div>' +
     '<div class="rn-kpi" style="display:block; background:#FCEBDA;"><div class="rn-big" style="color:#B4661F;">' + fmt(awFalta.length) + '</div><div class="rn-rot">da AW · falta fazer</div><div class="rn-leg" style="margin-top:6px;"><span>em ' + quartosAw.size + ' quartos' + (voltaram.length ? ' · ' + voltaram.length + ' voltaram' : '') + '</span></div></div>' +
-    '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(awFeito.length) + '</div><div class="rn-rot">da AW · feitos</div></div></div>' +
+    '<div class="rn-kpi">' + anel(pct, 78) + '<div><div class="rn-big">' + fmt(awFeito.length) + '</div><div class="rn-rot">da AW · feitas</div></div></div>' +
     '<div class="rn-kpi" style="display:block; background:#E5F1FA;"><div class="rn-big" style="color:#2F5F80;">' + fmt(hotel.length) + '</div><div class="rn-rot">para o hotel</div><div class="rn-leg" style="margin-top:6px;"><span>tecnologia ' + P.filter((p) => p.quem === 'tec').length + ' · operação ' + P.filter((p) => p.quem === 'ope').length + '</span></div></div>' +
     '<div class="rn-kpi" style="display:block; background:#EEEBF7;"><div class="rn-big" style="color:#53487F;">' + fmt(comum.length) + '</div><div class="rn-rot">áreas comuns</div></div>' +
-    '<div class="rn-kpi" style="display:block;"><div class="rn-big" style="color:#6B756F;">' + fmt(m.semPend.reduce((s, l) => s + (l.n || 1), 0)) + '</div><div class="rn-rot">sem pendência</div><div class="rn-leg" style="margin-top:6px;"><span>elogio, "funcionou", não testado</span></div></div>' +
+    '<div class="rn-kpi" style="display:block;" data-ff-ir="ff-conf"><div class="rn-big" style="color:#6B756F;">' + fmt(semPendN) + '</div><div class="rn-rot">sem pendência</div><div class="rn-leg" style="margin-top:6px;"><span>ver na conferência ↓</span></div></div>' +
   '</div>';
   // ---- o que mudou na última importação com novidade ----
   let novidade = '';
   if (m.ultimaLeva){
     const novasL = m.linhas.filter((l) => l.chegouEm === m.ultimaLeva), nN = novasL.reduce((s, l) => s + (l.n || 1), 0);
     const novosP = P.filter((p) => p.chegouEm === m.ultimaLeva), novosAw = novosP.filter((p) => p.quem === 'aw');
-    const qs = Array.from(new Set(novosAw.map((p) => ffQuartoCurto(p.quarto)))).sort(ffOrdQuarto);
-    const primeira = m.linhas.every((l) => l.chegouEm === m.ultimaLeva);
-    novidade = '<div class="ff-novo"><b>' + (primeira ? 'Primeira importação' : 'Última novidade') + ' · ' + dataHoraCurta(m.ultimaLeva) + '</b><span>' + fmt(nN) + ' comentários ' + (primeira ? '' : 'novos ') + '→ ' + fmt(novosP.length) + ' problemas' + (novosAw.length ? ', ' + novosAw.length + ' da AW em ' + qs.length + ' quartos (' + qs.slice(0, 12).join(', ') + (qs.length > 12 ? '…' : '') + ')' : ', nenhum da AW') + '</span>' +
-      (voltaram.length ? '<span class="ff-voltou-txt">Voltaram depois da baixa: ' + voltaram.map((p) => ffQuartoCurto(p.quarto) + ' · ' + esc(ffNomeTipo(p.tipo))).join(' · ') + '</span>' : '') + '</div>';
+    const qs = Array.from(new Set(novosAw.map(ffOnde))).sort(ffOrdQuarto);
+    novidade = '<div class="ff-novo"><b>' + (primeiraLeva ? 'Primeira importação' : 'Última novidade') + ' · ' + dataHoraCurta(m.ultimaLeva) + '</b><span>' + fmt(nN) + ' comentários ' + (primeiraLeva ? '' : 'novos ') + '→ ' + fmt(novosP.length) + ' pendências' + (novosAw.length ? ', ' + novosAw.length + ' da AW em ' + qs.length + ' quartos (' + qs.slice(0, 12).join(', ') + (qs.length > 12 ? '…' : '') + ')' : ', nenhuma da AW') + '</span>' +
+      (voltaram.length ? '<span class="ff-voltou-txt">Voltaram depois da baixa: ' + voltaram.map((p) => ffOnde(p) + ' · ' + esc(ffNomeItem(p.item))).join(' · ') + '</span>' : '') + '</div>';
   }
   // ---- 1. quem resolve ----
   const totP = Math.max(1, P.length);
+  const exemplos = (gid) => { const c = new Map(); P.filter((p) => p.quem === gid).forEach((p) => { const n = gid === 'comum' ? p.local : ffNomeItem(p.item); c.set(n, (c.get(n) || 0) + 1); }); return Array.from(c.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]).join(', '); };
   const sep = '<div class="ff-sep">' + FF_GRUPOS.map((g) => { const n = P.filter((p) => p.quem === g.id).length; return n ? '<span style="width:' + (n / totP * 100) + '%; background:' + g.cor + ';" title="' + g.nome + ': ' + n + '"></span>' : ''; }).join('') + '</div>' +
-    '<div class="ff-sep-leg">' + FF_GRUPOS.map((g) => { const n = P.filter((p) => p.quem === g.id).length; if (!n) return ''; const ex = Array.from(new Set(P.filter((p) => p.quem === g.id).map((p) => p.tipo))).map((t) => ({ t, n:P.filter((p) => p.quem === g.id && p.tipo === t).length })).sort((a, b) => b.n - a.n).slice(0, 4).map((x) => ffNomeCurto(x.t)).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3).join(', ');
-      return '<div class="ff-sep-item" style="background:' + g.fundo + ';"><b style="color:' + g.texto + ';">' + fmt(n) + '</b><span><b>' + g.nome + '</b><small>' + esc(ex) + '</small></span></div>'; }).join('') + '</div>';
-  // ---- 2. AW por andar ----
+    '<div class="ff-sep-leg">' + FF_GRUPOS.map((g) => { const n = P.filter((p) => p.quem === g.id).length; if (!n) return '';
+      return '<div class="ff-sep-item" style="background:' + g.fundo + ';"><b style="color:' + g.texto + ';">' + fmt(n) + '</b><span><b>' + g.nome + '</b><small>' + esc(exemplos(g.id)) + '</small></span></div>'; }).join('') + '</div>';
+  // ---- 2. AW por andar (resumo) ----
   const andaresTodos = Array.from(new Set((andaresConhecidos || []).map(Number).filter((a) => a >= 1 && a < 100).concat(awAtivos.map((p) => Number(p.andar)).filter(Boolean)))).sort((a, b) => b - a);
-  const corte = '<div class="ff-corte-cab"><span></span><span>avanço (feitos ÷ problemas da AW)</span><span class="sf-c">Problemas</span><span class="sf-c">Feitos</span><span class="sf-c">Falta fazer</span><span>Quartos com pendência</span></div>' +
+  const corte = '<div class="ff-corte-cab"><span></span><span>avanço (feitas ÷ pendências da AW)</span><span class="sf-c">Pendências</span><span class="sf-c">Feitas</span><span class="sf-c">Falta fazer</span><span>Quartos com pendência</span></div>' +
     andaresTodos.map((a) => { const ps = awAtivos.filter((p) => Number(p.andar) === a), f = ps.filter((p) => p.sit === 'feito').length, fa = ps.length - f, pc = ps.length ? Math.round(f / ps.length * 100) : 0;
       const qMap = new Map(); ps.filter((p) => p.sit !== 'feito').forEach((p) => qMap.set(p.quarto, (qMap.get(p.quarto) || 0) + 1));
       const chips = Array.from(qMap.entries()).sort((x, y) => ffOrdQuarto(x[0], y[0])).map(([q, n]) => '<button type="button" class="ff-qchip" data-ff-quarto="' + esc(q) + '">' + esc(ffQuartoCurto(q)) + ' <b>' + n + '</b></button>').join('');
       return '<div class="ff-corte-linha' + (ffFiltro.andar === String(a) ? ' sel' : '') + '"' + (!ps.length ? ' style="opacity:.5;"' : '') + ' data-ff-andar="' + a + '"><b>' + a + 'º</b><div class="sf-avanco"><span style="width:' + pc + '%;"></span><em>' + (ps.length ? pc + '%' : 'sem comentários da AW') + '</em></div>' +
-        '<span class="sf-c">' + (ps.length ? fmt(ps.length) : '—') + '</span><span class="sf-c" style="color:#2E6B4A;">' + (f ? fmt(f) : '—') + '</span><span class="sf-c" style="color:#B4661F;">' + (fa ? fmt(fa) : '—') + '</span><div class="ff-qchips">' + (chips || '') + '</div></div>'; }).join('');
-  // ---- 3. lista da AW ----
+        '<span class="sf-c">' + (ps.length ? fmt(ps.length) : '—') + '</span><span class="sf-c" style="color:#2E6B4A;">' + (f ? fmt(f) : '—') + '</span><span class="sf-c" style="color:#B4661F;">' + (fa ? fmt(fa) : '—') + '</span><div class="ff-qchips">' + chips + '</div></div>'; }).join('');
+  // ---- 3. o que a AW precisa fazer ----
   const bq = ffNorm(ffFiltro.busca);
-  const passa = (p) => (ffFiltro.andar === 'todos' || String(p.andar) === ffFiltro.andar) &&
+  const passa = (p) => (ffFiltro.andar === 'todos' || String(p.andar) === ffFiltro.andar) && (!ffFiltro.forn || (ffFiltro.forn === '__sem__' ? !(p.forn && p.forn.nome) : (p.forn && p.forn.nome) === ffFiltro.forn)) &&
     (ffFiltro.sit === 'todos' || (ffFiltro.sit === 'falta' && (p.sit === 'falta' || p.sit === 'voltou')) || (ffFiltro.sit === 'feito' && p.sit === 'feito') || (ffFiltro.sit === 'naoProcede' && p.sit === 'naoProcede')) &&
-    (!bq || ffQuartoCurto(p.quarto).indexOf(bq.replace(/^0+/, '')) !== -1 || ffNorm(ffNomeTipo(p.tipo)).indexOf(bq) !== -1);
+    (!bq || ffOnde(p).indexOf(bq.replace(/^0+/, '')) !== -1 || ffNorm(ffNomeItem(p.item) + ' ' + ffNomeDisc(p.disc) + ' ' + ffVariantesTxt(p)).indexOf(bq) !== -1);
   const awVis = aw.filter(passa);
-  const gruposAw = new Map(); awVis.forEach((p) => { if (!gruposAw.has(p.tipo)) gruposAw.set(p.tipo, []); gruposAw.get(p.tipo).push(p); });
-  const selQuem = (tipo) => adm ? '<select class="ff-sel-quem" data-ff-tipo="' + esc(tipo) + '" title="Quem resolve este tipo">' + FF_GRUPOS.map((g) => '<option value="' + g.id + '"' + (ffQuemDoTipo(tipo) === g.id ? ' selected' : '') + '>' + g.nome + '</option>').join('') + '</select>' : '';
-  const detalhe = (p, extra) => '<div class="ff-det">' + p.linhas.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((l) => '<div><span class="ff-det-d">' + dataCurta(l.dia) + (l.n > 1 ? ' · ' + l.n + '×' : '') + '</span><span>' + (l.pergunta ? '<i>' + esc(l.pergunta) + '</i> ' : '') + esc(l.resposta || '—') + '</span></div>').join('') +
+  const fornNomes = ffContagemFornecedores().nomes;
+  const selForn = (item) => { const f = ffFornecedorDoItem(item), sugN = ffRegras.fornecedor && ffRegras.fornecedor[item] ? ((ffContagemFornecedores().porItem[item] || [])[0] || (FF_BASE_FORN[item] ? (ffContagemFornecedores().porItem[FF_BASE_FORN[item]] || [])[0] : null)) : (f.sugerido ? [f.nome] : null), sug = sugN;
+    if (!adm) return '<span class="ff-forn' + (f.nome ? '' : ' vazio') + '">' + (f.nome ? esc(f.nome) + (f.sugerido ? ' <small>(sugerido)</small>' : '') : 'sem fornecedor') + '</span>';
+    const atual = ffRegras.fornecedor && ffRegras.fornecedor[item] ? ffRegras.fornecedor[item] : '';
+    const nomes = Array.from(new Set(fornNomes.concat(atual && atual !== '__sem__' ? [atual] : [])));
+    return '<label class="ff-forn-l' + (f.sugerido ? ' sug' : '') + (f.nome ? '' : ' vazio') + '">Fornecedor <select class="ff-sel-forn" data-ff-item="' + esc(item) + '" title="Fornecedor deste item">' +
+      '<option value=""' + (!atual ? ' selected' : '') + '>' + (sug ? 'Sugerido: ' + esc(sug[0]) : 'Sem sugestão') + '</option>' +
+      nomes.map((n) => '<option value="' + esc(n) + '"' + (atual === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
+      '<option value="__sem__"' + (atual === '__sem__' ? ' selected' : '') + '>Sem fornecedor</option></select></label>'; };
+  const selQuem = (item) => adm ? '<select class="ff-sel-quem" data-ff-item="' + esc(item) + '" title="Quem resolve este item">' + FF_GRUPOS.map((g) => '<option value="' + g.id + '"' + (ffQuemDoItem(item) === g.id ? ' selected' : '') + '>' + g.nome + '</option>').join('') + '</select>' : '';
+  const linhaComent = (l, prefixo) => '<div class="ff-det-l"><span class="ff-det-d">' + (prefixo || '') + dataCurta(l.dia) + (l.n > 1 ? ' · ' + l.n + '×' : '') + '</span><span>' + (l.pergunta ? '<i>' + esc(l.pergunta) + '</i> ' : '') + esc(l.resposta || '—') + '</span>' +
+    (adm ? '<select class="ff-sel-linha" data-ff-linha="' + esc(l.id) + '" title="Classificação desta linha">' + ffOpcoesLinha(l) + '</select>' : '') + '</div>';
+  const detalhe = (p, extra) => '<div class="ff-det">' + p.linhas.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((l) => linhaComent(l)).join('') +
     (p.status && p.status.feitoEm ? '<div class="ff-det-baixa">Baixa AW: ' + dataHoraCurta(p.status.feitoEm) + (p.status.feitoPor ? ' · ' + esc(p.status.feitoPor) : '') + '</div>' : '') +
     (p.status && p.status.naoProcedeEm ? '<div class="ff-det-baixa">Não procede: ' + dataHoraCurta(p.status.naoProcedeEm) + (p.status.naoProcedePor ? ' · ' + esc(p.status.naoProcedePor) : '') + '</div>' : '') + (extra ? '<div class="ff-det-baixa">' + extra + '</div>' : '') + '</div>';
-  const linhaAw = (p) => { const ch = ffChaveStatus(p.quarto, p.tipo), aberto = ffExpandidos.has(p.k), tr = ffTrechoDoProblema(p);
-    const btn = p.sit === 'feito' ? '<button type="button" class="chip-acao marcado" data-ff-acao="desfazer" data-ff-ch="' + esc(ch) + '">✓ Feito</button>'
-      : p.sit === 'naoProcede' ? (adm ? '<button type="button" class="chip-acao" data-ff-acao="procede" data-ff-ch="' + esc(ch) + '">Reabrir</button>' : '<small>não procede</small>')
-      : '<button type="button" class="chip-acao" data-ff-acao="feito" data-ff-ch="' + esc(ch) + '">Feito</button>';
-    return '<div class="ff-l ' + p.sit + '"><button type="button" class="ff-q" data-ff-exp="' + esc(p.k) + '">' + esc(ffQuartoCurto(p.quarto)) + '<small>' + (p.andar ? p.andar + 'º' : '') + '</small></button>' +
-      '<span class="ff-trecho" data-ff-exp="' + esc(p.k) + '">' + (p.sit === 'voltou' ? '<em class="ff-tag-voltou">voltou</em> ' : '') + esc(tr.slice(0, 120)) + (tr.length > 120 ? '…' : '') + '<small> · ' + (p.citado > 1 ? 'citado ' + p.citado + '× · ' : '') + 'último ' + dataCurta(p.ultimo) + (p.chegouEm === m.ultimaLeva && !m.linhas.every((l) => l.chegouEm === m.ultimaLeva) ? ' · <b class="ff-tag-novo">novo</b>' : '') + '</small></span>' +
-      '<span class="ff-acoes">' + btn + '</span></div>' + (aberto ? detalhe(p, adm && (p.sit === 'falta' || p.sit === 'voltou') ? '<button type="button" class="chip-acao" data-ff-acao="naoProcede" data-ff-ch="' + esc(ch) + '">Não procede (tirar da lista)</button>' : '') : ''); };
-  const listaAw = Array.from(gruposAw.entries()).sort((a, b) => b[1].length - a[1].length || ffNomeTipo(a[0]).localeCompare(ffNomeTipo(b[0]))).map(([tipo, ps]) => {
-    const todos = awAtivos.filter((p) => p.tipo === tipo), f = todos.filter((p) => p.sit === 'feito').length;
-    ps.sort((a, b) => ffOrdQuarto(a.quarto, b.quarto));
-    return '<div class="ff-grupo"><div class="ff-grupo-cab"><b>' + esc(ffNomeTipo(tipo)) + '</b><span>' + (ps.length !== todos.length ? ps.length + ' de ' : '') + todos.length + ' quarto' + (todos.length > 1 ? 's' : '') + ' · ' + f + ' feito' + (f === 1 ? '' : 's') + '</span>' + selQuem(tipo) + '</div>' + ps.map(linhaAw).join('') + '</div>'; }).join('') ||
-    '<div class="rn-sub" style="padding:10px 0;">Nada nesse filtro.</div>';
-  const optAndar = '<option value="todos">Todos os andares</option>' + andaresTodos.filter((a) => awAtivos.some((p) => Number(p.andar) === a) || aw.some((p) => Number(p.andar) === a)).map((a) => '<option value="' + a + '"' + (ffFiltro.andar === String(a) ? ' selected' : '') + '>' + a + 'º andar</option>').join('');
-  const filtros = '<div class="ff-filtros"><select id="ff-f-andar">' + optAndar + '</select>' +
-    '<div class="ff-seg">' + [['falta', 'Falta fazer', awFalta.length], ['feito', 'Feitos', awFeito.length], ['todos', 'Todos', aw.length]].concat(aw.some((p) => p.sit === 'naoProcede') ? [['naoProcede', 'Não procede', aw.filter((p) => p.sit === 'naoProcede').length]] : []).map(([v, t, n]) => '<button type="button" data-ff-sit="' + v + '" class="' + (ffFiltro.sit === v ? 'ativo' : '') + '">' + t + ' <b>' + n + '</b></button>').join('') + '</div>' +
-    '<input type="search" id="ff-f-busca" placeholder="Buscar quarto ou problema" value="' + esc(ffFiltro.busca) + '">' +
-    (ffFiltro.andar !== 'todos' || ffFiltro.busca ? '<button type="button" class="chip-acao" id="ff-f-limpar">Limpar filtro</button>' : '') + '</div>';
+  const botao = (p) => p.sit === 'feito' ? '<button type="button" class="chip-acao marcado" data-ff-acao="desfazer" data-ff-ch="' + esc(p.chave) + '">✓ Feito</button>'
+      : p.sit === 'naoProcede' ? (adm ? '<button type="button" class="chip-acao" data-ff-acao="procede" data-ff-ch="' + esc(p.chave) + '">Reabrir</button>' : '<small>não procede</small>')
+      : '<button type="button" class="chip-acao" data-ff-acao="feito" data-ff-ch="' + esc(p.chave) + '">Feito</button>';
+  const extraDet = (p) => adm && (p.sit === 'falta' || p.sit === 'voltou') ? '<button type="button" class="chip-acao" data-ff-acao="naoProcede" data-ff-ch="' + esc(p.chave) + '">Não procede (tirar da lista)</button>' : '';
+  const novoTag = (p) => p.chegouEm === m.ultimaLeva && !primeiraLeva ? ' · <b class="ff-tag-novo">novo</b>' : '';
+  const meta = (p) => (p.citado > 1 ? 'citado ' + p.citado + '× · ' : '') + 'último ' + dataCurta(p.ultimo) + novoTag(p);
+  // por disciplina → item → quarto
+  const linhaAw = (p) => { const aberto = ffExpandidos.has(p.k), tr = ffTrechoDoProblema(p), vt = ffVariantesTxt(p);
+    return '<div class="ff-l ' + p.sit + '"><button type="button" class="ff-q" data-ff-exp="' + esc(p.k) + '">' + esc(ffOnde(p)) + '<small>' + (p.andar ? p.andar + 'º' : '') + '</small></button>' +
+      '<span class="ff-trecho" data-ff-exp="' + esc(p.k) + '">' + (p.sit === 'voltou' ? '<em class="ff-tag-voltou">voltou</em> ' : '') + (vt ? '<b class="ff-var">' + esc(vt) + '</b> ' : '') + '<span class="ff-cit">' + esc(tr.slice(0, 120)) + (tr.length > 120 ? '…' : '') + '</span><small> · ' + meta(p) + '</small></span>' +
+      '<span class="ff-acoes">' + botao(p) + '</span></div>' + (aberto ? detalhe(p, extraDet(p)) : ''); };
+  const contaTxt = (todos, vis) => { const f = todos.filter((p) => p.sit === 'feito').length, q = new Set(todos.map((p) => p.local)).size;
+    return (vis && vis.length !== todos.length ? vis.length + ' de ' : '') + todos.length + ' pendência' + (todos.length > 1 ? 's' : '') + ' · ' + q + ' quarto' + (q > 1 ? 's' : '') + ' · ' + f + ' feita' + (f === 1 ? '' : 's'); };
+  const discs = new Map(); awVis.forEach((p) => { if (!discs.has(p.disc)) discs.set(p.disc, []); discs.get(p.disc).push(p); });
+  const porDisc = Array.from(discs.entries()).sort((a, b) => b[1].length - a[1].length).map(([d, psD]) => {
+    const itens = new Map(); psD.forEach((p) => { if (!itens.has(p.item)) itens.set(p.item, []); itens.get(p.item).push(p); });
+    const todosD = awAtivos.filter((p) => p.disc === d);
+    const um = itens.size === 1 && ffNomeItem(Array.from(itens.keys())[0]) === ffNomeDisc(d);
+    return '<div class="ff-disc"><div class="ff-disc-cab"><b>' + esc(ffNomeDisc(d)) + '</b><span>' + contaTxt(todosD, psD) + '</span>' + (um ? '<span class="ff-cab-dir">' + selForn(Array.from(itens.keys())[0]) + selQuem(Array.from(itens.keys())[0]) + '</span>' : '') + '</div>' +
+      Array.from(itens.entries()).sort((a, b) => b[1].length - a[1].length).map(([item, ps]) => {
+        ps.sort((a, b) => ffOrdQuarto(a.quarto || a.local, b.quarto || b.local));
+        const todosI = awAtivos.filter((p) => p.item === item);
+        return '<div class="ff-grupo">' + (um ? '' : '<div class="ff-grupo-cab"><b>' + esc(ffNomeItem(item)) + '</b><span>' + contaTxt(todosI, ps) + '</span><span class="ff-cab-dir">' + selForn(item) + selQuem(item) + '</span></div>') + ps.map(linhaAw).join('') + '</div>';
+      }).join('') + '</div>'; }).join('');
+  // por andar → quarto → itens
+  const andaresVis = Array.from(new Set(awVis.map((p) => p.andar))).sort((a, b) => (b || 0) - (a || 0));
+  const porAndar = andaresVis.map((a) => {
+    const psA = awVis.filter((p) => p.andar === a), quartos = new Map();
+    psA.forEach((p) => { if (!quartos.has(p.local)) quartos.set(p.local, []); quartos.get(p.local).push(p); });
+    const todosA = awAtivos.filter((p) => p.andar === a);
+    return '<div class="ff-disc"><div class="ff-disc-cab"><b>' + (a ? a + 'º andar' : 'Sem andar') + '</b><span>' + contaTxt(todosA, psA) + '</span></div><div class="ff-qgrid">' +
+      Array.from(quartos.entries()).sort((x, y) => ffOrdQuarto(x[0], y[0])).map(([q, ps]) => {
+        const ord = ps.slice().sort((x, y) => FF_DISCIPLINAS.findIndex((d) => d[0] === x.disc) - FF_DISCIPLINAS.findIndex((d) => d[0] === y.disc));
+        const falta = ps.filter((p) => p.sit === 'falta' || p.sit === 'voltou').length;
+        return '<div class="ff-qcard"><div class="ff-qcard-cab"><b>' + esc(ffQuartoCurto(q)) + '</b><span>' + (falta ? falta + ' falta' + (falta > 1 ? 'm' : '') : 'tudo feito') + '</span></div>' +
+          ord.map((p) => { const vt = ffVariantesTxt(p);
+            return '<div class="ff-qi ' + p.sit + '"><span class="ff-qi-t" data-ff-exp="' + esc(p.k) + '">' + (p.sit === 'voltou' ? '<em class="ff-tag-voltou">voltou</em> ' : '') + '<b>' + esc(ffNomeItem(p.item)) + (p.forn && p.forn.nome ? ' <span class="ff-forn-mini">' + esc(p.forn.nome) + '</span>' : '') + '</b>' + (vt ? '<small>' + esc(vt) + '</small>' : '') + '<small>' + meta(p) + '</small></span>' + botao(p) + '</div>' +
+              (ffExpandidos.has(p.k) ? detalhe(p, extraDet(p)) : ''); }).join('') + '</div>';
+      }).join('') + '</div></div>'; }).join('');
+  const optAndar = '<option value="todos">Todos os andares</option>' + andaresTodos.filter((a) => aw.some((p) => Number(p.andar) === a)).map((a) => '<option value="' + a + '"' + (ffFiltro.andar === String(a) ? ' selected' : '') + '>' + a + 'º andar</option>').join('');
+  const filtros = '<div class="ff-filtros"><div class="ff-seg ff-visao">' + [['disc', 'Por disciplina'], ['andar', 'Por andar']].map(([v, t]) => '<button type="button" data-ff-visao="' + v + '" class="' + (ffFiltro.visao === v ? 'ativo' : '') + '">' + t + '</button>').join('') + '</div>' +
+    '<select id="ff-f-andar">' + optAndar + '</select>' +
+    '<div class="ff-seg">' + [['falta', 'Falta fazer', awFalta.length], ['feito', 'Feitas', awFeito.length], ['todos', 'Todas', aw.length]].concat(aw.some((p) => p.sit === 'naoProcede') ? [['naoProcede', 'Não procede', aw.filter((p) => p.sit === 'naoProcede').length]] : []).map(([v, t, n]) => '<button type="button" data-ff-sit="' + v + '" class="' + (ffFiltro.sit === v ? 'ativo' : '') + '">' + t + ' <b>' + n + '</b></button>').join('') + '</div>' +
+    (() => { const cont = new Map(); let sem = 0; aw.filter((p) => p.sit === 'falta' || p.sit === 'voltou').forEach((p) => { const n = p.forn && p.forn.nome; if (n) cont.set(n, (cont.get(n) || 0) + 1); else sem++; });
+      const nomes = Array.from(new Set(Array.from(cont.keys()).concat(ffFiltro.forn && ffFiltro.forn !== '__sem__' ? [ffFiltro.forn] : []))).sort((a, b) => (cont.get(b) || 0) - (cont.get(a) || 0) || a.localeCompare(b, 'pt-BR'));
+      return '<select id="ff-f-forn"><option value="">Todos os fornecedores</option>' + nomes.map((n) => '<option value="' + esc(n) + '"' + (ffFiltro.forn === n ? ' selected' : '') + '>' + esc(n) + ' (' + (cont.get(n) || 0) + ' a fazer)</option>').join('') + (sem || ffFiltro.forn === '__sem__' ? '<option value="__sem__"' + (ffFiltro.forn === '__sem__' ? ' selected' : '') + '>Sem fornecedor (' + sem + ')</option>' : '') + '</select>'; })() +
+    '<input type="search" id="ff-f-busca" placeholder="Buscar quarto, item ou disciplina" value="' + esc(ffFiltro.busca) + '">' +
+    (ffFiltro.andar !== 'todos' || ffFiltro.busca || ffFiltro.forn ? '<button type="button" class="chip-acao" id="ff-f-limpar">Limpar filtro</button>' : '') + '</div>';
+  const listaAw = (ffFiltro.visao === 'andar' ? porAndar : porDisc) || '<div class="rn-sub" style="padding:10px 0;">Nada nesse filtro.</div>';
   // ---- 4. para o hotel / áreas comuns ----
   const blocoHotel = (lista, g) => { if (!lista.length) return '';
-    const porTipo = new Map(); lista.forEach((p) => { if (!porTipo.has(p.tipo)) porTipo.set(p.tipo, []); porTipo.get(p.tipo).push(p); });
-    return '<div class="ff-hotel" style="border-color:' + g.cor + ';"><div class="ff-hotel-cab" style="background:' + g.fundo + '; color:' + g.texto + ';"><b>' + g.nome + '</b><span>' + lista.length + ' problemas</span></div>' +
-      Array.from(porTipo.entries()).sort((a, b) => g.id === 'comum' ? String(a[1][0].local).localeCompare(String(b[1][0].local)) || b[1].length - a[1].length : b[1].length - a[1].length).map(([tipo, ps]) => { const k = 'h|' + tipo, aberto = ffExpandidos.has(k);
-        const locais = ps.map((p) => p.quarto ? ffQuartoCurto(p.quarto) : p.local).sort(ffOrdQuarto);
-        return '<div class="ff-h-l"><span class="ff-h-t" data-ff-exp="' + esc(k) + '">' + (g.id === 'comum' ? '<small>' + esc(ps[0].local) + ' · </small>' : '') + '<b>' + esc(ffNomeCurto(tipo)) + '</b>' + '</span><span class="ff-h-q">' + (g.id === 'comum' ? (ps.reduce((s, p) => s + p.citado, 0) + '×') : locais.length + ' · ' + esc(locais.slice(0, 16).join(', ')) + (locais.length > 16 ? '…' : '')) + '</span>' + selQuem(tipo) + '</div>' +
-          (aberto ? '<div class="ff-det">' + ps.flatMap((p) => p.linhas.map((l) => ({ p, l }))).sort((a, b) => String(b.l.dia).localeCompare(String(a.l.dia))).slice(0, 60).map(({ p, l }) => '<div><span class="ff-det-d">' + (p.quarto ? ffQuartoCurto(p.quarto) + ' · ' : '') + dataCurta(l.dia) + '</span><span>' + (l.pergunta ? '<i>' + esc(l.pergunta) + '</i> ' : '') + esc(l.resposta || '—') + '</span></div>').join('') + '</div>' : ''); }).join('') + '</div>'; };
+    const porItem = new Map(); lista.forEach((p) => { if (!porItem.has(p.item)) porItem.set(p.item, []); porItem.get(p.item).push(p); });
+    const ordenado = Array.from(porItem.entries()).sort((a, b) => g.id === 'comum' ? String(a[1][0].local).localeCompare(String(b[1][0].local)) || b[1].length - a[1].length : b[1].length - a[1].length);
+    return '<div class="ff-hotel" style="border-color:' + g.cor + ';"><div class="ff-hotel-cab" style="background:' + g.fundo + '; color:' + g.texto + ';"><b>' + g.nome + '</b><span>' + lista.length + ' pendências</span></div>' +
+      ordenado.map(([item, ps]) => { const k = 'h|' + item, aberto = ffExpandidos.has(k);
+        const locais = ps.map(ffOnde).sort(ffOrdQuarto), vars = Array.from(new Set(ps.flatMap((p) => Array.from(p.variantes)))).filter(() => FF_ITENS[item] && FF_ITENS[item].tipos.length > 1).map((v) => FF_CURTO[v] || ffNomeTipo(v));
+        return '<div class="ff-h-l"><span class="ff-h-t" data-ff-exp="' + esc(k) + '">' + (g.id === 'comum' ? '<small>' + esc(ps[0].local) + ' · </small>' : '') + '<b>' + esc(ffNomeItem(item)) + '</b>' + (vars.length ? ' <small>(' + esc(vars.join(', ')) + ')</small>' : '') + '</span><span class="ff-h-q">' + (g.id === 'comum' ? (ps.reduce((s, p) => s + p.citado, 0) + '×') : locais.length + ' · ' + esc(locais.slice(0, 16).join(', ')) + (locais.length > 16 ? '…' : '')) + '</span>' + selQuem(item) + '</div>' +
+          (aberto ? '<div class="ff-det">' + ps.flatMap((p) => p.linhas.map((l) => ({ p, l }))).sort((a, b) => String(b.l.dia).localeCompare(String(a.l.dia))).slice(0, 80).map(({ p, l }) => linhaComent(l, p.quarto ? ffQuartoCurto(p.quarto) + ' · ' : '')).join('') + '</div>' : ''); }).join('') + '</div>'; };
   const hotelHtml = blocoHotel(P.filter((p) => p.quem === 'ope'), G('ope')) + blocoHotel(P.filter((p) => p.quem === 'tec'), G('tec')) + blocoHotel(comum, G('comum')) + blocoHotel(clas, G('clas'));
-  const sec = (n, titulo, sub) => '<div class="sf-sec"><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
+  // ---- 5. conferência: toda linha da planilha tem destino ----
+  const comPendN = totalComent - semPendN;
+  const conf = (() => {
+    const porDia = (ffDias || []).slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((d) => {
+      const ls = m.linhas.filter((l) => l.aba === d.aba), t = ls.reduce((s, l) => s + (l.n || 1), 0), sp = ls.filter((l) => !l.itens.length).reduce((s, l) => s + (l.n || 1), 0);
+      return '<tr><td>' + esc(d.aba) + '</td><td>' + t + '</td><td>' + (t - sp) + '</td><td>' + (sp || '—') + '</td></tr>'; }).join('');
+    const sem = m.semPend.slice().sort((a, b) => (ffMotivoSemPendencia(b).conferir ? 1 : 0) - (ffMotivoSemPendencia(a).conferir ? 1 : 0) || String(b.dia).localeCompare(String(a.dia)));
+    const lista = sem.map((l) => { const mo = ffMotivoSemPendencia(l), manual = Array.isArray(ffRegras.ajustes[l.id]);
+      return '<div class="ff-conf-l' + (mo.conferir ? ' conferir' : '') + '"><span class="ff-det-d">' + esc(ffOndeLinha(l)) + ' · ' + dataCurta(l.dia) + (l.n > 1 ? ' · ' + l.n + '×' : '') + '</span><span>' + (l.pergunta ? '<i>' + esc(l.pergunta) + '</i> ' : '') + esc(l.resposta || '(vazio)') + '</span>' +
+        '<span class="ff-conf-m">' + (manual ? 'marcado por ' + esc((ffRegras.ajustesPor[l.id] || {}).por || 'administrador') : esc(mo.txt)) + '</span>' + (adm ? '<select class="ff-sel-linha" data-ff-linha="' + esc(l.id) + '">' + ffOpcoesLinha(l) + '</select>' : '') + '</div>'; }).join('');
+    const nClas = clas.length;
+    return '<div class="ff-conf-resumo"><div><b>' + fmt(totalComent) + '</b><span>linhas na planilha</span></div><em>=</em><div><b>' + fmt(comPendN) + '</b><span>viraram pendência</span></div><em>+</em><div><b>' + fmt(semPendN) + '</b><span>sem pendência</span></div>' +
+      '<p>' + (nClas ? '<b style="color:#8A3B30;">' + nClas + ' pendência' + (nClas > 1 ? 's' : '') + ' sem item definido (grupo "A classificar").</b> ' : 'Nenhuma linha ficou sem destino. ') + 'As ' + fmt(comPendN) + ' linhas com pendência estão nas ' + fmt(P.length) + ' pendências agrupadas acima (o mesmo item no mesmo quarto conta uma vez). As sem pendência estão listadas abaixo' + (adm ? '; se alguma for pendência, escolha o item na caixa ao lado.' : '.') + '</p></div>' +
+      '<table class="ff-conf-tab"><thead><tr><th>Dia (aba)</th><th>Linhas</th><th>Com pendência</th><th>Sem pendência</th></tr></thead><tbody>' + porDia + '</tbody></table>' +
+      (lista ? '<div class="ff-conf-lista">' + lista + '</div>' : '');
+  })();
+  const sec = (n, titulo, sub, id) => '<div class="sf-sec"' + (id ? ' id="' + id + '"' : '') + '><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
   box.innerHTML = topo + kpis + novidade +
-    sec(1, 'Quem resolve', 'Cada comentário vira um problema (tipo + quarto). O mesmo problema no mesmo quarto conta uma vez, mesmo citado várias vezes.' + (adm ? ' Para mudar quem resolve um tipo, use a caixa ao lado do nome do tipo.' : '')) + sep +
+    sec(1, 'Quem resolve', 'Cada comentário vira uma pendência por item (o que a equipe resolve) e quarto: "Automação no 808" é uma pendência, mesmo que o hóspede tenha citado painel aceso e master off.' + (adm ? ' Para mudar quem resolve um item, use a caixa ao lado do nome.' : '')) + sep +
     sec(2, 'Da AW por andar', 'Toque num andar ou num quarto para filtrar a lista abaixo.') + '<div class="ff-corte">' + corte + '</div>' +
-    sec(3, 'O que a AW precisa fazer', 'Toque no quarto para ver o que o hóspede escreveu. "Feito" dá baixa; se o problema voltar numa planilha nova, aparece como "voltou".') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
-    (hotelHtml ? sec(4, 'Para o hotel encaminhar', 'Não é da AW: fica aqui só para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
-    '<div class="rn-sub" style="margin-top:18px;">Atualizado às ' + hoje.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div>';
-  ffLigar(box, m);
+    sec(3, 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Toque no quarto ou no item para ver o que o hóspede escreveu. "Feito" dá baixa; se voltar a aparecer numa planilha nova, fica marcado "voltou".') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
+    (hotelHtml ? sec(4, 'Para o hotel encaminhar', 'Não é da AW: fica aqui para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
+    sec(hotelHtml ? 5 : 4, 'Conferência da planilha', 'Toda linha da planilha do cliente tem destino: virou pendência ou está aqui como sem pendência, com o motivo.', 'ff-conf') + conf +
+    '<div class="rn-sub" style="margin-top:18px;">Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div>';
+  ffLigar(box);
 }
-function ffLigar(box, m){
+function ffOndeLinha(l){ const q = ffQuartoDe(l.local); return q ? ffQuartoCurto(q) : String(l.local || ''); }
+function ffLigar(box){
   const inp = box.querySelector('#ff-input');
   if (inp) inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; if (!f) return; await ffImportarBuffer(await f.arrayBuffer(), f.name); inp.value = ''; renderFF(); });
   const ex = box.querySelector('#ff-exportar'); if (ex) ex.addEventListener('click', () => { try{ ffExportar(); }catch(e){ avisoFlutuante('Não consegui gerar a planilha: ' + (e.message || e), 'erro'); } });
   box.querySelectorAll('[data-ff-exp]').forEach((el) => el.addEventListener('click', () => { const k = el.dataset.ffExp; if (ffExpandidos.has(k)) ffExpandidos.delete(k); else ffExpandidos.add(k); renderFF(); }));
   box.querySelectorAll('[data-ff-acao]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); ffMarcar(el.dataset.ffCh, el.dataset.ffAcao); }));
-  box.querySelectorAll('.ff-sel-quem').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', async () => { if (!exigirAdmin()) { renderFF(); return; } const t = el.dataset.ffTipo; const padrao = String(t).indexOf('comum:') === 0 ? 'comum' : ((FF_TIPOS[t] || {}).quem || 'clas'); if (el.value === padrao) delete ffRegras.quem[t]; else ffRegras.quem[t] = el.value; renderFF(); await ffSalvarRegras(); }); });
+  box.querySelectorAll('.ff-sel-quem').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', async () => { if (!exigirAdmin()) { renderFF(); return; } const it = el.dataset.ffItem; const padrao = String(it).indexOf('comum:') === 0 ? 'comum' : ((FF_ITENS[it] || {}).quem || 'clas'); if (el.value === padrao) delete ffRegras.quem[it]; else ffRegras.quem[it] = el.value; renderFF(); await ffSalvarRegras(); }); });
+  box.querySelectorAll('.ff-sel-linha').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffAjustarLinha(el.dataset.ffLinha, el.value)); });
   box.querySelectorAll('[data-ff-andar]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('[data-ff-quarto]')) return; const a = el.dataset.ffAndar; ffFiltro.andar = ffFiltro.andar === a ? 'todos' : a; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
   box.querySelectorAll('[data-ff-quarto]').forEach((el) => el.addEventListener('click', () => { ffFiltro.busca = ffQuartoCurto(el.dataset.ffQuarto); ffFiltro.andar = 'todos'; renderFF(); ffRolarLista(); }));
+  box.querySelectorAll('[data-ff-ir]').forEach((el) => { el.style.cursor = 'pointer'; el.addEventListener('click', () => { const alvo = document.getElementById(el.dataset.ffIr); if (alvo) alvo.scrollIntoView({ behavior:'smooth', block:'start' }); }); });
+  const ffo = box.querySelector('#ff-f-forn'); if (ffo) ffo.addEventListener('change', () => { ffFiltro.forn = ffo.value; renderFF(); });
+  box.querySelectorAll('.ff-sel-forn').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirFornecedor(el.dataset.ffItem, el.value)); });
   const fa = box.querySelector('#ff-f-andar'); if (fa) fa.addEventListener('change', () => { ffFiltro.andar = fa.value; renderFF(); });
   box.querySelectorAll('[data-ff-sit]').forEach((el) => el.addEventListener('click', () => { ffFiltro.sit = el.dataset.ffSit; renderFF(); }));
+  box.querySelectorAll('[data-ff-visao]').forEach((el) => el.addEventListener('click', () => { ffFiltro.visao = el.dataset.ffVisao; try{ localStorage.setItem('ff_visao', ffFiltro.visao); }catch(e){} renderFF(); }));
   const fb = box.querySelector('#ff-f-busca'); if (fb){ let t; fb.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { ffFiltro.busca = fb.value; renderFF(); const n = document.getElementById('ff-f-busca'); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 350); }); }
-  const fl = box.querySelector('#ff-f-limpar'); if (fl) fl.addEventListener('click', () => { ffFiltro.andar = 'todos'; ffFiltro.busca = ''; renderFF(); });
+  const fl = box.querySelector('#ff-f-limpar'); if (fl) fl.addEventListener('click', () => { ffFiltro.andar = 'todos'; ffFiltro.busca = ''; ffFiltro.forn = ''; renderFF(); });
 }
+try{ const v = localStorage.getItem('ff_visao'); if (v === 'andar' || v === 'disc') ffFiltro.visao = v; }catch(e){}
 function ffRolarLista(){ const el = document.getElementById('ff-lista-aw'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }
 
 /* Family & Friends é da obra Quartos (hóspedes nos quartos) */
