@@ -887,84 +887,139 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   .no-print{ display:none !important; }
 }
 /* ===== Conferência operação ===== */
-.conf-tag{ display:inline-flex; align-items:center; margin-left:8px; font-size:11px; line-height:1.2; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; white-space:nowrap; vertical-align:1px; font-family:inherit; font-weight:400; }
-td[data-conf-cel] .conf-tag{ margin-left:0; border-radius:var(--r-sm); font-size:11.5px; padding:4px 10px; justify-content:center; }
-.conf-cel-sub{ font-size:10.5px; color:var(--muted); margin-top:3px; white-space:nowrap; }
-.conf-cel-sub.atras{ color:var(--vm); }
-.conf-tag.estatico{ cursor:default; margin-left:0; }
-.conf-tag.conf-novo{ color:var(--accent-2); border-color:var(--accent); background:var(--surface); }
-.conf-tag.conf-and{ color:var(--pronto); background:var(--pronto-soft); border-color:#C9D5F5; }
-.conf-tag.conf-ent{ color:var(--muted); background:var(--semdados-soft); border-color:#D5D9DF; border-style:dashed; }
-.conf-tag.conf-ok{ color:var(--lib); background:var(--lib-soft); border-color:#B7E0C8; }
-.conf-tag.conf-pend{ color:#9A6420; background:var(--vist-soft); border-color:#EED3A8; }
-.conf-modal.modal-card.modal-largo{ max-width:760px; }
-.conf-topo{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-.conf-topo .modal-sub{ margin-bottom:12px; }
-.conf-x{ border:0; background:transparent; font-size:24px; color:var(--muted); cursor:pointer; line-height:1; padding:0 4px; font-family:inherit; }
-.conf-aviso{ background:var(--paper-2); border-radius:10px; padding:9px 12px; font-size:12.5px; color:var(--text-2); margin:0 0 6px; line-height:1.4; }
-.conf-aviso.ok{ background:var(--lib-soft); color:var(--lib); }
-.conf-sec-t{ font-size:13.5px; font-weight:500; margin:16px 0 6px; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; }
-.conf-sec-t span{ font-weight:400; color:var(--muted); font-size:12px; }
-.conf-barra{ height:6px; border-radius:3px; background:var(--paper-2); overflow:hidden; margin-bottom:4px; }
-.conf-barra i{ display:block; height:100%; background:var(--lib); border-radius:3px; }
-.conf-aps{ border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-.conf-ap{ display:grid; grid-template-columns:132px 1fr auto; gap:6px 10px; align-items:center; padding:7px 10px; border-top:1px solid var(--line); font-size:12.5px; }
-.conf-ap:first-child{ border-top:0; }
-.conf-ap.ab{ background:#FFFBF5; }
-.conf-ap-d{ font-size:11px; color:var(--muted); }
-.conf-ap.ok .conf-ap-t{ color:var(--text-2); }
-.conf-ap-s{ display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
-.conf-ap-s em{ font-style:normal; font-size:11.5px; white-space:nowrap; }
-.conf-ap-s em.prev{ color:var(--vist); } .conf-ap-s em.atras{ color:var(--vm); } .conf-ap-s em.okk{ color:var(--lib); }
-.conf-resolver{ font-size:11.5px; padding:4px 10px; border-radius:999px; border:1px solid var(--lib); color:var(--lib); background:var(--surface); cursor:pointer; font-family:inherit; white-space:nowrap; }
-.conf-link{ border:0; background:none; color:var(--accent-2); font-size:11.5px; cursor:pointer; padding:0 2px; text-decoration:underline; font-family:inherit; }
-.conf-disc{ border:1px solid var(--line); border-radius:12px; padding:8px 12px 10px; margin-top:10px; }
-.conf-disc-cab{ display:flex; align-items:center; gap:10px; padding:2px 0 6px; }
-.conf-disc-cab b{ font-weight:500; font-size:13.5px; } .conf-disc-cab > span{ color:var(--muted); font-size:12px; }
-.conf-disc-cab .conf-link{ margin-left:auto; }
-.conf-item{ display:grid; grid-template-columns:1fr auto; gap:4px 12px; align-items:center; padding:7px 0; border-top:1px solid var(--line); }
-.conf-item-t{ font-size:13px; color:var(--text); display:flex; gap:6px; align-items:flex-start; justify-content:space-between; line-height:1.35; }
+.conf-tag{ display:inline-flex; align-items:center; font-size:11px; line-height:1.2; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); white-space:nowrap; font-family:inherit; font-weight:400; }
+.conf-tag.estatico{ cursor:default; }
+.conf-novo{ --ck-c:var(--accent-2); --ck-bg:var(--surface); --ck-bd:var(--accent); }
+.conf-and{ --ck-c:var(--pronto); --ck-bg:var(--pronto-soft); --ck-bd:#C9D5F5; }
+.conf-ent{ --ck-c:var(--muted); --ck-bg:var(--semdados-soft); --ck-bd:#D5D9DF; }
+.conf-ok{ --ck-c:var(--lib); --ck-bg:var(--lib-soft); --ck-bd:#B7E0C8; }
+.conf-pend{ --ck-c:#9A6420; --ck-bg:var(--vist-soft); --ck-bd:#EED3A8; }
+.conf-atras{ --ck-c:var(--vm); --ck-bg:var(--vm-soft); --ck-bd:#F1C9C6; }
+.conf-tag[class*="conf-"]{ color:var(--ck-c, var(--muted)); background:var(--ck-bg, var(--surface)); border-color:var(--ck-bd, var(--line)); }
+.conf-tag.conf-ent{ border-style:dashed; }
 .conf-incl{ color:var(--muted); font-size:11px; }
-.conf-bts{ display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
-.conf-bts button{ border:0; border-left:1px solid var(--line); background:var(--surface); color:var(--text-2); font-size:12px; padding:6px 11px; cursor:pointer; font-family:inherit; min-width:50px; }
-.conf-bts button:first-child{ border-left:0; }
-.conf-bts button.b-ok.sel{ background:var(--lib); color:#fff; }
-.conf-bts button.b-nok.sel{ background:var(--vm); color:#fff; }
-.conf-bts button.b-na.sel{ background:var(--exec); color:#fff; }
-.conf-nok{ grid-column:1 / -1; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.conf-obs{ flex:1; min-width:180px; padding:7px 10px; border-radius:9px; border:1px solid #F1C9C6; background:var(--vm-soft); font-size:12.5px; font-family:inherit; color:var(--text); }
-.conf-corrigido{ font-size:11.5px; color:var(--lib); }
-.conf-meta{ grid-column:1 / -1; font-size:11px; color:var(--muted); margin-top:-2px; }
-.conf-add{ margin-top:8px; border:1px dashed #C9CED6; background:transparent; color:var(--accent-2); border-radius:9px; padding:6px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; }
-.conf-add.conf-add-disc{ margin-top:12px; width:100%; padding:9px; }
+.conf-rm{ border:0; background:none; color:var(--faint); font-size:16px; line-height:1; cursor:pointer; padding:0 4px; font-family:inherit; }
+@media (hover: hover){ .conf-rm{ opacity:0; transition:opacity .15s; } .ck-item:hover .conf-rm, .ck-disc-cab:hover .conf-rm, .conf-rm:focus{ opacity:1; } }
+.conf-add{ margin-top:8px; border:1px dashed #C9CED6; background:transparent; color:var(--accent-2); border-radius:9px; padding:7px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+.conf-add.conf-add-disc{ margin-top:12px; width:100%; padding:10px; }
 .conf-add-form{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
-.conf-add-form input{ flex:1; min-width:180px; padding:9px 12px; border-radius:10px; border:1px solid var(--line); font-size:13.5px; font-family:inherit; background:var(--paper); color:var(--text); }
+.conf-add-form input{ flex:1; min-width:180px; padding:9px 12px; border-radius:10px; border:1px solid var(--line); font-size:14px; font-family:inherit; background:var(--paper); color:var(--text); }
 .conf-add-form .btn{ padding:8px 14px; border-radius:10px; }
 .conf-nota{ font-size:11.5px; color:var(--muted); margin:10px 0 4px; }
-.conf-rm{ border:0; background:none; color:var(--faint); font-size:16px; line-height:1; cursor:pointer; padding:0 4px; font-family:inherit; }
-@media (hover: hover){ .conf-rm{ opacity:0; transition:opacity .15s; } .conf-item:hover .conf-rm, .conf-disc-cab:hover .conf-rm, .conf-rm:focus{ opacity:1; } }
-.conf-tag.conf-atras{ color:var(--vm); background:var(--vm-soft); border-color:#F1C9C6; border-style:solid; }
-.conf-prazo{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; background:var(--paper-2); border-radius:10px; padding:8px 12px; margin:0 0 8px; font-size:12.5px; }
-.conf-prazo label{ font-weight:500; color:var(--text); }
-.conf-prazo input[type=date]{ padding:5px 8px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--text); font-family:inherit; font-size:13px; }
-.conf-prazo em{ font-style:normal; font-size:12px; color:var(--text-2); } .conf-prazo em.atras{ color:var(--vm); font-weight:500; } .conf-prazo em.prev{ color:var(--vist); } .conf-prazo em.okk{ color:var(--lib); }
-.conf-prazo-n{ font-size:11px; color:var(--muted); margin-left:auto; }
-.conf-quem{ display:block; font-size:10.5px; color:var(--muted); margin-top:1px; }
-.conf-atras-t{ font-style:normal; font-size:11.5px; color:var(--vm); }
-.conf-meta b{ font-weight:500; color:var(--text-2); }
-.conf-pdf-op{ display:flex; gap:8px; flex-wrap:wrap; margin-right:auto; }
-.conf-pdf-op select{ padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--text); font-family:inherit; font-size:13px; }
-.conf-salvo{ margin-right:auto; align-self:center; font-size:11.5px; color:var(--muted); }
+/* aba */
+#ck-pagina{ max-width:1180px; margin:0 auto; }
+.ck-topo{ display:flex; justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap; margin:4px 0 12px; }
+.ck-topo h2{ margin:0; font-size:20px; font-weight:500; color:var(--text); }
+.ck-sub{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+.ck-sinal{ font-size:12px; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+.ck-sinal.ok{ color:var(--lib); background:var(--lib-soft); }
+.ck-sinal.pend{ color:#9A6420; background:var(--vist-soft); }
+.ck-andares{ display:flex; gap:6px; overflow-x:auto; padding:2px 2px 8px; margin:0 -2px 6px; scrollbar-width:thin; }
+.ck-and{ flex:none; display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:7px 11px; min-width:74px; border-radius:12px; border:1px solid var(--ck-bd, var(--line)); background:var(--ck-bg, var(--surface)); color:var(--ck-c, var(--text-2)); cursor:pointer; font-family:inherit; text-align:left; }
+.ck-and b{ font-size:14px; font-weight:600; color:var(--text); } .ck-and span{ font-size:10.5px; white-space:nowrap; }
+.ck-and.sel{ box-shadow:0 0 0 2px var(--accent); }
+.ck-and.conf-ent{ border-style:dashed; }
+.ck-painel{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:12px; }
+.ck-andar-cab{ display:flex; justify-content:space-between; align-items:center; gap:8px 16px; flex-wrap:wrap; }
+.ck-andar-t{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.ck-andar-t h3{ margin:0; font-size:18px; font-weight:500; }
+.ck-nota{ font-size:12px; color:var(--muted); }
+.ck-prazo{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; background:var(--paper-2); border-radius:10px; padding:6px 10px; }
+.ck-prazo label{ font-weight:500; color:var(--text); }
+.ck-prazo input[type=date]{ padding:5px 8px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--text); font-family:inherit; font-size:13px; }
+.ck-prazo em{ font-style:normal; color:var(--text-2); } .ck-prazo em.atras{ color:var(--vm); font-weight:500; } .ck-prazo em.prev{ color:var(--vist); } .ck-prazo em.okk{ color:var(--lib); }
+.ck-kpis{ display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:8px; margin:12px 0; }
+.ck-kpi{ background:var(--paper); border-radius:12px; padding:9px 11px; display:flex; flex-direction:column; gap:1px; }
+.ck-kpi b{ font-size:20px; font-weight:500; color:var(--text); } .ck-kpi span{ font-size:11.5px; color:var(--muted); }
+.ck-kpi.ok b{ color:var(--lib); } .ck-kpi.and b{ color:var(--pronto); } .ck-kpi.pend b{ color:#9A6420; } .ck-kpi.atras b{ color:var(--vm); }
+.ck-acoes{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.ck-pdfs{ display:flex; gap:8px; flex-wrap:wrap; }
+.ck-pdfs .btn{ padding:7px 12px; font-size:12.5px; border-radius:10px; }
+.ck-grade{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; }
+.ck-qcard{ text-align:left; display:flex; flex-direction:column; gap:6px; padding:12px 13px; border-radius:14px; border:1px solid var(--ck-bd, var(--line)); background:var(--surface); cursor:pointer; font-family:inherit; color:var(--text); box-shadow:inset 4px 0 0 var(--ck-c, var(--line)); }
+.ck-qcard:hover{ border-color:var(--ck-c, var(--accent)); }
+.ck-qc-top{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
+.ck-qc-top b{ font-size:18px; font-weight:500; } .ck-qc-st{ font-size:11px; color:var(--ck-c, var(--muted)); text-align:right; }
+.ck-barra{ height:6px; border-radius:3px; background:var(--paper-2); overflow:hidden; }
+.ck-barra i{ display:block; height:100%; background:var(--lib); border-radius:3px; }
+.ck-qc-info{ font-size:12px; color:var(--text-2); } .ck-qc-info b{ color:#9A6420; font-weight:500; }
+.conf-atras .ck-qc-info b{ color:var(--vm); }
+.ck-qc-meta{ font-size:10.5px; color:var(--muted); }
+.ck-vazio{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px; color:var(--muted); font-size:13px; text-align:center; }
+.ck-pend-disc{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 14px; margin-bottom:10px; }
+.ck-pend-disc h4{ margin:2px 0 6px; font-size:14px; font-weight:500; } .ck-pend-disc h4 span{ font-size:12px; color:#9A6420; background:var(--vist-soft); border-radius:999px; padding:1px 8px; margin-left:4px; }
+.ck-pend{ display:grid; grid-template-columns:auto 1fr auto; gap:6px 12px; align-items:start; padding:9px 0; border-top:1px solid var(--line); }
+.ck-pend-q{ font-family:inherit; font-size:13px; font-weight:600; color:var(--text); background:var(--paper-2); border:0; border-radius:8px; padding:5px 9px; cursor:pointer; }
+.ck-pend-c{ display:flex; flex-direction:column; gap:4px; font-size:13px; min-width:0; } .ck-pend-c b{ font-weight:500; }
+.ck-pend-obs{ font-size:12.5px; color:var(--vm); }
+/* quarto */
+.ck-quarto{ max-width:860px; margin:0 auto; }
+.ck-q-cab{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+.ck-voltar{ align-self:flex-start; border:0; background:none; color:var(--accent-2); font-size:13px; cursor:pointer; padding:0; font-family:inherit; }
+.ck-q-tit{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; } .ck-q-tit h3{ margin:0; font-size:20px; font-weight:500; }
+.ck-q-prog{ display:flex; align-items:center; gap:10px; } .ck-q-prog .ck-barra{ flex:1; max-width:260px; } .ck-q-prog span{ font-size:12px; color:var(--text-2); }
+.ck-q-linha{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.ck-pdf-q{ padding:6px 12px; font-size:12.5px; border-radius:10px; }
+.ck-aviso{ background:var(--paper-2); border-radius:10px; padding:9px 12px; font-size:12.5px; color:var(--text-2); margin:10px 0 0; line-height:1.4; }
+.ck-aviso.ok{ background:var(--lib-soft); color:var(--lib); }
+.ck-sec-t{ font-size:14px; font-weight:500; margin:16px 2px 6px; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; }
+.ck-sec-t span{ font-weight:400; color:var(--muted); font-size:12px; }
+.ck-lista, .ck-disc{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:4px 14px 10px; margin-top:8px; }
+.ck-disc-cab{ display:flex; align-items:center; gap:10px; padding:8px 0 6px; }
+.ck-disc-t{ display:flex; align-items:baseline; gap:8px; flex:1; border:0; background:none; padding:0; cursor:pointer; font-family:inherit; text-align:left; color:var(--text); }
+.ck-disc-t b{ font-weight:500; font-size:14px; } .ck-disc-t span{ color:var(--muted); font-size:12px; } .ck-disc-t i{ font-style:normal; color:var(--faint); margin-left:auto; padding-right:4px; }
+.ck-disc.recolhida{ padding-bottom:4px; }
+.ck-link{ border:0; background:none; color:var(--accent-2); font-size:12px; cursor:pointer; padding:0 2px; text-decoration:underline; font-family:inherit; white-space:nowrap; }
+.ck-item{ display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center; padding:9px 0; border-top:1px solid var(--line); }
+.ck-item-t{ font-size:13.5px; color:var(--text); display:flex; gap:6px; align-items:flex-start; justify-content:space-between; line-height:1.35; }
+.ck-apdisc{ display:block; font-size:11px; color:var(--muted); margin-bottom:1px; }
+.ck-bts{ display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.ck-bts button{ border:0; border-left:1px solid var(--line); background:var(--surface); color:var(--text-2); font-size:12.5px; padding:7px 12px; cursor:pointer; font-family:inherit; min-width:54px; }
+.ck-bts button:first-child{ border-left:0; }
+.ck-bts button.b-ok.sel{ background:var(--lib); color:#fff; }
+.ck-bts button.b-nok.sel{ background:var(--vm); color:#fff; }
+.ck-bts button.b-na.sel{ background:var(--exec); color:#fff; }
+.ck-item.aprovado .ck-bts button.b-nok.sel{ background:#E7A39F; }
+.ck-nok{ grid-column:1 / -1; display:flex; flex-direction:column; gap:8px; background:#FFF8F7; border-radius:10px; padding:8px 10px; }
+.ck-item.aprovado .ck-nok, .ck-item.r-ok.aprovado .ck-nok{ background:#F3FAF6; }
+.ck-obs{ width:100%; box-sizing:border-box; padding:8px 10px; border-radius:9px; border:1px solid #F1C9C6; background:var(--surface); font-size:13px; font-family:inherit; color:var(--text); }
+.ck-fotos{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ck-fotos:empty{ display:none; }
+.ck-foto{ position:relative; width:64px; height:64px; border-radius:9px; overflow:visible; }
+.ck-foto-img{ width:64px; height:64px; padding:0; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:var(--paper-2); cursor:zoom-in; display:block; }
+.ck-foto-img img{ width:100%; height:100%; object-fit:cover; display:block; }
+.ck-foto.longe .ck-foto-img{ background:repeating-linear-gradient(45deg, var(--paper-2), var(--paper-2) 6px, var(--surface) 6px, var(--surface) 12px); }
+.ck-foto-tag{ position:absolute; left:3px; bottom:3px; font-style:normal; font-size:9.5px; background:rgba(255,255,255,.92); color:var(--lib); border-radius:6px; padding:0 4px; }
+.ck-foto-tag.espera{ left:auto; right:3px; color:#9A6420; }
+.ck-foto-x{ position:absolute; top:-7px; right:-7px; width:20px; height:20px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:13px; line-height:16px; padding:0; cursor:pointer; }
+.ck-foto-bt{ display:inline-flex; align-items:center; gap:4px; height:36px; padding:0 12px; border-radius:10px; border:1px solid var(--vm); color:var(--vm); background:var(--surface); font-size:12.5px; cursor:pointer; white-space:nowrap; }
+.ck-foto-bt.opc{ border-color:var(--line); color:var(--text-2); border-style:dashed; }
+.ck-opc{ font-size:11px; color:var(--muted); }
+.ck-aprovar-linha{ display:flex; align-items:center; gap:10px; }
+.ck-aprovar{ height:36px; padding:0 16px; border-radius:10px; border:1px solid var(--lib); color:#fff; background:var(--lib); font-size:13px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.ck-pend .ck-aprovar{ align-self:center; }
+.ck-atras-t{ font-style:normal; font-size:12px; color:var(--vm); }
+.ck-aprovado{ font-size:12.5px; color:var(--lib); }
+.ck-meta{ grid-column:1 / -1; font-size:11px; color:var(--muted); }
+.ck-rodape{ position:sticky; bottom:0; z-index:20; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin:14px -6px 0; padding:10px 64px calc(10px + env(safe-area-inset-bottom, 0px)) 10px; background:rgba(244,245,247,.94); backdrop-filter:blur(6px); border-top:1px solid var(--line); }
+.ck-rodape > :first-child{ justify-self:start; } .ck-rodape > :last-child{ justify-self:end; }
+.ck-rodape .btn{ padding:9px 14px; border-radius:11px; font-size:13px; }
+.ck-rod-ok{ font-size:13px; color:var(--lib); }
 @media (max-width: 760px){
-  .conf-item{ grid-template-columns:1fr; }
-  .conf-bts{ display:flex; width:100%; }
-  .conf-bts button{ flex:1; padding:9px 4px; }
-  .conf-ap{ grid-template-columns:1fr; gap:3px; }
-  .conf-ap-s{ justify-content:flex-start; }
-  .conf-disc{ padding:8px 10px 10px; }
-  .conf-salvo{ flex-basis:100%; margin-bottom:2px; }
-  .conf-pdf-op{ flex-basis:100%; } .conf-pdf-op select{ flex:1; }
-  .conf-prazo-n{ margin-left:0; flex-basis:100%; }
+  .ck-kpis{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  .ck-kpi b{ font-size:17px; }
+  .ck-painel{ padding:12px; }
+  .ck-acoes{ flex-direction:column; align-items:stretch; }
+  .ck-acoes .rn-modo{ align-self:flex-start; }
+  .ck-pdfs .btn{ flex:1; }
+  .ck-grade{ grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .ck-qcard{ padding:10px 11px; } .ck-qc-top b{ font-size:16px; } .ck-qc-st{ font-size:10.5px; }
+  .ck-item{ grid-template-columns:1fr; }
+  .ck-bts{ display:flex; width:100%; } .ck-bts button{ flex:1; padding:10px 4px; font-size:13px; }
+  .ck-lista, .ck-disc{ padding:4px 11px 10px; }
+  .ck-pend{ grid-template-columns:auto 1fr; } .ck-pend .ck-aprovar{ grid-column:2; justify-self:start; }
+  .ck-foto, .ck-foto-img{ width:58px; height:58px; }
+  .ck-rodape{ margin:14px -12px 0; padding-left:12px; }
 }
 /* ===== Family & Friends ===== */
 .rn-kpis.ff-kpis{ grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -1172,6 +1227,7 @@ td[data-conf-cel] .conf-tag{ margin-left:0; border-radius:var(--r-sm); font-size
   <button class="ativa" data-aba="visao-geral">Visão geral</button>
   <button data-aba="quartos">Quartos &amp; áreas</button>
   <button data-aba="itens">Itens</button>
+  <button data-aba="checklist" id="nav-checklist">Checklist operação</button>
   <button data-aba="disciplinas" class="so-admin">Disciplinas &amp; fornecedores</button>
   <button data-aba="comparacao" class="so-admin">Comparação</button>
   <button data-aba="raiox" class="so-fundador">Raio-X</button>
@@ -1276,7 +1332,7 @@ td[data-conf-cel] .conf-tag{ margin-left:0; border-radius:var(--r-sm); font-size
     <div class="card" id="card-quartos">
       <table>
         <thead><tr>
-          <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro" id="th-conf-quartos">Conferência</th><th class="col-centro">Status</th>
+          <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
           <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th><th class="col-centro" id="th-aprovsof-quartos">Aprovado Sofitel</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
@@ -1287,6 +1343,7 @@ td[data-conf-cel] .conf-tag{ margin-left:0; border-radius:var(--r-sm); font-size
   </section>
 
   <!-- ITENS (detalhe) -->
+  <section class="secao" id="secao-checklist"><div id="ck-pagina"></div></section>
   <section class="secao" id="secao-itens">
     <div class="itens-fixos" id="itens-fixos">
     <div class="linha-toolbar">
@@ -1775,7 +1832,7 @@ async function contarDocsNoBanco(colMapeada){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.345';
+const VERSAO_APP = '2026-10-03.346';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3295,8 +3352,8 @@ async function sincronizarDados(manual){
     if (ac.some((d) => d && Object.prototype.hasOwnProperty.call(d, 'prioridadeOverride'))) recarregarPorExclusao = true;
     let recarregarRevisao = snaps.length > 0 || recarregarPorExclusao;
     if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
-    if (cfg.some((d) => d._id === 'conf_operacao_modelo')){ try{ confModeloCfg = confNormModelo(cfg.find((d) => d._id === 'conf_operacao_modelo')); confAtualizarTags(); if (confModal && !confGravando) confRender(); }catch(e){} }
-    if (cfg.some((d) => d._id === 'conf_operacao_prazos')){ try{ const pz = cfg.find((d) => d._id === 'conf_operacao_prazos'); confPrazos = (pz && pz.andares) || {}; confAtualizarTags(); if (confModal && !confGravando) confRender(); }catch(e){} }
+    if (cfg.some((d) => d._id === 'conf_operacao_modelo')){ try{ confModeloCfg = confNormModelo(cfg.find((d) => d._id === 'conf_operacao_modelo')); ckRenderSeAtivo(true); }catch(e){} }
+    if (cfg.some((d) => d._id === 'conf_operacao_prazos')){ try{ const pz = cfg.find((d) => d._id === 'conf_operacao_prazos'); confPrazos = (pz && pz.andares) || {}; ckRenderSeAtivo(true); }catch(e){} }
     await confSincronizar(ultimaSincronizacao);
     ultimaSincronizacao = novaMarca;
     if (recarregarRevisao) await selecionarRevisao(revisaoSelecionada);
@@ -7828,7 +7885,6 @@ function renderQuartos(){
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
     tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
         (agr.length ? '<div class="agressores">' + tagsAgressores(agr, 3) + '</div>' : '') + '</td>' +
-      (confAtivo() ? '<td class="col-centro" data-conf-cel="1">' + (l.tipo === 'APTO' ? confCelulaHtml(l.andar, l.quarto) : '<span class="sem-foto">—</span>') + '</td>' : '') +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(itC)+'</td>' +
@@ -7868,7 +7924,6 @@ function renderQuartos(){
     tbody.appendChild(tr);
     linhas++;
   });
-  try{ confAtualizarCabecalho(); }catch(e){}
   { const tr0 = document.getElementById('th-conferir-quartos'); const cab = tr0 ? tr0.parentNode : null;
     if (cab){
       const ths = Array.from(cab.children);
@@ -7917,7 +7972,6 @@ function renderQuartos(){
   }
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
     tr.addEventListener('click', (e) => {
-      if (e.target.closest('[data-conf-cel]')){ const bc = e.target.closest('[data-conf-quarto]'); if (bc) confAbrir(bc.dataset.confAndar, bc.dataset.confQuarto); return; } // coluna Conferência: só o botão faz algo
       if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]') || e.target.closest('[data-acao-vist]') || e.target.closest('[data-acao-aprovsof]')) return; // o botão trata seu próprio clique
       const tagRv = e.target.closest('[data-rv-local]');
       if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
@@ -11646,7 +11700,7 @@ async function enviarCartaoComoImagem(k){
 }
 
 async function enviarTextoPlano(titulo, texto){
-  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram " ").
+  // O link do WhatsApp (wa.me) estraga os emojis no WhatsApp do computador (viram "�").
   // Celular: tela de compartilhar do aparelho (escolhe WhatsApp e o grupo) — chega com os ícones.
   // Computador: copia a mensagem com os ícones; é só colar no WhatsApp.
   const celular = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
@@ -13334,12 +13388,25 @@ function ffPdfTabela(blocos, titulo, sub, cols, linhas, total){
     const val = (v) => v != null && typeof v === 'object' ? v.t : v, corCel = (v) => v != null && typeof v === 'object' ? v.cor : null;
     const qb = cols.map((c, i) => c.quebra ? ffPdfLinhas(String(val(ln[i]) == null ? '' : val(ln[i])), 8, pc0[i].w - 6, c.quebra, c.sep) : null);
     const nl = Math.max(1, ...qb.filter(Boolean).map((q) => q.length)), h = 16 + (nl - 1) * 10;
-    blocos.push({ h, draw:(doc, x, y, W) => { const pc = posCols(W);
+    const temFotos = Array.isArray(ln.fotos) && ln.fotos.length > 0 && ln.fotoW;
+    const linha = { h, draw:(doc, x, y, W) => { const pc = posCols(W);
       cols.forEach((c, i) => { const v = val(ln[i]), cx = x + pc[i].x, cw = pc[i].w, cor = corCel(ln[i]) || c.cor || (i === 0 ? PDF_COR.ink : PDF_COR.ink2);
         if (c.tipo === 'barra') barra(doc, v, cx, cw, y + 11, 7.5, PDF_COR.ink2);
         else if (qb[i]) qb[i].forEach((t, k) => pdfTxt(doc, cx, y + 11 + k * 10, t, 8, cor));
         else pdfTxt(doc, c.align === 'right' ? cx + cw - 4 : cx, y + 11, pdfCaber(doc, String(v == null ? '' : v), 8, cw - 6), 8, cor, c.align === 'right' ? 'right' : undefined); });
-      pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.4); doc.line(x, y + h, x + W, y + h); } });
+      if (!temFotos){ pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.4); doc.line(x, y + h, x + W, y + h); } } };
+    blocos.push(linha);
+    // fotos da linha (miniaturas já prontas): logo abaixo dela, 5 por fileira, e a linha divisória depois da última
+    if (temFotos){
+      const POR = 5, gap = 6, tw = ln.fotoW, th = ln.fotoH, fs = ln.fotos;
+      linha.junto = th + 8;
+      for (let i = 0; i < fs.length; i += POR){ const fatia = fs.slice(i, i + POR), ultima = i + POR >= fs.length;
+        blocos.push({ h: th + 8, draw:(doc, x, y, W) => {
+          fatia.forEach((f, j) => { const fx = x + 8 + j * (tw + gap); try{ doc.addImage(f.src, 'JPEG', fx, y + 2, tw, th); }catch(e){}
+            if (f.depois){ pdfFill(doc, ffRgb('#DDF1E5')); doc.roundedRect(fx + 4, y + 6, 34, 11, 5, 5, 'F'); pdfTxt(doc, fx + 21, y + 14, 'depois', 6.5, PDF_COR.vd, 'center'); } });
+          if (ultima){ pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.4); doc.line(x, y + th + 7, x + W, y + th + 7); } } });
+      }
+    }
   });
   if (total) blocos.push({ h:20, draw:(doc, x, y, W) => { const pc = posCols(W); pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 3, W, 16, 4, 4, 'F');
     cols.forEach((c, i) => { const v = total[i], cx = x + pc[i].x, cw = pc[i].w;
@@ -13480,7 +13547,7 @@ async function ffPdfLista(){
 /* Family & Friends é da obra Quartos (hóspedes nos quartos) */
 try{ if (OBRA){ const nf = document.getElementById('nav-ff'); if (nf) nf.style.display = 'none'; } }catch(e){}
 /* Conferência operação também é só da obra Quartos: sem a coluna na tabela das outras obras */
-try{ if (OBRA){ const th = document.getElementById('th-conf-quartos'); if (th) th.remove(); } }catch(e){}
+try{ if (OBRA){ const nc = document.getElementById('nav-checklist'); if (nc) nc.style.display = 'none'; } }catch(e){}
 
 /* ===================== CONFERÊNCIA OPERAÇÃO · checklist por quarto antes de entregar à operação =====================
    Só na obra Quartos. Cada quarto tem a sua conferência (coleção "conf_operacao", doc "q<quarto>").
@@ -13571,7 +13638,7 @@ const CONF_MODELO_PADRAO = [
     ['acab.silicone', 'Silicone e rejunte (box e bancada)'],
     ['acab.limpeza', 'Limpeza fina, sem resíduo de obra'] ] }
 ];
-let confDocs = {}, confModeloCfg = { discs:[], itens:{}, ocultos:{} }, confModal = null, confPrazos = {};
+let confDocs = {}, confModeloCfg = { discs:[], itens:{}, ocultos:{} }, confPrazos = {};
 function confAtivo(){ return !OBRA; }
 function confNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
 function confNormModelo(m){ m = m || {}; return { discs: Array.isArray(m.discs) ? m.discs : [], itens: (m.itens && typeof m.itens === 'object') ? m.itens : {}, ocultos: (m.ocultos && typeof m.ocultos === 'object') ? m.ocultos : {} }; }
@@ -13610,65 +13677,199 @@ function confApontSeed(q){
   const l = CONF_CAMPO.quartos[String(q)]; if (!l) return [];
   return l.map(([txt, st], i) => ({ id:'c' + i, txt, disc: confDiscDoTexto(txt), st: st === 'ok' ? 'ok' : 'aberto', prazo: /^\d{4}-\d{2}-\d{2}$/.test(st) ? st : '', origem:'campo' }));
 }
-function confApont(q){ const d = confDocs['q' + q]; return (d && Array.isArray(d.apont)) ? d.apont : confApontSeed(q); }
+function confApont(q){ const d = confDocVisivel(q); return (d && Array.isArray(d.apont)) ? d.apont : confApontSeed(q); }
 function confHoje(){ const d = new Date(), p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
 function confDataCurta(s){ if (!s) return ''; const x = String(s); if (/^\d{4}-\d{2}-\d{2}$/.test(x)) return x.slice(8, 10) + '/' + x.slice(5, 7); try{ return new Date(x).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }); }catch(e){ return ''; } }
 function confDataHora(s){ try{ return dataHoraCurta(s); }catch(e){ return confDataCurta(s); } }
-/* prazo da conferência: um por andar (preenchido no checklist de qualquer quarto do andar) */
+/* ---- leitura segura: distingue "não existe" de "não consegui ler" (sem sinal) ---- */
+async function confLerDoc(col, id){
+  if (store.backend === 'cloud'){
+    if (!supa) return { ok:false };
+    try{
+      const { data, error } = await supa.from('app_data').select('data').eq('collection', colReal(col)).eq('doc_id', id).maybeSingle();
+      if (error) return { ok:false };
+      return { ok:true, doc: data ? data.data : null };
+    }catch(e){ return { ok:false }; }
+  }
+  try{ return { ok:true, doc: await store.getDoc(col, id) }; }catch(e){ return { ok:false }; }
+}
+/* prazo da conferência: um por andar */
 function confPrazoAndar(andar){ const p = confPrazos[String(Number(andar))]; return p && p.data ? p.data : ''; }
 async function confGravarPrazo(andar, data){
   if (!exigirAdmin()) return false;
   if (!(await garantirUsuario())) return false;
-  let atual = null; try{ atual = await store.getDoc('config', 'conf_operacao_prazos'); }catch(e){}
-  const andares = Object.assign({}, (atual && atual.andares) || {}), k = String(Number(andar));
+  const r = await confLerDoc('config', 'conf_operacao_prazos');
+  if (!r.ok){ avisoFlutuante('Sem sinal agora — o prazo não foi salvo. Tente de novo.', 'erro'); ckRenderSeAtivo(); return false; }
+  const andares = Object.assign({}, (r.doc && r.doc.andares) || {}), k = String(Number(andar));
   if (data) andares[k] = { data, por: usuarioAtual, em: new Date().toISOString() }; else delete andares[k];
-  const r = await store.setDoc('config', 'conf_operacao_prazos', { andares });
-  if (r && r.ok === false){ avisoFlutuante('Não consegui salvar o prazo: ' + (r.erro || r.codigo || 'erro'), 'erro'); return false; }
-  confPrazos = andares; confAtualizarTags(); confRender();
+  const w = await store.setDoc('config', 'conf_operacao_prazos', { andares });
+  if (w && w.ok === false){ avisoFlutuante('Não consegui salvar o prazo: ' + (w.erro || w.codigo || 'erro'), 'erro'); return false; }
+  confPrazos = andares; ckRenderSeAtivo();
   avisoFlutuante(data ? 'Prazo do ' + nomeAndarLongo(andar) + ': ' + confDataCurta(data) + ' (vale para todos os quartos do andar)' : 'Prazo do ' + nomeAndarLongo(andar) + ' apagado', 'ok');
   return true;
 }
+async function confGravarModelo(mut){
+  if (!(await garantirUsuario())) return false;
+  const r = await confLerDoc('config', 'conf_operacao_modelo');
+  if (!r.ok){ avisoFlutuante('Sem sinal agora — o checklist não foi alterado. Tente de novo.', 'erro'); return false; }
+  const atual = confNormModelo(r.doc ? JSON.parse(JSON.stringify(r.doc)) : null);
+  if (mut(atual) === false) return false;
+  const w = await store.setDoc('config', 'conf_operacao_modelo', atual);
+  if (w && w.ok === false){ avisoFlutuante('Não consegui salvar o checklist: ' + (w.erro || w.codigo || 'erro'), 'erro'); return false; }
+  confModeloCfg = atual; ckRenderSeAtivo();
+  return true;
+}
+
+/* ===================== FILA DE GRAVAÇÃO (funciona sem sinal) =====================
+   Cada toque vira uma "ação" guardada no aparelho e aplicada na hora na tela. A fila sobe
+   para o banco assim que der (lendo o quarto atualizado antes, para não apagar o que outra
+   pessoa fez). Data e hora de cada ação são as do toque, não as da subida. */
+const CONF_SUFIXO = (OBRA ? '_' + OBRA : '') + (MODO_TESTE ? '_teste' : '');
+const CONF_FILA_K = 'conf_fila_v1' + CONF_SUFIXO, CONF_FOTOS_K = 'conf_fotos_pend_v1' + CONF_SUFIXO;
+let confFila = [], confFotosPend = [];
+try{ confFila = JSON.parse(localStorage.getItem(CONF_FILA_K) || '[]') || []; }catch(e){ confFila = []; }
+try{ confFotosPend = JSON.parse(localStorage.getItem(CONF_FOTOS_K) || '[]') || []; }catch(e){ confFotosPend = []; }
+function confSalvarFila(){ try{ localStorage.setItem(CONF_FILA_K, JSON.stringify(confFila)); }catch(e){} }
+function confSalvarFotosPend(){ try{ localStorage.setItem(CONF_FOTOS_K, JSON.stringify(confFotosPend)); }catch(e){} }
+function confApLista(at, q){ if (!Array.isArray(at.apont)) at.apont = confApontSeed(q).map((a) => Object.assign({}, a)); return at.apont; }
+function confAplicarOp(at, op, q){
+  if (!at.itens || typeof at.itens !== 'object') at.itens = {};
+  const reg = (x, a) => { x.hist = (Array.isArray(x.hist) ? x.hist : []).concat([{ a, por: op.por, em: op.em }]).slice(-40); };
+  const alvoDe = (alvo) => alvo.k === 'ap' ? confApLista(at, q).find((a) => a.id === alvo.id) : (at.itens[alvo.id] = at.itens[alvo.id] || {});
+  switch (op.t){
+    case 'resp': {
+      const x = at.itens[op.item] || {};
+      if (!op.r){ x.r = ''; delete x.corrigidoEm; delete x.corrigidoPor; reg(x, 'limpo'); at.itens[op.item] = x; break; }
+      x.r = op.r; x.por = op.por; x.em = op.em; delete x.corrigidoEm; delete x.corrigidoPor;
+      if (op.r === 'nok'){ x.nokEm = op.em; x.nokPor = op.por; }
+      reg(x, op.r); at.itens[op.item] = x; break;
+    }
+    case 'obs': { const x = at.itens[op.item] = at.itens[op.item] || {}; x.obs = op.v; break; }
+    case 'aprovar': { const x = at.itens[op.item]; if (!x) break; x.corrigidoEm = op.em; x.corrigidoPor = op.por; reg(x, 'aprovado'); break; }
+    case 'reprovar': { const x = at.itens[op.item]; if (!x) break; delete x.corrigidoEm; delete x.corrigidoPor; x.r = 'nok'; x.nokEm = op.em; x.nokPor = op.por; reg(x, 'nok'); break; }
+    case 'todosOk': (op.itens || []).forEach((id) => { const x = at.itens[id] || {}; if (x.r) return; x.r = 'ok'; x.por = op.por; x.em = op.em; reg(x, 'ok'); at.itens[id] = x; }); break;
+    case 'apAprovar': { const a = confApLista(at, q).find((y) => y.id === op.id); if (!a) break; a.st = 'ok'; a.resolvidoEm = op.em; a.resolvidoPor = op.por; reg(a, 'aprovado'); break; }
+    case 'apReabrir': { const a = confApLista(at, q).find((y) => y.id === op.id); if (!a) break; a.st = 'aberto'; delete a.resolvidoEm; delete a.resolvidoPor; a.reabertoEm = op.em; a.reabertoPor = op.por; reg(a, 'nok'); break; }
+    case 'foto': { const x = alvoDe(op.alvo); if (!x) break; x.fotos = (Array.isArray(x.fotos) ? x.fotos : []).concat([{ lid: op.lid, fase: op.fase || 'nok', por: op.por, em: op.em }]); break; }
+    case 'fotoId': {
+      const troca = (x) => { if (x && Array.isArray(x.fotos)) x.fotos.forEach((f) => { if (f.lid === op.lid) f.id = op.id; }); };
+      Object.values(at.itens).forEach(troca); if (Array.isArray(at.apont)) at.apont.forEach(troca); break;
+    }
+    case 'fotoTirar': { const x = alvoDe(op.alvo); if (x && Array.isArray(x.fotos)) x.fotos = x.fotos.filter((f) => (f.lid || f.id) !== op.ref); break; }
+    case 'concluir': at.concluidoEm = op.em; at.concluidoPor = op.por; break;
+    case 'reabrir': delete at.concluidoEm; delete at.concluidoPor; break;
+  }
+}
+/* o quarto como o aparelho enxerga: o que veio do banco + o que ainda está na fila */
+function confDocVisivel(q){
+  const base = confDocs['q' + q] || null, ops = confFila.filter((o) => o.q === String(q));
+  if (!ops.length) return base;
+  const at = base ? JSON.parse(JSON.stringify(base)) : { andar: ops[0].andar, quarto: Number(q), itens:{} };
+  ops.forEach((o) => confAplicarOp(at, o, String(q)));
+  return at;
+}
+async function confAcao(q, andar, op, semPedirNome){
+  if (!semPedirNome && !(await garantirUsuario())) return false;
+  confFila.push(Object.assign({ q: String(q), andar: Number(andar), por: usuarioAtual || '', em: new Date().toISOString(), uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) }, op));
+  confSalvarFila(); ckRenderSeAtivo(); confProcessarFila();
+  return true;
+}
+let confProcessando = false;
+async function confProcessarFila(){
+  if (confProcessando || !confFila.length) return;
+  confProcessando = true; ckAtualizarSinal();
+  try{
+    while (confFila.length){
+      const q = confFila[0].q, andar = confFila[0].andar, lote = confFila.filter((o) => o.q === q), id = 'q' + q;
+      const r = await confLerDoc('conf_operacao', id);
+      if (!r.ok) break;                                                    // sem sinal: tenta de novo depois
+      const at = r.doc ? JSON.parse(JSON.stringify(r.doc)) : { andar, quarto: Number(q), itens:{} };
+      delete at._id;
+      lote.forEach((o) => confAplicarOp(at, o, q));
+      const ult = lote[lote.length - 1];
+      at.atualizadoEm = ult.em; at.atualizadoPor = ult.por;
+      if (!at.iniciadoEm){ at.iniciadoEm = lote[0].em; at.iniciadoPor = lote[0].por; }
+      at.hist = (Array.isArray(at.hist) ? at.hist : []).concat(lote.map((o) => ({ t: o.t, alvo: o.item || o.id || (o.alvo && o.alvo.id) || '', r: o.r || undefined, por: o.por, em: o.em }))).slice(-400);
+      const w = await store.setDoc('conf_operacao', id, at);
+      if (!w || w.ok === false) break;
+      confDocs[id] = Object.assign({ _id: id }, at);
+      const uids = new Set(lote.map((o) => o.uid));
+      confFila = confFila.filter((o) => !uids.has(o.uid)); confSalvarFila();
+      lote.filter((o) => o.t === 'fotoId').forEach((o) => cacheIdb.del('confFoto:' + o.lid)); // a foto já está no banco
+    }
+  }catch(e){ console.warn('conferência: fila', e); }
+  finally{ confProcessando = false; ckAtualizarSinal(); ckRenderSeAtivo(true); }
+}
+/* ---- fotos: guardadas no aparelho primeiro, sobem quando der ---- */
+const confObjUrls = {};
+async function confAddFotos(q, andar, alvo, arquivos, fase){
+  if (!arquivos || !arquivos.length) return;
+  if (!(await garantirUsuario())) return;
+  let n = 0;
+  for (const f of Array.from(arquivos)){
+    try{
+      const blob = await comprimirImagem(f, 1600, 0.72);
+      const lid = 'cf' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      await cacheIdb.set('confFoto:' + lid, { blob, em: new Date().toISOString() });
+      try{ confObjUrls[lid] = URL.createObjectURL(blob); }catch(e){}
+      confFotosPend.push({ lid, q: String(q), andar: Number(andar) }); confSalvarFotosPend();
+      await confAcao(q, andar, { t:'foto', alvo, lid, fase: fase || 'nok' }, true);
+      n++;
+    }catch(e){ console.warn('foto', e); }
+  }
+  if (n) confEnviarFotos();
+}
+let confEnviandoFotos = false;
+async function confEnviarFotos(){
+  if (confEnviandoFotos || !confFotosPend.length || !assetsCap) return;
+  confEnviandoFotos = true; ckAtualizarSinal();
+  try{
+    for (const p of confFotosPend.slice()){
+      const reg = await cacheIdb.get('confFoto:' + p.lid);
+      if (!reg || !reg.blob){ confFotosPend = confFotosPend.filter((x) => x.lid !== p.lid); confSalvarFotosPend(); continue; }
+      let up = null;
+      try{ up = await assetsCap.upload(reg.blob, 'conf_' + p.lid); }catch(e){ break; }   // sem sinal: tenta depois
+      if (!up || !up.id) break;
+      await confAcao(p.q, p.andar, { t:'fotoId', lid: p.lid, id: up.id }, true);
+      confFotosPend = confFotosPend.filter((x) => x.lid !== p.lid); confSalvarFotosPend();
+    }
+  }finally{ confEnviandoFotos = false; ckAtualizarSinal(); }
+}
+function confTentarSubir(){ if (!confAtivo()) return; confProcessarFila(); confEnviarFotos(); }
+try{ if (confAtivo()){
+  window.addEventListener('online', () => setTimeout(confTentarSubir, 1500));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') confTentarSubir(); });
+  setInterval(() => { if (confFila.length || confFotosPend.length) confTentarSubir(); }, 20000);
+} }catch(e){}
+async function confSincronizar(desde){
+  if (!confAtivo() || store.backend !== 'cloud') return;
+  try{
+    const mud = await store.listMudancas('conf_operacao', desde);
+    if (!mud.length) return;
+    mud.forEach((d) => { if (d && d._id) confDocs[d._id] = d; });
+    ckRenderSeAtivo(true);
+  }catch(e){}
+}
+
+/* ===================== ESTADO DE CADA QUARTO ===================== */
 function confEstado(andar, q){
   andar = Number(andar);
-  const d = confDocs['q' + q] || null, its = (d && d.itens) || {}, ids = [];
+  const d = confDocVisivel(q), its = (d && d.itens) || {}, ids = [];
   confModelo().forEach((x) => x.itens.forEach((it) => ids.push(it.id)));
-  let resp = 0, nok = 0;
+  let resp = 0, nok = 0, fotos = 0;
   ids.forEach((id) => { const it = its[id]; if (it && it.r){ resp++; if (it.r === 'nok' && !it.corrigidoEm) nok++; } });
+  Object.values(its).forEach((x) => { if (x && Array.isArray(x.fotos)) fotos += x.fotos.length; });
   const ap = confApont(q), apAb = ap.filter((a) => a.st !== 'ok').length;
+  ap.forEach((a) => { if (Array.isArray(a.fotos)) fotos += a.fotos.length; });
   const campo = CONF_CAMPO.andares.indexOf(andar) !== -1, concl = !!(d && d.concluidoEm) || campo;
   const abertos = nok + apAb, total = ids.length;
   const prazo = confPrazoAndar(andar), vencido = !!prazo && prazo < confHoje(), atrasado = vencido && (!concl || abertos > 0);
   let k, txt;
   if (concl){ k = abertos ? 'pend' : 'ok'; txt = abertos ? 'Conferido · ' + abertos + ' aberto' + (abertos > 1 ? 's' : '') + (atrasado ? ' · atrasado' : '') : '✓ Conferido'; }
-  else if (resp){ k = 'and'; txt = 'Conferência ' + resp + '/' + total + (atrasado ? ' · atrasada' : ''); }
+  else if (resp){ k = 'and'; txt = 'Em andamento ' + resp + '/' + total + (atrasado ? ' · atrasada' : ''); }
   else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(andar) !== -1){ k = 'ent'; txt = 'Entregue · sem conferência' + (atrasado ? ' · atrasada' : ''); }
-  else { k = 'novo'; txt = atrasado ? 'Conferência · atrasada' : prazo ? 'Conferência até ' + confDataCurta(prazo) : 'Conferência'; }
-  return { k, txt, resp, total, nok, apAb, abertos, concl, campo, prazo, vencido, atrasado, doc: d };
-}
-function confTagHtml(andar, q){
-  if (!confAtivo() || q == null || q === '') return '';
-  const e = confEstado(andar, q);
-  return '<button type="button" class="conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + '" data-conf-quarto="' + esc(String(q)) + '" data-conf-andar="' + esc(String(andar)) + '" title="Conferência operação do quarto ' + esc(String(q)) + '">' + esc(e.txt) + '</button>';
-}
-function confCelulaHtml(andar, q){
-  if (!confAtivo() || q == null || q === '') return '<span class="sem-foto">—</span>';
-  const e = confEstado(andar, q), d = e.doc || {}, ate = e.prazo ? 'até ' + confDataCurta(e.prazo) : '';
-  let btn, sub;
-  if (e.k === 'ok'){ btn = '✓ Conferido'; sub = e.campo && !d.concluidoEm ? 'vistoria de campo' : d.concluidoEm ? confDataCurta(d.concluidoEm) + (d.concluidoPor ? ' · ' + String(d.concluidoPor).split(' ')[0] : '') : ''; }
-  else if (e.k === 'pend'){ btn = 'Conferido · ' + e.abertos + ' aberto' + (e.abertos > 1 ? 's' : ''); sub = e.atrasado ? 'atrasado' : ate || (e.campo ? 'vistoria de campo' : ''); }
-  else if (e.k === 'and'){ btn = 'Em andamento'; sub = e.resp + ' de ' + e.total + (e.atrasado ? ' · atrasada' : ate ? ' · ' + ate : ''); }
-  else if (e.k === 'ent'){ btn = 'Sem conferência'; sub = e.atrasado ? 'atrasada' : 'entregue à operação'; }
-  else { btn = 'Conferência'; sub = e.atrasado ? 'atrasada' : ate; }
-  return '<button type="button" class="chip-acao btn-etapa conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + '" data-conf-quarto="' + esc(String(q)) + '" data-conf-andar="' + esc(String(andar)) + '" title="Conferência operação do quarto ' + esc(String(q)) + '">' + esc(btn) + '</button>' +
-    (sub ? '<div class="conf-cel-sub' + (e.atrasado ? ' atras' : '') + '">' + esc(sub) + '</div>' : '');
-}
-/* topo da coluna: quantos quartos da tabela já foram conferidos */
-function confAtualizarCabecalho(){
-  const th = document.getElementById('th-conf-quartos'); if (!th) return;
-  if (!confAtivo()){ th.style.display = 'none'; return; }
-  const bs = Array.from(document.querySelectorAll('#tbody-quartos [data-conf-quarto]'));
-  const es = bs.map((b) => confEstado(b.dataset.confAndar, b.dataset.confQuarto)), n = es.filter((e) => e.concl).length, ab = es.reduce((s2, e) => s2 + e.abertos, 0);
-  th.innerHTML = 'Conferência' + (bs.length ? '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + n + '/' + bs.length + '</div><div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + (ab ? ab + ' em aberto' : 'quartos conferidos') + '</div>' : '');
+  else { k = 'novo'; txt = atrasado ? 'A conferir · atrasada' : prazo ? 'A conferir · até ' + confDataCurta(prazo) : 'A conferir'; }
+  return { k, txt, resp, total, nok, apAb, abertos, concl, campo, prazo, vencido, atrasado, fotos, doc: d };
 }
 function confQuartosDoAndar(andar){
   const a = Number(andar), s = new Set();
@@ -13680,231 +13881,287 @@ function confQuartosDoAndar(andar){
 }
 function confResumoAndar(andar){
   const qs = confQuartosDoAndar(andar), es = qs.map((q) => confEstado(andar, q));
-  const nConcl = es.filter((e) => e.concl).length, nAnd = es.filter((e) => e.k === 'and').length, abertos = es.reduce((s, e) => s + e.abertos, 0);
+  const nConcl = es.filter((e) => e.concl).length, nAnd = es.filter((e) => e.k === 'and').length, abertos = es.reduce((s, e) => s + e.abertos, 0), fotos = es.reduce((s, e) => s + e.fotos, 0);
+  const prazo = confPrazoAndar(andar), atrasado = es.some((e) => e.atrasado);
   let k, txt;
-  if (qs.length && nConcl === qs.length){ k = abertos ? 'pend' : 'ok'; txt = abertos ? abertos + ' aberto' + (abertos > 1 ? 's' : '') : '✓'; }
-  else if (nConcl || nAnd){ k = 'and'; txt = nConcl + '/' + qs.length; }
+  if (qs.length && nConcl === qs.length){ k = abertos ? 'pend' : 'ok'; txt = abertos ? abertos + ' aberto' + (abertos > 1 ? 's' : '') : '✓ conferido'; }
+  else if (nConcl || nAnd){ k = 'and'; txt = nConcl + '/' + qs.length + ' conferidos'; }
   else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(Number(andar)) !== -1){ k = 'ent'; txt = 'sem conferência'; }
-  else { k = 'novo'; txt = 'a conferir'; }
-  return { qs, es, nConcl, nAnd, abertos, k, txt };
-}
-function confAtualizarTags(){
-  document.querySelectorAll('#tbody-quartos td[data-conf-cel]').forEach((td) => { const b = td.querySelector('[data-conf-quarto]'); if (b) td.innerHTML = confCelulaHtml(b.dataset.confAndar, b.dataset.confQuarto); });
-  confAtualizarCabecalho();
-}
-/* ---- gravação (lê o mais recente antes de gravar: duas pessoas podem estar no mesmo quarto) ---- */
-let confGravando = 0, confFila = Promise.resolve();
-function confGravar(q, andar, mut){ const p = confFila.then(() => confGravarAgora(q, andar, mut)).catch((e) => { console.warn('conferência', e); return false; }); confFila = p; return p; }
-async function confGravarAgora(q, andar, mut){
-  if (!(await garantirUsuario())) return false;
-  const id = 'q' + q;
-  confGravando++; confMostrarSalvo('Salvando…');
-  try{
-    let atual = null; try{ atual = await store.getDoc('conf_operacao', id); }catch(e){}
-    atual = atual ? JSON.parse(JSON.stringify(atual)) : { andar: Number(andar), quarto: Number(q), itens:{} };
-    delete atual._id;
-    if (!atual.itens || typeof atual.itens !== 'object') atual.itens = {};
-    const acao = mut(atual);
-    if (acao === false){ confMostrarSalvo('Salva sozinho a cada toque'); return false; }
-    const agora = new Date().toISOString();
-    atual.atualizadoEm = agora; atual.atualizadoPor = usuarioAtual;
-    if (!atual.iniciadoEm){ atual.iniciadoEm = agora; atual.iniciadoPor = usuarioAtual; }
-    if (acao){ atual.hist = (Array.isArray(atual.hist) ? atual.hist : []).concat([Object.assign({ por: usuarioAtual, em: agora }, acao)]).slice(-300); }
-    const r = await store.setDoc('conf_operacao', id, atual);
-    if (r && r.ok === false){ avisoFlutuante('Não consegui salvar a conferência: ' + (r.erro || r.codigo || 'erro'), 'erro'); return false; }
-    confDocs[id] = Object.assign({ _id: id }, atual);
-    confAtualizarTags(); confRender(); confMostrarSalvo('Salvo ✓');
-    return true;
-  }finally{ confGravando--; }
-}
-async function confGravarModelo(mut){
-  if (!(await garantirUsuario())) return false;
-  let atual = null; try{ atual = await store.getDoc('config', 'conf_operacao_modelo'); }catch(e){}
-  atual = confNormModelo(atual ? JSON.parse(JSON.stringify(atual)) : null);
-  if (mut(atual) === false) return false;
-  const r = await store.setDoc('config', 'conf_operacao_modelo', atual);
-  if (r && r.ok === false){ avisoFlutuante('Não consegui salvar o checklist: ' + (r.erro || r.codigo || 'erro'), 'erro'); return false; }
-  confModeloCfg = atual; confAtualizarTags(); confRender();
-  return true;
-}
-function confMostrarSalvo(t){ const el = document.getElementById('conf-salvo'); if (el) el.textContent = t; }
-/* ---- janela do checklist ---- */
-function confAbrir(andar, q){
-  const ov0 = document.getElementById('modal-conf'); if (ov0) ov0.remove();
-  confModal = { andar: Number(andar), q: String(q), add: null };
-  const ov = document.createElement('div');
-  ov.className = 'modal-overlay'; ov.id = 'modal-conf';
-  ov.innerHTML = '<div class="modal-card modal-largo conf-modal" role="dialog" aria-modal="true"><div class="modal-largo-corpo" id="conf-corpo"></div><div class="modal-acoes modal-rodape-fixo" id="conf-rodape"></div></div>';
-  document.body.appendChild(ov);
-  ov.addEventListener('click', (e) => { if (e.target === ov) confFechar(); });
-  confRender();
-}
-function confFechar(){ const ov = document.getElementById('modal-conf'); if (ov) ov.remove(); confModal = null; confAtualizarTags(); }
-function confRender(){
-  if (!confModal) return;
-  const corpo = document.getElementById('conf-corpo'), rod = document.getElementById('conf-rodape'); if (!corpo || !rod) return;
-  const { andar, q } = confModal, e = confEstado(andar, q), d = e.doc || {}, its = d.itens || {}, mod = confModelo(), ap = confApont(q), adm = ehAdminAtual(), hoje = confHoje();
-  const st = corpo.scrollTop, foco = document.activeElement, focoObs = foco && foco.dataset && foco.dataset.confObs ? { id: foco.dataset.confObs, v: foco.value, s: foco.selectionStart } : null;
-  let h = '<div class="conf-topo"><div><h3>Conferência operação · Quarto ' + esc(q) + '</h3><div class="modal-sub">' + esc(nomeAndarLongo(andar)) + ' · <span class="conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + ' estatico">' + esc(e.txt) + '</span></div></div><button type="button" class="conf-x" id="conf-x" aria-label="Fechar">×</button></div>';
-  const diasPrazo = e.prazo ? Math.round((new Date(e.prazo + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 864e5) : null;
-  const situPrazo = !e.prazo ? '' : e.atrasado ? '<em class="atras">atrasado</em>' : (e.concl && !e.abertos) ? '<em class="okk">concluído</em>' : diasPrazo === 0 ? '<em class="prev">vence hoje</em>' : diasPrazo > 0 ? '<em>faltam ' + diasPrazo + ' dia' + (diasPrazo > 1 ? 's' : '') + '</em>' : '';
-  h += '<div class="conf-prazo"><label for="conf-prazo-in">Prazo da conferência · ' + esc(nomeAndarLongo(andar)) + '</label>' +
-    (adm ? '<input type="date" id="conf-prazo-in" value="' + esc(e.prazo) + '">' : '<b>' + (e.prazo ? confDataCurta(e.prazo) + '/' + e.prazo.slice(0, 4) : 'não definido') + '</b>') + situPrazo +
-    '<span class="conf-prazo-n">vale para todos os quartos do andar</span></div>';
-  if (e.campo) h += '<div class="conf-aviso">Conferido em campo (planilha do 14º ao 16º). O checklist abaixo é opcional.</div>';
-  else if (d.concluidoEm) h += '<div class="conf-aviso ok">Conferência concluída em ' + esc(confDataHora(d.concluidoEm)) + (d.concluidoPor ? ' por ' + esc(d.concluidoPor) : '') + '.</div>';
-  else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(andar) !== -1) h += '<div class="conf-aviso">Andar já entregue à operação, mas sem conferência. Dá para fazer agora.</div>';
-  if (ap.length){
-    h += '<div class="conf-sec-t">Apontamentos da vistoria <span>' + (e.apAb ? e.apAb + ' em aberto de ' + ap.length : 'todos resolvidos') + '</span></div><div class="conf-aps">' +
-      ap.map((a) => { const ab = a.st !== 'ok';
-        return '<div class="conf-ap' + (ab ? ' ab' : ' ok') + '"><span class="conf-ap-d">' + esc(confNomeDisc(a.disc)) + '</span><span class="conf-ap-t">' + esc(a.txt) + '<small class="conf-quem">' + esc(confQuemAp(a)) + '</small></span><span class="conf-ap-s">' +
-          (ab ? '<em class="' + (e.vencido ? 'atras' : 'prev') + '">' + (e.vencido ? 'atrasado' : 'em aberto') + '</em><button type="button" class="conf-resolver" data-conf-ap="' + esc(a.id) + '">Resolvido</button>'
-             : '<em class="okk">OK</em>' + (a.resolvidoEm ? '<button type="button" class="conf-link" data-conf-ap-desf="' + esc(a.id) + '">desfazer</button>' : '')) + '</span></div>'; }).join('') + '</div>';
-  }
-  h += '<div class="conf-sec-t">Checklist <span>' + e.resp + ' de ' + e.total + ' conferidos' + (e.nok ? ' · ' + e.nok + ' não OK' : '') + '</span></div><div class="conf-barra"><i style="width:' + (e.total ? Math.round(e.resp / e.total * 100) : 0) + '%;"></i></div>';
-  mod.forEach((dc) => {
-    const n = dc.itens.filter((it) => its[it.id] && its[it.id].r).length, faltam = dc.itens.length - n;
-    h += '<div class="conf-disc"><div class="conf-disc-cab"><b>' + esc(dc.nome) + '</b><span>' + n + '/' + dc.itens.length + '</span>' +
-      (faltam && dc.itens.length ? '<button type="button" class="conf-link" data-conf-todos="' + esc(dc.id) + '">' + (n ? 'marcar o resto OK' : 'tudo OK') + '</button>' : '') +
-      (adm ? '<button type="button" class="conf-rm" data-conf-rm-disc="' + esc(dc.id) + '" title="Tirar esta disciplina do checklist">×</button>' : '') + '</div>';
-    h += dc.itens.map((it) => { const x = its[it.id] || {}, r = x.r || '';
-      return '<div class="conf-item' + (r ? ' r-' + r : '') + '"><div class="conf-item-t"><span>' + esc(it.txt) + (it.por ? ' <small class="conf-incl">incluído por ' + esc(it.por) + '</small>' : '') + '</span>' + (adm ? '<button type="button" class="conf-rm" data-conf-rm="' + esc(it.id) + '" title="Tirar do checklist">×</button>' : '') + '</div>' +
-        '<div class="conf-bts">' + [['ok', 'OK'], ['nok', 'Não OK'], ['na', 'N/A']].map(([v, t]) => '<button type="button" class="b-' + v + (r === v ? ' sel' : '') + '" data-conf-r="' + v + '" data-conf-it="' + esc(it.id) + '">' + t + '</button>').join('') + '</div>' +
-        (r === 'nok' ? '<div class="conf-nok"><input type="text" class="conf-obs" data-conf-obs="' + esc(it.id) + '" maxlength="240" placeholder="O que está errado?" value="' + esc(x.obs || '') + '">' +
-          (x.corrigidoEm ? '<span class="conf-corrigido">corrigido ' + confDataCurta(x.corrigidoEm) + (x.corrigidoPor ? ' por ' + esc(x.corrigidoPor) : '') + ' <button type="button" class="conf-link" data-conf-desc="' + esc(it.id) + '">desfazer</button></span>' : (e.vencido ? '<em class="conf-atras-t">atrasado</em>' : '') + '<button type="button" class="conf-resolver" data-conf-corrigir="' + esc(it.id) + '">Resolvido</button>') + '</div>' : '') +
-        (r ? '<div class="conf-meta">' + (r === 'ok' ? 'Conferido' : r === 'na' ? 'Marcado N/A' : 'Apontado') + ' por <b>' + esc(x.por || '—') + '</b>' + (x.em ? ' em ' + esc(confDataHora(x.em)) : '') + '</div>' : '') + '</div>'; }).join('');
-    h += confModal.add === dc.id
-      ? '<div class="conf-add-form"><input type="text" id="conf-add-txt" maxlength="160" placeholder="Novo item de ' + esc(dc.nome) + '"><button class="btn primario" id="conf-add-ok" type="button">Incluir</button><button class="btn fantasma" id="conf-add-cancel" type="button">Cancelar</button></div>'
-      : '<button type="button" class="conf-add" data-conf-add="' + esc(dc.id) + '">+ item</button>';
-    h += '</div>';
-  });
-  h += confModal.add === '__disc'
-    ? '<div class="conf-add-form conf-add-disc"><input type="text" id="conf-add-txt" maxlength="60" placeholder="Nome da nova disciplina"><button class="btn primario" id="conf-add-ok" type="button">Criar</button><button class="btn fantasma" id="conf-add-cancel" type="button">Cancelar</button></div>'
-    : '<button type="button" class="conf-add conf-add-disc" data-conf-add="__disc">+ disciplina</button>';
-  h += '<div class="conf-nota">Item ou disciplina incluídos aqui entram no checklist de todos os quartos.</div>';
-  corpo.innerHTML = h; corpo.scrollTop = st;
-  if (focoObs){ const el = corpo.querySelector('[data-conf-obs="' + focoObs.id + '"]'); if (el){ el.value = focoObs.v; try{ el.focus(); el.setSelectionRange(focoObs.s, focoObs.s); }catch(err){} } }
-  const falta = e.total - e.resp;
-  if (confModal.pdf){
-    rod.innerHTML = '<div class="conf-pdf-op"><select id="conf-pdf-tipo"><option value="pend">Pendências em aberto</option><option value="todo">Checklist completo</option></select>' +
-      '<select id="conf-pdf-esc"><option value="andar">' + esc(nomeAndarLongo(andar)) + ' inteiro</option><option value="quarto">Só o quarto ' + esc(q) + '</option></select></div>' +
-      '<button class="btn fantasma" type="button" id="conf-pdf-cancel">Cancelar</button><button class="btn primario" type="button" id="conf-pdf-ok">Gerar PDF</button>';
-    const tp = document.getElementById('conf-pdf-tipo'), es = document.getElementById('conf-pdf-esc');
-    tp.value = confModal.pdfTipo || 'pend'; es.value = confModal.pdfEsc || 'andar';
-    document.getElementById('conf-pdf-cancel').addEventListener('click', () => { confModal.pdf = false; confRender(); });
-    document.getElementById('conf-pdf-ok').addEventListener('click', async (ev) => { const b = ev.currentTarget; b.disabled = true; confModal.pdfTipo = tp.value; confModal.pdfEsc = es.value;
-      try{ await confPdf(andar, q, tp.value, es.value); confModal && (confModal.pdf = false); }catch(err){ avisoFlutuante('Não consegui gerar o PDF: ' + (err.message || err), 'erro'); } finally { b.disabled = false; } confRender(); });
-    confLigar(corpo, null);
-    return;
-  }
-  rod.innerHTML = '<span class="conf-salvo" id="conf-salvo">Salva sozinho a cada toque</span><button class="btn fantasma" type="button" id="conf-pdf">PDF</button><button class="btn fantasma" type="button" id="conf-fechar">Fechar</button>' +
-    (d.concluidoEm ? (adm && !e.campo ? '<button class="btn fantasma" type="button" id="conf-reabrir">Reabrir</button>' : '')
-      : (e.campo ? '' : '<button class="btn primario" type="button" id="conf-concluir"' + (falta ? ' disabled' : '') + '>' + (falta ? 'Concluir (faltam ' + falta + ')' : 'Concluir conferência') + '</button>'));
-  confLigar(corpo, rod);
-  const inp = document.getElementById('conf-add-txt'); if (inp) setTimeout(() => { try{ inp.focus(); }catch(err){} }, 30);
-}
-function confLigar(corpo, rod){
-  const { andar, q } = confModal;
-  const xb = document.getElementById('conf-x'); if (xb) xb.addEventListener('click', confFechar);
-  const pb = document.getElementById('conf-pdf'); if (pb) pb.addEventListener('click', () => { confModal.pdf = true; confRender(); });
-  const pz = document.getElementById('conf-prazo-in'); if (pz) pz.addEventListener('change', () => { if (pz.value === confPrazoAndar(andar)) return; confGravarPrazo(andar, pz.value); });
-  const fb = document.getElementById('conf-fechar'); if (fb) fb.addEventListener('click', confFechar);
-  corpo.querySelectorAll('[data-conf-r]').forEach((b) => b.addEventListener('click', () => {
-    const id = b.dataset.confIt, r = b.dataset.confR;
-    confGravar(q, andar, (at) => { const x = at.itens[id] || {};
-      if (x.r === r){ delete at.itens[id]; return { item: id, r: '' }; }
-      at.itens[id] = { r, obs: r === 'nok' ? (x.obs || '') : '', por: usuarioAtual, em: new Date().toISOString() };
-      return { item: id, r }; });
-  }));
-  corpo.querySelectorAll('[data-conf-obs]').forEach((inp) => inp.addEventListener('change', () => {
-    const id = inp.dataset.confObs, v = inp.value.trim().slice(0, 240);
-    confGravar(q, andar, (at) => { const x = at.itens[id]; if (!x || x.r !== 'nok') return false; x.obs = v; return { item: id, obs: v }; });
-  }));
-  corpo.querySelectorAll('[data-conf-corrigir]').forEach((b) => b.addEventListener('click', () => {
-    const id = b.dataset.confCorrigir, obs = corpo.querySelector('[data-conf-obs="' + id + '"]');
-    confGravar(q, andar, (at) => { const x = at.itens[id]; if (!x) return false; if (obs && obs.value.trim() !== (x.obs || '')) x.obs = obs.value.trim().slice(0, 240); x.corrigidoEm = new Date().toISOString(); x.corrigidoPor = usuarioAtual; return { item: id, corrigido: true }; });
-  }));
-  corpo.querySelectorAll('[data-conf-desc]').forEach((b) => b.addEventListener('click', () => {
-    const id = b.dataset.confDesc;
-    confGravar(q, andar, (at) => { const x = at.itens[id]; if (!x) return false; delete x.corrigidoEm; delete x.corrigidoPor; return { item: id, corrigido: false }; });
-  }));
-  corpo.querySelectorAll('[data-conf-todos]').forEach((b) => b.addEventListener('click', () => {
-    const dc = confModelo().find((x) => x.id === b.dataset.confTodos); if (!dc) return;
-    confGravar(q, andar, (at) => { const agora = new Date().toISOString(); let n = 0;
-      dc.itens.forEach((it) => { if (!at.itens[it.id] || !at.itens[it.id].r){ at.itens[it.id] = { r:'ok', obs:'', por: usuarioAtual, em: agora }; n++; } });
-      return n ? { disc: dc.id, todosOk: n } : false; });
-  }));
-  const mudarAp = (id, ok) => confGravar(q, andar, (at) => {
-    const lista = (Array.isArray(at.apont) ? at.apont : confApontSeed(q)).map((a) => Object.assign({}, a));
-    const a = lista.find((x) => x.id === id); if (!a) return false;
-    if (ok){ a.st = 'ok'; a.resolvidoEm = new Date().toISOString(); a.resolvidoPor = usuarioAtual; }
-    else { a.st = 'aberto'; delete a.resolvidoEm; delete a.resolvidoPor; }
-    at.apont = lista; return { apont: id, ok };
-  });
-  corpo.querySelectorAll('[data-conf-ap]').forEach((b) => b.addEventListener('click', () => mudarAp(b.dataset.confAp, true)));
-  corpo.querySelectorAll('[data-conf-ap-desf]').forEach((b) => b.addEventListener('click', () => mudarAp(b.dataset.confApDesf, false)));
-  corpo.querySelectorAll('[data-conf-add]').forEach((b) => b.addEventListener('click', () => { confModal.add = b.dataset.confAdd; confRender(); }));
-  const okAdd = document.getElementById('conf-add-ok'), txtAdd = document.getElementById('conf-add-txt'), cancAdd = document.getElementById('conf-add-cancel');
-  if (cancAdd) cancAdd.addEventListener('click', () => { confModal.add = null; confRender(); });
-  const incluir = async () => {
-    const txt = (txtAdd.value || '').replace(/\s+/g, ' ').trim(); if (!txt){ txtAdd.focus(); return; }
-    const alvo = confModal.add; okAdd.disabled = true;
-    if (alvo === '__disc'){
-      if (confModelo().some((x) => confNorm(x.nome) === confNorm(txt))){ avisoFlutuante('Já existe a disciplina "' + txt + '".', 'erro'); okAdd.disabled = false; return; }
-      const id = 'u' + Date.now().toString(36);
-      const ok = await confGravarModelo((m) => { m.discs.push({ id, nome: txt.slice(0, 60), por: usuarioAtual, em: new Date().toISOString() }); });
-      if (ok){ confModal.add = id; confRender(); avisoFlutuante('Disciplina "' + txt + '" criada. Agora inclua os itens dela.', 'ok'); }
-      else okAdd.disabled = false;
-      return;
-    }
-    const dc = confModelo().find((x) => x.id === alvo); if (!dc){ confModal.add = null; confRender(); return; }
-    if (dc.itens.some((it) => confNorm(it.txt) === confNorm(txt))){ avisoFlutuante('Esse item já está em ' + dc.nome + '.', 'erro'); okAdd.disabled = false; return; }
-    const ok = await confGravarModelo((m) => { (m.itens[alvo] = Array.isArray(m.itens[alvo]) ? m.itens[alvo] : []).push({ id: alvo + '.u' + Date.now().toString(36), txt: txt.slice(0, 160), por: usuarioAtual, em: new Date().toISOString() }); });
-    if (ok){ confModal.add = null; confRender(); avisoFlutuante('Item incluído em ' + dc.nome + ' (vale para todos os quartos).', 'ok'); }
-    else okAdd.disabled = false;
-  };
-  if (okAdd) okAdd.addEventListener('click', incluir);
-  if (txtAdd) txtAdd.addEventListener('keydown', (ev) => { if (ev.key === 'Enter'){ ev.preventDefault(); incluir(); } if (ev.key === 'Escape'){ confModal.add = null; confRender(); } });
-  corpo.querySelectorAll('[data-conf-rm]').forEach((b) => b.addEventListener('click', async () => {
-    if (!exigirAdmin()) return;
-    const id = b.dataset.confRm, it = confModelo().flatMap((x) => x.itens).find((x) => x.id === id);
-    if (!window.confirm('Tirar "' + (it ? it.txt : id) + '" do checklist de todos os quartos? (as respostas já dadas ficam guardadas)')) return;
-    confGravarModelo((m) => { m.ocultos[id] = { por: usuarioAtual, em: new Date().toISOString() }; });
-  }));
-  corpo.querySelectorAll('[data-conf-rm-disc]').forEach((b) => b.addEventListener('click', async () => {
-    if (!exigirAdmin()) return;
-    const id = b.dataset.confRmDisc, dc = confModelo().find((x) => x.id === id);
-    if (!window.confirm('Tirar a disciplina "' + (dc ? dc.nome : id) + '" (e os itens dela) do checklist de todos os quartos?')) return;
-    confGravarModelo((m) => { m.ocultos['disc:' + id] = { por: usuarioAtual, em: new Date().toISOString() }; });
-  }));
-  const bc = document.getElementById('conf-concluir');
-  if (bc) bc.addEventListener('click', () => confGravar(q, andar, (at) => { at.concluidoEm = new Date().toISOString(); at.concluidoPor = usuarioAtual; return { concluido: true }; }));
-  const br = document.getElementById('conf-reabrir');
-  if (br) br.addEventListener('click', () => { if (!exigirAdmin()) return; confGravar(q, andar, (at) => { delete at.concluidoEm; delete at.concluidoPor; return { concluido: false }; }); });
+  else { k = 'novo'; txt = prazo ? 'até ' + confDataCurta(prazo) : 'a conferir'; }
+  return { qs, es, nConcl, nAnd, abertos, fotos, prazo, atrasado, k, txt };
 }
 function confQuemAp(a, curto){
-  if (a.st === 'ok' && a.resolvidoEm) return (curto ? '' : 'resolvido por ') + (a.resolvidoPor || '—') + (curto ? ' · ' : ' em ') + confDataHora(a.resolvidoEm);
-  if (a.origem === 'campo') return curto ? 'vistoria de campo' : a.st === 'ok' ? 'OK na vistoria de campo' : 'apontado na vistoria de campo';
-  return a.criadoPor ? (curto ? '' : 'apontado por ') + a.criadoPor + (a.criadoEm ? (curto ? ' · ' : ' em ') + confDataHora(a.criadoEm) : '') : '';
+  if (a.st === 'ok' && a.resolvidoEm) return (curto ? 'aprovado: ' : 'aprovado por ') + (a.resolvidoPor || '—') + (curto ? ' · ' : ' em ') + confDataHora(a.resolvidoEm);
+  if (a.origem === 'campo') return curto ? 'vistoria de campo' : a.st === 'ok' ? 'OK na vistoria de campo' : 'apontado na vistoria de campo' + (a.reabertoEm ? ' · reaberto por ' + (a.reabertoPor || '—') + ' em ' + confDataHora(a.reabertoEm) : '');
+  return '';
 }
-/* tudo o que o PDF precisa de um quarto: cada linha do checklist e dos apontamentos, com quem e quando */
+
+/* ===================== ABA "CHECKLIST OPERAÇÃO" ===================== */
+let ck = { andar: null, quarto: null, visao: 'quartos', filtro: 'tudo', add: null, recolhidas: {} };
+try{ const s = JSON.parse(localStorage.getItem('ck_estado' + CONF_SUFIXO) || '{}'); ck.andar = Number(s.andar) || null; ck.quarto = s.quarto || null; ck.visao = s.visao === 'pend' ? 'pend' : 'quartos'; ck.filtro = ['tudo', 'falta', 'nok'].indexOf(s.filtro) !== -1 ? s.filtro : 'tudo'; }catch(e){}
+function ckSalvarEstado(){ try{ localStorage.setItem('ck_estado' + CONF_SUFIXO, JSON.stringify({ andar: ck.andar, quarto: ck.quarto, visao: ck.visao, filtro: ck.filtro })); }catch(e){} }
+function ckAtiva(){ const s = document.getElementById('secao-checklist'); return !!(s && s.classList.contains('ativa')); }
+/* redesenha só com a aba aberta; "seguro": não redesenha enquanto a pessoa digita */
+function ckRenderSeAtivo(seguro){
+  if (!ckAtiva()) return;
+  if (seguro){ const f = document.activeElement; if (f && f.closest && f.closest('#ck-pagina') && /^(INPUT|TEXTAREA)$/.test(f.tagName) && f.type !== 'file') return; }
+  ckRender();
+}
+function confAtualizarTags(){ ckRenderSeAtivo(true); }
+function ckSinalHtml(){
+  const n1 = confFila.length, n2 = confFotosPend.length;
+  if (!n1 && !n2) return '<span class="ck-sinal ok">✓ tudo salvo</span>';
+  return '<span class="ck-sinal pend" title="Fica guardado neste aparelho e sobe sozinho quando tiver sinal">⏳ Falta salvar: ' + [n1 ? n1 + ' alteraç' + (n1 > 1 ? 'ões' : 'ão') : '', n2 ? n2 + ' foto' + (n2 > 1 ? 's' : '') : ''].filter(Boolean).join(' e ') + ' · sobe quando tiver sinal</span>';
+}
+function ckAtualizarSinal(){ const el = document.getElementById('ck-sinal'); if (el) el.innerHTML = ckSinalHtml(); }
+function ckAndarPadrao(andares){
+  const prox = [13, 12, 11, 7, 6, 5].find((a) => andares.indexOf(a) !== -1 && confResumoAndar(a).k !== 'ok');
+  return prox || andares[0];
+}
+function ckFotosHtml(fotos, alvo, podeTirar){
+  return (fotos || []).map((f) => { const ref = f.lid || f.id, src = f.id && supa ? urlDaFoto(f.id) : (f.lid && confObjUrls[f.lid]) || '';
+    return '<span class="ck-foto' + (f.id ? '' : ' pend') + '"><button type="button" class="ck-foto-img" data-ck-ver="' + esc(ref) + '" data-ck-src="' + esc(src) + '">' +
+      '<img alt="foto" ' + (src ? 'src="' + esc(src) + '"' : '') + (f.id ? '' : ' data-ck-lid="' + esc(f.lid) + '"') + '></button>' +
+      (f.fase === 'depois' ? '<i class="ck-foto-tag">depois</i>' : '') + (f.id ? '' : '<i class="ck-foto-tag espera" title="ainda no aparelho de ' + esc(f.por || '') + '">⏳</i>') +
+      (podeTirar ? '<button type="button" class="ck-foto-x" data-ck-foto-tirar="' + esc(ref) + '" data-ck-alvo="' + esc(alvo.k + ':' + alvo.id) + '" aria-label="Tirar foto">×</button>' : '') + '</span>'; }).join('');
+}
+function ckBotaoFoto(alvo, fase, rotulo, opcional){
+  return '<label class="ck-foto-bt' + (opcional ? ' opc' : '') + '">📷 ' + rotulo + '<input type="file" accept="image/*" multiple hidden data-ck-foto="' + esc(alvo.k + ':' + alvo.id) + '" data-ck-fase="' + fase + '"></label>' +
+    (opcional ? '<span class="ck-opc">opcional — não precisa de foto para aprovar</span>' : '');
+}
+function ckRender(){
+  const box = document.getElementById('ck-pagina'); if (!box) return;
+  if (!confAtivo()){ box.innerHTML = '<div class="rn-sub" style="padding:20px 0;">O checklist de operação é da obra Quartos.</div>'; return; }
+  const foco = document.activeElement, focoObs = foco && foco.dataset && foco.dataset.ckObs ? { id: foco.dataset.ckObs, v: foco.value, s: foco.selectionStart } : null;
+  const andares = (andaresConhecidos || []).filter((a) => a > 0).slice().sort((a, b) => b - a);
+  if (!andares.length){ box.innerHTML = '<div class="rn-sub" style="padding:20px 0;">Carregando…</div>'; return; }
+  if (!ck.andar || andares.indexOf(ck.andar) === -1){ ck.andar = ckAndarPadrao(andares); ck.quarto = null; }
+  if (ck.quarto && confQuartosDoAndar(ck.andar).indexOf(Number(ck.quarto)) === -1) ck.quarto = null;
+  let h = '<div class="ck-topo"><div><h2>Checklist operação</h2><div class="ck-sub">Conferência de cada quarto antes de entregar à operação · todos podem preencher</div></div><div id="ck-sinal">' + ckSinalHtml() + '</div></div>';
+  h += '<div class="ck-andares" role="tablist">' + andares.map((a) => { const r = confResumoAndar(a); return '<button type="button" class="ck-and conf-' + r.k + (r.atrasado ? ' conf-atras' : '') + (a === ck.andar ? ' sel' : '') + '" data-ck-andar="' + a + '"><b>' + a + 'º</b><span>' + esc(r.atrasado ? 'atrasado' : r.txt) + '</span></button>'; }).join('') + '</div>';
+  h += ck.quarto ? ckTelaQuarto() : ckTelaAndar();
+  box.innerHTML = h;
+  if (focoObs){ const el = box.querySelector('[data-ck-obs="' + focoObs.id + '"]'); if (el){ el.value = focoObs.v; try{ el.focus(); el.setSelectionRange(focoObs.s, focoObs.s); }catch(e){} } }
+  ckPreencherFotosLocais(box);
+  ckLigar(box);
+}
+async function ckPreencherFotosLocais(box){
+  for (const img of Array.from(box.querySelectorAll('img[data-ck-lid]'))){
+    if (img.getAttribute('src')) continue;
+    const lid = img.dataset.ckLid;
+    if (!confObjUrls[lid]){ const reg = await cacheIdb.get('confFoto:' + lid); if (reg && reg.blob){ try{ confObjUrls[lid] = URL.createObjectURL(reg.blob); }catch(e){} } }
+    if (confObjUrls[lid]){ img.src = confObjUrls[lid]; const b = img.closest('[data-ck-src]'); if (b) b.dataset.ckSrc = confObjUrls[lid]; }
+    else img.closest('.ck-foto') && img.closest('.ck-foto').classList.add('longe');
+  }
+}
+function ckTelaAndar(){
+  const a = ck.andar, r = confResumoAndar(a), adm = ehAdminAtual(), hoje = confHoje();
+  const dias = r.prazo ? Math.round((new Date(r.prazo + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 864e5) : null;
+  const situ = !r.prazo ? '<em>sem prazo definido</em>' : r.atrasado ? '<em class="atras">atrasado</em>' : (r.k === 'ok') ? '<em class="okk">concluído</em>' : dias === 0 ? '<em class="prev">vence hoje</em>' : dias > 0 ? '<em>faltam ' + dias + ' dia' + (dias > 1 ? 's' : '') + '</em>' : '';
+  const entregue = CONF_ANDARES_ENTREGUES_SEM.indexOf(a) !== -1, campo = CONF_CAMPO.andares.indexOf(a) !== -1, nFalta = r.qs.length - r.nConcl - r.nAnd;
+  let h = '<div class="ck-painel"><div class="ck-andar-cab"><div class="ck-andar-t"><h3>' + esc(nomeAndarLongo(a)) + '</h3>' +
+    (campo ? '<span class="ck-nota">conferido em campo (planilha)</span>' : entregue ? '<span class="ck-nota">já entregue à operação sem conferência</span>' : '') + '</div>' +
+    '<div class="ck-prazo"><label for="ck-prazo-in">Prazo da conferência</label>' + (adm ? '<input type="date" id="ck-prazo-in" value="' + esc(r.prazo) + '">' : '<b>' + (r.prazo ? confDataCurta(r.prazo) + '/' + r.prazo.slice(0, 4) : '—') + '</b>') + situ + '</div></div>' +
+    '<div class="ck-kpis">' + [['Quartos', r.qs.length, ''], ['Conferidos', r.nConcl, 'ok'], ['Em andamento', r.nAnd, 'and'], [entregue ? 'Sem conferência' : 'A conferir', nFalta, ''], ['Em aberto', r.abertos, r.abertos ? (r.atrasado ? 'atras' : 'pend') : ''], ['Fotos', r.fotos, '']].map(([t, v, c]) => '<div class="ck-kpi ' + c + '"><b>' + v + '</b><span>' + t + '</span></div>').join('') + '</div>' +
+    '<div class="ck-acoes"><div class="rn-modo">' + [['quartos', 'Quartos'], ['pend', 'Pendências do andar' + (r.abertos ? ' · ' + r.abertos : '')]].map(([v, t]) => '<button type="button" data-ck-visao="' + v + '"' + (ck.visao === v ? ' class="ativo"' : '') + '>' + t + '</button>').join('') + '</div>' +
+    '<div class="ck-pdfs"><button type="button" class="btn fantasma" data-ck-pdf="pend">PDF pendências</button><button type="button" class="btn fantasma" data-ck-pdf="todo">PDF checklist completo</button></div></div></div>';
+  if (ck.visao === 'pend') return h + ckPendenciasAndar(a, r);
+  h += r.qs.length ? '<div class="ck-grade">' + r.qs.map((q, i) => { const e = r.es[i], d = e.doc || {};
+    const ult = d.atualizadoPor ? 'por ' + String(d.atualizadoPor).split(' ')[0] + ' · ' + confDataHora(d.atualizadoEm) : (e.campo ? 'vistoria de campo' : '');
+    return '<button type="button" class="ck-qcard conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + '" data-ck-quarto="' + q + '"><div class="ck-qc-top"><b>' + q + '</b><span class="ck-qc-st">' + esc(e.txt.replace('✓ ', '')) + '</span></div>' +
+      '<div class="ck-barra"><i style="width:' + (e.total ? Math.round(e.resp / e.total * 100) : 0) + '%;"></i></div>' +
+      '<div class="ck-qc-info">' + e.resp + '/' + e.total + ' conferidos' + (e.abertos ? ' · <b>' + e.abertos + ' em aberto</b>' : '') + (e.fotos ? ' · ' + e.fotos + ' foto' + (e.fotos > 1 ? 's' : '') : '') + '</div>' +
+      (ult ? '<div class="ck-qc-meta">' + esc(ult) + '</div>' : '') + '</button>'; }).join('') + '</div>' : '<div class="rn-sub">Nenhum quarto encontrado neste andar.</div>';
+  return h;
+}
+function ckPendenciasAndar(a, r){
+  const grupos = new Map();
+  r.qs.forEach((q, i) => { const e = r.es[i], d = e.doc || {}, its = d.itens || {};
+    confApont(q).forEach((ap) => { if (ap.st === 'ok') return; const g = confNomeDisc(ap.disc); if (!grupos.has(g)) grupos.set(g, []);
+      grupos.get(g).push({ q, alvo:{ k:'ap', id: ap.id }, txt: ap.txt, obs: '', fotos: ap.fotos || [], meta: confQuemAp(ap) }); });
+    confModelo().forEach((dc) => dc.itens.forEach((it) => { const x = its[it.id]; if (!x || x.r !== 'nok' || x.corrigidoEm) return;
+      if (!grupos.has(dc.nome)) grupos.set(dc.nome, []);
+      grupos.get(dc.nome).push({ q, alvo:{ k:'item', id: it.id }, txt: it.txt, obs: x.obs || '', fotos: x.fotos || [], meta: 'Não OK · ' + (x.nokPor || x.por || '—') + ' · ' + confDataHora(x.nokEm || x.em) }); })); });
+  if (!grupos.size) return '<div class="ck-vazio">Nenhuma pendência em aberto no ' + esc(nomeAndarLongo(a)) + '.</div>';
+  return Array.from(grupos.entries()).sort((x, y) => y[1].length - x[1].length).map(([g, ls]) => '<div class="ck-pend-disc"><h4>' + esc(g) + ' <span>' + ls.length + '</span></h4>' +
+    ls.sort((x, y) => x.q - y.q).map((l) => '<div class="ck-pend"><button type="button" class="ck-pend-q" data-ck-quarto="' + l.q + '">' + l.q + '</button><div class="ck-pend-c"><b>' + esc(l.txt) + '</b>' +
+      (l.obs ? '<div class="ck-pend-obs">' + esc(l.obs) + '</div>' : '') + (l.fotos.length ? '<div class="ck-fotos">' + ckFotosHtml(l.fotos, l.alvo, false) + '</div>' : '') +
+      '<div class="ck-meta">' + esc(l.meta) + '</div></div><button type="button" class="ck-aprovar" ' + (l.alvo.k === 'ap' ? 'data-ck-ap-aprovar="' + esc(l.alvo.id) + '"' : 'data-ck-aprovar="' + esc(l.alvo.id) + '"') + ' data-ck-q="' + l.q + '">Aprovar</button></div>').join('') + '</div>').join('');
+}
+function ckTelaQuarto(){
+  const a = ck.andar, q = String(ck.quarto), e = confEstado(a, q), d = e.doc || {}, its = d.itens || {}, mod = confModelo(), ap = confApont(q), adm = ehAdminAtual();
+  const lista = confQuartosDoAndar(a), i = lista.indexOf(Number(q)), ant = i > 0 ? lista[i - 1] : null, prox = i >= 0 && i < lista.length - 1 ? lista[i + 1] : null;
+  const fil = ck.filtro, mostra = (x) => fil === 'tudo' || (fil === 'falta' && !(x && x.r)) || (fil === 'nok' && x && x.r === 'nok' && !x.corrigidoEm);
+  const quem = (n) => String(n || '—');
+  let h = '<div class="ck-quarto"><div class="ck-q-cab"><button type="button" class="ck-voltar" data-ck-voltar="1">← ' + esc(nomeAndarLongo(a)) + '</button>' +
+    '<div class="ck-q-tit"><h3>Quarto ' + esc(q) + '</h3><span class="conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + ' estatico">' + esc(e.txt) + '</span></div>' +
+    '<div class="ck-q-prog"><div class="ck-barra"><i style="width:' + (e.total ? Math.round(e.resp / e.total * 100) : 0) + '%;"></i></div><span>' + e.resp + ' de ' + e.total + ' conferidos' + (e.abertos ? ' · ' + e.abertos + ' em aberto' : '') + (e.prazo ? ' · prazo ' + confDataCurta(e.prazo) + (e.atrasado ? ' (atrasado)' : '') : '') + '</span></div>' +
+    '<div class="ck-q-linha"><div class="rn-modo ck-filtro">' + [['tudo', 'Tudo'], ['falta', 'Falta conferir'], ['nok', 'Não OK']].map(([v, t]) => '<button type="button" data-ck-filtro="' + v + '"' + (fil === v ? ' class="ativo"' : '') + '>' + t + '</button>').join('') + '</div>' +
+    '<button type="button" class="btn fantasma ck-pdf-q" data-ck-pdf-q="todo">PDF do quarto</button></div></div>';
+  if (e.campo) h += '<div class="ck-aviso">Conferido em campo (planilha do 14º ao 16º). O checklist abaixo é opcional.</div>';
+  else if (d.concluidoEm) h += '<div class="ck-aviso ok">Conferência concluída em ' + esc(confDataHora(d.concluidoEm)) + ' por ' + esc(quem(d.concluidoPor)) + '.</div>';
+  else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(a) !== -1) h += '<div class="ck-aviso">Andar já entregue à operação, mas sem conferência. Dá para fazer agora.</div>';
+  // apontamentos da vistoria (planilha de campo)
+  const apVis = ap.filter((x) => fil === 'tudo' || (fil === 'nok' && x.st !== 'ok'));
+  if (apVis.length){
+    h += '<div class="ck-sec-t">Apontamentos da vistoria <span>' + (e.apAb ? e.apAb + ' em aberto de ' + ap.length : 'todos aprovados') + '</span></div><div class="ck-lista">' +
+      apVis.map((x) => { const ab = x.st !== 'ok', alvo = { k:'ap', id: x.id }, fotos = x.fotos || [];
+        return '<div class="ck-item ' + (ab ? 'r-nok' : 'r-ok aprovado') + '"><div class="ck-item-t"><span><small class="ck-apdisc">' + esc(confNomeDisc(x.disc)) + '</small>' + esc(x.txt) + '</span></div>' +
+          '<div class="ck-nok">' +
+            (ab ? '<div class="ck-fotos">' + ckFotosHtml(fotos.filter((f) => f.fase !== 'depois'), alvo, true) + ckBotaoFoto(alvo, 'nok', 'Foto', false) + '</div>' +
+                  '<div class="ck-aprovar-linha"><button type="button" class="ck-aprovar" data-ck-ap-aprovar="' + esc(x.id) + '" data-ck-q="' + esc(q) + '">Aprovar</button>' + (e.vencido ? '<em class="ck-atras-t">atrasado</em>' : '') + '</div>'
+               : '<div class="ck-aprovado">✓ ' + esc(confQuemAp(x)) + (x.resolvidoEm ? ' <button type="button" class="ck-link" data-ck-ap-reabrir="' + esc(x.id) + '">não OK de novo</button>' : '') + '</div>') +
+            (fotos.some((f) => f.fase !== 'depois') && !ab ? '<div class="ck-fotos">' + ckFotosHtml(fotos.filter((f) => f.fase !== 'depois'), alvo, true) + '</div>' : '') +
+            ((ab || x.resolvidoEm) ? '<div class="ck-fotos">' + ckFotosHtml(fotos.filter((f) => f.fase === 'depois'), alvo, true) + ckBotaoFoto(alvo, 'depois', 'Foto do depois', true) + '</div>' : '') +
+          '</div>' + (ab ? '<div class="ck-meta">' + esc(confQuemAp(x)) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+  }
+  // checklist
+  h += '<div class="ck-sec-t">Checklist <span>' + e.resp + ' de ' + e.total + (e.nok ? ' · ' + e.nok + ' não OK' : '') + '</span></div>';
+  mod.forEach((dc) => {
+    const n = dc.itens.filter((it) => its[it.id] && its[it.id].r).length, faltam = dc.itens.length - n, nNok = dc.itens.filter((it) => its[it.id] && its[it.id].r === 'nok' && !its[it.id].corrigidoEm).length;
+    const vis = dc.itens.filter((it) => mostra(its[it.id]));
+    if (fil !== 'tudo' && !vis.length) return;
+    const rec = !!ck.recolhidas[dc.id] && fil === 'tudo';
+    h += '<div class="ck-disc' + (rec ? ' recolhida' : '') + '"><div class="ck-disc-cab"><button type="button" class="ck-disc-t" data-ck-recolher="' + esc(dc.id) + '"><b>' + esc(dc.nome) + '</b><span>' + n + '/' + dc.itens.length + (nNok ? ' · ' + nNok + ' não OK' : '') + '</span><i>' + (rec ? '▸' : '▾') + '</i></button>' +
+      (faltam && !rec ? '<button type="button" class="ck-link" data-ck-todos="' + esc(dc.id) + '">' + (n ? 'resto OK' : 'tudo OK') + '</button>' : '') +
+      (adm && !rec ? '<button type="button" class="conf-rm" data-ck-rm-disc="' + esc(dc.id) + '" title="Tirar esta disciplina do checklist">×</button>' : '') + '</div>';
+    if (!rec){
+      h += vis.map((it) => { const x = its[it.id] || {}, r = x.r || '', aprov = r === 'nok' && x.corrigidoEm, alvo = { k:'item', id: it.id }, fotos = x.fotos || [];
+        let meta = '';
+        if (r === 'ok') meta = 'OK · ' + quem(x.por) + ' · ' + confDataHora(x.em);
+        else if (r === 'na') meta = 'N/A · ' + quem(x.por) + ' · ' + confDataHora(x.em);
+        else if (r === 'nok') meta = 'Não OK · ' + quem(x.nokPor || x.por) + ' · ' + confDataHora(x.nokEm || x.em) + (aprov ? '  →  Aprovado · ' + quem(x.corrigidoPor) + ' · ' + confDataHora(x.corrigidoEm) : '');
+        return '<div class="ck-item' + (r ? ' r-' + r : '') + (aprov ? ' aprovado' : '') + '"><div class="ck-item-t"><span>' + esc(it.txt) + (it.por ? ' <small class="conf-incl">incluído por ' + esc(it.por) + '</small>' : '') + '</span>' + (adm ? '<button type="button" class="conf-rm" data-ck-rm="' + esc(it.id) + '" title="Tirar do checklist">×</button>' : '') + '</div>' +
+          '<div class="ck-bts">' + [['ok', 'OK'], ['nok', 'Não OK'], ['na', 'N/A']].map(([v, t]) => '<button type="button" class="b-' + v + (r === v ? ' sel' : '') + '" data-ck-r="' + v + '" data-ck-it="' + esc(it.id) + '">' + t + '</button>').join('') + '</div>' +
+          (r === 'nok' ? '<div class="ck-nok"><input type="text" class="ck-obs" data-ck-obs="' + esc(it.id) + '" maxlength="240" placeholder="O que está errado?" value="' + esc(x.obs || '') + '">' +
+            '<div class="ck-fotos">' + ckFotosHtml(fotos.filter((f) => f.fase !== 'depois'), alvo, true) + ckBotaoFoto(alvo, 'nok', 'Foto', false) + '</div>' +
+            (aprov ? '<div class="ck-aprovado">✓ Aprovado por ' + esc(quem(x.corrigidoPor)) + ' em ' + esc(confDataHora(x.corrigidoEm)) + ' <button type="button" class="ck-link" data-ck-reprovar="' + esc(it.id) + '">não OK de novo</button></div>'
+                   : '<div class="ck-aprovar-linha"><button type="button" class="ck-aprovar" data-ck-aprovar="' + esc(it.id) + '" data-ck-q="' + esc(q) + '">Aprovar</button>' + (e.vencido ? '<em class="ck-atras-t">atrasado</em>' : '') + '</div>') +
+            '<div class="ck-fotos">' + ckFotosHtml(fotos.filter((f) => f.fase === 'depois'), alvo, true) + ckBotaoFoto(alvo, 'depois', 'Foto do depois', true) + '</div></div>'
+            : (fotos.length ? '<div class="ck-fotos">' + ckFotosHtml(fotos, alvo, true) + '</div>' : '')) +
+          (meta ? '<div class="ck-meta">' + esc(meta) + '</div>' : '') + '</div>'; }).join('');
+      h += ck.add === dc.id
+        ? '<div class="conf-add-form"><input type="text" id="ck-add-txt" maxlength="160" placeholder="Novo item de ' + esc(dc.nome) + '"><button class="btn primario" id="ck-add-ok" type="button">Incluir</button><button class="btn fantasma" id="ck-add-cancel" type="button">Cancelar</button></div>'
+        : (fil === 'tudo' ? '<button type="button" class="conf-add" data-ck-add="' + esc(dc.id) + '">+ item</button>' : '');
+    }
+    h += '</div>';
+  });
+  if (fil === 'tudo') h += ck.add === '__disc'
+    ? '<div class="conf-add-form conf-add-disc"><input type="text" id="ck-add-txt" maxlength="60" placeholder="Nome da nova disciplina"><button class="btn primario" id="ck-add-ok" type="button">Criar</button><button class="btn fantasma" id="ck-add-cancel" type="button">Cancelar</button></div>'
+    : '<button type="button" class="conf-add conf-add-disc" data-ck-add="__disc">+ disciplina</button>';
+  h += '<div class="conf-nota">Item ou disciplina incluídos aqui entram no checklist de todos os quartos.</div>';
+  const falta = e.total - e.resp;
+  const meio = d.concluidoEm ? (adm && !e.campo ? '<button type="button" class="btn fantasma" data-ck-reabrir="1">Reabrir conferência</button>' : '<span class="ck-rod-ok">✓ concluída</span>')
+    : e.campo ? '<span></span>'
+    : '<button type="button" class="btn primario" data-ck-concluir="1"' + (falta ? ' disabled' : '') + '>' + (falta ? 'Faltam ' + falta : 'Concluir conferência') + '</button>';
+  h += '<div class="ck-rodape">' + (ant ? '<button type="button" class="btn fantasma" data-ck-quarto="' + ant + '">← ' + ant + '</button>' : '<span></span>') + meio + (prox ? '<button type="button" class="btn fantasma" data-ck-quarto="' + prox + '">' + prox + ' →</button>' : '<span></span>') + '</div></div>';
+  return h;
+}
+function ckLigar(box){
+  const ini = document.getElementById('ck-add-txt'); if (ini) setTimeout(() => { try{ ini.focus(); }catch(e){} }, 30);
+  if (box.dataset.ligado) return;
+  box.dataset.ligado = '1';
+  box.addEventListener('click', async (ev) => {
+    const t = ev.target, el = (sel) => t.closest(sel);
+    let b;
+    if ((b = el('[data-ck-andar]'))){ ck.andar = Number(b.dataset.ckAndar); ck.quarto = null; ck.add = null; ckSalvarEstado(); ckRender(); return; }
+    if ((b = el('[data-ck-voltar]'))){ ck.quarto = null; ck.add = null; ckSalvarEstado(); ckRender(); ckRolarTopo(); return; }
+    if ((b = el('[data-ck-quarto]'))){ ck.quarto = String(b.dataset.ckQuarto); ck.add = null; ckSalvarEstado(); ckRender(); ckRolarTopo(); return; }
+    if ((b = el('[data-ck-visao]'))){ ck.visao = b.dataset.ckVisao; ckSalvarEstado(); ckRender(); return; }
+    if ((b = el('[data-ck-filtro]'))){ ck.filtro = b.dataset.ckFiltro; ckSalvarEstado(); ckRender(); return; }
+    if ((b = el('[data-ck-recolher]'))){ const k = b.dataset.ckRecolher; ck.recolhidas[k] = !ck.recolhidas[k]; ckRender(); return; }
+    const a = ck.andar, q = ck.quarto;
+    if ((b = el('[data-ck-r]'))){ const id = b.dataset.ckIt, x = ((confEstado(a, q).doc || {}).itens || {})[id] || {}; confAcao(q, a, { t:'resp', item: id, r: x.r === b.dataset.ckR ? '' : b.dataset.ckR }); return; }
+    if ((b = el('[data-ck-aprovar]'))){ confAcao(b.dataset.ckQ || q, a, { t:'aprovar', item: b.dataset.ckAprovar }); return; }
+    if ((b = el('[data-ck-reprovar]'))){ confAcao(q, a, { t:'reprovar', item: b.dataset.ckReprovar }); return; }
+    if ((b = el('[data-ck-ap-aprovar]'))){ confAcao(b.dataset.ckQ || q, a, { t:'apAprovar', id: b.dataset.ckApAprovar }); return; }
+    if ((b = el('[data-ck-ap-reabrir]'))){ confAcao(q, a, { t:'apReabrir', id: b.dataset.ckApReabrir }); return; }
+    if ((b = el('[data-ck-todos]'))){ const dc = confModelo().find((x) => x.id === b.dataset.ckTodos), its = (confEstado(a, q).doc || {}).itens || {};
+      if (dc) confAcao(q, a, { t:'todosOk', itens: dc.itens.filter((it) => !(its[it.id] && its[it.id].r)).map((it) => it.id) }); return; }
+    if ((b = el('[data-ck-concluir]'))){ confAcao(q, a, { t:'concluir' }); return; }
+    if ((b = el('[data-ck-reabrir]'))){ if (!exigirAdmin()) return; confAcao(q, a, { t:'reabrir' }); return; }
+    if ((b = el('[data-ck-ver]'))){ const src = b.dataset.ckSrc; if (src) ckVerFoto(src); return; }
+    if ((b = el('[data-ck-foto-tirar]'))){ const [k, id] = String(b.dataset.ckAlvo).split(':');
+      if (!window.confirm('Tirar esta foto?')) return; confAcao(q, a, { t:'fotoTirar', alvo:{ k, id }, ref: b.dataset.ckFotoTirar }); return; }
+    if ((b = el('[data-ck-pdf]'))){ b.disabled = true; try{ await confPdf(a, null, b.dataset.ckPdf, 'andar'); }catch(e2){ avisoFlutuante('Não consegui gerar o PDF: ' + (e2.message || e2), 'erro'); } finally{ b.disabled = false; } return; }
+    if ((b = el('[data-ck-pdf-q]'))){ b.disabled = true; try{ await confPdf(a, q, b.dataset.ckPdfQ || 'todo', 'quarto'); }catch(e2){ avisoFlutuante('Não consegui gerar o PDF: ' + (e2.message || e2), 'erro'); } finally{ b.disabled = false; } return; }
+    if ((b = el('[data-ck-add]'))){ ck.add = b.dataset.ckAdd; ckRender(); return; }
+    if (t.id === 'ck-add-cancel'){ ck.add = null; ckRender(); return; }
+    if (t.id === 'ck-add-ok'){ ckIncluir(); return; }
+    if ((b = el('[data-ck-rm]'))){ if (!exigirAdmin()) return; const id = b.dataset.ckRm, it = confModelo().flatMap((x) => x.itens).find((x) => x.id === id);
+      if (!window.confirm('Tirar "' + (it ? it.txt : id) + '" do checklist de todos os quartos? (as respostas já dadas ficam guardadas)')) return;
+      confGravarModelo((m) => { m.ocultos[id] = { por: usuarioAtual, em: new Date().toISOString() }; }); return; }
+    if ((b = el('[data-ck-rm-disc]'))){ if (!exigirAdmin()) return; const id = b.dataset.ckRmDisc, dc = confModelo().find((x) => x.id === id);
+      if (!window.confirm('Tirar a disciplina "' + (dc ? dc.nome : id) + '" (e os itens dela) do checklist de todos os quartos?')) return;
+      confGravarModelo((m) => { m.ocultos['disc:' + id] = { por: usuarioAtual, em: new Date().toISOString() }; }); return; }
+  });
+  box.addEventListener('change', (ev) => {
+    const t = ev.target, a = ck.andar, q = ck.quarto;
+    if (t.dataset && t.dataset.ckObs){ const v = t.value.trim().slice(0, 240), x = ((confEstado(a, q).doc || {}).itens || {})[t.dataset.ckObs] || {}; if (v !== (x.obs || '')) confAcao(q, a, { t:'obs', item: t.dataset.ckObs, v }); return; }
+    if (t.dataset && t.dataset.ckFoto){ const [k, id] = t.dataset.ckFoto.split(':'), arqs = Array.from(t.files || []); t.value = ''; confAddFotos(q, a, { k, id }, arqs, t.dataset.ckFase); return; }
+    if (t.id === 'ck-prazo-in'){ if (t.value !== confPrazoAndar(a)) confGravarPrazo(a, t.value); return; }
+  });
+  box.addEventListener('keydown', (ev) => { if (ev.target.id === 'ck-add-txt'){ if (ev.key === 'Enter'){ ev.preventDefault(); ckIncluir(); } if (ev.key === 'Escape'){ ck.add = null; ckRender(); } } });
+}
+function ckRolarTopo(){ const s = document.getElementById('secao-checklist'); if (!s) return; const y = s.getBoundingClientRect().top + window.scrollY - (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--altura-cabecalho'), 10) || 0) - 8; if (window.scrollY > y) window.scrollTo({ top: Math.max(0, y), behavior: 'instant' }); }
+function ckVerFoto(src){
+  const ov = document.getElementById('lightbox-foto'), img = document.getElementById('lightbox-imagem-el'); if (!ov || !img) return;
+  img.src = src; const box = document.getElementById('lightbox-rodape'); if (box) box.classList.add('oculto'); ov.classList.remove('oculto');
+}
+async function ckIncluir(){
+  const inp = document.getElementById('ck-add-txt'), okb = document.getElementById('ck-add-ok'); if (!inp) return;
+  const txt = (inp.value || '').replace(/\s+/g, ' ').trim(); if (!txt){ inp.focus(); return; }
+  const alvo = ck.add; if (okb) okb.disabled = true;
+  if (alvo === '__disc'){
+    if (confModelo().some((x) => confNorm(x.nome) === confNorm(txt))){ avisoFlutuante('Já existe a disciplina "' + txt + '".', 'erro'); if (okb) okb.disabled = false; return; }
+    const id = 'u' + Date.now().toString(36);
+    const ok = await confGravarModelo((m) => { m.discs.push({ id, nome: txt.slice(0, 60), por: usuarioAtual, em: new Date().toISOString() }); });
+    if (ok){ ck.add = id; ckRender(); avisoFlutuante('Disciplina "' + txt + '" criada. Agora inclua os itens dela.', 'ok'); } else if (okb) okb.disabled = false;
+    return;
+  }
+  const dc = confModelo().find((x) => x.id === alvo); if (!dc){ ck.add = null; ckRender(); return; }
+  if (dc.itens.some((it) => confNorm(it.txt) === confNorm(txt))){ avisoFlutuante('Esse item já está em ' + dc.nome + '.', 'erro'); if (okb) okb.disabled = false; return; }
+  const ok = await confGravarModelo((m) => { (m.itens[alvo] = Array.isArray(m.itens[alvo]) ? m.itens[alvo] : []).push({ id: alvo + '.u' + Date.now().toString(36), txt: txt.slice(0, 160), por: usuarioAtual, em: new Date().toISOString() }); });
+  if (ok){ ck.add = null; ckRender(); avisoFlutuante('Item incluído em ' + dc.nome + ' (vale para todos os quartos).', 'ok'); } else if (okb) okb.disabled = false;
+}
+async function renderChecklist(){
+  const box = document.getElementById('ck-pagina'); if (!box) return;
+  if (!box.innerHTML) box.innerHTML = '<div class="rn-sub" style="padding:20px 0;">Carregando…</div>';
+  await confCarregar();
+  ckRender();
+  confTentarSubir();
+}
+
+/* ===================== PDF DA CONFERÊNCIA ===================== */
+/* cada linha do checklist e dos apontamentos de um quarto, com quem/quando e as fotos */
 function confRelQuarto(andar, q){
   const e = confEstado(andar, q), d = e.doc || {}, its = d.itens || {}, ap = confApont(q), linhas = [];
-  ap.forEach((a) => linhas.push({ disc: confNomeDisc(a.disc), item: a.txt, achado: true, aberto: a.st !== 'ok',
-    res: a.st === 'ok' ? (a.resolvidoEm ? 'Resolvido' : 'OK') : (e.vencido ? 'Atrasado' : 'Em aberto'), quem: confQuemAp(a, true), obs: 'apontamento da vistoria', ap: true }));
+  ap.forEach((a) => linhas.push({ disc: confNomeDisc(a.disc), item: a.txt, achado: true, aberto: a.st !== 'ok', ap: true,
+    res: a.st === 'ok' ? (a.resolvidoEm ? 'Aprovado' : 'OK') : (e.vencido ? 'Atrasado' : 'Em aberto'), quem: confQuemAp(a, true), obs: 'apontamento da vistoria', fotos: a.fotos || [] }));
   confModelo().forEach((dc) => dc.itens.forEach((it) => { const x = its[it.id] || {}, nok = x.r === 'nok';
+    const quem = !x.r ? '' : nok ? 'Não OK: ' + (x.nokPor || x.por || '—') + ' · ' + confDataHora(x.nokEm || x.em) + (x.corrigidoEm ? ' / Aprovado: ' + (x.corrigidoPor || '—') + ' · ' + confDataHora(x.corrigidoEm) : '')
+      : (x.por || '—') + (x.em ? ' · ' + confDataHora(x.em) : '');
     linhas.push({ disc: dc.nome, item: it.txt, achado: nok, aberto: nok && !x.corrigidoEm,
-      res: !x.r ? 'não conferido' : x.r === 'ok' ? 'OK' : x.r === 'na' ? 'N/A' : x.corrigidoEm ? 'Corrigido' : (e.vencido ? 'Atrasado' : 'Não OK'),
-      quem: x.r ? (x.por || '—') + (x.em ? ' · ' + confDataHora(x.em) : '') : '',
-      obs: [x.obs, x.corrigidoEm ? 'corrigido em ' + confDataCurta(x.corrigidoEm) + (x.corrigidoPor ? ' por ' + x.corrigidoPor : '') : ''].filter(Boolean).join(' · ') }); }));
+      res: !x.r ? 'não conferido' : x.r === 'ok' ? 'OK' : x.r === 'na' ? 'N/A' : x.corrigidoEm ? 'Aprovado' : (e.vencido ? 'Atrasado' : 'Não OK'),
+      quem, obs: nok ? (x.obs || '') : '', fotos: nok ? (x.fotos || []) : [] }); }));
   const pessoas = Array.from(new Set(confModelo().flatMap((dc) => dc.itens).map((it) => its[it.id]).filter((x) => x && x.r && x.por).map((x) => x.por)));
   const achados = linhas.filter((l) => l.achado).length, resolvidos = linhas.filter((l) => l.achado && !l.aberto).length;
   return { e, d, linhas, pessoas, achados, resolvidos };
 }
-/* PDF: resumo primeiro (cartões, quartos, disciplinas) e depois a tabela de cada quarto */
+/* foto (do banco ou ainda só neste aparelho) → miniatura pronta para o PDF */
+async function confFotoParaPdf(f, w, h){
+  let url = null;
+  if (f.id) url = await buscarImagemComoDataURL(f.id);
+  if (!url && f.lid){ const reg = await cacheIdb.get('confFoto:' + f.lid);
+    if (reg && reg.blob) url = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = () => ok(null); fr.readAsDataURL(reg.blob); }); }
+  if (!url) return null;
+  const src = await prepararMiniatura(url, w, h, 4);
+  return src ? { src, depois: f.fase === 'depois' } : null;
+}
 async function confPdf(andar, q, tipo, escopo){
   if (!jsPdfDisponivel()){ avisoFlutuante('Biblioteca de PDF não carregou', 'erro'); return; }
   andar = Number(andar);
+  avisoFlutuante('Montando o PDF' + (tipo === 'pend' ? ' das pendências' : ' do checklist') + '…', 'ok');
   const quartos = escopo === 'quarto' ? [Number(q)] : confQuartosDoAndar(andar);
   const rel = quartos.map((qq) => Object.assign({ q: qq }, confRelQuarto(andar, qq)));
   const prazo = confPrazoAndar(andar), hoje = confHoje(), vencido = !!prazo && prazo < hoje;
@@ -13916,14 +14173,24 @@ async function confPdf(andar, q, tipo, escopo){
   const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'pt', format:'a4' }); ffPdfDoc = doc;
   const amb = escopo === 'quarto' ? 'Quarto ' + q : nomeAndarLongo(andar), vm = ffRgb('#D1443F'), ambar = ffRgb('#9A6420'), verde = PDF_COR.vd;
   const atrasoGeral = vencido && abertos > 0;
+  // fotos das linhas que vão sair (miniaturas em 5 por linha)
+  const W0 = doc.internal.pageSize.getWidth() - 2 * PDF_M, TW = (W0 - 16 - 4 * 6) / 5, TH = Math.round(TW * 0.75);
+  let nFotos = 0;
+  for (const r of rel){
+    for (const l of r.linhas){
+      if (!l.fotos.length || (tipo === 'pend' && !l.aberto)) { l.fotosPdf = []; continue; }
+      l.fotosPdf = (await Promise.all(l.fotos.map((f) => confFotoParaPdf(f, TW, TH)))).filter(Boolean);
+      nFotos += l.fotosPdf.length;
+    }
+  }
   const ctx = { titulo:'Conferência operação', dataHora: ffPdfDataHora(), filtro: amb + ' · ' + (tipo === 'pend' ? 'Pendências em aberto' : 'Checklist completo'),
-    contagem: prazo ? 'prazo da conferência ' + confDataCurta(prazo) + '/' + prazo.slice(0, 4) + (atrasoGeral ? ' · atrasado' : '') : 'prazo da conferência não definido',
+    contagem: (prazo ? 'prazo da conferência ' + confDataCurta(prazo) + '/' + prazo.slice(0, 4) + (atrasoGeral ? ' · atrasado' : '') : 'prazo da conferência não definido') + (nFotos ? ' · ' + nFotos + ' foto' + (nFotos > 1 ? 's' : '') : ''),
     cartoes: [
       { rotulo:'Quartos', valor: quartos.length, sub: escopo === 'quarto' ? nomeAndarLongo(andar) : 'no andar' },
       { rotulo:'Conferidos', valor: nConcl, sub: 'de ' + quartos.length + ' quarto' + (quartos.length > 1 ? 's' : ''), cor: verde },
       { rotulo:'Itens conferidos', valor: resp, sub: 'de ' + pdfNum(tot) + ' do checklist' },
       { rotulo:'Em aberto', valor: abertos, sub: abertos ? (atrasoGeral ? 'prazo vencido' : 'a resolver') : 'nada pendente', destaque: true },
-      { rotulo:'Resolvidas', valor: resolvidos, sub: 'de ' + achados + ' encontradas', cor: verde },
+      { rotulo:'Aprovadas', valor: resolvidos, sub: 'de ' + achados + ' encontradas', cor: verde },
       { rotulo:'Prazo', texto: prazo ? confDataCurta(prazo) : '—', sub: !prazo ? 'não definido' : atrasoGeral ? 'atrasado' : prazo === hoje ? 'vence hoje' : vencido ? 'vencido' : 'no prazo', cor: atrasoGeral ? vm : PDF_COR.ink }
     ],
     andamento: tipo === 'pend' ? { titulo:'Pendências encontradas na conferência', feitas: resolvidos, total: achados } : { titulo:'Checklist respondido', feitas: resp, total: tot },
@@ -13936,10 +14203,10 @@ async function confPdf(andar, q, tipo, escopo){
     rel.map((r) => [String(r.q), { t: r.e.txt.replace('✓ ', ''), cor: corSit(r.e) }, r.e.resp + '/' + r.e.total, { t: r.e.abertos || '-', cor: r.e.abertos ? (r.e.vencido ? vm : ambar) : PDF_COR.faint },
       r.pessoas.length ? r.pessoas.join(', ') : (r.e.campo ? 'vistoria de campo' : '-'), r.d.concluidoEm ? confDataHora(r.d.concluidoEm) : (r.e.campo ? 'vistoria de campo' : '-')]),
     rel.length > 1 ? ['Total', nConcl + ' conferidos', resp + '/' + tot, abertos, '', ''] : null);
-  if (discs.length) ffPdfTabela(B, 'Por disciplina', 'pendências encontradas na conferência', [{ rot:'Disciplina', w:.46 }, { rot:'Encontradas', w:.18, align:'right' }, { rot:'Resolvidas', w:.18, align:'right', cor: verde }, { rot:'Em aberto', w:.18, align:'right' }],
+  if (discs.length) ffPdfTabela(B, 'Por disciplina', 'pendências encontradas na conferência', [{ rot:'Disciplina', w:.46 }, { rot:'Encontradas', w:.18, align:'right' }, { rot:'Aprovadas', w:.18, align:'right', cor: verde }, { rot:'Em aberto', w:.18, align:'right' }],
     discs.map((x) => [x.disc, x.achados, x.resolvidos || '-', { t: x.abertos || '-', cor: x.abertos ? ambar : PDF_COR.faint }]), ['Total', achados, resolvidos, abertos]);
   else B.push({ h:22, antes:18, secao:true, draw:(doc2, x, y) => pdfTxt(doc2, x, y + 12, 'Nenhuma pendência encontrada na conferência.', 8.5, PDF_COR.muted) });
-  const colsDet = [{ rot:'Disciplina', w:.19, quebra:2 }, { rot:'Item', w:.3, quebra:3 }, { rot:'Situação', w:.12 }, { rot: tipo === 'pend' ? 'Apontado por' : 'Conferido por', w:.19, quebra:2 }, { rot:'Observação', w:.2, quebra:3 }];
+  const colsDet = [{ rot:'Disciplina', w:.17, quebra:2 }, { rot:'Item', w:.28, quebra:3 }, { rot:'Situação', w:.11 }, { rot: tipo === 'pend' ? 'Apontado por' : 'Conferido por', w:.24, quebra:3 }, { rot:'Observação', w:.2, quebra:3 }];
   const corRes = (l) => l.aberto ? (vencido ? vm : ambar) : l.res === 'não conferido' ? PDF_COR.faint : l.res === 'N/A' ? PDF_COR.muted : verde;
   const semPend = [];
   rel.forEach((r) => {
@@ -13948,22 +14215,13 @@ async function confPdf(andar, q, tipo, escopo){
     const sub = (r.e.campo ? 'conferido em campo (planilha)' : r.d.concluidoEm ? 'concluído em ' + confDataHora(r.d.concluidoEm) + (r.d.concluidoPor ? ' por ' + r.d.concluidoPor : '') : r.e.resp ? 'conferência em andamento (' + r.e.resp + '/' + r.e.total + ')' : 'ainda não conferido') +
       (r.pessoas.length ? ' · conferido por ' + r.pessoas.join(', ') : '');
     ffPdfTabela(B, 'Quarto ' + r.q + ' · ' + (tipo === 'pend' ? ls.length + ' em aberto' : r.e.txt.replace('✓ ', '')), sub, colsDet,
-      ls.map((l, i) => [i && ls[i - 1].disc === l.disc ? '' : l.disc, l.item, { t: l.res, cor: corRes(l) }, l.quem || '-', tipo === 'pend' && l.ap ? '' : (l.obs || '')]));
+      ls.map((l, i) => { const ln = [i && ls[i - 1].disc === l.disc ? '' : l.disc, l.item, { t: l.res, cor: corRes(l) }, l.quem || '-', tipo === 'pend' && l.ap ? '' : (l.obs || '')]; ln.fotos = l.fotosPdf || []; ln.fotoW = TW; ln.fotoH = TH; return ln; }));
   });
-  if (semPend.length){ const lt = ffPdfLinhas('Sem pendências em aberto: ' + semPend.join(', '), 8.5, doc.internal.pageSize.getWidth() - 2 * PDF_M, 4);
+  if (semPend.length){ const lt = ffPdfLinhas('Sem pendências em aberto: ' + semPend.join(', '), 8.5, W0, 4);
     B.push({ h: 10 + lt.length * 11, antes:18, secao:true, draw:(doc2, x, y) => lt.forEach((t, i) => pdfTxt(doc2, x, y + 12 + i * 11, t, 8.5, PDF_COR.ink2)) }); }
   ffPdfPaginar(doc, ctx, B);
   const h = new Date(), dd = String(h.getDate()).padStart(2, '0') + '-' + String(h.getMonth() + 1).padStart(2, '0');
   await compartilharOuBaixarPdf(doc.output('blob'), 'Conferencia operacao - ' + (escopo === 'quarto' ? 'Quarto ' + q : andar + 'o andar') + ' - ' + (tipo === 'pend' ? 'Pendencias' : 'Checklist completo') + ' - ' + dd + '.pdf', null);
-}
-async function confSincronizar(desde){
-  if (!confAtivo() || store.backend !== 'cloud') return;
-  try{
-    const mud = await store.listMudancas('conf_operacao', desde);
-    if (!mud.length) return;
-    mud.forEach((d) => { if (d && d._id) confDocs[d._id] = d; });
-    confAtualizarTags(); if (confModal && !confGravando) confRender();
-  }catch(e){}
 }
 /* ===================== FIM CONFERÊNCIA OPERAÇÃO ===================== */
 
@@ -13979,7 +14237,7 @@ function irParaAba(nome){
   if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
   if (nome === 'reuniao'){ try{ renderResumoGeral(); }catch(e){} setTimeout(renderReuniao, 50); }
     if (nome === 'sofitel') setTimeout(renderSofitel, 50);
-    if (nome === 'quartos' && confAtivo()) confCarregar().then(confAtualizarTags).catch(() => {});
+    if (nome === 'checklist') setTimeout(() => { renderChecklist().catch((e) => console.warn('checklist', e)); }, 50);
     if (nome === 'ff') setTimeout(() => { ffRecem.clear(); ffCarregar(true).then(renderFF).catch(() => renderFF()); }, 50);
     if (nome !== 'itens' && filtroIdsPedido){ filtroIdsPedido = null; const bp = document.getElementById('barra-pedido'); if (bp) bp.remove(); }
   document.body.classList.toggle('aba-itens', nome === 'itens');
