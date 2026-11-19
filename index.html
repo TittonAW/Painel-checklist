@@ -888,6 +888,9 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 }
 /* ===== Conferência operação ===== */
 .conf-tag{ display:inline-flex; align-items:center; margin-left:8px; font-size:11px; line-height:1.2; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; white-space:nowrap; vertical-align:1px; font-family:inherit; font-weight:400; }
+td[data-conf-cel] .conf-tag{ margin-left:0; border-radius:var(--r-sm); font-size:11.5px; padding:4px 10px; justify-content:center; }
+.conf-cel-sub{ font-size:10.5px; color:var(--muted); margin-top:3px; white-space:nowrap; }
+.conf-cel-sub.atras{ color:var(--vm); }
 .conf-tag.estatico{ cursor:default; margin-left:0; }
 .conf-tag.conf-novo{ color:var(--accent-2); border-color:var(--accent); background:var(--surface); }
 .conf-tag.conf-and{ color:var(--pronto); background:var(--pronto-soft); border-color:#C9D5F5; }
@@ -1273,7 +1276,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div class="card" id="card-quartos">
       <table>
         <thead><tr>
-          <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro">Status</th>
+          <th class="col-centro">Andar</th><th>Quarto / área</th><th class="col-centro" id="th-conf-quartos">Conferência</th><th class="col-centro">Status</th>
           <th data-soma="VM" class="num-col col-vm">VM</th><th data-soma="AM" class="num-col col-am">AM</th><th data-soma="Aberto" class="num-col col-aberto">Aberto</th><th data-soma="AW" class="num-col col-aw">AW</th><th data-soma="IAC" class="num-col col-iac">IAC</th><th data-soma="Não aceitos" class="num-col" style="color:var(--aviso-cor);" title="IAC não aceitou (reprovados, antes de virar reincidência)">Não aceitos</th><th data-soma="Reinc." class="num-col col-reinc">Reinc.</th><th data-soma="A conferir" class="num-col" id="th-conferir-quartos" style="color:var(--pronto);" title="Baixas copiadas do número geral (antes de 14/10) — conferir no quarto">A conferir</th><th data-soma="Novos" class="num-col" style="color:var(--novo);" title="Itens novos ainda não aceitos">Novos</th><th data-soma="Total" class="num-col" title="Todos os itens que já existiram neste ambiente desde a primeira planilha (os que a IAC já tirou contam como validados)">Total</th><th class="col-centro">% exec.</th><th class="col-centro" id="th-pronto-quartos">Liberado p/ vistoria</th><th class="col-centro" id="th-vistoria-quartos">Vistoriado pela IAC</th><th class="col-centro" id="th-acao-quartos">Liberado p/ operação</th><th class="col-centro" id="th-aprovsof-quartos">Aprovado Sofitel</th>
         </tr></thead>
         <tbody id="tbody-quartos"></tbody>
@@ -1746,16 +1749,25 @@ async function initAssets(){
    ficavam salvas no banco, mas sumiam da tela ao atualizar. Aqui busca de 1000 em 1000,
    em ordem fixa (doc_id), até acabar. */
 async function selecionarTudoPaginado(montarConsulta){
+  // por chave (doc_id > último lido), não por posição: se alguém grava enquanto a leitura anda,
+  // nenhuma linha é pulada (com "pular N linhas", um item novo no meio deslocava as páginas)
   const PASSO = 1000;
-  let de = 0, todos = [];
+  let ultimo = null, todos = [];
   while (true){
-    const { data, error } = await montarConsulta().order('doc_id', { ascending: true }).range(de, de + PASSO - 1);
+    let q = montarConsulta();
+    if (ultimo !== null) q = q.gt('doc_id', ultimo);
+    const { data, error } = await q.order('doc_id', { ascending: true }).limit(PASSO);
     if (error) throw error;
     todos = todos.concat(data || []);
     if (!data || data.length < PASSO) break;
-    de += PASSO;
+    ultimo = data[data.length - 1].doc_id;
   }
   return todos;
+}
+/* quantos documentos a coleção tem no banco (para conferir se o aparelho leu tudo) */
+let acompIncompleto = false;
+async function contarDocsNoBanco(colMapeada){
+  try{ const { count, error } = await supa.from('app_data').select('doc_id', { count:'exact', head:true }).eq('collection', colMapeada); return error ? null : count; }catch(e){ return null; }
 }
 
 /* ===================== ATUALIZAÇÃO AUTOMÁTICA =====================
@@ -1763,7 +1775,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.343';
+const VERSAO_APP = '2026-10-03.345';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -1842,7 +1854,7 @@ const cacheIdb = {
   async del(k){ const d = await this.db(); if (!d) return; return new Promise((ok) => { try{ const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = () => ok(); tx.onerror = () => ok(); }catch(e){ ok(); } }); }
 };
 let acompCacheSujo = false; // gravou/apagou acompanhamento nesta sessão: a próxima leitura completa refaz o cache
-const CACHE_ACOMP_VERSAO = 2; // subir quando for preciso que TODOS os aparelhos recarreguem os itens inteiros do banco
+const CACHE_ACOMP_VERSAO = 3; // subir quando for preciso que TODOS os aparelhos recarreguem os itens inteiros do banco
 let indiceSnapshots = null, indiceSnapshotsEm = 0; // doc_id → updated_at (consulta leve, refeita a cada 60 s)
 async function datasDasPlanilhas(colR){
   if (indiceSnapshots && indiceSnapshots.col === colR && Date.now() - indiceSnapshotsEm < 60000) return indiceSnapshots.mapa;
@@ -1942,19 +1954,25 @@ const store = {
     if (this.backend === 'cloud' && /acompanhamento$/.test(col)){
       try{
         const k = 'col:' + col, c = await cacheIdb.get(k);
-        const umDia = 24*3600*1000;
+        const umDia = 24*3600*1000, noBanco = await contarDocsNoBanco(col), FOLGA = 5;
         if (c && c.docs && c.maxU && c.versao === CACHE_ACOMP_VERSAO && !acompCacheSujo && (Date.now() - (c.completoEm || 0)) < umDia){
           const novos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col).gte('updated_at', c.maxU));
           let maxU = c.maxU;
           novos.forEach((r) => { c.docs[r.doc_id] = r.data; if (r.updated_at > maxU) maxU = r.updated_at; });
-          c.maxU = maxU; cacheIdb.set(k, c);
-          return Object.keys(c.docs).map((id) => Object.assign({ _id: id }, c.docs[id]));
+          if (noBanco == null || Object.keys(c.docs).length >= noBanco - FOLGA){ // a cópia do aparelho tem tudo o que o banco tem
+            c.maxU = maxU; cacheIdb.set(k, c); acompIncompleto = false;
+            return Object.keys(c.docs).map((id) => Object.assign({ _id: id }, c.docs[id]));
+          }
+          console.warn('cópia dos itens no aparelho incompleta (' + Object.keys(c.docs).length + ' de ' + noBanco + ') — lendo tudo do banco');
         }
-        const todos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col));
+        let todos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col));
+        if (noBanco != null && todos.length < noBanco - FOLGA) todos = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data, updated_at').eq('collection', col));
+        acompIncompleto = noBanco != null && todos.length < noBanco - FOLGA;
+        if (acompIncompleto){ console.warn('itens lidos incompletos: ' + todos.length + ' de ' + noBanco); try{ avisoFlutuante('Não consegui ler todas as baixas do banco agora — recarregue o painel. Até lá, nada é recalculado sozinho.', 'erro'); }catch(e){} }
         const docs = {}; let maxU = '';
         todos.forEach((r) => { docs[r.doc_id] = r.data; if (r.updated_at > maxU) maxU = r.updated_at; });
         acompCacheSujo = false;
-        cacheIdb.set(k, { docs, maxU, completoEm: Date.now(), versao: CACHE_ACOMP_VERSAO });
+        if (!acompIncompleto) cacheIdb.set(k, { docs, maxU, completoEm: Date.now(), versao: CACHE_ACOMP_VERSAO });
         return todos.map((r) => Object.assign({ _id: r.doc_id }, r.data));
       }catch(e){ /* cai no caminho normal */ }
     }
@@ -1962,7 +1980,7 @@ const store = {
       try{
         const data = await selecionarTudoPaginado(() => supa.from('app_data').select('doc_id, data').eq('collection', col));
         return data.map((r) => Object.assign({ _id: r.doc_id }, r.data));
-      }catch(e){ console.warn('falha ao ler a coleção', col, '—', (e && (e.message || e.details)) || e); return []; }
+      }catch(e){ console.warn('falha ao ler a coleção', col, '—', (e && (e.message || e.details)) || e); if (/acompanhamento$/.test(col)) acompIncompleto = true; return []; }
     }
     const all = this._lerLocal(col);
     return Object.keys(all).map(id => Object.assign({ _id: id }, all[id]));
@@ -3418,7 +3436,7 @@ let importandoAgora = false; // durante a importação, a conferência dos passa
    Depois de concluída fica registrada no banco e não roda mais (só a leitura na importação, nos itens novos). */
 const PASSADA_ORIGEM_ID = 'passada_origem_geral_0811';
 async function revisarOrigemDosPassados(){
-  if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO) return;
+  if (revisandoOrigemPassados || !ehFundador() || !usuarioAtual || modoVisualizador() || MODO_CONSOLIDADO || acompIncompleto) return;
   try{ const reg = await store.getDoc('config', PASSADA_ORIGEM_ID);
     if (reg && reg.concluidaEm) return;                                                         // já foi feita para esta obra
     if (reg && reg.iniciadaEm && Date.now() - new Date(reg.iniciadaEm).getTime() < 2*3600*1000 && reg.por !== usuarioAtual) return; // outro aparelho está fazendo
@@ -3526,8 +3544,25 @@ let pararCategorizacao = false;
 let categorizandoAgora = false;
 async function categorizarNovosAutomaticamente(alvosDados, aoAndar){
   if (categorizandoAgora || !ehAdminAtual() || !usuarioAtual || modoVisualizador()) return;
-  const alvos = alvosDados || itensRevisaoAtual.filter(alvoCategorizacao);
+  if (acompIncompleto){ console.warn('categorização: leitura dos itens incompleta — não roda'); return; }
+  let alvos = alvosDados || itensRevisaoAtual.filter(alvoCategorizacao);
   if (!alvos.length) return;
+  // confere no BANCO (não só na memória do aparelho): item que já tem disciplina/fornecedor ou já passou pela IA fica de fora
+  if (store.backend === 'cloud' && supa){
+    const ids = alvos.map((x) => String(x.id)), noBanco = {};
+    try{
+      for (let i = 0; i < ids.length; i += 200){
+        const { data, error } = await supa.from('app_data').select('doc_id, data').eq('collection', colReal('acompanhamento')).in('doc_id', ids.slice(i, i + 200));
+        if (error) return;
+        (data || []).forEach((r) => { noBanco[r.doc_id] = r.data || {}; });
+      }
+    }catch(e){ return; }
+    alvos = alvos.filter((it) => { const b = noBanco[String(it.id)]; if (!b) return true;
+      const tocado = b.disciplinaOverride || b.fornecedorOverride || b.catAutoEm || b.catAutoTentadoEm;
+      if (tocado) acompanhamento[it.id] = normalizarAcompanhamento(Object.assign({ _id: String(it.id) }, b));
+      return !tocado; });
+    if (!alvos.length) return;
+  }
   try{ const tv = await store.getDoc('config', 'categorizacao_em_andamento');
     if (tv && tv.por && tv.por !== usuarioAtual && (Date.now() - new Date(tv.em).getTime()) < 10*60*1000) return; }catch(e){}
   const renovarTrava = () => store.setDoc('config', 'categorizacao_em_andamento', { por: usuarioAtual, em: new Date().toISOString() }).catch(() => {});
@@ -7791,8 +7826,9 @@ function renderQuartos(){
     const nNaoAceitou = nJunto + nSozinha;
     const nNovos = l.itens.filter(novoForaDoAberto).length;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
-    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (l.tipo === 'APTO' ? confTagHtml(l.andar, l.quarto) : '') + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
+    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
         (agr.length ? '<div class="agressores">' + tagsAgressores(agr, 3) + '</div>' : '') + '</td>' +
+      (confAtivo() ? '<td class="col-centro" data-conf-cel="1">' + (l.tipo === 'APTO' ? confCelulaHtml(l.andar, l.quarto) : '<span class="sem-foto">—</span>') + '</td>' : '') +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
       '<td class="num-col col-aberto">'+contarEmAberto(itC)+'</td>' +
@@ -7832,6 +7868,7 @@ function renderQuartos(){
     tbody.appendChild(tr);
     linhas++;
   });
+  try{ confAtualizarCabecalho(); }catch(e){}
   { const tr0 = document.getElementById('th-conferir-quartos'); const cab = tr0 ? tr0.parentNode : null;
     if (cab){
       const ths = Array.from(cab.children);
@@ -7879,10 +7916,8 @@ function renderQuartos(){
     })));
   }
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
-    const bConf = tr.querySelector('[data-conf-quarto]');
-    if (bConf) bConf.addEventListener('click', (e) => { e.stopPropagation(); confAbrir(bConf.dataset.confAndar, bConf.dataset.confQuarto); });
     tr.addEventListener('click', (e) => {
-      if (e.target.closest('[data-conf-quarto]')) return;
+      if (e.target.closest('[data-conf-cel]')){ const bc = e.target.closest('[data-conf-quarto]'); if (bc) confAbrir(bc.dataset.confAndar, bc.dataset.confQuarto); return; } // coluna Conferência: só o botão faz algo
       if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]') || e.target.closest('[data-acao-vist]') || e.target.closest('[data-acao-aprovsof]')) return; // o botão trata seu próprio clique
       const tagRv = e.target.closest('[data-rv-local]');
       if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
@@ -13444,6 +13479,8 @@ async function ffPdfLista(){
 
 /* Family & Friends é da obra Quartos (hóspedes nos quartos) */
 try{ if (OBRA){ const nf = document.getElementById('nav-ff'); if (nf) nf.style.display = 'none'; } }catch(e){}
+/* Conferência operação também é só da obra Quartos: sem a coluna na tabela das outras obras */
+try{ if (OBRA){ const th = document.getElementById('th-conf-quartos'); if (th) th.remove(); } }catch(e){}
 
 /* ===================== CONFERÊNCIA OPERAÇÃO · checklist por quarto antes de entregar à operação =====================
    Só na obra Quartos. Cada quarto tem a sua conferência (coleção "conf_operacao", doc "q<quarto>").
@@ -13613,6 +13650,26 @@ function confTagHtml(andar, q){
   const e = confEstado(andar, q);
   return '<button type="button" class="conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + '" data-conf-quarto="' + esc(String(q)) + '" data-conf-andar="' + esc(String(andar)) + '" title="Conferência operação do quarto ' + esc(String(q)) + '">' + esc(e.txt) + '</button>';
 }
+function confCelulaHtml(andar, q){
+  if (!confAtivo() || q == null || q === '') return '<span class="sem-foto">—</span>';
+  const e = confEstado(andar, q), d = e.doc || {}, ate = e.prazo ? 'até ' + confDataCurta(e.prazo) : '';
+  let btn, sub;
+  if (e.k === 'ok'){ btn = '✓ Conferido'; sub = e.campo && !d.concluidoEm ? 'vistoria de campo' : d.concluidoEm ? confDataCurta(d.concluidoEm) + (d.concluidoPor ? ' · ' + String(d.concluidoPor).split(' ')[0] : '') : ''; }
+  else if (e.k === 'pend'){ btn = 'Conferido · ' + e.abertos + ' aberto' + (e.abertos > 1 ? 's' : ''); sub = e.atrasado ? 'atrasado' : ate || (e.campo ? 'vistoria de campo' : ''); }
+  else if (e.k === 'and'){ btn = 'Em andamento'; sub = e.resp + ' de ' + e.total + (e.atrasado ? ' · atrasada' : ate ? ' · ' + ate : ''); }
+  else if (e.k === 'ent'){ btn = 'Sem conferência'; sub = e.atrasado ? 'atrasada' : 'entregue à operação'; }
+  else { btn = 'Conferência'; sub = e.atrasado ? 'atrasada' : ate; }
+  return '<button type="button" class="chip-acao btn-etapa conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : '') + '" data-conf-quarto="' + esc(String(q)) + '" data-conf-andar="' + esc(String(andar)) + '" title="Conferência operação do quarto ' + esc(String(q)) + '">' + esc(btn) + '</button>' +
+    (sub ? '<div class="conf-cel-sub' + (e.atrasado ? ' atras' : '') + '">' + esc(sub) + '</div>' : '');
+}
+/* topo da coluna: quantos quartos da tabela já foram conferidos */
+function confAtualizarCabecalho(){
+  const th = document.getElementById('th-conf-quartos'); if (!th) return;
+  if (!confAtivo()){ th.style.display = 'none'; return; }
+  const bs = Array.from(document.querySelectorAll('#tbody-quartos [data-conf-quarto]'));
+  const es = bs.map((b) => confEstado(b.dataset.confAndar, b.dataset.confQuarto)), n = es.filter((e) => e.concl).length, ab = es.reduce((s2, e) => s2 + e.abertos, 0);
+  th.innerHTML = 'Conferência' + (bs.length ? '<div style="font-size:11px; font-weight:600; margin-top:2px;">' + n + '/' + bs.length + '</div><div style="font-size:10px; font-weight:400; color:var(--text-2); white-space:nowrap;">' + (ab ? ab + ' em aberto' : 'quartos conferidos') + '</div>' : '');
+}
 function confQuartosDoAndar(andar){
   const a = Number(andar), s = new Set();
   try{ if (universoAmb && universoAmb.mapa) Object.keys(universoAmb.mapa).forEach((k) => { const p = k.split('|'); if (Number(p[0]) === a && p[1] === 'APTO' && p[2]) s.add(Number(p[2])); }); }catch(e){}
@@ -13632,7 +13689,8 @@ function confResumoAndar(andar){
   return { qs, es, nConcl, nAnd, abertos, k, txt };
 }
 function confAtualizarTags(){
-  document.querySelectorAll('#tbody-quartos [data-conf-quarto]').forEach((el) => { const e = confEstado(el.dataset.confAndar, el.dataset.confQuarto); el.className = 'conf-tag conf-' + e.k + (e.atrasado ? ' conf-atras' : ''); el.textContent = e.txt; });
+  document.querySelectorAll('#tbody-quartos td[data-conf-cel]').forEach((td) => { const b = td.querySelector('[data-conf-quarto]'); if (b) td.innerHTML = confCelulaHtml(b.dataset.confAndar, b.dataset.confQuarto); });
+  confAtualizarCabecalho();
 }
 /* ---- gravação (lê o mais recente antes de gravar: duas pessoas podem estar no mesmo quarto) ---- */
 let confGravando = 0, confFila = Promise.resolve();
