@@ -886,6 +886,77 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
   #card-divergencia-iac{ position:absolute; top:0; left:0; width:100%; border:none; box-shadow:none; }
   .no-print{ display:none !important; }
 }
+/* ===== Conferência operação ===== */
+.conf-tag{ display:inline-flex; align-items:center; margin-left:8px; font-size:11px; line-height:1.2; padding:3px 9px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; white-space:nowrap; vertical-align:1px; font-family:inherit; font-weight:400; }
+.conf-tag.estatico{ cursor:default; margin-left:0; }
+.conf-tag.conf-novo, .conf-pav.conf-novo, .conf-q.conf-novo{ color:var(--accent-2); border-color:var(--accent); background:var(--surface); }
+.conf-tag.conf-and, .conf-pav.conf-and, .conf-q.conf-and{ color:var(--pronto); background:var(--pronto-soft); border-color:#C9D5F5; }
+.conf-tag.conf-ent, .conf-pav.conf-ent, .conf-q.conf-ent{ color:var(--muted); background:var(--semdados-soft); border-color:#D5D9DF; border-style:dashed; }
+.conf-tag.conf-ok, .conf-pav.conf-ok, .conf-q.conf-ok{ color:var(--lib); background:var(--lib-soft); border-color:#B7E0C8; }
+.conf-tag.conf-pend, .conf-pav.conf-pend, .conf-q.conf-pend{ color:#9A6420; background:var(--vist-soft); border-color:#EED3A8; }
+.conf-card-cab{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 12px; margin-bottom:10px; }
+.conf-card-cab b{ font-weight:500; font-size:14px; color:var(--text); } .conf-card-cab span{ font-size:12px; color:var(--muted); }
+.conf-andares, .conf-quartos{ display:flex; flex-wrap:wrap; gap:6px; }
+.conf-pav, .conf-q{ display:inline-flex; flex-direction:column; align-items:flex-start; gap:1px; padding:6px 10px; border-radius:10px; border:1px solid var(--line); font-family:inherit; cursor:pointer; min-width:62px; text-align:left; }
+.conf-q{ min-width:96px; }
+.conf-pav b, .conf-q b{ font-size:13px; font-weight:500; } .conf-pav span, .conf-q span{ font-size:10.5px; white-space:nowrap; }
+.conf-vazio{ font-size:12.5px; color:var(--muted); }
+.conf-modal.modal-card.modal-largo{ max-width:760px; }
+.conf-topo{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.conf-topo .modal-sub{ margin-bottom:12px; }
+.conf-x{ border:0; background:transparent; font-size:24px; color:var(--muted); cursor:pointer; line-height:1; padding:0 4px; font-family:inherit; }
+.conf-aviso{ background:var(--paper-2); border-radius:10px; padding:9px 12px; font-size:12.5px; color:var(--text-2); margin:0 0 6px; line-height:1.4; }
+.conf-aviso.ok{ background:var(--lib-soft); color:var(--lib); }
+.conf-sec-t{ font-size:13.5px; font-weight:500; margin:16px 0 6px; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; }
+.conf-sec-t span{ font-weight:400; color:var(--muted); font-size:12px; }
+.conf-barra{ height:6px; border-radius:3px; background:var(--paper-2); overflow:hidden; margin-bottom:4px; }
+.conf-barra i{ display:block; height:100%; background:var(--lib); border-radius:3px; }
+.conf-aps{ border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.conf-ap{ display:grid; grid-template-columns:132px 1fr auto; gap:6px 10px; align-items:center; padding:7px 10px; border-top:1px solid var(--line); font-size:12.5px; }
+.conf-ap:first-child{ border-top:0; }
+.conf-ap.ab{ background:#FFFBF5; }
+.conf-ap-d{ font-size:11px; color:var(--muted); }
+.conf-ap.ok .conf-ap-t{ color:var(--text-2); }
+.conf-ap-s{ display:flex; align-items:center; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+.conf-ap-s em{ font-style:normal; font-size:11.5px; white-space:nowrap; }
+.conf-ap-s em.prev{ color:var(--vist); } .conf-ap-s em.atras{ color:var(--vm); } .conf-ap-s em.okk{ color:var(--lib); }
+.conf-resolver{ font-size:11.5px; padding:4px 10px; border-radius:999px; border:1px solid var(--lib); color:var(--lib); background:var(--surface); cursor:pointer; font-family:inherit; white-space:nowrap; }
+.conf-link{ border:0; background:none; color:var(--accent-2); font-size:11.5px; cursor:pointer; padding:0 2px; text-decoration:underline; font-family:inherit; }
+.conf-disc{ border:1px solid var(--line); border-radius:12px; padding:8px 12px 10px; margin-top:10px; }
+.conf-disc-cab{ display:flex; align-items:center; gap:10px; padding:2px 0 6px; }
+.conf-disc-cab b{ font-weight:500; font-size:13.5px; } .conf-disc-cab > span{ color:var(--muted); font-size:12px; }
+.conf-disc-cab .conf-link{ margin-left:auto; }
+.conf-item{ display:grid; grid-template-columns:1fr auto; gap:4px 12px; align-items:center; padding:7px 0; border-top:1px solid var(--line); }
+.conf-item-t{ font-size:13px; color:var(--text); display:flex; gap:6px; align-items:flex-start; justify-content:space-between; line-height:1.35; }
+.conf-incl{ color:var(--muted); font-size:11px; }
+.conf-bts{ display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+.conf-bts button{ border:0; border-left:1px solid var(--line); background:var(--surface); color:var(--text-2); font-size:12px; padding:6px 11px; cursor:pointer; font-family:inherit; min-width:50px; }
+.conf-bts button:first-child{ border-left:0; }
+.conf-bts button.b-ok.sel{ background:var(--lib); color:#fff; }
+.conf-bts button.b-nok.sel{ background:var(--vm); color:#fff; }
+.conf-bts button.b-na.sel{ background:var(--exec); color:#fff; }
+.conf-nok{ grid-column:1 / -1; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.conf-obs{ flex:1; min-width:180px; padding:7px 10px; border-radius:9px; border:1px solid #F1C9C6; background:var(--vm-soft); font-size:12.5px; font-family:inherit; color:var(--text); }
+.conf-corrigido{ font-size:11.5px; color:var(--lib); }
+.conf-meta{ grid-column:1 / -1; font-size:10.5px; color:var(--faint); margin-top:-2px; }
+.conf-add{ margin-top:8px; border:1px dashed #C9CED6; background:transparent; color:var(--accent-2); border-radius:9px; padding:6px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+.conf-add.conf-add-disc{ margin-top:12px; width:100%; padding:9px; }
+.conf-add-form{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.conf-add-form input{ flex:1; min-width:180px; padding:9px 12px; border-radius:10px; border:1px solid var(--line); font-size:13.5px; font-family:inherit; background:var(--paper); color:var(--text); }
+.conf-add-form .btn{ padding:8px 14px; border-radius:10px; }
+.conf-nota{ font-size:11.5px; color:var(--muted); margin:10px 0 4px; }
+.conf-rm{ border:0; background:none; color:var(--faint); font-size:16px; line-height:1; cursor:pointer; padding:0 4px; font-family:inherit; }
+@media (hover: hover){ .conf-rm{ opacity:0; transition:opacity .15s; } .conf-item:hover .conf-rm, .conf-disc-cab:hover .conf-rm, .conf-rm:focus{ opacity:1; } }
+.conf-salvo{ margin-right:auto; align-self:center; font-size:11.5px; color:var(--muted); }
+@media (max-width: 760px){
+  .conf-item{ grid-template-columns:1fr; }
+  .conf-bts{ display:flex; width:100%; }
+  .conf-bts button{ flex:1; padding:9px 4px; }
+  .conf-ap{ grid-template-columns:1fr; gap:3px; }
+  .conf-ap-s{ justify-content:flex-start; }
+  .conf-disc{ padding:8px 10px 10px; }
+  .conf-salvo{ flex-basis:100%; margin-bottom:2px; }
+}
 /* ===== Family & Friends ===== */
 .rn-kpis.ff-kpis{ grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1100px){ .rn-kpis.ff-kpis{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -1003,6 +1074,22 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
 .ff-tab-clic{ cursor:pointer; } .ff-tab-clic:hover td{ background:#FFF8F0; }
 .ff-bar{ display:inline-block; width:70px; height:6px; border-radius:3px; background:#EEF0EF; vertical-align:middle; margin-right:6px; overflow:hidden; }
 .ff-bar i{ display:block; height:100%; background:#8CCBA8; border-radius:3px; }
+.ff-pi-topo{ display:flex; justify-content:flex-end; margin:2px 0 4px; }
+.ff-pi-bloco{ background:#fff; border:1px solid #EEF0EF; border-radius:14px; padding:12px 14px; margin-top:12px; }
+.ff-pi-cab{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 12px; margin-bottom:10px; }
+.ff-pi-cab[data-ff-forn]{ cursor:pointer; }
+.ff-pi-cab > b{ font-size:14px; color:#33403A; font-weight:600; } .ff-pi-cab > span{ font-size:12px; color:#6B756F; }
+.ff-pi-grade{ display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
+.ff-pi-card{ background:#FFF8F0; border:1px solid #F6E3CF; border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:5px; font-size:12.5px; min-width:0; }
+.ff-pi-card.ok{ background:#EEF8F2; border-color:#D3EBDD; }
+.ff-pi-l1{ display:flex; justify-content:space-between; gap:8px; align-items:baseline; } .ff-pi-l1 b{ color:#7A4A18; font-weight:600; }
+.ff-pi-card.ok .ff-pi-l1 b{ color:#2E6B4A; }
+.ff-pi-n{ white-space:nowrap; font-size:11px; color:#7A4A18; background:#FCEBDA; border-radius:999px; padding:1px 8px; }
+.ff-pi-it{ font-size:11px; color:#8A938E; margin-top:-3px; }
+.ff-pi-com{ font-size:12px; color:#4A5550; line-height:1.35; overflow-wrap:anywhere; } .ff-pi-com span{ color:#8A938E; font-size:11px; font-weight:600; }
+.ff-pi-q{ font-size:11px; color:#6B756F; margin-top:auto; padding-top:2px; }
+.ff-pi-resto{ font-size:12px; color:#6B756F; margin-top:8px; } .ff-pi-resto b{ color:#33403A; font-weight:600; }
+@media (max-width: 760px){ .ff-pi-grade{ grid-template-columns: 1fr; } .ff-pi-bloco{ padding:10px; } }
 .ff-andares{ display:flex; flex-direction:column; gap:12px; }
 .ff-andar{ border:1px solid #EEF0EF; border-radius:12px; padding:6px 10px 8px; background:#FCFCFB; }
 .ff-andar.sel{ border-color:#F3B97C; background:#FFF8F0; }
@@ -1176,6 +1263,7 @@ select#filtro-andar, select#filtro-status{ min-width:110px; }
     <div id="status-pdf-quartos" style="font-size:.85rem; color:var(--muted);"></div>
     <div class="card card-pad oculto" id="conferir-quarto-card" style="margin-bottom:14px; border-color:var(--pronto);"></div>
     <div class="card card-pad oculto" id="liberacoes-revisar" style="margin-bottom:14px; border-color:var(--lib);"></div>
+    <div class="card card-pad oculto" id="conf-andar-card" style="margin-bottom:14px;"></div>
     <div class="resumo-agressores" id="agressores-quartos"></div>
     <div class="card" id="card-quartos">
       <table>
@@ -1670,7 +1758,7 @@ async function selecionarTudoPaginado(montarConsulta){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.340';
+const VERSAO_APP = '2026-10-03.342';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -3184,6 +3272,8 @@ async function sincronizarDados(manual){
     if (ac.some((d) => d && Object.prototype.hasOwnProperty.call(d, 'prioridadeOverride'))) recarregarPorExclusao = true;
     let recarregarRevisao = snaps.length > 0 || recarregarPorExclusao;
     if (rev.length){ await carregarRevisoes(); renderSeletorRevisao(); recarregarRevisao = true; }
+    if (cfg.some((d) => d._id === 'conf_operacao_modelo')){ try{ confModeloCfg = confNormModelo(cfg.find((d) => d._id === 'conf_operacao_modelo')); confAtualizarTags(); if (confModal && !confGravando) confRender(); }catch(e){} }
+    await confSincronizar(ultimaSincronizacao);
     ultimaSincronizacao = novaMarca;
     if (recarregarRevisao) await selecionarRevisao(revisaoSelecionada);
     else if (mudou) atualizarTelasAposAcompanhamento();
@@ -7662,6 +7752,7 @@ function renderQuartos(){
   try{ renderLiberacoesParaRevisar(); }catch(e){ console.warn('liberações', e); }
   try{ const c = document.getElementById('conferir-quarto-card'); if (c){ c.classList.add('oculto'); c.innerHTML = ''; } }catch(e){}
   try{ renderSituacaoAndarQuartos(); }catch(e){ console.warn('situação do andar', e); }
+  try{ renderConfAndarQuartos(); }catch(e){ console.warn('conferência operação', e); }
   const locais = obterLocaisFiltrados();
   totalConferirNaTabela = 0; totalSemBaixaNaTabela = 0;
   const tbody = document.getElementById('tbody-quartos');
@@ -7695,7 +7786,7 @@ function renderQuartos(){
     const nNaoAceitou = nJunto + nSozinha;
     const nNovos = l.itens.filter(novoForaDoAberto).length;
     const rvLocal = (l.itens.find((x) => x.rv) || {}).rv;
-    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
+    tr.innerHTML = '<td class="mono col-centro">'+nomeAndar(l.andar) + '</td><td>'+esc(l.label) + (l.tipo === 'APTO' ? confTagHtml(l.andar, l.quarto) : '') + (rvLocal && rvLocal !== String(revisaoSelecionada) ? ' <button type="button" class="tag-rv" data-rv-local="'+esc(rvLocal)+'" title="Este ambiente não veio na revisão selecionada — os itens são da R'+esc(rvLocal)+'. Tocar se a IAC tirou porque foi concluído">R'+esc(rvLocal)+'</button>' : '') +
         (agr.length ? '<div class="agressores">' + tagsAgressores(agr, 3) + '</div>' : '') + '</td>' +
       '<td class="col-centro"><span class="badge '+b[0]+'">'+b[1]+'</span></td>' +
       '<td class="num-col col-vm">'+c.vm+'</td><td class="num-col col-am">'+c.am+'</td>' +
@@ -7783,7 +7874,10 @@ function renderQuartos(){
     })));
   }
   tbody.querySelectorAll('tr.linha-clicavel').forEach((tr) => {
+    const bConf = tr.querySelector('[data-conf-quarto]');
+    if (bConf) bConf.addEventListener('click', (e) => { e.stopPropagation(); confAbrir(bConf.dataset.confAndar, bConf.dataset.confQuarto); });
     tr.addEventListener('click', (e) => {
+      if (e.target.closest('[data-conf-quarto]')) return;
       if (e.target.closest('[data-acao-liberar]') || e.target.closest('[data-acao-pronto]') || e.target.closest('[data-acao-vist]') || e.target.closest('[data-acao-aprovsof]')) return; // o botão trata seu próprio clique
       const tagRv = e.target.closest('[data-rv-local]');
       if (tagRv){ e.stopPropagation(); marcarAmbienteConcluido(Number(tr.dataset.andar), tr.dataset.tipo, tr.dataset.quarto === '' ? null : parseInt(tr.dataset.quarto,10), tagRv.dataset.rvLocal); return; }
@@ -12951,10 +13045,11 @@ async function renderFF(){
   const sec = (n, titulo, sub, id) => '<div class="sf-sec"' + (id ? ' id="' + id + '"' : '') + '><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
   box.innerHTML = topo + novidade +
     sec(1, 'Resumo', 'O mesmo que sai no "PDF resumo". Obra AW · Quartos é a sua obra; áreas comuns, operação e tecnologia ficam em "Outras frentes".') + RH.cards + sep + RH.tabelas +
-    sec(2, 'Por andar · Obra AW · Quartos', 'Em cada quarto: quanto falta e os fornecedores do que falta. Toque no andar ou no quarto para filtrar a lista.') + '<div class="ff-andares">' + corte + '</div>' +
-    sec(3, 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Escolha um fornecedor e gere o PDF só dele. Toque no quarto para ver o que o hóspede escreveu e mudar o subitem.') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
-    (hotelHtml ? sec(4, 'Outras frentes', 'Obra AW · Áreas comuns, operação e tecnologia: para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
-    sec(hotelHtml ? 5 : 4, 'Conferência da planilha', 'Toda linha da planilha do cliente tem destino: virou pendência ou está aqui como sem pendência, com o motivo.', 'ff-conf') + conf +
+    sec(2, 'Principais itens · Obra AW · Quartos', 'O que mais aparece em cada disciplina (ou fornecedor), com o que o hóspede escreveu. Sai igual no "PDF resumo".') + ffHtmlPrincipais(R, fmt) +
+    sec(3, 'Por andar · Obra AW · Quartos', 'Em cada quarto: quanto falta e os fornecedores do que falta. Toque no andar ou no quarto para filtrar a lista.') + '<div class="ff-andares">' + corte + '</div>' +
+    sec(4, 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Escolha um fornecedor e gere o PDF só dele. Toque no quarto para ver o que o hóspede escreveu e mudar o subitem.') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
+    (hotelHtml ? sec(5, 'Outras frentes', 'Obra AW · Áreas comuns, operação e tecnologia: para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
+    sec(hotelHtml ? 6 : 5, 'Conferência da planilha', 'Toda linha da planilha do cliente tem destino: virou pendência ou está aqui como sem pendência, com o motivo.', 'ff-conf') + conf +
     '<div class="rn-sub" style="margin-top:18px;">Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div>';
   ffLigar(box);
 }
@@ -12964,6 +13059,7 @@ function ffLigar(box){
   if (inp) inp.addEventListener('change', async () => { const f = inp.files && inp.files[0]; if (!f) return; await ffImportarBuffer(await f.arrayBuffer(), f.name); inp.value = ''; renderFF(); });
   const pr = box.querySelector('#ff-pdf-resumo'); if (pr) pr.addEventListener('click', async () => { pr.disabled = true; try{ await ffPdfResumo(); }catch(e){ avisoFlutuante('Não consegui gerar o PDF: ' + (e.message || e), 'erro'); } finally { pr.disabled = false; } });
   const pl = box.querySelector('#ff-pdf-lista'); if (pl) pl.addEventListener('click', async () => { pl.disabled = true; try{ await ffPdfLista(); }catch(e){ avisoFlutuante('Não consegui gerar o PDF: ' + (e.message || e), 'erro'); } finally { pl.disabled = false; } });
+  box.querySelectorAll('[data-ff-princ]').forEach((el) => el.addEventListener('click', () => { ffModoPrinc = el.dataset.ffPrinc === 'forn' ? 'forn' : 'disc'; try{ localStorage.setItem('ff_princ', ffModoPrinc); }catch(e){} renderFF(); }));
   box.querySelectorAll('[data-ff-forn]').forEach((el) => el.addEventListener('click', () => { ffRecem.clear(); ffFiltro.forn = el.dataset.ffForn; ffFiltro.andar = 'todos'; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
   const ex = box.querySelector('#ff-exportar'); if (ex) ex.addEventListener('click', () => { try{ ffExportar(); }catch(e){ avisoFlutuante('Não consegui gerar a planilha: ' + (e.message || e), 'erro'); } });
   box.querySelectorAll('[data-ff-exp]').forEach((el) => el.addEventListener('click', () => { const k = el.dataset.ffExp; if (ffExpandidos.has(k)) ffExpandidos.delete(k); else ffExpandidos.add(k); renderFF(); }));
@@ -12997,6 +13093,50 @@ function ffPassaFiltro(p, comRecem){
     (ffFiltro.sit === 'todos' || (ffFiltro.sit === 'falta' && (p.sit === 'falta' || p.sit === 'voltou' || (comRecem && ffRecem.has(p.k)))) || (ffFiltro.sit === 'feito' && p.sit === 'feito') || (ffFiltro.sit === 'naoProcede' && p.sit === 'naoProcede')) &&
     (!bq || ffOnde(p).indexOf(bq.replace(/^0+/, '')) !== -1 || ffNorm(ffNomeItem(p.item) + ' ' + ffNomeDisc(p.disc) + ' ' + ffVariantesTxt(p) + ' ' + ffFornNome(p)).indexOf(bq) !== -1);
 }
+/* ---- principais itens (como na aba Sofitel): por disciplina ou por fornecedor, cada relato com o que o hóspede escreveu ---- */
+let ffModoPrinc = (() => { try{ return localStorage.getItem('ff_princ') === 'forn' ? 'forn' : 'disc'; }catch(e){ return 'disc'; } })();
+const FF_PRINC_MAX = 4;
+function ffComentarioDaLinha(l, p){ return String(ffTrechoDoProblema({ linhas:[l], item:p.item, local:p.local }) || '').replace(/\s+/g, ' ').trim(); }
+function ffPrincipais(aw, modo){
+  const blocos = new Map();
+  aw.forEach((p) => {
+    const bk = modo === 'forn' ? ffFornNome(p) : p.disc;
+    if (!blocos.has(bk)) blocos.set(bk, { k: bk, nome: modo === 'forn' ? bk : ffNomeDisc(bk), tot:0, falta:0, quartos:new Set(), andares:new Set(), outros:new Map(), relatos:new Map() });
+    const b = blocos.get(bk); b.tot++; if (p.sit !== 'feito') b.falta++; b.quartos.add(p.local); if (p.andar) b.andares.add(Number(p.andar));
+    const ok = modo === 'forn' ? ffNomeDisc(p.disc) : ffFornNome(p); b.outros.set(ok, (b.outros.get(ok) || 0) + 1);
+    const vs = p.variantes && p.variantes.size ? Array.from(p.variantes) : [p.item];
+    vs.forEach((v) => { const rk = v + '|' + p.item;
+      if (!b.relatos.has(rk)) b.relatos.set(rk, { v, item:p.item, titulo: FF_CURTO[v] || ffNomeTipo(v), quartos:new Set(), falta:new Set(), citado:0, coms:[] });
+      const r = b.relatos.get(rk); r.quartos.add(p.local); if (p.sit !== 'feito') r.falta.add(p.local);
+      p.linhas.forEach((l) => { if (Array.isArray(l.tipos) && l.tipos.length && l.tipos.indexOf(v) === -1) return; r.citado += (l.n || 1);
+        const t = ffComentarioDaLinha(l, p); if (t) r.coms.push({ t, q: ffOnde(p), dia: l.dia || '', info: /→ N[aã]o$/.test(t) ? 0 : 1 }); });
+    });
+  });
+  return Array.from(blocos.values()).map((b) => {
+    const relatos = Array.from(b.relatos.values()).map((r) => { const vistos = new Set();
+      const unicos = r.coms.sort((x, y) => y.info - x.info || String(y.dia).localeCompare(String(x.dia))).filter((c) => { const n = ffNorm(c.t); if (vistos.has(n)) return false; vistos.add(n); return true; });
+      const qs = new Set(), coms = unicos.filter((c) => { if (qs.has(c.q)) return false; qs.add(c.q); return true; }).concat(unicos.filter((c, i, arr) => arr.findIndex((o) => o.q === c.q) !== i));
+      return Object.assign(r, { coms, quartosL: Array.from(r.quartos).map(ffQuartoCurto).sort(ffOrdQuarto) }); })
+      .sort((x, y) => y.falta.size - x.falta.size || y.quartos.size - x.quartos.size || y.citado - x.citado || x.titulo.localeCompare(y.titulo, 'pt-BR'));
+    return Object.assign(b, { relatos, outrosL: Array.from(b.outros.entries()).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0], 'pt-BR')).map(([nome, n]) => ({ nome, n })), andaresL: Array.from(b.andares).sort((x, y) => y - x) });
+  }).sort((x, y) => y.tot - x.tot || x.nome.localeCompare(y.nome, 'pt-BR'));
+}
+function ffHtmlPrincipais(R, fmt){
+  const tog = '<div class="ff-pi-topo"><div class="rn-modo" id="ff-princ-modo">' + [['disc', 'por disciplina'], ['forn', 'por fornecedor']].map(([v, t]) => '<button type="button" data-ff-princ="' + v + '"' + (ffModoPrinc === v ? ' class="ativo"' : '') + '>' + t + '</button>').join('') + '</div></div>';
+  if (!R.principais.length) return tog + '<div class="rn-sub">Nenhuma pendência da Obra AW · Quartos.</div>';
+  return tog + R.principais.map((b, i) => {
+    const sub = b.outrosL.slice(0, 3).map((o) => esc(o.nome) + ' ' + o.n).join(' · ') + (b.outrosL.length > 3 ? ' · +' + (b.outrosL.length - 3) : '');
+    const cards = b.relatos.slice(0, FF_PRINC_MAX).map((r) => { const it = ffNomeItem(r.item) === b.nome ? r.titulo : ffNomeItem(r.item);
+      return '<div class="ff-pi-card' + (r.falta.size ? '' : ' ok') + '"><div class="ff-pi-l1"><b>' + esc(r.titulo) + '</b><span class="ff-pi-n">' + r.quartos.size + (r.quartos.size > 1 ? ' quartos' : ' quarto') + '</span></div>' +
+        (it !== r.titulo ? '<div class="ff-pi-it">' + esc(it) + '</div>' : '') +
+        r.coms.slice(0, 2).map((c) => '<div class="ff-pi-com"><span>' + esc(c.q) + '</span> “' + esc(c.t.slice(0, 150)) + (c.t.length > 150 ? '…' : '') + '”</div>').join('') +
+        '<div class="ff-pi-q">' + (r.falta.size ? 'falta em ' + r.falta.size + ' · ' : 'tudo feito · ') + esc(r.quartosL.join(', ')) + '</div></div>'; }).join('');
+    const resto = b.relatos.slice(FF_PRINC_MAX);
+    return '<div class="ff-pi-bloco"><div class="ff-pi-cab"' + (ffModoPrinc === 'forn' ? ' data-ff-forn="' + esc(b.k === 'Sem fornecedor' ? '__sem__' : b.k) + '" title="ver a lista deste fornecedor"' : '') + '><b>' + (i + 1) + '. ' + esc(b.nome) + ' · ' + fmt(b.tot) + ' pendência' + (b.tot > 1 ? 's' : '') + '</b>' +
+      '<span>' + b.quartos.size + ' quartos · falta ' + fmt(b.falta) + ' · ' + sub + ' · ' + andaresCurto(b.andaresL) + '</span></div>' +
+      '<div class="ff-pi-grade">' + cards + '</div>' + (resto.length ? '<div class="ff-pi-resto">Também: ' + resto.map((r) => esc(r.titulo) + ' <b>' + r.quartos.size + '</b>').join(' · ') + '</div>' : '') + '</div>';
+  }).join('');
+}
 function ffResumo(m){
   const P = m.problemas, ehFeita = (p) => p.sit === 'feito';
   const aw = P.filter((p) => p.quem === 'aw' && p.sit !== 'naoProcede');
@@ -13028,7 +13168,7 @@ function ffResumo(m){
       .sort((a, b) => gid === 'comum' ? a.nome.localeCompare(b.nome, 'pt-BR') : b.locais.length - a.locais.length || a.nome.localeCompare(b.nome, 'pt-BR')) }; }).filter((o) => o.tot);
   const awFeitas = aw.filter(ehFeita).length;
   const total = { nome:'Total', tot: aw.length, feitas: awFeitas, falta: aw.length - awFeitas, pct: aw.length ? Math.round(awFeitas / aw.length * 100) : 0, quartos: new Set(aw.map((p) => p.local)) };
-  return { total, totalComent: m.linhas.reduce((s, l) => s + (l.n || 1), 0), semPendN: m.semPend.reduce((s, l) => s + (l.n || 1), 0), pendencias: P.filter((p) => p.sit !== 'naoProcede').length,
+  return { total, principais: ffPrincipais(aw, ffModoPrinc), totalComent: m.linhas.reduce((s, l) => s + (l.n || 1), 0), semPendN: m.semPend.reduce((s, l) => s + (l.n || 1), 0), pendencias: P.filter((p) => p.sit !== 'naoProcede').length,
     awTot: aw.length, awFeitas, awFalta: aw.length - awFeitas, awPct: aw.length ? Math.round(awFeitas / aw.length * 100) : 0,
     quartosAw: new Set(aw.filter((p) => !ehFeita(p)).map((p) => p.local)).size, voltaram: aw.filter((p) => p.sit === 'voltou').length,
     grupos, disciplinas, fornecedores, repetidos, andares, outras };
@@ -13193,6 +13333,36 @@ async function ffPdfResumo(){
     R.fornecedores.map((r) => [r.nome, r.quartos.size, r.tot, r.feitas || '-', r.falta || '-', r.pct]), ['Total', R.total.quartos.size, R.total.tot, R.total.feitas, R.total.falta, R.total.pct]);
   ffPdfTabela(B, 'Os 5 que mais se repetem · Obra AW · Quartos', 'o que o hóspede relatou, em quantos quartos', [{ rot:'O que o hóspede relatou', w:.4 }, { rot:'Item', w:.36 }, { rot:'Quartos', w:.12, align:'right' }, { rot:'Citações', w:.12, align:'right' }],
     R.repetidos.map((r, i) => [(i + 1) + '. ' + (FF_CURTO[r.tipo] || ffNomeTipo(r.tipo)), ffNomeItem(r.item), r.quartos.size, r.citado]));
+  // principais itens (o mesmo da aba): cada disciplina/fornecedor inteiro na mesma página
+  B.push(ffPdfSecao('Principais itens · ' + (ffModoPrinc === 'forn' ? 'por fornecedor' : 'por disciplina') + ' · Obra AW · Quartos', 'o que mais aparece em cada ' + (ffModoPrinc === 'forn' ? 'fornecedor' : 'disciplina') + ', com o que o hóspede escreveu'));
+  const W0 = doc.internal.pageSize.getWidth() - 2 * PDF_M, cwP = (W0 - 8) / 2;
+  R.principais.forEach((b, ib) => {
+    const ini = B.length;
+    const sub = b.outrosL.slice(0, 3).map((o) => o.nome + ' ' + o.n).join(' · ') + (b.outrosL.length > 3 ? ' · +' + (b.outrosL.length - 3) : '') + ' · ' + andaresCurto(b.andaresL);
+    B.push({ h:38, antes: ib ? 18 : 6, draw:(doc, x, y, W) => { pdfFill(doc, PDF_COR.paper); doc.roundedRect(x, y + 3, W, 19, 5, 5, 'F');
+      pdfTxt(doc, x + 8, y + 16, pdfCaber(doc, (ib + 1) + '. ' + b.nome, 9.5, W * 0.55), 9.5, PDF_COR.ink);
+      pdfTxt(doc, x + W - 8, y + 16, pdfNum(b.tot) + ' pendência' + (b.tot > 1 ? 's' : '') + ' · ' + b.quartos.size + ' quartos · falta ' + pdfNum(b.falta), 7.5, PDF_COR.muted, 'right');
+      pdfTxt(doc, x + 8, y + 33, pdfCaber(doc, sub, 7, W - 16), 7, PDF_COR.muted); } });
+    const rel = b.relatos.slice(0, FF_PRINC_MAX);
+    for (let i = 0; i < rel.length; i += 2){
+      const lay = rel.slice(i, i + 2).map((r) => { const it = ffNomeItem(r.item) !== r.titulo && ffNomeItem(r.item) !== b.nome ? ffNomeItem(r.item) : '', coms = [];
+        r.coms.slice(0, 2).forEach((c) => ffPdfLinhas(c.q + ' · "' + c.t + '"', 6.8, cwP - 16, 2).forEach((t) => coms.push(t)));
+        return { r, it, coms }; });
+      const nl = Math.max(...lay.map((l) => (l.it ? 1 : 0) + l.coms.length)), hc = 28 + nl * 9;
+      B.push({ h: hc + 6, antes: 2, draw:(doc, x, y, W) => { const cw = (W - 8) / 2;
+        lay.forEach((l, j) => { const cx = x + j * (cw + 8), r = l.r, nq = r.quartos.size + (r.quartos.size > 1 ? ' quartos' : ' quarto');
+          pdfFill(doc, r.falta.size ? ffRgb('#FFF8F0') : ffRgb('#EEF8F2')); pdfDraw(doc, PDF_COR.line); doc.setLineWidth(0.5); doc.roundedRect(cx, y + 3, cw, hc, 5, 5, 'FD');
+          pdfTxt(doc, cx + 8, y + 15, pdfCaber(doc, r.titulo, 8.5, cw - 24 - pdfLarg(doc, nq, 7)), 8.5, r.falta.size ? ffRgb('#7A4A18') : PDF_COR.vd);
+          pdfTxt(doc, cx + cw - 8, y + 15, nq, 7, PDF_COR.muted, 'right');
+          let yy = y + 15; if (l.it){ yy += 9; pdfTxt(doc, cx + 8, yy, pdfCaber(doc, l.it, 6.8, cw - 16), 6.8, PDF_COR.muted); }
+          l.coms.forEach((t) => { yy += 9; pdfTxt(doc, cx + 8, yy, t, 6.8, PDF_COR.ink2); });
+          pdfTxt(doc, cx + 8, y + hc - 2, pdfCaber(doc, (r.falta.size ? 'falta em ' + r.falta.size + ' · ' : 'tudo feito · ') + r.quartosL.join(', '), 6.5, cw - 16), 6.5, PDF_COR.muted); }); } });
+    }
+    const resto = b.relatos.slice(FF_PRINC_MAX);
+    if (resto.length){ const lr = ffPdfLinhas('Também: ' + resto.map((r) => r.titulo + ' ' + r.quartos.size).join(' · '), 7, W0 - 16, 2, ' · ');
+      B.push({ h: 6 + lr.length * 9, draw:(doc, x, y) => lr.forEach((t, k) => pdfTxt(doc, x + 8, y + 10 + k * 9, t, 7, PDF_COR.muted)) }); }
+    ffPdfGrupo(B, ini);
+  });
   // por andar: todos os andares; cada andar (linha + quartos) fica inteiro na mesma página
   B.push(ffPdfSecao('Por andar · Obra AW · Quartos', 'em cada quarto: quanto falta e os fornecedores do que falta'));
   R.andares.forEach((r, ia) => {
@@ -13269,6 +13439,394 @@ async function ffPdfLista(){
 /* Family & Friends é da obra Quartos (hóspedes nos quartos) */
 try{ if (OBRA){ const nf = document.getElementById('nav-ff'); if (nf) nf.style.display = 'none'; } }catch(e){}
 
+/* ===================== CONFERÊNCIA OPERAÇÃO · checklist por quarto antes de entregar à operação =====================
+   Só na obra Quartos. Cada quarto tem a sua conferência (coleção "conf_operacao", doc "q<quarto>").
+   O checklist é o padrão abaixo + o que a equipe incluir (config "conf_operacao_modelo") e vale para todos os quartos.
+   14º, 15º e 16º: conferidos em campo (planilha "Vistoria Operacional - 14, 15 e 16"), com os apontamentos de cada quarto.
+   8º–10º e 17º–20º: já entregues à operação, sem conferência. */
+const CONF_ANDARES_ENTREGUES_SEM = [8, 9, 10, 17, 18, 19, 20];
+const CONF_CAMPO = { andares: [14, 15, 16], origem: 'Vistoria operacional (planilha de campo)', quartos: {
+  // [texto, 'ok' | 'AAAA-MM-DD' (previsão) | '' (sem previsão)]
+  '1401': [['Carenagem da ducha', 'ok'], ['Vazão do chuveiro', 'ok'], ['Carregador por indução com defeito', 'ok'], ['Tomada do abajur', 'ok']],
+  '1402': [['Marcenaria do armário', 'ok'], ['Vazão do chuveiro', 'ok'], ['Carregador por indução com defeito', 'ok'], ['Painel da cama', 'ok']],
+  '1403': [['Painel da cama', '2026-11-18'], ['Campainha', 'ok'], ['Geladeira condensando', '2026-11-19'], ['Papeleira do banheiro', '2026-11-18'], ['Painel da cama', '2026-11-18'], ['Espelho de aumento', 'ok']],
+  '1404': [['Marcenaria do armário', 'ok'], ['Carenagem do vaso', 'ok']],
+  '1406': [['Pega-ladrão da porta', 'ok'], ['Iluminação não apaga', 'ok'], ['Porta do quarto não tranca', 'ok'], ['Carregador por indução com defeito', 'ok']],
+  '1407': [['Campainha', 'ok'], ['Carregador por indução com defeito', 'ok'], ['Leitor de cartão da porta', '2026-11-18']],
+  '1408': [['Porta divisória entre quartos', '2026-11-19'], ['Carregador por indução com defeito', '2026-11-18'], ['Keypad solto', 'ok'], ['Espelho de aumento', 'ok']],
+  '1409': [['Carregador por indução com defeito', 'ok'], ['Keypad solto', 'ok']],
+  '1410': [['Vazão da torneira', '2026-11-19'], ['Regulagem do chuveiro', '2026-11-19']],
+  '1412': [['Escoamento da pia', 'ok'], ['Temporizador do keypad', '2026-11-19'], ['Escoamento do box', '2026-11-19']],
+  '1501': [['Mola do espelho de aumento', '2026-11-18'], ['Carregador por indução faltando', '2026-11-18']],
+  '1502': [['Cortina não fecha', '2026-11-18'], ['Quadro quebrado', ''], ['Keypad não funciona', '2026-11-18']],
+  '1503': [['Cortina solta', 'ok'], ['Carregador por indução faltando', '2026-11-18']],
+  '1504': [['Quadro quebrado', '']],
+  '1506': [['Iluminação da sanca', 'ok'], ['Ducha higiênica', 'ok']],
+  '1507': [['Gaveta do banheiro arranhando', 'ok'], ['Carregador por indução com defeito', 'ok'], ['Abajur não acende', 'ok'], ['Maçaneta frouxa', 'ok']],
+  '1508': [['Espelho de aumento', 'ok']],
+  '1509': [['Carregador por indução com defeito', 'ok'], ['Carregador por indução faltando', '2026-11-18']],
+  '1510': [['Espelho de aumento', 'ok']],
+  '1512': [['Keypad da sala solto', 'ok']],
+  '1601': [['Escoamento do box', 'ok']],
+  '1602': [['Válvula da pia', 'ok'], ['Carregador por indução', 'ok']],
+  '1603': [['Válvula da pia', 'ok']],
+  '1604': [['Ducha higiênica', 'ok']],
+  '1606': [['Suporte da ducha', 'ok'], ['Ar-condicionado da sala', 'ok'], ['Vazão do chuveiro', 'ok'], ['Espelho de aumento', 'ok'], ['Rabicho da banheira', 'ok']],
+  '1607': [['Posição do carregador por indução', 'ok']],
+  '1608': [['Entupimento do box', 'ok'], ['Entupimento da pia', 'ok']],
+  '1612': [['Entupimento da pia', 'ok']]
+} };
+/* checklist padrão (ids fixos: as respostas ficam guardadas por id) */
+const CONF_MODELO_PADRAO = [
+  { id:'marc', nome:'Marcenaria e armários', itens:[
+    ['marc.portas', 'Portas do armário abrem, fecham e estão alinhadas'],
+    ['marc.gavetas', 'Gavetas correm sem arrastar (quarto e banheiro)'],
+    ['marc.painel', 'Painel da cama (cabeceira) firme e sem danos'],
+    ['marc.cofre', 'Cofre instalado e funcionando'],
+    ['marc.frigobar', 'Frigobar gelando, sem condensação'] ] },
+  { id:'hid', nome:'Hidráulica', itens:[
+    ['hid.chuveiro', 'Chuveiro: pressão, vazão e regulagem'],
+    ['hid.quente', 'Água quente no chuveiro e na pia'],
+    ['hid.box', 'Ralo do box escoa sem acumular água'],
+    ['hid.pia', 'Pia: vazão da torneira, válvula e escoamento'],
+    ['hid.ducha', 'Ducha higiênica funcionando, suporte firme'],
+    ['hid.vaso', 'Vaso: descarga e carenagem'],
+    ['hid.vazamento', 'Sem vazamento (sifão, flexíveis, registros)'],
+    ['hid.banheira', 'Banheira: rabicho e escoamento (se houver)'] ] },
+  { id:'ele', nome:'Elétrica e iluminação', itens:[
+    ['ele.tomadas', 'Tomadas funcionando (inclusive a dos abajures)'],
+    ['ele.usb', 'Tomadas USB funcionando'],
+    ['ele.inducao', 'Carregador por indução instalado, no lugar certo e carregando'],
+    ['ele.abajur', 'Abajures acendem'],
+    ['ele.ilum', 'Iluminação: sanca, banheiro, espelho e armário'],
+    ['ele.cafe', 'Tomada da cafeteira/chaleira na voltagem certa'] ] },
+  { id:'aut', nome:'Automação', itens:[
+    ['aut.keypad', 'Keypads firmes e funcionando (entrada, sala e cabeceira)'],
+    ['aut.apaga', 'Luzes apagam pelo keypad e pelo master off'],
+    ['aut.temporizador', 'Temporizador e cenas do keypad'],
+    ['aut.campainha', 'Campainha e "não perturbe"'],
+    ['aut.termostato', 'Termostato: tela e comando do ar'] ] },
+  { id:'ar', nome:'Ar-condicionado', itens:[
+    ['ar.funciona', 'Ar liga, gela e regula (quarto e sala)'],
+    ['ar.ruido', 'Sem ruído nem gotejamento'] ] },
+  { id:'por', nome:'Portas e fechaduras', itens:[
+    ['por.entrada', 'Porta de entrada fecha e tranca; leitor de cartão funcionando'],
+    ['por.trava', 'Pega-ladrão e olho mágico'],
+    ['por.macaneta', 'Maçanetas firmes'],
+    ['por.banheiro', 'Porta do banheiro com trinco'],
+    ['por.divisoria', 'Porta divisória entre quartos fecha e tranca (se houver)'] ] },
+  { id:'cor', nome:'Cortinas', itens:[
+    ['cor.abre', 'Cortina e blackout abrem e fecham por inteiro'],
+    ['cor.trilho', 'Trilho firme, sem vão de luz'] ] },
+  { id:'ban', nome:'Acessórios do banheiro', itens:[
+    ['ban.espelho', 'Espelho de aumento: braço e mola firmes'],
+    ['ban.papeleira', 'Papeleira, porta-toalhas e cabides firmes'],
+    ['ban.box', 'Porta e vidro do box sem danos'] ] },
+  { id:'acab', nome:'Acabamento e limpeza', itens:[
+    ['acab.quadros', 'Quadros e espelhos inteiros e alinhados'],
+    ['acab.superficies', 'Paredes, piso e forro sem riscos ou manchas'],
+    ['acab.silicone', 'Silicone e rejunte (box e bancada)'],
+    ['acab.limpeza', 'Limpeza fina, sem resíduo de obra'] ] }
+];
+let confDocs = {}, confModeloCfg = { discs:[], itens:{}, ocultos:{} }, confModal = null;
+function confAtivo(){ return !OBRA; }
+function confNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+function confNormModelo(m){ m = m || {}; return { discs: Array.isArray(m.discs) ? m.discs : [], itens: (m.itens && typeof m.itens === 'object') ? m.itens : {}, ocultos: (m.ocultos && typeof m.ocultos === 'object') ? m.ocultos : {} }; }
+async function confCarregar(){
+  if (!confAtivo()) return;
+  try{
+    const [docs, m] = await Promise.all([store.listCollection('conf_operacao'), store.getDoc('config', 'conf_operacao_modelo')]);
+    const novo = {}; (docs || []).forEach((d) => { if (d && d._id) novo[d._id] = d; });
+    confDocs = novo; confModeloCfg = confNormModelo(m);
+  }catch(e){ console.warn('conferência operação: não consegui carregar', e); }
+}
+/* checklist em uso = padrão + incluídos − tirados */
+function confModelo(){
+  const ocl = confModeloCfg.ocultos || {}, extras = confModeloCfg.itens || {};
+  const discs = CONF_MODELO_PADRAO.map((d) => ({ id:d.id, nome:d.nome, padrao:true, itens: d.itens.map(([id, txt]) => ({ id, txt, padrao:true })) }))
+    .concat((confModeloCfg.discs || []).map((d) => ({ id:d.id, nome:d.nome, por:d.por, em:d.em, itens:[] })));
+  discs.forEach((d) => { (extras[d.id] || []).forEach((it) => d.itens.push({ id:it.id, txt:it.txt, por:it.por, em:it.em })); d.itens = d.itens.filter((it) => !ocl[it.id]); });
+  return discs.filter((d) => !ocl['disc:' + d.id]);
+}
+/* disciplina de um apontamento escrito à mão (planilha de campo) */
+function confDiscDoTexto(t){
+  const n = confNorm(t);
+  if (/keypad|kaypad|temporizador|campainha|campa|nao apaga|master|termostato/.test(n)) return 'aut';
+  if (/induc|tomada|abajur|sanca|usb|iluminac|lampada/.test(n)) return 'ele';
+  if (/espelho|papeleira|toalh|cabide/.test(n)) return 'ban';
+  if (/ducha|chuveiro|torneira|\bpia\b|\bbox\b|escoamento|entupimento|valvula|rabicho|banheira|carenagem|\bvaso\b|vazao|vazamento|ralo/.test(n)) return 'hid';
+  if (/porta|leitor|macaneta|pega|trinco|fechadura|tranca/.test(n)) return 'por';
+  if (/cortina|persiana|blackout/.test(n)) return 'cor';
+  if (/armario|gaveta|painel|marcenaria|cofre|geladeira|frigobar/.test(n)) return 'marc';
+  if (/^ar\b|ar-condicionado|ar condicionado/.test(n)) return 'ar';
+  if (/quadro|pintura|risco|mancha|limpeza|silicone|rejunte/.test(n)) return 'acab';
+  return 'outros';
+}
+function confNomeDisc(id){ const d = CONF_MODELO_PADRAO.find((x) => x.id === id) || (confModeloCfg.discs || []).find((x) => x.id === id); return d ? d.nome : 'Outros'; }
+function confApontSeed(q){
+  const l = CONF_CAMPO.quartos[String(q)]; if (!l) return [];
+  return l.map(([txt, st], i) => ({ id:'c' + i, txt, disc: confDiscDoTexto(txt), st: st === 'ok' ? 'ok' : 'aberto', prazo: /^\d{4}-\d{2}-\d{2}$/.test(st) ? st : '', origem:'campo' }));
+}
+function confApont(q){ const d = confDocs['q' + q]; return (d && Array.isArray(d.apont)) ? d.apont : confApontSeed(q); }
+function confHoje(){ const d = new Date(), p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+function confDataCurta(s){ if (!s) return ''; const x = String(s); if (/^\d{4}-\d{2}-\d{2}$/.test(x)) return x.slice(8, 10) + '/' + x.slice(5, 7); try{ return new Date(x).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }); }catch(e){ return ''; } }
+function confDataHora(s){ try{ return dataHoraCurta(s); }catch(e){ return confDataCurta(s); } }
+function confEstado(andar, q){
+  andar = Number(andar);
+  const d = confDocs['q' + q] || null, its = (d && d.itens) || {}, ids = [];
+  confModelo().forEach((x) => x.itens.forEach((it) => ids.push(it.id)));
+  let resp = 0, nok = 0;
+  ids.forEach((id) => { const it = its[id]; if (it && it.r){ resp++; if (it.r === 'nok' && !it.corrigidoEm) nok++; } });
+  const ap = confApont(q), apAb = ap.filter((a) => a.st !== 'ok').length;
+  const campo = CONF_CAMPO.andares.indexOf(andar) !== -1, concl = !!(d && d.concluidoEm) || campo;
+  const abertos = nok + apAb, total = ids.length;
+  let k, txt;
+  if (concl){ k = abertos ? 'pend' : 'ok'; txt = abertos ? 'Conferido · ' + abertos + ' aberto' + (abertos > 1 ? 's' : '') : '✓ Conferido'; }
+  else if (resp){ k = 'and'; txt = 'Conferência ' + resp + '/' + total; }
+  else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(andar) !== -1){ k = 'ent'; txt = 'Entregue · sem conferência'; }
+  else { k = 'novo'; txt = 'Conferência'; }
+  return { k, txt, resp, total, nok, apAb, abertos, concl, campo, doc: d };
+}
+function confTagHtml(andar, q){
+  if (!confAtivo() || q == null || q === '') return '';
+  const e = confEstado(andar, q);
+  return '<button type="button" class="conf-tag conf-' + e.k + '" data-conf-quarto="' + esc(String(q)) + '" data-conf-andar="' + esc(String(andar)) + '" title="Conferência operação do quarto ' + esc(String(q)) + '">' + esc(e.txt) + '</button>';
+}
+function confQuartosDoAndar(andar){
+  const a = Number(andar), s = new Set();
+  try{ if (universoAmb && universoAmb.mapa) Object.keys(universoAmb.mapa).forEach((k) => { const p = k.split('|'); if (Number(p[0]) === a && p[1] === 'APTO' && p[2]) s.add(Number(p[2])); }); }catch(e){}
+  (itensRevisaoAtual || []).forEach((it) => { if (Number(it.andar) === a && it.tipo === 'APTO' && it.quarto != null) s.add(Number(it.quarto)); });
+  Object.keys(CONF_CAMPO.quartos).forEach((q) => { if (Math.floor(Number(q) / 100) === a) s.add(Number(q)); });
+  Object.values(confDocs).forEach((d) => { if (d && Number(d.andar) === a && d.quarto) s.add(Number(d.quarto)); });
+  return Array.from(s).filter((q) => q > 0).sort((x, y) => x - y);
+}
+function confResumoAndar(andar){
+  const qs = confQuartosDoAndar(andar), es = qs.map((q) => confEstado(andar, q));
+  const nConcl = es.filter((e) => e.concl).length, nAnd = es.filter((e) => e.k === 'and').length, abertos = es.reduce((s, e) => s + e.abertos, 0);
+  let k, txt;
+  if (qs.length && nConcl === qs.length){ k = abertos ? 'pend' : 'ok'; txt = abertos ? abertos + ' aberto' + (abertos > 1 ? 's' : '') : '✓'; }
+  else if (nConcl || nAnd){ k = 'and'; txt = nConcl + '/' + qs.length; }
+  else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(Number(andar)) !== -1){ k = 'ent'; txt = 'sem conferência'; }
+  else { k = 'novo'; txt = 'a conferir'; }
+  return { qs, es, nConcl, nAnd, abertos, k, txt };
+}
+/* card no topo da aba Quartos: andares (sem filtro) ou os quartos do andar filtrado */
+function renderConfAndarQuartos(){
+  const box = document.getElementById('conf-andar-card'); if (!box) return;
+  if (!confAtivo()){ box.classList.add('oculto'); box.innerHTML = ''; return; }
+  const v = (document.getElementById('filtro-andar') || {}).value || '';
+  const andares = (andaresConhecidos || []).filter((a) => a > 0).slice().sort((a, b) => b - a);
+  if (!andares.length){ box.classList.add('oculto'); return; }
+  let h;
+  if (v === ''){
+    h = '<div class="conf-card-cab"><b>Conferência operação</b><span>toque no andar para ver os quartos</span></div><div class="conf-andares">' +
+      andares.map((a) => { const r = confResumoAndar(a); return '<button type="button" class="conf-pav conf-' + r.k + '" data-conf-ir-andar="' + a + '"><b>' + a + 'º</b><span>' + esc(r.txt) + '</span></button>'; }).join('') + '</div>';
+  } else {
+    const a = Number(v), r = confResumoAndar(a);
+    const partes = [r.qs.length + ' quartos'];
+    if (r.nConcl) partes.push(r.nConcl + ' conferido' + (r.nConcl > 1 ? 's' : ''));
+    if (r.nAnd) partes.push(r.nAnd + ' em andamento');
+    const entregue = CONF_ANDARES_ENTREGUES_SEM.indexOf(a) !== -1, nFalta = r.qs.length - r.nConcl - r.nAnd; if (nFalta) partes.push(nFalta + (entregue ? ' entregue' + (nFalta > 1 ? 's' : '') + ' sem conferência' : ' a conferir'));
+    if (r.abertos) partes.push(r.abertos + ' apontamento' + (r.abertos > 1 ? 's' : '') + ' em aberto');
+    h = '<div class="conf-card-cab"><b>Conferência operação · ' + esc(nomeAndarLongo(a)) + '</b><span>' + partes.join(' · ') + (CONF_CAMPO.andares.indexOf(a) !== -1 ? ' · conferido em campo (planilha)' : entregue ? ' · andar já entregue à operação' : '') + '</span></div>' +
+      (r.qs.length ? '<div class="conf-quartos">' + r.qs.map((q, i) => { const e = r.es[i]; return '<button type="button" class="conf-q conf-' + e.k + '" data-conf-quarto="' + q + '" data-conf-andar="' + a + '"><b>' + q + '</b><span>' + esc(e.txt) + '</span></button>'; }).join('') + '</div>' : '<div class="conf-vazio">Nenhum quarto encontrado neste andar.</div>');
+  }
+  box.innerHTML = h; box.classList.remove('oculto');
+  if (!box.dataset.ligado){
+    box.dataset.ligado = '1';
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-conf-quarto]'); if (b){ confAbrir(b.dataset.confAndar, b.dataset.confQuarto); return; }
+      const f = e.target.closest('[data-conf-ir-andar]');
+      if (f){ const sel = document.getElementById('filtro-andar'); if (!sel) return; if (!Array.from(sel.options).some((o) => o.value === f.dataset.confIrAndar)) return; sel.value = f.dataset.confIrAndar; sel.dispatchEvent(new Event('change')); }
+    });
+  }
+}
+function confAtualizarTags(){
+  document.querySelectorAll('#tbody-quartos [data-conf-quarto]').forEach((el) => { const e = confEstado(el.dataset.confAndar, el.dataset.confQuarto); el.className = 'conf-tag conf-' + e.k; el.textContent = e.txt; });
+  try{ renderConfAndarQuartos(); }catch(e){}
+}
+/* ---- gravação (lê o mais recente antes de gravar: duas pessoas podem estar no mesmo quarto) ---- */
+let confGravando = 0, confFila = Promise.resolve();
+function confGravar(q, andar, mut){ const p = confFila.then(() => confGravarAgora(q, andar, mut)).catch((e) => { console.warn('conferência', e); return false; }); confFila = p; return p; }
+async function confGravarAgora(q, andar, mut){
+  if (!(await garantirUsuario())) return false;
+  const id = 'q' + q;
+  confGravando++; confMostrarSalvo('Salvando…');
+  try{
+    let atual = null; try{ atual = await store.getDoc('conf_operacao', id); }catch(e){}
+    atual = atual ? JSON.parse(JSON.stringify(atual)) : { andar: Number(andar), quarto: Number(q), itens:{} };
+    delete atual._id;
+    if (!atual.itens || typeof atual.itens !== 'object') atual.itens = {};
+    const acao = mut(atual);
+    if (acao === false){ confMostrarSalvo('Salva sozinho a cada toque'); return false; }
+    const agora = new Date().toISOString();
+    atual.atualizadoEm = agora; atual.atualizadoPor = usuarioAtual;
+    if (!atual.iniciadoEm){ atual.iniciadoEm = agora; atual.iniciadoPor = usuarioAtual; }
+    if (acao){ atual.hist = (Array.isArray(atual.hist) ? atual.hist : []).concat([Object.assign({ por: usuarioAtual, em: agora }, acao)]).slice(-300); }
+    const r = await store.setDoc('conf_operacao', id, atual);
+    if (r && r.ok === false){ avisoFlutuante('Não consegui salvar a conferência: ' + (r.erro || r.codigo || 'erro'), 'erro'); return false; }
+    confDocs[id] = Object.assign({ _id: id }, atual);
+    confAtualizarTags(); confRender(); confMostrarSalvo('Salvo ✓');
+    return true;
+  }finally{ confGravando--; }
+}
+async function confGravarModelo(mut){
+  if (!(await garantirUsuario())) return false;
+  let atual = null; try{ atual = await store.getDoc('config', 'conf_operacao_modelo'); }catch(e){}
+  atual = confNormModelo(atual ? JSON.parse(JSON.stringify(atual)) : null);
+  if (mut(atual) === false) return false;
+  const r = await store.setDoc('config', 'conf_operacao_modelo', atual);
+  if (r && r.ok === false){ avisoFlutuante('Não consegui salvar o checklist: ' + (r.erro || r.codigo || 'erro'), 'erro'); return false; }
+  confModeloCfg = atual; confAtualizarTags(); confRender();
+  return true;
+}
+function confMostrarSalvo(t){ const el = document.getElementById('conf-salvo'); if (el) el.textContent = t; }
+/* ---- janela do checklist ---- */
+function confAbrir(andar, q){
+  const ov0 = document.getElementById('modal-conf'); if (ov0) ov0.remove();
+  confModal = { andar: Number(andar), q: String(q), add: null };
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'modal-conf';
+  ov.innerHTML = '<div class="modal-card modal-largo conf-modal" role="dialog" aria-modal="true"><div class="modal-largo-corpo" id="conf-corpo"></div><div class="modal-acoes modal-rodape-fixo" id="conf-rodape"></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) confFechar(); });
+  confRender();
+}
+function confFechar(){ const ov = document.getElementById('modal-conf'); if (ov) ov.remove(); confModal = null; confAtualizarTags(); }
+function confRender(){
+  if (!confModal) return;
+  const corpo = document.getElementById('conf-corpo'), rod = document.getElementById('conf-rodape'); if (!corpo || !rod) return;
+  const { andar, q } = confModal, e = confEstado(andar, q), d = e.doc || {}, its = d.itens || {}, mod = confModelo(), ap = confApont(q), adm = ehAdminAtual(), hoje = confHoje();
+  const st = corpo.scrollTop, foco = document.activeElement, focoObs = foco && foco.dataset && foco.dataset.confObs ? { id: foco.dataset.confObs, v: foco.value, s: foco.selectionStart } : null;
+  let h = '<div class="conf-topo"><div><h3>Conferência operação · Quarto ' + esc(q) + '</h3><div class="modal-sub">' + esc(nomeAndarLongo(andar)) + ' · <span class="conf-tag conf-' + e.k + ' estatico">' + esc(e.txt) + '</span></div></div><button type="button" class="conf-x" id="conf-x" aria-label="Fechar">×</button></div>';
+  if (e.campo) h += '<div class="conf-aviso">Conferido em campo: ' + esc(CONF_CAMPO.origem) + ' do 14º, 15º e 16º. ' + (ap.length ? 'Os apontamentos deste quarto estão logo abaixo; o checklist é opcional.' : 'Nenhum apontamento neste quarto; o checklist é opcional.') + '</div>';
+  else if (d.concluidoEm) h += '<div class="conf-aviso ok">Conferência concluída em ' + esc(confDataHora(d.concluidoEm)) + (d.concluidoPor ? ' por ' + esc(d.concluidoPor) : '') + '.</div>';
+  else if (CONF_ANDARES_ENTREGUES_SEM.indexOf(andar) !== -1) h += '<div class="conf-aviso">Andar já entregue à operação, mas sem conferência. Dá para fazer agora.</div>';
+  if (ap.length){
+    h += '<div class="conf-sec-t">Apontamentos da vistoria <span>' + (e.apAb ? e.apAb + ' em aberto de ' + ap.length : 'todos resolvidos') + '</span></div><div class="conf-aps">' +
+      ap.map((a) => { const ab = a.st !== 'ok', atras = ab && a.prazo && a.prazo < hoje;
+        return '<div class="conf-ap' + (ab ? ' ab' : ' ok') + '"><span class="conf-ap-d">' + esc(confNomeDisc(a.disc)) + '</span><span class="conf-ap-t">' + esc(a.txt) + '</span><span class="conf-ap-s">' +
+          (ab ? (a.prazo ? '<em class="' + (atras ? 'atras' : 'prev') + '">previsto ' + confDataCurta(a.prazo) + (atras ? ' · atrasado' : a.prazo === hoje ? ' · hoje' : '') + '</em>' : '<em class="atras">sem previsão</em>') + '<button type="button" class="conf-resolver" data-conf-ap="' + esc(a.id) + '">Resolvido</button>'
+             : '<em class="okk">OK' + (a.resolvidoEm ? ' · ' + confDataCurta(a.resolvidoEm) + (a.resolvidoPor ? ' · ' + esc(a.resolvidoPor) : '') : '') + '</em>' + (a.resolvidoEm ? '<button type="button" class="conf-link" data-conf-ap-desf="' + esc(a.id) + '">desfazer</button>' : '')) + '</span></div>'; }).join('') + '</div>';
+  }
+  h += '<div class="conf-sec-t">Checklist <span>' + e.resp + ' de ' + e.total + ' conferidos' + (e.nok ? ' · ' + e.nok + ' não OK' : '') + '</span></div><div class="conf-barra"><i style="width:' + (e.total ? Math.round(e.resp / e.total * 100) : 0) + '%;"></i></div>';
+  mod.forEach((dc) => {
+    const n = dc.itens.filter((it) => its[it.id] && its[it.id].r).length, faltam = dc.itens.length - n;
+    h += '<div class="conf-disc"><div class="conf-disc-cab"><b>' + esc(dc.nome) + '</b><span>' + n + '/' + dc.itens.length + '</span>' +
+      (faltam && dc.itens.length ? '<button type="button" class="conf-link" data-conf-todos="' + esc(dc.id) + '">' + (n ? 'marcar o resto OK' : 'tudo OK') + '</button>' : '') +
+      (adm ? '<button type="button" class="conf-rm" data-conf-rm-disc="' + esc(dc.id) + '" title="Tirar esta disciplina do checklist">×</button>' : '') + '</div>';
+    h += dc.itens.map((it) => { const x = its[it.id] || {}, r = x.r || '';
+      return '<div class="conf-item' + (r ? ' r-' + r : '') + '"><div class="conf-item-t"><span>' + esc(it.txt) + (it.por ? ' <small class="conf-incl">incluído por ' + esc(it.por) + '</small>' : '') + '</span>' + (adm ? '<button type="button" class="conf-rm" data-conf-rm="' + esc(it.id) + '" title="Tirar do checklist">×</button>' : '') + '</div>' +
+        '<div class="conf-bts">' + [['ok', 'OK'], ['nok', 'Não OK'], ['na', 'N/A']].map(([v, t]) => '<button type="button" class="b-' + v + (r === v ? ' sel' : '') + '" data-conf-r="' + v + '" data-conf-it="' + esc(it.id) + '">' + t + '</button>').join('') + '</div>' +
+        (r === 'nok' ? '<div class="conf-nok"><input type="text" class="conf-obs" data-conf-obs="' + esc(it.id) + '" maxlength="240" placeholder="O que está errado?" value="' + esc(x.obs || '') + '">' +
+          (x.corrigidoEm ? '<span class="conf-corrigido">corrigido ' + confDataCurta(x.corrigidoEm) + (x.corrigidoPor ? ' · ' + esc(x.corrigidoPor) : '') + ' <button type="button" class="conf-link" data-conf-desc="' + esc(it.id) + '">desfazer</button></span>' : '<button type="button" class="conf-resolver" data-conf-corrigir="' + esc(it.id) + '">Resolvido</button>') + '</div>' : '') +
+        (r ? '<div class="conf-meta">' + esc(x.por || '') + (x.em ? ' · ' + esc(confDataHora(x.em)) : '') + '</div>' : '') + '</div>'; }).join('');
+    h += confModal.add === dc.id
+      ? '<div class="conf-add-form"><input type="text" id="conf-add-txt" maxlength="160" placeholder="Novo item de ' + esc(dc.nome) + '"><button class="btn primario" id="conf-add-ok" type="button">Incluir</button><button class="btn fantasma" id="conf-add-cancel" type="button">Cancelar</button></div>'
+      : '<button type="button" class="conf-add" data-conf-add="' + esc(dc.id) + '">+ item</button>';
+    h += '</div>';
+  });
+  h += confModal.add === '__disc'
+    ? '<div class="conf-add-form conf-add-disc"><input type="text" id="conf-add-txt" maxlength="60" placeholder="Nome da nova disciplina"><button class="btn primario" id="conf-add-ok" type="button">Criar</button><button class="btn fantasma" id="conf-add-cancel" type="button">Cancelar</button></div>'
+    : '<button type="button" class="conf-add conf-add-disc" data-conf-add="__disc">+ disciplina</button>';
+  h += '<div class="conf-nota">Item ou disciplina incluídos aqui entram no checklist de todos os quartos.</div>';
+  corpo.innerHTML = h; corpo.scrollTop = st;
+  if (focoObs){ const el = corpo.querySelector('[data-conf-obs="' + focoObs.id + '"]'); if (el){ el.value = focoObs.v; try{ el.focus(); el.setSelectionRange(focoObs.s, focoObs.s); }catch(err){} } }
+  const falta = e.total - e.resp;
+  rod.innerHTML = '<span class="conf-salvo" id="conf-salvo">Salva sozinho a cada toque</span><button class="btn fantasma" type="button" id="conf-fechar">Fechar</button>' +
+    (d.concluidoEm ? (adm && !e.campo ? '<button class="btn fantasma" type="button" id="conf-reabrir">Reabrir</button>' : '')
+      : (e.campo ? '' : '<button class="btn primario" type="button" id="conf-concluir"' + (falta ? ' disabled' : '') + '>' + (falta ? 'Concluir (faltam ' + falta + ')' : 'Concluir conferência') + '</button>'));
+  confLigar(corpo, rod);
+  const inp = document.getElementById('conf-add-txt'); if (inp) setTimeout(() => { try{ inp.focus(); }catch(err){} }, 30);
+}
+function confLigar(corpo, rod){
+  const { andar, q } = confModal;
+  const xb = document.getElementById('conf-x'); if (xb) xb.addEventListener('click', confFechar);
+  const fb = document.getElementById('conf-fechar'); if (fb) fb.addEventListener('click', confFechar);
+  corpo.querySelectorAll('[data-conf-r]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.confIt, r = b.dataset.confR;
+    confGravar(q, andar, (at) => { const x = at.itens[id] || {};
+      if (x.r === r){ delete at.itens[id]; return { item: id, r: '' }; }
+      at.itens[id] = { r, obs: r === 'nok' ? (x.obs || '') : '', por: usuarioAtual, em: new Date().toISOString() };
+      return { item: id, r }; });
+  }));
+  corpo.querySelectorAll('[data-conf-obs]').forEach((inp) => inp.addEventListener('change', () => {
+    const id = inp.dataset.confObs, v = inp.value.trim().slice(0, 240);
+    confGravar(q, andar, (at) => { const x = at.itens[id]; if (!x || x.r !== 'nok') return false; x.obs = v; return { item: id, obs: v }; });
+  }));
+  corpo.querySelectorAll('[data-conf-corrigir]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.confCorrigir, obs = corpo.querySelector('[data-conf-obs="' + id + '"]');
+    confGravar(q, andar, (at) => { const x = at.itens[id]; if (!x) return false; if (obs && obs.value.trim() !== (x.obs || '')) x.obs = obs.value.trim().slice(0, 240); x.corrigidoEm = new Date().toISOString(); x.corrigidoPor = usuarioAtual; return { item: id, corrigido: true }; });
+  }));
+  corpo.querySelectorAll('[data-conf-desc]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.confDesc;
+    confGravar(q, andar, (at) => { const x = at.itens[id]; if (!x) return false; delete x.corrigidoEm; delete x.corrigidoPor; return { item: id, corrigido: false }; });
+  }));
+  corpo.querySelectorAll('[data-conf-todos]').forEach((b) => b.addEventListener('click', () => {
+    const dc = confModelo().find((x) => x.id === b.dataset.confTodos); if (!dc) return;
+    confGravar(q, andar, (at) => { const agora = new Date().toISOString(); let n = 0;
+      dc.itens.forEach((it) => { if (!at.itens[it.id] || !at.itens[it.id].r){ at.itens[it.id] = { r:'ok', obs:'', por: usuarioAtual, em: agora }; n++; } });
+      return n ? { disc: dc.id, todosOk: n } : false; });
+  }));
+  const mudarAp = (id, ok) => confGravar(q, andar, (at) => {
+    const lista = (Array.isArray(at.apont) ? at.apont : confApontSeed(q)).map((a) => Object.assign({}, a));
+    const a = lista.find((x) => x.id === id); if (!a) return false;
+    if (ok){ a.st = 'ok'; a.resolvidoEm = new Date().toISOString(); a.resolvidoPor = usuarioAtual; }
+    else { a.st = 'aberto'; delete a.resolvidoEm; delete a.resolvidoPor; }
+    at.apont = lista; return { apont: id, ok };
+  });
+  corpo.querySelectorAll('[data-conf-ap]').forEach((b) => b.addEventListener('click', () => mudarAp(b.dataset.confAp, true)));
+  corpo.querySelectorAll('[data-conf-ap-desf]').forEach((b) => b.addEventListener('click', () => mudarAp(b.dataset.confApDesf, false)));
+  corpo.querySelectorAll('[data-conf-add]').forEach((b) => b.addEventListener('click', () => { confModal.add = b.dataset.confAdd; confRender(); }));
+  const okAdd = document.getElementById('conf-add-ok'), txtAdd = document.getElementById('conf-add-txt'), cancAdd = document.getElementById('conf-add-cancel');
+  if (cancAdd) cancAdd.addEventListener('click', () => { confModal.add = null; confRender(); });
+  const incluir = async () => {
+    const txt = (txtAdd.value || '').replace(/\s+/g, ' ').trim(); if (!txt){ txtAdd.focus(); return; }
+    const alvo = confModal.add; okAdd.disabled = true;
+    if (alvo === '__disc'){
+      if (confModelo().some((x) => confNorm(x.nome) === confNorm(txt))){ avisoFlutuante('Já existe a disciplina "' + txt + '".', 'erro'); okAdd.disabled = false; return; }
+      const id = 'u' + Date.now().toString(36);
+      const ok = await confGravarModelo((m) => { m.discs.push({ id, nome: txt.slice(0, 60), por: usuarioAtual, em: new Date().toISOString() }); });
+      if (ok){ confModal.add = id; confRender(); avisoFlutuante('Disciplina "' + txt + '" criada. Agora inclua os itens dela.', 'ok'); }
+      else okAdd.disabled = false;
+      return;
+    }
+    const dc = confModelo().find((x) => x.id === alvo); if (!dc){ confModal.add = null; confRender(); return; }
+    if (dc.itens.some((it) => confNorm(it.txt) === confNorm(txt))){ avisoFlutuante('Esse item já está em ' + dc.nome + '.', 'erro'); okAdd.disabled = false; return; }
+    const ok = await confGravarModelo((m) => { (m.itens[alvo] = Array.isArray(m.itens[alvo]) ? m.itens[alvo] : []).push({ id: alvo + '.u' + Date.now().toString(36), txt: txt.slice(0, 160), por: usuarioAtual, em: new Date().toISOString() }); });
+    if (ok){ confModal.add = null; confRender(); avisoFlutuante('Item incluído em ' + dc.nome + ' (vale para todos os quartos).', 'ok'); }
+    else okAdd.disabled = false;
+  };
+  if (okAdd) okAdd.addEventListener('click', incluir);
+  if (txtAdd) txtAdd.addEventListener('keydown', (ev) => { if (ev.key === 'Enter'){ ev.preventDefault(); incluir(); } if (ev.key === 'Escape'){ confModal.add = null; confRender(); } });
+  corpo.querySelectorAll('[data-conf-rm]').forEach((b) => b.addEventListener('click', async () => {
+    if (!exigirAdmin()) return;
+    const id = b.dataset.confRm, it = confModelo().flatMap((x) => x.itens).find((x) => x.id === id);
+    if (!window.confirm('Tirar "' + (it ? it.txt : id) + '" do checklist de todos os quartos? (as respostas já dadas ficam guardadas)')) return;
+    confGravarModelo((m) => { m.ocultos[id] = { por: usuarioAtual, em: new Date().toISOString() }; });
+  }));
+  corpo.querySelectorAll('[data-conf-rm-disc]').forEach((b) => b.addEventListener('click', async () => {
+    if (!exigirAdmin()) return;
+    const id = b.dataset.confRmDisc, dc = confModelo().find((x) => x.id === id);
+    if (!window.confirm('Tirar a disciplina "' + (dc ? dc.nome : id) + '" (e os itens dela) do checklist de todos os quartos?')) return;
+    confGravarModelo((m) => { m.ocultos['disc:' + id] = { por: usuarioAtual, em: new Date().toISOString() }; });
+  }));
+  const bc = document.getElementById('conf-concluir');
+  if (bc) bc.addEventListener('click', () => confGravar(q, andar, (at) => { at.concluidoEm = new Date().toISOString(); at.concluidoPor = usuarioAtual; return { concluido: true }; }));
+  const br = document.getElementById('conf-reabrir');
+  if (br) br.addEventListener('click', () => { if (!exigirAdmin()) return; confGravar(q, andar, (at) => { delete at.concluidoEm; delete at.concluidoPor; return { concluido: false }; }); });
+}
+async function confSincronizar(desde){
+  if (!confAtivo() || store.backend !== 'cloud') return;
+  try{
+    const mud = await store.listMudancas('conf_operacao', desde);
+    if (!mud.length) return;
+    mud.forEach((d) => { if (d && d._id) confDocs[d._id] = d; });
+    confAtualizarTags(); if (confModal && !confGravando) confRender();
+  }catch(e){}
+}
+/* ===================== FIM CONFERÊNCIA OPERAÇÃO ===================== */
+
 /* ===================== NAVEGAÇÃO ===================== */
 function irParaAba(nome){
   { const bt = document.querySelector('nav.abas button[data-aba="' + nome + '"]'); // atalhos não abrem aba que a pessoa não pode ver
@@ -13281,6 +13839,7 @@ function irParaAba(nome){
   if (nome === 'raiox'){ if (!ehFundador()){ irParaAba('visao-geral'); return; } renderRaioX(); }
   if (nome === 'reuniao'){ try{ renderResumoGeral(); }catch(e){} setTimeout(renderReuniao, 50); }
     if (nome === 'sofitel') setTimeout(renderSofitel, 50);
+    if (nome === 'quartos' && confAtivo()) confCarregar().then(confAtualizarTags).catch(() => {});
     if (nome === 'ff') setTimeout(() => { ffRecem.clear(); ffCarregar(true).then(renderFF).catch(() => renderFF()); }, 50);
     if (nome !== 'itens' && filtroIdsPedido){ filtroIdsPedido = null; const bp = document.getElementById('barra-pedido'); if (bp) bp.remove(); }
   document.body.classList.toggle('aba-itens', nome === 'itens');
@@ -14906,7 +15465,7 @@ async function iniciar(){
   renderPillArmazenamento();
   atualizarStatusEspacoFotos();
   const marcaCarga = new Date(Date.now() - 2*60*1000).toISOString();
-  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais(), carregarVistoriasIac(), carregarProntosVistoria(), carregarVistoriasAmbiente(), carregarEncerradosEngano()]);
+  await Promise.all([carregarRevisoes(), carregarFornecedores(), carregarAcompanhamento(), carregarPessoas(), carregarExcluidos(), carregarPins(), carregarApelidosDisc(), carregarConfigObra(), carregarItensManuais(), carregarVistoriasIac(), carregarProntosVistoria(), carregarVistoriasAmbiente(), carregarEncerradosEngano(), confCarregar()]);
   equipeCarregada = true;
   renderListaEquipe();
   // só agora pede o nome: a lista da equipe já está completa (antes aparecia só uma parte,
