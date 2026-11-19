@@ -1067,6 +1067,32 @@ tr.ck-g td{ background:var(--paper-2); padding:7px 12px; }
   .ck-foto, .ck-foto-img{ width:60px; height:60px; }
   .ck-rodape{ margin:14px -10px 0; padding-left:10px; }
 }
+/* ===== v.349: editar item (lápis) e importar vistoria ===== */
+.ck-ed-bt{ display:inline-flex; align-items:center; justify-content:center; vertical-align:-2px; margin-left:6px; width:26px; height:22px; padding:0; border:0; border-radius:6px; background:transparent; color:var(--faint); cursor:pointer; }
+.ck-ed-bt:hover, .ck-ed-bt.sel{ color:#5E86A8; background:#EEF4F9; }
+.ck-it-tags{ font-size:12px; color:var(--muted); line-height:1.4; }
+.ck-it-tags b{ font-weight:500; color:var(--text-2); }
+.ck-it-tags i{ font-style:normal; color:var(--faint); font-size:11.5px; }
+.ck-sep{ margin:0 6px; color:var(--faint); }
+.ck-item > .ck-cat-ed{ grid-column:1 / -1; }
+.ck-imp-bt{ position:relative; overflow:hidden; }
+.ck-imp{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; border:1px solid #DCE8F2; background:#F8FBFD; }
+.ck-imp-cab{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; }
+.ck-imp-cab b{ font-weight:600; font-size:15px; color:var(--text); }
+.ck-imp-cab span{ font-size:12.5px; color:var(--muted); }
+.ck-imp-tab-w{ overflow-x:auto; }
+.ck-imp-tab{ width:100%; min-width:0; border-collapse:collapse; font-size:13px; }
+.ck-imp-tab th{ text-align:left; font-weight:500; font-size:11.5px; color:var(--muted); padding:4px 8px; border-bottom:1px solid var(--line); }
+.ck-imp-tab td{ padding:7px 8px; border-bottom:1px solid var(--line); color:var(--text-2); }
+.ck-imp-tab .num-col{ text-align:right; }
+.ck-imp-n{ font-weight:600; color:#5E86A8 !important; }
+.ck-imp-det summary{ cursor:pointer; font-size:13px; color:#5E86A8; }
+.ck-imp-lista{ display:flex; flex-direction:column; gap:8px; margin-top:8px; max-height:340px; overflow:auto; font-size:12.5px; color:var(--text-2); line-height:1.45; }
+.ck-imp-q{ display:grid; grid-template-columns:42px minmax(0, 1fr); gap:8px; }
+.ck-imp-q i{ font-style:normal; color:var(--faint); font-size:11.5px; }
+.ck-imp-nota{ font-size:12.5px; color:var(--text-2); line-height:1.45; }
+.ck-imp-nota b{ font-weight:500; color:var(--text); }
+@media (max-width: 640px){ .ck-imp-tab{ font-size:12.5px; table-layout:fixed; } .ck-imp-tab th, .ck-imp-tab td{ padding:6px 4px; white-space:normal; } .ck-imp-tab th{ font-size:10.5px; line-height:1.25; vertical-align:bottom; } .ck-imp-tab th:first-child, .ck-imp-tab td:first-child{ width:16%; } .ck-cat-ed input[type=text]{ font-size:16px; } }
 /* ===== Family & Friends ===== */
 .rn-kpis.ff-kpis{ grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1100px){ .rn-kpis.ff-kpis{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -1878,7 +1904,7 @@ async function contarDocsNoBanco(colMapeada){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-10-03.348';
+const VERSAO_APP = '2026-11-19.350';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -4476,6 +4502,116 @@ async function exigirPinDoUsuarioAtual(){
   return !!usuarioAtual;
 }
 /* cartão de equipe (só Guilherme/Marcel): ver quem tem PIN e apagar o PIN de quem esqueceu */
+/* ===================== EXPORTAR DADOS DA OBRA (só o Fundador) =====================
+   Um Excel com a história da obra para apresentar: evolução dia a dia, cada item, cada baixa e
+   validação (quem e quando), pessoas (quando entraram no app), fornecedores e o checklist de operação.
+   Só lê — não grava nada no banco. */
+async function exportarDadosObra(btn){
+  if (!ehFundador()){ avisoFlutuante('Só o Fundador exporta os dados da obra.', 'erro'); return; }
+  if (typeof XLSX === 'undefined' || !XLSX.utils){ avisoFlutuante('A biblioteca do Excel não carregou. Recarregue a página.', 'erro'); return; }
+  if (btn) btn.disabled = true;
+  avisoFlutuante('Montando o Excel com os dados da obra…', 'ok');
+  try{
+    try{ await carregarHistResolvidos(); }catch(e){}
+    try{ if (typeof confAtivo === 'function' && confAtivo()) await confCarregar(); }catch(e){}
+    const p2 = (n) => String(n).padStart(2, '0');
+    const dh = (s) => { if (!s) return ''; const d = new Date(s); return isNaN(d) ? '' : d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+    const dia = (s) => dh(s).slice(0, 10);
+    const amb = (tipo, q) => tipo === 'APTO' || !tipo ? (q != null && q !== '' ? String(q) : '') : labelTipo(tipo) + (q != null && q !== '' ? ' ' + q : '');
+    const papel = (n) => ehFundador(n) ? 'Fundador' : ehAdminNome(n) ? 'Administrador' : ehAprovadorNome(n) ? 'Aprovador' : 'Usuário';
+    const ORIG = { IAC:'IAC', SOFITEL:'Sofitel', AW:'AW (incluído no app)' };
+    const TIPO_EV = { aw:'Baixa AW (executado)', iac:'Validado pela gestão AW', reinc:'Reincidência (voltou a abrir)', awDesfeito:'Baixa desfeita', gestaoDesfeita:'Validação desfeita',
+      reprovaGestao:'Gestão reprovou a baixa', recomendacao:'Recomendação', conferido:'Conferido no quarto', reaberto:'Reaberto' };
+
+    // ---- itens: os que estão na planilha agora + os que a IAC já tirou ----
+    const info = new Map(), linhasItens = [];
+    itensRevisaoAtual.forEach((it) => {
+      const ac = acompanhamento[it.id] || {}, verde = it.status !== 'VM' && it.status !== 'AM', dentro = contaNoTotal(it);
+      const sit = !dentro ? 'Novo (fora do total, a avaliar)' : verde ? 'Verde na planilha (IAC aceitou)' : ac.iacOkEm ? 'Validado pela gestão AW' : baixaDaAW(it) ? 'Executado AW' : 'Em aberto';
+      const r = { item: String(it.id), andar: it.andar, ambiente: amb(it.tipo, it.quarto), disc: disciplinaEfetiva(it) || '', forn: fornecedorEfetivo(it) || '', orig: ORIG[origemDoItem(it)] || origemDoItem(it) };
+      info.set(String(it.id), r);
+      linhasItens.push([r.item, it.andar, r.ambiente, r.disc, r.forn, r.orig, it.statusOriginal || it.status || '', sit, dentro ? 'sim' : 'não',
+        revisaoDeEntrada(it) ? 'R' + revisaoDeEntrada(it) : '', dh(ac.awExecEm), ac.awExecPor || '', dh(ac.iacOkEm), ac.iacOkPor || '', ac.reincidencias || 0, '', it.desc || '']);
+    });
+    const resolvidosDiff = new Map(); try{ ((diffComAnterior && diffComAnterior.diff && diffComAnterior.diff.resolvidos) || []).forEach((it) => resolvidosDiff.set(String(it.id), it)); }catch(e){}
+    let sairam = []; try{ sairam = sairamDaPlanilha(); }catch(e){}
+    sairam.forEach((h) => {
+      const id = String(h.id || h._id).split('@')[0], ac = acompanhamento[id] || {}, x = resolvidosDiff.get(id) || {};
+      const pseudo = { id, andar: Number(h.andar), tipo: h.t || x.tipo, quarto: h.q != null ? h.q : x.quarto, disciplina: apelidoDisciplina(h.disciplina || x.disciplinaOriginal || x.disciplina || ''), origemPlanilha: h.o || x.origemPlanilha };
+      const r = { item: id, andar: pseudo.andar, ambiente: amb(pseudo.tipo, pseudo.quarto), disc: disciplinaEfetiva(pseudo) || '', forn: fornecedorEfetivo(pseudo) || '', orig: ORIG[origemDoItem(pseudo)] || origemDoItem(pseudo) };
+      if (!info.has(id)) info.set(id, r);
+      linhasItens.push([id, pseudo.andar, r.ambiente, r.disc, r.forn, r.orig, '', 'Saiu da planilha (IAC aceitou)', 'sim', '', dh(ac.awExecEm), ac.awExecPor || '', dh(ac.iacOkEm), ac.iacOkPor || '', ac.reincidencias || 0,
+        h.revisao ? 'R' + h.revisao + (h.resolvidoEm ? ' · ' + dia(h.resolvidoEm) : '') : '', h.descricao || x.desc || '']);
+    });
+
+    // ---- eventos: cada baixa, validação, reincidência… (quem e quando) ----
+    const eventos = [];
+    Object.keys(acompanhamento).forEach((id) => {
+      const ac = acompanhamento[id], r = info.get(String(id)) || { andar:'', ambiente:'', disc:'', forn:'', orig:'' };
+      historicoEfetivo(historicoDoItem(ac)).forEach((e) => { if (!e || !e.em) return;
+        eventos.push([dh(e.em), TIPO_EV[e.t] || e.t, e.por || '', String(id), r.andar, r.ambiente, r.disc, r.forn, r.orig, [e.via === 'chat' ? 'pelo chat' : '', e.lote ? 'em lote' : '', e.motivo || '', e.origem || ''].filter(Boolean).join(' · ')]); });
+    });
+    eventos.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+
+    // ---- checklist de operação ----
+    const opQuartos = [], opEventos = [];
+    if (typeof confAtivo === 'function' && confAtivo()){
+      const andaresOp = Array.from(new Set((andaresConhecidos || []).map(Number))).sort((a, b) => b - a);
+      andaresOp.forEach((a) => confQuartosDoAndar(a).forEach((q) => { const e = confEstado(a, q), d = e.doc || {}, ap = confApont(q);
+        opQuartos.push([a, q, e.txt.replace('✓ ', ''), e.resp, e.total, e.nok, ap.length, e.apAb, e.abertos, dh(d.iniciadoEm), d.iniciadoPor || '', dh(d.concluidoEm), d.concluidoPor || (e.campo ? 'vistoria de campo' : ''), dh(d.atualizadoEm), d.atualizadoPor || '']);
+        (Array.isArray(d.hist) ? d.hist : []).forEach((h) => { if (h && h.em) opEventos.push([dh(h.em), h.t || '', h.r || '', h.por || '', a, q, h.alvo || '']); }); }));
+      opEventos.sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+    }
+
+    // ---- pessoas: quando entraram (PIN) e o que fizeram ----
+    const P = new Map(), pk = (n) => chaveComparacao(n);
+    const pessoa = (n) => { if (!n) return null; const k = pk(n); if (!P.has(k)) P.set(k, { nome: n, pin:'', prim:'', ult:'', aw:0, iac:0, outras:0, op:0, dias: new Set() }); return P.get(k); };
+    try{ pessoasConhecidas().forEach(pessoa); }catch(e){}
+    Object.values(pinsEquipe || {}).forEach((p) => { const x = pessoa(p && p.nome); if (x && p.em) x.pin = dh(p.em); });
+    const marca = (x, quando) => { if (!x || !quando) return; if (!x.prim || quando < x.prim) x.prim = quando; if (!x.ult || quando > x.ult) x.ult = quando; x.dias.add(quando.slice(0, 10)); };
+    eventos.forEach((e) => { const x = pessoa(e[2]); if (!x) return; marca(x, e[0]); if (e[1] === TIPO_EV.aw) x.aw++; else if (e[1] === TIPO_EV.iac) x.iac++; else x.outras++; });
+    opEventos.forEach((e) => { const x = pessoa(e[3]); if (!x) return; marca(x, e[0]); x.op++; });
+    const pessoas = Array.from(P.values()).map((x) => [x.nome, papel(x.nome), x.pin, x.prim, x.ult, x.dias.size, x.aw, x.iac, x.outras, x.op, x.aw + x.iac + x.outras + x.op])
+      .sort((a, b) => ((a[2] || a[3] || '9') < (b[2] || b[3] || '9') ? -1 : 1));
+
+    // ---- fornecedores ----
+    const F = new Map();
+    linhasItens.forEach((l) => { if (l[8] !== 'sim') return; const k = l[4] || '(sem fornecedor)'; const f = F.get(k) || { tot:0, aw:0, val:0, verde:0, aberto:0 }; F.set(k, f); f.tot++;
+      if (/Saiu|Verde/.test(l[7])) f.verde++; else if (/Validado/.test(l[7])) f.val++; else if (/Executado/.test(l[7])) f.aw++; else f.aberto++; });
+    const fornecedoresL = Array.from(F.entries()).map(([n, f]) => [n, f.tot, f.verde, f.val, f.aw, f.aberto, f.tot ? Math.round((f.tot - f.aberto) / f.tot * 100) : 0]).sort((a, b) => b[1] - a[1]);
+
+    // ---- evolução dia a dia (a mesma conta do gráfico da Visão geral) ----
+    let evo = []; try{ evo = calcularEvolucaoPendencias(3650); }catch(e){}
+
+    const wb = XLSX.utils.book_new();
+    const aba = (nome, cab, linhas, larg) => { const ws = XLSX.utils.aoa_to_sheet([cab].concat(linhas)); ws['!cols'] = (larg || cab.map(() => 16)).map((w) => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, nome); };
+    aba('Sobre', ['Campo', 'Valor'], [
+      ['Obra', nomeDaObra()], ['Exportado em', dh(new Date().toISOString())], ['Exportado por', usuarioAtual || ''], ['Revisão na tela', 'R' + revisaoSelecionada],
+      ['Itens (total da obra)', linhasItens.filter((l) => l[8] === 'sim').length], ['Eventos (baixas, validações…)', eventos.length], ['Pessoas', pessoas.length],
+      ['Evolucao', 'dia a dia: total, concluídos pela AW, aceitos pela IAC e em aberto (a conta do gráfico da Visão geral)'],
+      ['Itens', 'cada item: os da planilha atual e os que a IAC já tirou; "No total" = conta no total da obra'],
+      ['Eventos', 'cada baixa, validação, reincidência… com quem e quando'], ['Pessoas', 'quando cada pessoa criou o PIN, primeira e última ação e o que fez'],
+      ['Fornecedores', 'itens por fornecedor e quanto já foi resolvido'], ['Revisoes', 'cada revisão da IAC que entrou no app'],
+      ['Operacao quartos / Operacao eventos', 'checklist de operação: situação de cada quarto e cada toque registrado']], [26, 90]);
+    aba('Evolucao', ['Data', 'Total de itens', 'Concluídos pela AW (acumulado)', 'Aceitos pela IAC (acumulado)', 'Em aberto', 'Baixas AW no dia', 'Aceitos pela IAC no dia', 'Reincidências no dia'],
+      evo.map((p) => [p.data, p.total, p.aw, p.iac, p.aberto, p.awDia, p.iacDia, p.reincDia]), [12, 14, 22, 22, 12, 16, 20, 18]);
+    aba('Itens', ['Item', 'Andar', 'Ambiente', 'Disciplina', 'Fornecedor', 'Origem', 'Cor na planilha', 'Situação', 'No total', 'Entrou na revisão', 'Executado AW em', 'Executado AW por', 'Validado em', 'Validado por', 'Reincidências', 'Saiu da planilha', 'Descrição'],
+      linhasItens, [10, 7, 14, 22, 22, 12, 10, 28, 8, 10, 17, 20, 17, 20, 8, 16, 60]);
+    aba('Eventos', ['Data e hora', 'O que', 'Quem', 'Item', 'Andar', 'Ambiente', 'Disciplina', 'Fornecedor', 'Origem', 'Obs.'], eventos, [17, 28, 22, 10, 7, 14, 22, 22, 12, 30]);
+    aba('Pessoas', ['Nome', 'Papel', 'PIN criado em', 'Primeira ação', 'Última ação', 'Dias com ação', 'Baixas AW', 'Validações', 'Outras ações (IAC)', 'Ações no checklist de operação', 'Total de ações'], pessoas, [24, 14, 17, 17, 17, 12, 10, 10, 14, 18, 12]);
+    aba('Fornecedores', ['Fornecedor', 'Itens', 'Aceitos pela IAC (verde/saiu)', 'Validados gestão AW', 'Executados AW', 'Em aberto', '% resolvido'], fornecedoresL, [26, 8, 24, 18, 14, 10, 12]);
+    aba('Revisoes', ['Revisão', 'Registrada em', 'Atualizada em', 'Andares'], revisoesMeta.map((r) => [r.label || 'R' + r.numero, dh(r.dataRegistro), dh(r.atualizadoEm), (r.andares || []).join(', ')]), [10, 17, 17, 40]);
+    if (opQuartos.length){
+      aba('Operacao quartos', ['Andar', 'Quarto', 'Situação', 'Itens conferidos', 'Itens do checklist', 'Não OK em aberto', 'Apontamentos da vistoria', 'Apontamentos em aberto', 'Em aberto (total)', 'Iniciado em', 'Iniciado por', 'Concluído em', 'Concluído por', 'Último registro', 'Último registro por'],
+        opQuartos, [7, 8, 22, 10, 10, 10, 12, 12, 10, 17, 20, 17, 20, 17, 20]);
+      aba('Operacao eventos', ['Data e hora', 'Ação', 'Resposta', 'Quem', 'Andar', 'Quarto', 'Item'], opEventos, [17, 12, 10, 22, 7, 8, 18]);
+    }
+    const d = new Date();
+    XLSX.writeFile(wb, 'Dados da obra - ' + String(nomeDaObra() || 'obra').replace(/[\\/:*?"<>|]+/g, '-') + ' - ' + p2(d.getDate()) + '-' + p2(d.getMonth() + 1) + '.xlsx');
+    avisoFlutuante('Excel pronto: ' + linhasItens.length + ' itens, ' + eventos.length + ' eventos, ' + pessoas.length + ' pessoas.', 'ok');
+  }catch(e){ console.warn('exportar dados', e); avisoFlutuante('Não consegui montar o Excel: ' + (e.message || e), 'erro'); }
+  finally{ if (btn) btn.disabled = false; }
+}
 function renderListaPins(){
   const cont = document.getElementById('lista-pins');
   if (!cont) return;
@@ -4490,7 +4626,8 @@ function renderListaPins(){
   cont.innerHTML = '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">' +
       '<div><div class="rodape-nota" style="text-align:left; margin:0;">Obra</div><div style="font-size:16px; color:var(--text);">'+esc(nomeDaObra())+'</div>' +
       '<div class="rodape-nota" style="text-align:left; margin:2px 0 0;">Endereço desta obra: '+esc(location.origin + location.pathname)+(OBRA ? '?obra='+esc(OBRA) : '')+'</div></div>' +
-      '<button type="button" class="chip-acao" id="btn-nome-obra">Renomear obra</button></div>' +
+      '<div style="display:flex; gap:8px; flex-wrap:wrap;">' + (ehFundador() ? '<button type="button" class="chip-acao" id="btn-exportar-dados" title="Excel com a história da obra (itens, baixas, pessoas, evolução) — só leitura">Exportar dados (Excel)</button>' : '') +
+      '<button type="button" class="chip-acao" id="btn-nome-obra">Renomear obra</button></div></div>' +
     '<h2 style="margin-bottom:4px;">Equipe e PINs</h2>' +
     '<p class="rodape-nota" style="text-align:left; margin:0 0 10px;"><b style="font-weight:500;">Fundador</b> e <b style="font-weight:500;">Administradores</b> fazem tudo (editar, enviar planilhas, liberar, decidir itens novos e não aceitos, criar fornecedor); <b style="font-weight:500;">Aprovadores</b> decidem, item por item, os itens novos e os não aceitos (precisa corrigir, conferir no quarto, aceitar); <b style="font-weight:500;">Usuários</b> veem o que está em aberto e dão baixa. Só o Fundador torna alguém administrador ou aprovador. Cada pessoa cria o próprio PIN. Se alguém esquecer, apague o PIN dela: ela cria um novo no próximo acesso. Ninguém consegue ver um PIN.</p>' +
     nomes.map((n) => { const p = pinsEquipe[chaveComparacao(n)];
@@ -4502,6 +4639,8 @@ function renderListaPins(){
         (!ehFundador(n) && !ehAdmin(n) ? (ehFundador() ? '<button type="button" class="chip-acao'+(ehAprovadorNome(n) ? ' marcado pronto' : '')+'" data-aprovador="'+esc(n)+'">'+(ehAprovadorNome(n) ? '✓ Aprovador' : 'Tornar aprovador')+'</button>'
           : (ehAprovadorNome(n) ? '<span class="badge pronto" style="font-size:11px;">Aprovador</span>' : '')) : '') +
         (p ? '<button type="button" class="chip-acao" data-apagar-pin="'+esc(chaveComparacao(n))+'" data-nome="'+esc(n)+'">Apagar PIN</button>' : '') + '</div></div>'; }).join('');
+  const bExp = document.getElementById('btn-exportar-dados');
+  if (bExp) bExp.addEventListener('click', () => exportarDadosObra(bExp));
   const bNome = document.getElementById('btn-nome-obra');
   if (bNome) bNome.addEventListener('click', async () => {
     const novo = window.prompt('Nome desta obra (aparece no topo do painel e nos PDFs):', nomeDaObra());
@@ -13685,38 +13824,57 @@ const CONF_MODELO_PADRAO = [
     ['acab.silicone', 'Silicone e rejunte (box e bancada)'],
     ['acab.limpeza', 'Limpeza fina, sem resíduo de obra'] ] }
 ];
-let confDocs = {}, confModeloCfg = { discs:[], itens:{}, ocultos:{} }, confPrazos = {}, confFornCfg = { geral:{}, andares:{} };
+let confDocs = {}, confModeloCfg = { discs:[], itens:{}, ocultos:{} }, confPrazos = {}, confFornCfg = { geral:{}, andares:{} }, confMoverCfg = { geral:{}, andares:{} };
 function confAtivo(){ return !OBRA; }
 function confNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+/* item do checklist que mudou de disciplina (todos os andares / um andar) — doc próprio, que versões antigas do app não reescrevem */
+function confNormMover(d){ d = d || {}; return { geral: (d.geral && typeof d.geral === 'object') ? d.geral : {}, andares: (d.andares && typeof d.andares === 'object') ? d.andares : {} }; }
 function confNormModelo(m){ m = m || {}; return { discs: Array.isArray(m.discs) ? m.discs : [], itens: (m.itens && typeof m.itens === 'object') ? m.itens : {}, ocultos: (m.ocultos && typeof m.ocultos === 'object') ? m.ocultos : {} }; }
 async function confCarregar(){
   if (!confAtivo()) return;
   try{
-    const [docs, m, pz, fo] = await Promise.all([store.listCollection('conf_operacao'), store.getDoc('config', 'conf_operacao_modelo'), store.getDoc('config', 'conf_operacao_prazos'), store.getDoc('config', 'conf_operacao_fornecedores')]);
+    const [docs, m, pz, fo, mv] = await Promise.all([store.listCollection('conf_operacao'), store.getDoc('config', 'conf_operacao_modelo'), store.getDoc('config', 'conf_operacao_prazos'), store.getDoc('config', 'conf_operacao_fornecedores'), store.getDoc('config', 'conf_operacao_mover')]);
     const novo = {}; (docs || []).forEach((d) => { if (d && d._id) novo[d._id] = d; });
-    confDocs = novo; confModeloCfg = confNormModelo(m); confPrazos = (pz && pz.andares) || {}; confFornCfg = confNormForn(fo);
+    confDocs = novo; confModeloCfg = confNormModelo(m); confPrazos = (pz && pz.andares) || {}; confFornCfg = confNormForn(fo); confMoverCfg = confNormMover(mv);
   }catch(e){ console.warn('conferência operação: não consegui carregar', e); }
 }
-/* checklist em uso = padrão + incluídos − tirados */
-function confModelo(){
+/* checklist em uso = padrão + incluídos − tirados; com o andar, já com os itens que mudaram de disciplina
+   (cada item leva discOrig = onde nasceu, discG = depois da troca de todos os andares, discA = depois da troca do andar) */
+function confModelo(andar){
   const ocl = confModeloCfg.ocultos || {}, extras = confModeloCfg.itens || {};
   const discs = CONF_MODELO_PADRAO.map((d) => ({ id:d.id, nome:d.nome, padrao:true, itens: d.itens.map(([id, txt]) => ({ id, txt, padrao:true })) }))
-    .concat((confModeloCfg.discs || []).map((d) => ({ id:d.id, nome:d.nome, por:d.por, em:d.em, itens:[] })));
+    .concat((confModeloCfg.discs || []).map((d) => ({ id:d.id, nome:d.nome, por:d.por, em:d.em, deItem: !!d.deItem, itens:[] })));
   discs.forEach((d) => { (extras[d.id] || []).forEach((it) => d.itens.push({ id:it.id, txt:it.txt, por:it.por, em:it.em })); d.itens = d.itens.filter((it) => !ocl[it.id]); });
-  return discs.filter((d) => !ocl['disc:' + d.id]);
+  const vis = discs.filter((d) => !ocl['disc:' + d.id]), mc = confMoverCfg || {}, mg = mc.geral || {};
+  const ma = andar != null && mc.andares ? (mc.andares[String(Number(andar))] || {}) : {};
+  const out = vis.map((d) => Object.assign({}, d, { itens: [] })), porId = new Map(out.map((d) => [d.id, d]));
+  vis.forEach((d) => d.itens.forEach((it) => {
+    const g = mg[it.id] && porId.has(mg[it.id].disc) ? mg[it.id].disc : d.id, f = ma[it.id] && porId.has(ma[it.id].disc) ? ma[it.id].disc : g;
+    porId.get(f).itens.push(Object.assign({}, it, { discOrig: d.id, discG: g, discA: f }));
+  }));
+  return out;
+}
+/* checklist de um quarto: o do andar + itens que mudaram de disciplina só neste quarto (its[id].disc) */
+function confModeloQuarto(andar, its){
+  const mod = confModelo(andar); its = its || {};
+  if (!Object.keys(its).some((k) => its[k] && its[k].disc)) return mod;
+  const out = mod.map((d) => Object.assign({}, d, { itens: [] })), porId = new Map(out.map((d) => [d.id, d]));
+  mod.forEach((d) => d.itens.forEach((it) => { const x = its[it.id], t = x && x.disc && porId.has(x.disc) ? x.disc : d.id;
+    porId.get(t).itens.push(t !== d.id ? Object.assign({}, it, { soQuarto: true }) : it); }));
+  return out;
 }
 /* disciplina de um apontamento escrito à mão (planilha de campo) */
 function confDiscDoTexto(t){
   const n = confNorm(t);
   if (/keypad|kaypad|temporizador|campainha|campa|nao apaga|master|termostato/.test(n)) return 'aut';
-  if (/induc|tomada|abajur|sanca|usb|iluminac|lampada/.test(n)) return 'ele';
+  if (/induc|tomada|abajur|sanca|usb|iluminac|lampada|luminaria|\bluz\b|\bled\b/.test(n)) return 'ele';
   if (/espelho|papeleira|toalh|cabide/.test(n)) return 'ban';
   if (/ducha|chuveiro|torneira|\bpia\b|\bbox\b|escoamento|entupimento|valvula|rabicho|banheira|carenagem|\bvaso\b|vazao|vazamento|ralo/.test(n)) return 'hid';
   if (/porta|leitor|macaneta|pega|trinco|fechadura|tranca/.test(n)) return 'por';
   if (/cortina|persiana|blackout/.test(n)) return 'cor';
   if (/armario|gaveta|painel|marcenaria|cofre|geladeira|frigobar/.test(n)) return 'marc';
   if (/^ar\b|ar-condicionado|ar condicionado/.test(n)) return 'ar';
-  if (/quadro|pintura|risco|mancha|limpeza|silicone|rejunte/.test(n)) return 'acab';
+  if (/quadro|pintura|risco|mancha|limpeza|silicone|rejunte|acabamento|pedra/.test(n)) return 'acab';
   return 'outros';
 }
 function confNomeDisc(id){ const d = CONF_MODELO_PADRAO.find((x) => x.id === id) || (confModeloCfg.discs || []).find((x) => x.id === id); return d ? d.nome : 'Outros'; }
@@ -13728,6 +13886,78 @@ function confApont(q){ const d = confDocVisivel(q); return (d && Array.isArray(d
 function confHoje(){ const d = new Date(), p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
 function confDataCurta(s){ if (!s) return ''; const x = String(s); if (/^\d{4}-\d{2}-\d{2}$/.test(x)) return x.slice(8, 10) + '/' + x.slice(5, 7); try{ return new Date(x).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }); }catch(e){ return ''; } }
 function confDataHora(s){ try{ return dataHoraCurta(s); }catch(e){ return confDataCurta(s); } }
+/* ===================== PLANILHA DA VISTORIA DE CAMPO (importar) =====================
+   Layout da planilha: em cada coluna, o número do quarto e embaixo os itens; na coluna ao lado,
+   "OK", a data prevista de resolução ou "??" (sem previsão). "Lonado" = quarto não vistoriado. */
+const CONF_VT_PALAVRA = { kaypad:'keypad', keypad:'keypad', campanhinha:'campainha', campaninha:'campainha', campanhia:'campainha', ladao:'ladrão', ladrao:'ladrão',
+  arrahando:'arranhando', valvula:'válvula', higienica:'higiênica', armario:'armário', divisoria:'divisória', inducao:'indução', posicao:'posição', iluminacao:'iluminação',
+  macaneta:'maçaneta', luminaria:'luminária', vazao:'vazão', cartao:'cartão', agua:'água', tv:'TV', led:'LED', usb:'USB', off:'off', 'pega-ladrao':'pega-ladrão' };
+const CONF_VT_COMPL = { chuveiro:'do', pia:'da', torneira:'da', box:'do', ducha:'da', vaso:'do', abajur:'do', armario:'do', cama:'da', banheiro:'do', banheira:'da', porta:'da',
+  quarto:'do', quartos:'entre', sala:'da', sanca:'da', keypad:'do', carregador:'do', espelho:'do', lavabo:'do', umidade:'de', cartao:'de', aumento:'de', defeito:'com', barulho:'com' };
+const CONF_VT_PREP = { do:1, da:1, de:1, dos:1, das:1, por:1, com:1, entre:1, no:1, na:1, em:1, e:1, o:1, a:1, sem:1, nao:1 };
+/* texto escrito à mão em campo → texto do app (abreviações, erros comuns e "do/da" que faltam) */
+function confTxtVistoria(t){
+  let s = String(t || '').replace(/\s+/g, ' ').trim();
+  s = s.replace(/\bcarr\.?\s*(?=indu)/gi, 'carregador por ').replace(/\bban\.(?=\s|$)/gi, 'banheiro').replace(/\bregul\.(?=\s|$)/gi, 'regulagem')
+    .replace(/\bacab\.(?=\s|$)/gi, 'acabamento').replace(/\bar[\s.]*cond\.?(?=\s|$)/gi, 'ar-condicionado').replace(/^(ac|ar)(?=\s|$)/i, 'ar-condicionado')
+    .replace(/\bpega[\s-]+lad(r)?[aã]o\b/gi, 'pega-ladrão');
+  const ws = s.split(' ').filter(Boolean).map((w) => { const n = confNorm(w).replace(/[.,;:]+$/, ''); return CONF_VT_PALAVRA[n] || (/^[A-Z0-9]{2,4}$/.test(w) && !/^(OK)$/.test(w) ? w : w.toLowerCase()); });
+  const out = [];
+  ws.forEach((w, i) => { const n = confNorm(w), p = i ? confNorm(ws[i - 1]) : '';
+    if (i && CONF_VT_COMPL[n] && !CONF_VT_PREP[p]) out.push(CONF_VT_COMPL[n]);
+    out.push(w); });
+  s = out.join(' ');
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+/* chave para reconhecer o mesmo apontamento entre uma planilha e outra (sem do/da/por/com, sem acento) */
+function confChaveVist(t){ return confNorm(confTxtVistoria(t)).split(/[^a-z0-9]+/).filter((w) => w && (w === 'nao' || !CONF_VT_PREP[w])).join(' '); }
+/* junta os itens da planilha na lista do quarto: só ENTRA o que é novo; previsão nova só em item ainda aberto.
+   Nada que já foi baixado volta a abrir, e nada que está aberto no app é baixado pela planilha. */
+function confMesclarVistoria(lista, itens, op){
+  const usados = new Set(), r = { novos:[], prazos:[], divOk:[], appOk:[] };
+  (itens || []).forEach((v, i) => {
+    const k = confChaveVist(v.txt), ex = lista.find((a) => !usados.has(a) && confChaveVist(a.txt) === k);
+    if (ex){ usados.add(ex);
+      if (ex.st !== 'ok' && v.st === 'ok') r.divOk.push(ex);
+      else if (ex.st === 'ok' && v.st !== 'ok') r.appOk.push(ex);
+      if (ex.st !== 'ok' && v.prazo && v.prazo !== ex.prazo){ r.prazos.push({ ap: ex, de: ex.prazo || '', para: v.prazo }); ex.prazo = v.prazo; }
+      return; }
+    const n = { id: 'v' + (op.uid || Date.now().toString(36)) + '_' + i, txt: confTxtVistoria(v.txt), disc: confDiscDoTexto(v.txt), st: v.st === 'ok' ? 'ok' : 'aberto', prazo: v.prazo || '', origem:'campo', importadoEm: op.em, importadoPor: op.por };
+    lista.push(n); usados.add(n); r.novos.push(n);
+  });
+  return r;
+}
+/* lê a planilha (objeto do SheetJS) → { quartos: { '1301': { itens:[{txt, st, prazo}], lonado } }, ignorados:[...] } */
+function confLerVistoria(wb){
+  const quartos = {}, ignorados = new Set(), andaresOk = new Set((andaresConhecidos || []).map(Number));
+  const ymd = (d) => { const x = new Date(d.getTime() + 12 * 36e5), p = (n) => String(n).padStart(2, '0'); return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate()); };
+  const serial = (v) => { const d = new Date(Math.round((v - 25569) * 864e5)), p = (n) => String(n).padStart(2, '0'); return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()); };
+  const dataTxt = (s) => { const m = String(s).trim().match(/^(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?$/); if (!m) return ''; let y = m[3] ? Number(m[3]) : new Date().getFullYear(); if (y < 100) y += 2000;
+    const dd = Number(m[1]), mm = Number(m[2]); return dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12 ? y + '-' + String(mm).padStart(2, '0') + '-' + String(dd).padStart(2, '0') : ''; };
+  const ehData = (c) => { if (!c) return ''; if (c.t === 'd' && c.v) return ymd(c.v instanceof Date ? c.v : new Date(c.v));
+    if (c.t === 'n'){ let fmt = false; try{ fmt = !!(c.z && XLSX.SSF && XLSX.SSF.is_date(c.z)); }catch(e){} if (fmt || /^\d{1,2}[\/.-]\d{1,2}([\/.-]\d{2,4})?$/.test(String(c.w || '').trim())) return c.v > 30000 && c.v < 80000 ? serial(c.v) : ''; return ''; }
+    return c.t === 's' ? dataTxt(c.v) : ''; };
+  const quarto = (c) => { if (!c) return null; const s = String(c.t === 'n' ? c.v : c.v || '').trim(); if (!/^\d{3,4}$/.test(s)) return null; const q = Number(s), a = Math.floor(q / 100), n = q % 100;
+    return a >= 1 && n >= 1 && n <= 60 ? q : null; };
+  const col = (L) => L.split('').reduce((s, ch) => s * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+  (wb.SheetNames || []).forEach((nome) => { const ws = wb.Sheets[nome]; if (!ws) return;
+    const grade = {}; Object.keys(ws).forEach((k) => { const m = k.match(/^([A-Z]+)(\d+)$/); if (!m) return; const c = col(m[1]), r = Number(m[2]) - 1; (grade[c] = grade[c] || {})[r] = ws[k]; });
+    Object.keys(grade).map(Number).forEach((c) => {
+      let cur = null; const linhas = Object.keys(grade[c]).map(Number).sort((x, y) => x - y);
+      linhas.forEach((r) => { const cel = grade[c][r]; if (!cel || cel.v == null || cel.v === '') return;
+        const q = quarto(cel);
+        if (q){ if (!andaresOk.size || andaresOk.has(Math.floor(q / 100))){ cur = String(q); quartos[cur] = quartos[cur] || { itens:[], lonado:false }; } else { cur = null; ignorados.add(q); } return; }
+        if (!cur || cel.t !== 's') return;
+        const txt = String(cel.v).replace(/\s+/g, ' ').trim(), n = confNorm(txt);
+        if (!txt || /^(ok|\?+|item|itens|data( de)? resolucao|data|status|situacao|quarto|apto|obs\.?)$/.test(n) || ehData(cel)) return;
+        if (/^lonad/.test(n)){ quartos[cur].lonado = true; return; }
+        const st = (grade[c + 1] || {})[r], sv = st && st.t === 's' ? confNorm(st.v) : '', pz = ehData(st);
+        quartos[cur].itens.push({ txt: confTxtVistoria(txt), orig: txt, st: sv === 'ok' ? 'ok' : 'aberto', prazo: sv === 'ok' ? '' : pz });
+      });
+    });
+  });
+  return { quartos, ignorados: Array.from(ignorados).sort((x, y) => x - y) };
+}
 /* ---- leitura segura: distingue "não existe" de "não consegui ler" (sem sinal) ---- */
 async function confLerDoc(col, id){
   if (store.backend === 'cloud'){
@@ -13764,6 +13994,20 @@ async function confGravarModelo(mut){
   const w = await store.setDoc('config', 'conf_operacao_modelo', atual);
   if (w && w.ok === false){ avisoFlutuante('Não consegui salvar o checklist: ' + (w.erro || w.codigo || 'erro'), 'erro'); return false; }
   confModeloCfg = atual; ckRenderSeAtivo();
+  return true;
+}
+
+/* item que muda de disciplina em todos os andares ou num andar (doc "conf_operacao_mover") */
+async function confGravarMover(mut){
+  if (!(await garantirUsuario())) return false;
+  const r = await confLerDoc('config', 'conf_operacao_mover');
+  if (!r.ok){ avisoFlutuante('Sem sinal agora — a disciplina do item não foi alterada. Tente de novo.', 'erro'); return false; }
+  const atual = confNormMover(r.doc ? JSON.parse(JSON.stringify(r.doc)) : null); delete atual._id;
+  if (mut(atual) === false) return false;
+  Object.keys(atual.andares).forEach((k) => { if (!atual.andares[k] || !Object.keys(atual.andares[k]).length) delete atual.andares[k]; });
+  const w = await store.setDoc('config', 'conf_operacao_mover', atual);
+  if (w && w.ok === false){ avisoFlutuante('Não consegui salvar: ' + (w.erro || w.codigo || 'erro'), 'erro'); return false; }
+  confMoverCfg = atual; ckRenderSeAtivo();
   return true;
 }
 
@@ -13812,6 +14056,12 @@ function confAplicarOp(at, op, q){
     case 'fornRen': {                                 // fornecedor renomeado / juntado no painel
       const tr = (x) => { if (x && x.forn === op.de) x.forn = op.para; };
       Object.values(at.itens).forEach(tr); if (Array.isArray(at.apont)) at.apont.forEach(tr); break;
+    }
+    case 'vistImp': {                                 // planilha da vistoria de campo: só entra o que é novo
+      const lista = confApLista(at, q), r = confMesclarVistoria(lista, op.itens, op);
+      r.prazos.forEach((p) => reg(p.ap, 'prazo'));
+      at.vistoria = { em: op.em, por: op.por, arq: op.arq || '', novos: r.novos.length };
+      break;
     }
     case 'concluir': at.concluidoEm = op.em; at.concluidoPor = op.por; break;
     case 'reabrir': delete at.concluidoEm; delete at.concluidoPor; break;
@@ -14003,7 +14253,20 @@ function confFornDisc(disc, andar){
 }
 /* fornecedor de uma pendência: o do item, se alguém trocou; senão o da disciplina no andar */
 function confFornPend(disc, fornItem, andar){ return fornItem ? { nome: fornItem, origem:'item' } : confFornDisc(disc, andar); }
-function confFornOrigemTxt(f, andar){ return !f || !f.nome ? '' : f.origem === 'auto' ? 'pelo histórico' : f.origem === 'andar' ? 'só no ' + nomeAndar(andar) : f.origem === 'item' ? 'só neste item' : ''; }
+/* item do checklist com fornecedor próprio (chave "i:<id>" no mesmo doc dos fornecedores) */
+function confFornItemCfg(itemId, andar){
+  const c = confFornCfg || {}, k = 'i:' + itemId, a = String(Number(andar)), fa = c.andares && c.andares[a] && c.andares[a][k], fg = c.geral && c.geral[k];
+  return { andar: fa && fa.nome ? fa.nome : '', geral: fg && fg.nome ? fg.nome : '' };
+}
+/* ordem: o do item neste quarto → o do item no andar → o do item em todos os andares → o da disciplina */
+function confFornItem(itemId, disc, fornQuarto, andar){
+  if (fornQuarto) return { nome: fornQuarto, origem:'quarto' };
+  const f = confFornItemCfg(itemId, andar);
+  if (f.andar) return { nome: f.andar, origem:'itemAndar' };
+  if (f.geral) return { nome: f.geral, origem:'itemGeral' };
+  return confFornDisc(disc, andar);
+}
+function confFornOrigemTxt(f, andar){ return !f || !f.nome ? '' : f.origem === 'auto' ? 'pelo histórico' : (f.origem === 'andar' || f.origem === 'itemAndar') ? 'só no ' + nomeAndar(andar) : f.origem === 'item' ? 'só neste item' : f.origem === 'quarto' ? 'só neste quarto' : ''; }
 /* nomes para escolher: os do painel + os já usados no checklist */
 function confFornLista(){
   const s = new Set(); try{ listaFornecedoresConhecidos().forEach((n) => s.add(n)); }catch(e){}
@@ -14013,7 +14276,8 @@ function confFornLista(){
   return Array.from(s).map((n) => String(n).trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 /* fornecedor da disciplina: só administrador (vale para vários quartos de uma vez) */
-async function confGravarFornDisc(disc, andar, nome, escopo){
+async function confGravarFornDisc(disc, andar, nome, escopo, opt){
+  opt = opt || {};
   if (!exigirAdmin()) return false;
   if (!(await garantirUsuario())) return false;
   const r = await confLerDoc('config', 'conf_operacao_fornecedores');
@@ -14031,7 +14295,8 @@ async function confGravarFornDisc(disc, andar, nome, escopo){
   const w = await store.setDoc('config', 'conf_operacao_fornecedores', c);
   if (w && w.ok === false){ avisoFlutuante('Não consegui salvar o fornecedor: ' + (w.erro || w.codigo || 'erro'), 'erro'); return false; }
   confFornCfg = c; ckRenderSeAtivo();
-  const dn = confNomeDisc(disc), onde = escopo === 'geral' ? 'todos os andares' : 'o ' + nomeAndarLongo(andar);
+  if (opt.silencioso) return true;
+  const dn = opt.rotulo || confNomeDisc(disc), onde = escopo === 'geral' ? 'todos os andares' : 'o ' + nomeAndarLongo(andar);
   avisoFlutuante(nome ? dn + ': ' + nome + ' (vale para ' + onde + ')' : dn + ': volta ao automático em ' + onde, 'ok');
   return true;
 }
@@ -14053,7 +14318,7 @@ async function confRenomearFornecedor(antigo, novo){
    Mesmo padrão das abas Quartos e Itens: filtros em lista (andar, quarto, situação, data,
    disciplina), tabela de quartos agrupada por andar e, ao tocar no quarto, o checklist dele. */
 let ck = { andar:'', quarto:null, sit:'', data:'', disc:'', forn:'', discQ:'', ver:'quartos', filtro:'tudo', okAberto:null, add:null, editar:false, recolhidas:{}, gruposFechados:{},
-  fornEd:null, fornVal:null, catEd:null, catVal:null, catIni:null };
+  fornEd:null, fornVal:null, catEd:null, catVal:null, catIni:null, imp:null };
 try{ const s = JSON.parse(localStorage.getItem('ck_estado2' + CONF_SUFIXO) || '{}');
   ['andar', 'sit', 'data', 'disc', 'forn', 'filtro'].forEach((k) => { if (typeof s[k] === 'string') ck[k] = s[k]; });
   ck.quarto = s.quarto ? String(s.quarto) : null; ck.ver = s.ver === 'pend' ? 'pend' : 'quartos'; }catch(e){}
@@ -14090,11 +14355,13 @@ function ckUltimo(q, d){
 function ckAbertosDoQuarto(q, e){
   const its = ((e && e.doc) || {}).itens || {}, out = [], a = ckAndarDe(q);
   confApont(q).forEach((ap) => { if (ap.st === 'ok') return; const dsc = ap.disc || 'outros';
-    out.push({ q, disc: dsc, discNome: confNomeDisc(dsc), forn: confFornPend(dsc, ap.forn, a), alvo:{ k:'ap', id: ap.id }, txt: ap.txt, obs:'', fotos: ap.fotos || [], meta: confQuemAp(ap) }); });
-  confModelo().forEach((dc) => dc.itens.forEach((it) => { const x = its[it.id]; if (!x || x.r !== 'nok' || x.corrigidoEm) return; const dsc = x.disc || dc.id;
-    out.push({ q, disc: dsc, discNome: confNomeDisc(dsc), forn: confFornPend(dsc, x.forn, a), alvo:{ k:'item', id: it.id }, txt: it.txt, obs: x.obs || '', fotos: x.fotos || [], meta: 'Não OK · ' + (x.nokPor || x.por || '—') + ' · ' + confDataHora(x.nokEm || x.em) }); }));
+    out.push({ q, disc: dsc, discNome: confNomeDisc(dsc), forn: confFornPend(dsc, ap.forn, a), alvo:{ k:'ap', id: ap.id }, txt: ap.txt, obs:'', fotos: ap.fotos || [], meta: confQuemAp(ap) + ckPrazoAp(ap) }); });
+  confModeloQuarto(a, its).forEach((dc) => dc.itens.forEach((it) => { const x = its[it.id]; if (!x || x.r !== 'nok' || x.corrigidoEm) return; const dsc = dc.id;
+    out.push({ q, disc: dsc, discNome: confNomeDisc(dsc), forn: confFornItem(it.id, dsc, x.forn, a), alvo:{ k:'item', id: it.id }, txt: it.txt, obs: x.obs || '', fotos: x.fotos || [], meta: 'Não OK · ' + (x.nokPor || x.por || '—') + ' · ' + confDataHora(x.nokEm || x.em) }); }));
   return out;
 }
+/* previsão de resolução do apontamento (coluna "Data Resolução" da planilha) */
+function ckPrazoAp(ap){ if (!ap || ap.st === 'ok' || !ap.prazo) return ''; return ' · previsão ' + confDataCurta(ap.prazo) + (ap.prazo < confHoje() ? ' (vencida)' : ''); }
 function ckPassaForn(p){ return !ck.forn || (ck.forn === '__sem__' ? !p.forn.nome : p.forn.nome === ck.forn); }
 /* fornecedores com pendência em aberto (no andar escolhido, ou na obra) */
 function ckFornsComAbertos(andares){
@@ -14152,7 +14419,8 @@ function ckToolbar(andares, modoQuarto){
       (fa.sem || ck.forn === '__sem__' ? ckOpt('__sem__', 'Sem fornecedor · ' + fa.sem, ck.forn) : '') + '</select>';
     h += '<select id="ck-f-ver" aria-label="Mostrar">' + ckOpt('quartos', 'Ver: quartos', ck.ver) + ckOpt('pend', 'Ver: pendências', ck.ver) + '</select>';
     h += '<button type="button" class="btn fantasma" data-ck-limpar="1">Limpar filtros</button>' +
-      '<button type="button" class="btn fantasma" data-ck-pdf="pend">PDF pendências</button><button type="button" class="btn fantasma" data-ck-pdf="todo" title="PDF do checklist completo dos quartos filtrados">PDF completo</button>';
+      '<button type="button" class="btn fantasma" data-ck-pdf="pend">PDF pendências</button><button type="button" class="btn fantasma" data-ck-pdf="todo" title="PDF do checklist completo dos quartos filtrados">PDF completo</button>' +
+      (ehAdminAtual() ? '<label class="btn fantasma ck-imp-bt" title="Planilha da vistoria de campo (Excel): só entra o que é novo">Importar vistoria<input type="file" id="ck-imp-arq" class="ck-file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>' : '');
   }
   return h + '</div>';
 }
@@ -14193,7 +14461,7 @@ function ckTelaLista(andares){
   const partes = [['<b>' + linhas.length + '</b> quarto' + (linhas.length === 1 ? '' : 's'), 1], ['<b>' + n((l) => l.e.concl) + '</b> conferidos', 1], ['<b>' + n((l) => l.e.k === 'and') + '</b> em andamento', n((l) => l.e.k === 'and')],
     ['<b>' + n((l) => l.e.k === 'novo') + '</b> a conferir', n((l) => l.e.k === 'novo')], ['<b>' + n((l) => l.e.k === 'ent') + '</b> sem conferência', n((l) => l.e.k === 'ent')],
     ['<b>' + nAb + '</b> ' + (ck.disc || ck.forn ? 'de ' + esc([ck.disc ? confNomeDisc(ck.disc) : '', ck.forn ? ckFornRot(ck.forn) : ''].filter(Boolean).join(' · ')) + ' ' : '') + 'em aberto', 1], ['<b class="ck-atras-n">' + n((l) => l.e.atrasado) + '</b> atrasados', n((l) => l.e.atrasado)]];
-  let h = '<div class="ck-resumo"><div class="resumo-filtro">' + partes.filter((p) => p[1]).map((p) => p[0]).join(' · ') + '</div><div id="ck-sinal">' + ckSinalHtml() + '</div></div>';
+  let h = (ck.imp ? ckImpHtml() : '') + '<div class="ck-resumo"><div class="resumo-filtro">' + partes.filter((p) => p[1]).map((p) => p[0]).join(' · ') + '</div><div id="ck-sinal">' + ckSinalHtml() + '</div></div>';
   if (!linhas.length) return h + '<div class="card"><div class="vazio">Nenhum quarto com esses filtros.</div></div>';
   if (ck.ver === 'pend') return h + ckTabelaPendencias(linhas);
   const porAndar = new Map(); linhas.forEach((l) => { if (!porAndar.has(l.a)) porAndar.set(l.a, []); porAndar.get(l.a).push(l); });
@@ -14271,26 +14539,163 @@ function ckFornDisc(dc, a, adm){
   return '<div class="ck-disc-forn">' + (f.nome ? '<span>Fornecedor <b>' + esc(f.nome) + '</b>' + (tag ? ' <i>' + esc(tag) + '</i>' : '') + '</span>' : '<span class="ck-fraco">Fornecedor não definido</span>') +
     (adm ? '<button type="button" class="ck-link" data-ck-forn-disc="' + esc(dc.id) + '">' + (f.nome ? 'trocar' : 'definir') + '</button>' : '') + '</div>';
 }
-/* dentro do item em aberto: de quem é (disciplina/fornecedor) + editar só este item */
-function ckCatHtml(alvo, discModelo, discEf, fornItem, a){
-  const chave = alvo.k + ':' + alvo.id;
-  if (ck.catEd === chave){
-    const v = ck.catVal || {}, fd = confFornDisc(v.disc || discEf, a);
-    return '<div class="ck-cat-ed"><div class="ck-cat-campos">' +
-      '<label><span>Disciplina</span><select id="ck-cat-disc">' + ckDiscsComAbertos().map((d) => ckOpt(d.id, d.nome, v.disc)).join('') + '</select></label>' +
-      '<label><span>Fornecedor</span><select id="ck-cat-forn">' + ckFornOpcoes(v.forn || '', fd.nome ? 'O da disciplina: ' + fd.nome : 'O da disciplina (sem fornecedor)') + '</select></label></div>' +
-      (v.forn === '__novo__' ? '<input type="text" id="ck-cat-novo" maxlength="80" placeholder="Nome do novo fornecedor" value="' + esc(v.novo || '') + '">' : '') +
-      '<div class="ck-forn-bts"><button type="button" class="btn primario" data-ck-cat-salvar="' + esc(chave) + '" data-ck-cat-dm="' + esc(discModelo || '') + '">Salvar</button><button type="button" class="btn fantasma" data-ck-cat-cancelar="1">Cancelar</button><span class="ck-dica">vale só para este item</span></div></div>';
+/* ---- editar disciplina e fornecedor de um item (o lápis ao lado de cada item) ----
+   Item do checklist: vale só para este quarto, só para o andar ou para todos os andares (os dois últimos, administrador).
+   Apontamento da vistoria: vale só para ele. Disciplina nova é criada na hora. */
+const CK_ICO_ED = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function ckEdBt(chave){ return '<button type="button" class="ck-ed-bt' + (ck.catEd === chave ? ' sel' : '') + '" data-ck-cat="' + esc(chave) + '" title="Editar disciplina e fornecedor" aria-label="Editar disciplina e fornecedor">' + CK_ICO_ED + '</button>'; }
+/* item do checklist + o que vale em cada nível (quarto / andar / todos os andares) */
+function ckCtxDe(it, card, x, a, q){
+  const fi = confFornItemCfg(it.id, a); x = x || {};
+  return { k:'item', id: it.id, it, card, x, a, q, fi,
+    discEf: { quarto: card, andar: it.discA, geral: it.discG }, fornExp: { quarto: x.forn || '', andar: fi.andar, geral: fi.geral } };
+}
+function ckCtxItem(q, a, chave){
+  if (!chave || chave.indexOf(':') < 1) return null;
+  const i = chave.indexOf(':'), k = chave.slice(0, i), id = chave.slice(i + 1), d = confDocVisivel(q) || {}, its = d.itens || {};
+  if (k === 'ap'){ const ap = confApont(q).find((y) => y.id === id); return ap ? { k, id, ap, a, q } : null; }
+  let ctx = null;
+  confModeloQuarto(a, its).some((dc) => { const it = dc.itens.find((y) => y.id === id); if (it) ctx = ckCtxDe(it, dc.id, its[id], a, q); return !!it; });
+  return ctx;
+}
+/* valor de partida do editor no nível escolhido */
+function ckValIni(ctx, nivel){ return ctx.k === 'ap' ? { disc: ctx.ap.disc || 'outros', forn: ctx.ap.forn || '' } : { disc: ctx.discEf[nivel] || ctx.card, forn: ctx.fornExp[nivel] || '' }; }
+/* o fornecedor que o item herda no nível escolhido (1ª opção da lista) */
+function ckFornHerdado(ctx, nivel, disc){
+  const fd = confFornDisc(disc, ctx.a).nome;
+  if (ctx.k === 'ap') return { nome: fd, item: false };
+  const n = nivel === 'quarto' ? (ctx.fi.andar || ctx.fi.geral) : nivel === 'andar' ? ctx.fi.geral : '';
+  return n ? { nome: n, item: true } : { nome: fd, item: false };
+}
+function ckEdItemHtml(ctx, adm){
+  const v = ck.catVal || {}, nivel = ctx.k === 'ap' ? 'quarto' : (v.escopo || 'quarto'), chave = ctx.k + ':' + ctx.id;
+  const discs = confModelo().map((d) => ({ id: d.id, nome: d.nome })).concat(ctx.k === 'ap' ? [{ id:'outros', nome:'Outros' }] : []);
+  const dBase = v.disc && v.disc !== '__nova__' ? v.disc : ckValIni(ctx, nivel).disc, her = ckFornHerdado(ctx, nivel, dBase);
+  const prim = her.nome ? (her.item ? 'Padrão do item: ' : 'O da disciplina: ') + her.nome : 'O da disciplina (sem fornecedor)';
+  let h = '<div class="ck-cat-ed"><div class="ck-cat-campos">' +
+    '<label><span>Disciplina</span><select id="ck-cat-disc">' + discs.map((d) => ckOpt(d.id, d.nome, v.disc)).join('') + ckOpt('__nova__', '+ Nova disciplina…', v.disc) + '</select></label>' +
+    '<label><span>Fornecedor</span><select id="ck-cat-forn">' + ckFornOpcoes(v.forn || '', prim) + '</select></label></div>';
+  if (v.disc === '__nova__') h += '<input type="text" id="ck-cat-novadisc" maxlength="60" placeholder="Nome da nova disciplina" value="' + esc(v.novaDisc || '') + '">';
+  if (v.forn === '__novo__') h += '<input type="text" id="ck-cat-novo" maxlength="80" placeholder="Nome do novo fornecedor" value="' + esc(v.novo || '') + '">';
+  if (ctx.k === 'item' && adm) h += '<div class="ck-forn-esc"><span>Vale para</span>' + [['quarto', 'só este quarto'], ['andar', 'só o ' + nomeAndar(ctx.a) + ' andar'], ['geral', 'todos os andares']].map(([k, t]) =>
+    '<label><input type="radio" name="ck-cat-esc" value="' + k + '"' + (nivel === k ? ' checked' : '') + '> ' + esc(t) + '</label>').join('') + '</div>';
+  h += '<div class="ck-forn-bts"><button type="button" class="btn primario" data-ck-cat-salvar="' + esc(chave) + '">Salvar</button><button type="button" class="btn fantasma" data-ck-cat-cancelar="1">Cancelar</button>' +
+    (ctx.k === 'ap' ? '<span class="ck-dica">vale só para este apontamento</span>' : !adm ? '<span class="ck-dica">vale só para este quarto</span>' : '') + '</div></div>';
+  return h;
+}
+/* o que o item tem de próprio: fornecedor diferente do da disciplina, disciplina trocada */
+function ckItemTags(ctx){
+  const out = [];
+  if (ctx.k === 'ap'){ if (ctx.ap.forn) out.push('Fornecedor <b>' + esc(ctx.ap.forn) + '</b>'); }
+  else {
+    const f = confFornItem(ctx.id, ctx.card, ctx.x.forn, ctx.a), tags = [];
+    if (f.origem === 'quarto' || f.origem === 'itemAndar' || f.origem === 'itemGeral'){ out.push('Fornecedor <b>' + esc(f.nome) + '</b>'); tags.push(confFornOrigemTxt(f, ctx.a)); }
+    if (ctx.card !== ctx.it.discOrig){ out.push('antes em ' + esc(confNomeDisc(ctx.it.discOrig))); tags.push(ctx.it.soQuarto ? 'só neste quarto' : ctx.it.discA !== ctx.it.discG ? 'só no ' + nomeAndar(ctx.a) : ''); }
+    // o "só neste quarto" aparece uma vez só quando vale para as duas coisas
+    if (out.length === 2 && tags[0] === tags[1]){ if (tags[0]) out[1] += ' <i>' + esc(tags[0]) + '</i>'; }
+    else out.forEach((o, i) => { if (tags[i]) out[i] += ' <i>' + esc(tags[i]) + '</i>'; });
   }
-  const f = confFornPend(discEf, fornItem, a), mudou = alvo.k === 'item' && discEf !== discModelo;
-  return '<div class="ck-cat">' + (mudou ? '<span>Pendência de <b>' + esc(confNomeDisc(discEf)) + '</b></span>' : '') +
-    (f.nome ? '<span>Fornecedor <b>' + esc(f.nome) + '</b>' + (f.origem === 'item' ? ' <i>só neste item</i>' : '') + '</span>' : '<span class="ck-fraco">Sem fornecedor</span>') +
-    '<button type="button" class="ck-link" data-ck-cat="' + esc(chave) + '" data-ck-cat-dm="' + esc(discModelo || '') + '">editar</button></div>';
+  return out.length ? '<div class="ck-it-tags">' + out.join('<span class="ck-sep">·</span>') + '</div>' : '';
+}
+async function ckSalvarItem(b, q, a){
+  const ctx = ckCtxItem(q, a, b.dataset.ckCatSalvar); if (!ctx){ ck.catEd = null; ck.catVal = null; ckRender(); return; }
+  const v = ck.catVal || {}, nivel = ctx.k === 'ap' ? 'quarto' : (v.escopo || 'quarto');
+  if (nivel !== 'quarto' && !exigirAdmin()) return;
+  let disc = v.disc || ckValIni(ctx, nivel).disc, forn = v.forn || '';
+  if (forn === '__novo__'){ const inp = document.getElementById('ck-cat-novo'), dig = ((inp && inp.value) || v.novo || '').trim(); if (!dig){ if (inp) inp.focus(); return; }
+    forn = await resolverNomeSemelhante(dig, confFornLista(), 'fornecedor'); if (!forn) return; }
+  if (disc === '__nova__'){
+    const inp = document.getElementById('ck-cat-novadisc'), nome = ((inp && inp.value) || v.novaDisc || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (!nome){ if (inp) inp.focus(); return; }
+    const ja = confModelo().find((x) => confNorm(x.nome) === confNorm(nome));
+    if (ja) disc = ja.id;
+    else { const id = 'u' + Date.now().toString(36); b.disabled = true;
+      // criada a partir de um item: só aparece nos quartos onde tiver item (a não ser que valha para todos os andares)
+      const ok = await confGravarModelo((m) => { m.discs.push(Object.assign({ id, nome, por: usuarioAtual, em: new Date().toISOString() }, nivel === 'geral' ? {} : { deItem: true })); });
+      if (!ok){ b.disabled = false; return; }
+      disc = id; avisoFlutuante('Disciplina "' + nome + '" criada.', 'ok'); }
+  }
+  const ini = ckValIni(ctx, nivel), mDisc = !!disc && disc !== ini.disc, mForn = forn !== (ini.forn || '');
+  ck.catEd = null; ck.catVal = null; ck.catIni = null;
+  if (!mDisc && !mForn){ ckRender(); return; }
+  if (ctx.k === 'ap' || nivel === 'quarto'){
+    const op = { t:'cat', alvo:{ k: ctx.k, id: ctx.id } }; if (ctx.k === 'item') op.discModelo = ctx.it.discA;
+    if (mDisc) op.disc = disc; if (mForn) op.forn = forn;
+    confAcao(q, a, op); return; }
+  // andar ou todos os andares (administrador): vale para vários quartos de uma vez
+  if (nivel === 'geral'){
+    const outros = new Set(), mvA = (confMoverCfg && confMoverCfg.andares) || {}, fA = (confFornCfg && confFornCfg.andares) || {};
+    if (mDisc) Object.keys(mvA).forEach((k) => { const r = mvA[k] && mvA[k][ctx.id]; if (r && r.disc !== disc) outros.add(Number(k)); });
+    if (mForn) Object.keys(fA).forEach((k) => { const r = fA[k] && fA[k]['i:' + ctx.id]; if (r && r.nome !== forn) outros.add(Number(k)); });
+    const ls = Array.from(outros).sort((x, y) => x - y);
+    if (ls.length && !window.confirm('Vai valer para todos os andares, inclusive ' + ls.map((k) => nomeAndar(k)).join(', ') + ', que estava' + (ls.length > 1 ? 'm' : '') + ' diferente' + (ls.length > 1 ? 's' : '') + '. Confirmar?')){ ckRender(); return; }
+  }
+  b.disabled = true;
+  let ok = true;
+  if (mDisc) ok = await confGravarMover((m) => { const reg = { disc, por: usuarioAtual, em: new Date().toISOString() };
+    if (nivel === 'geral'){ if (disc === ctx.it.discOrig) delete m.geral[ctx.id]; else m.geral[ctx.id] = reg; Object.keys(m.andares).forEach((k) => { if (m.andares[k]) delete m.andares[k][ctx.id]; }); }
+    else { const k = String(Number(a)), ma = m.andares[k] = m.andares[k] || {}; if (disc === ctx.it.discG) delete ma[ctx.id]; else ma[ctx.id] = reg; } });
+  if (ok && mForn) ok = await confGravarFornDisc('i:' + ctx.id, a, forn, nivel, { silencioso: true });
+  if (!ok){ ckRender(); return; }
+  // este quarto tinha troca própria nesse campo: passa a seguir o que acabou de ser salvo
+  if ((mDisc && ctx.x.disc) || (mForn && ctx.x.forn)){ const op = { t:'cat', alvo:{ k:'item', id: ctx.id }, discModelo:'' }; if (mDisc && ctx.x.disc) op.disc = ''; if (mForn && ctx.x.forn) op.forn = ''; confAcao(q, a, op, true); }
+  avisoFlutuante('"' + ctx.it.txt + '": ' + [mDisc ? confNomeDisc(disc) : '', mForn ? (forn ? 'fornecedor ' + forn : 'fornecedor da disciplina') : ''].filter(Boolean).join(' · ') +
+    ' (vale para ' + (nivel === 'geral' ? 'todos os andares' : 'o ' + nomeAndarLongo(a)) + ')', 'ok');
+  ckRender();
+}
+
+/* ---- importar a planilha da vistoria de campo (administrador): prévia → confirmar ---- */
+async function ckImpLer(arq){
+  if (!exigirAdmin()) return;
+  if (typeof XLSX === 'undefined'){ avisoFlutuante('A leitura de Excel não carregou. Recarregue a página.', 'erro'); return; }
+  let wb; try{ wb = XLSX.read(new Uint8Array(await arq.arrayBuffer()), { type:'array', cellDates:true }); }catch(e){ avisoFlutuante('Não consegui ler o arquivo: ' + (e.message || e), 'erro'); return; }
+  const lido = confLerVistoria(wb), qs = Object.keys(lido.quartos).sort((x, y) => x - y);
+  if (!qs.length){ avisoFlutuante('Não achei quartos nesta planilha (o número do quarto em cima e os itens embaixo).', 'erro'); return; }
+  const em = new Date().toISOString();
+  const quartos = qs.map((q) => { const a = ckAndarDe(q), d = confDocVisivel(q), lista = JSON.parse(JSON.stringify(d && Array.isArray(d.apont) ? d.apont : confApontSeed(q)));
+    const info = lido.quartos[q], r = confMesclarVistoria(lista, info.itens, { uid:'previa', em, por: usuarioAtual });
+    return { q: Number(q), a, itens: info.itens, lonado: info.lonado, r, naLista: confQuartosDoAndar(a).indexOf(Number(q)) !== -1 }; });
+  ck.imp = { arq: arq.name || 'planilha', quartos, ignorados: lido.ignorados };
+  ck.quarto = null; ckSalvarEstado(); ckRender(); ckRolarTopo();
+}
+function ckImpHtml(){
+  const I = ck.imp, qs = I.quartos, soma = (xs, f) => xs.reduce((s, x) => s + f(x), 0);
+  const nNovos = soma(qs, (x) => x.r.novos.length), nPz = soma(qs, (x) => x.r.prazos.length);
+  const andares = Array.from(new Set(qs.map((x) => x.a))).sort((x, y) => y - x);
+  let h = '<div class="card card-pad ck-imp"><div class="ck-imp-cab"><b>Importar vistoria de campo</b><span>' + esc(I.arq) + ' · ' + qs.length + ' quartos lidos</span></div>' +
+    '<div class="ck-imp-tab-w"><table class="ck-imp-tab"><thead><tr><th>Andar</th><th class="num-col">Quartos</th><th class="num-col">Itens novos</th><th class="num-col">Já no app</th><th class="num-col">Previsão nova</th></tr></thead><tbody>' +
+    andares.map((a) => { const xs = qs.filter((x) => x.a === a), nv = soma(xs, (x) => x.r.novos.length), ja = soma(xs, (x) => x.itens.length - x.r.novos.length), pz = soma(xs, (x) => x.r.prazos.length);
+      return '<tr><td>' + esc(nomeAndar(a)) + '</td><td class="num-col">' + xs.length + '</td><td class="num-col' + (nv ? ' ck-imp-n' : ' ck-fraco') + '">' + (nv || '—') + '</td>' +
+        '<td class="num-col ck-fraco">' + (ja || '—') + '</td><td class="num-col' + (pz ? '' : ' ck-fraco') + '">' + (pz || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  if (nNovos) h += '<details class="ck-imp-det"><summary>Ver os ' + nNovos + ' itens novos</summary><div class="ck-imp-lista">' + qs.filter((x) => x.r.novos.length).map((x) => '<div class="ck-imp-q"><b>' + x.q + '</b><span>' +
+    x.r.novos.map((n) => esc(n.txt) + ' <i>' + esc(confNomeDisc(n.disc)) + ' · ' + (n.st === 'ok' ? 'OK' : n.prazo ? 'previsão ' + confDataCurta(n.prazo) : 'sem previsão') + '</i>').join('<br>') + '</span></div>').join('') + '</div></details>';
+  const pzs = qs.flatMap((x) => x.r.prazos.map((p) => x.q + ' ' + p.ap.txt + ' (' + (p.de ? confDataCurta(p.de) + ' → ' : '') + confDataCurta(p.para) + ')'));
+  const div = qs.flatMap((x) => x.r.divOk.map((ap) => x.q + ' ' + ap.txt)), appOk = qs.flatMap((x) => x.r.appOk.map((ap) => x.q + ' ' + ap.txt));
+  const nota = (t, l) => l.length ? '<div class="ck-imp-nota"><b>' + t + '</b> ' + esc(l.join(' · ')) + '</div>' : '';
+  h += nota('Previsão nova:', pzs) + nota('A planilha marca OK, mas no app está em aberto (baixe no app, se for o caso):', div) + nota('Baixados no app e em aberto na planilha (continuam baixados):', appOk) +
+    nota('Lonados, sem vistoria:', qs.filter((x) => x.lonado).map((x) => String(x.q))) + nota('Quartos que ainda não estavam na lista:', qs.filter((x) => !x.naLista).map((x) => String(x.q))) +
+    nota('Ignorados (andar fora da obra):', (I.ignorados || []).map(String));
+  const tem = nNovos + nPz;
+  h += '<div class="ck-forn-bts">' + (tem ? '<button type="button" class="btn primario" data-ck-imp-ok="1">' + (nNovos ? 'Importar ' + nNovos + (nNovos > 1 ? ' itens novos' : ' item novo') : 'Atualizar ' + nPz + (nPz > 1 ? ' previsões' : ' previsão')) + '</button>' : '<span class="ck-dica">Nada novo nesta planilha.</span>') +
+    '<button type="button" class="btn fantasma" data-ck-imp-cancelar="1">' + (tem ? 'Cancelar' : 'Fechar') + '</button>' + (tem ? '<span class="ck-dica">Só entra o que é novo. O que já foi baixado no app não muda.</span>' : '') + '</div></div>';
+  return h;
+}
+async function ckImpConfirmar(b){
+  if (!ck.imp || !exigirAdmin()) return;
+  if (!(await garantirUsuario())) return;
+  const I = ck.imp, em = new Date().toISOString(); let n = 0, nq = 0;
+  if (b) b.disabled = true;
+  I.quartos.forEach((x) => { if (!x.r.novos.length && !x.r.prazos.length) return; n += x.r.novos.length; nq++;
+    confFila.push({ q: String(x.q), andar: x.a, por: usuarioAtual || '', em, uid: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), t:'vistImp',
+      itens: x.itens.map((i) => ({ txt: i.txt, st: i.st, prazo: i.prazo })), arq: I.arq }); });
+  confSalvarFila(); ck.imp = null; ckRender();
+  avisoFlutuante(n ? 'Vistoria importada: ' + n + (n > 1 ? ' itens novos' : ' item novo') + ' em ' + nq + (nq > 1 ? ' quartos' : ' quarto') + '.' : 'Previsões atualizadas.', 'ok');
+  confProcessarFila();
 }
 
 /* ---- checklist de um quarto ---- */
 function ckTelaQuarto(){
-  const q = String(ck.quarto), a = ckAndarDe(q), e = confEstado(a, q), d = e.doc || {}, its = d.itens || {}, mod = confModelo(), ap = confApont(q), adm = ehAdminAtual();
+  const q = String(ck.quarto), a = ckAndarDe(q), e = confEstado(a, q), d = e.doc || {}, its = d.itens || {}, mod = confModeloQuarto(a, its), ap = confApont(q), adm = ehAdminAtual();
   const lista = confQuartosDoAndar(a), i = lista.indexOf(Number(q)), ant = i > 0 ? lista[i - 1] : null, prox = i >= 0 && i < lista.length - 1 ? lista[i + 1] : null;
   const fil = ck.filtro, quem = (n) => String(n || '—');
   const mostra = (x) => { x = x || {};
@@ -14309,22 +14714,24 @@ function ckTelaQuarto(){
   const apVis = ap.filter((x) => (!ck.discQ || x.disc === ck.discQ) && (fil === 'tudo' || (fil === 'nok' && x.st !== 'ok') || (fil === 'aprov' && x.st === 'ok' && x.resolvidoEm) || (fil === 'foto' && (x.fotos || []).length)));
   let nVis = apVis.length;
   if (apVis.length){
-    h += '<div class="card ck-disc"><div class="ck-disc-cab"><span class="ck-disc-t estatico"><b>Apontamentos da vistoria</b><span>' + (e.apAb ? e.apAb + ' em aberto de ' + ap.length : 'todos resolvidos') + '</span></span></div>' +
+    h += '<div class="card ck-disc"><div class="ck-disc-cab"><span class="ck-disc-t estatico"><b>Apontamentos da vistoria</b><span>' + (e.apAb ? e.apAb + ' em aberto de ' + ap.length : 'todos resolvidos') + (d.vistoria && d.vistoria.em ? ' · planilha importada em ' + esc(confDataCurta(d.vistoria.em)) : '') + '</span></span></div>' +
       apVis.map((x) => { const ab = x.st !== 'ok', alvo = { k:'ap', id: x.id }, fotos = x.fotos || [], antes = fotos.filter((f) => f.fase !== 'depois'), depois = fotos.filter((f) => f.fase === 'depois');
         let pn;
-        if (ab) pn = '<div class="ck-pn nok">' + ckCatHtml(alvo, '', x.disc || 'outros', x.forn, a) + '<div class="ck-fotos">' + ckFotosHtml(antes, alvo, true) + ckBotaoFoto(alvo, 'nok', antes.length ? 'Mais foto' : 'Foto') + '</div>' +
+        if (ab) pn = '<div class="ck-pn nok"><div class="ck-fotos">' + ckFotosHtml(antes, alvo, true) + ckBotaoFoto(alvo, 'nok', antes.length ? 'Mais foto' : 'Foto') + '</div>' +
           '<div class="ck-aprovar-linha"><button type="button" class="ck-aprovar" data-ck-ap-aprovar="' + esc(x.id) + '" data-ck-q="' + esc(q) + '">✓ Aprovar</button><span class="ck-dica">quando estiver resolvido</span></div></div>';
         else if (x.resolvidoEm) pn = '<div class="ck-pn ok"><div class="ck-aprovado">✓ ' + esc(confQuemAp(x)) + ' <button type="button" class="ck-link" data-ck-ap-reabrir="' + esc(x.id) + '">não OK de novo</button></div>' +
           (antes.length ? '<div class="ck-fotos">' + ckFotosHtml(antes, alvo, true) + '</div>' : '') +
           '<div class="ck-pn-msg">Quer pôr uma foto do depois? <b>É opcional</b> — não precisa de foto.</div><div class="ck-fotos">' + ckFotosHtml(depois, alvo, true) + ckBotaoFoto(alvo, 'depois', depois.length ? 'Mais foto' : 'Foto do depois') + '</div></div>';
         else pn = fotos.length ? '<div class="ck-fotos">' + ckFotosHtml(fotos, alvo, true) + '</div>' : '';
-        return '<div class="ck-item ' + (ab ? 'r-nok' : 'r-ok') + '"><div class="ck-item-l"><div class="ck-item-t"><small class="ck-apdisc">' + esc(confNomeDisc(x.disc)) + '</small>' + esc(x.txt) + '</div>' +
-          '<div class="ck-meta">' + esc(ab ? confQuemAp(x) || 'em aberto' : x.resolvidoEm ? 'Apontado na vistoria de campo' : 'OK na vistoria de campo') + '</div></div>' +
-          '<span class="badge ' + (ab ? (e.vencido ? 'ck-b-atras' : 'ck-b-pend') : 'ck-b-ok') + ' ck-ap-st">' + (ab ? (e.vencido ? 'Atrasado' : 'Em aberto') : x.resolvidoEm ? 'Aprovado' : 'OK') + '</span>' + pn + '</div>'; }).join('') + '</div>';
+        const ctxA = { k:'ap', id: x.id, ap: x, a, q }, chA = 'ap:' + x.id;
+        return '<div class="ck-item ' + (ab ? 'r-nok' : 'r-ok') + '"><div class="ck-item-l"><div class="ck-item-t"><small class="ck-apdisc">' + esc(confNomeDisc(x.disc)) + '</small>' + esc(x.txt) + ckEdBt(chA) + '</div>' + ckItemTags(ctxA) +
+          '<div class="ck-meta">' + esc(ab ? (confQuemAp(x) || 'em aberto') + ckPrazoAp(x) : x.resolvidoEm ? 'Apontado na vistoria de campo' : 'OK na vistoria de campo') + '</div></div>' +
+          '<span class="badge ' + (ab ? (e.vencido ? 'ck-b-atras' : 'ck-b-pend') : 'ck-b-ok') + ' ck-ap-st">' + (ab ? (e.vencido ? 'Atrasado' : 'Em aberto') : x.resolvidoEm ? 'Aprovado' : 'OK') + '</span>' + (ck.catEd === chA ? ckEdItemHtml(ctxA, adm) : '') + pn + '</div>'; }).join('') + '</div>';
   }
   // checklist por disciplina
   mod.forEach((dc) => {
     if (ck.discQ && dc.id !== ck.discQ) return;
+    if (dc.deItem && !dc.itens.length && ck.add !== dc.id) return;   // disciplina criada a partir de um item: só onde tem item
     const n = dc.itens.filter((it) => its[it.id] && its[it.id].r).length, faltam = dc.itens.length - n, nNok = dc.itens.filter((it) => its[it.id] && its[it.id].r === 'nok' && !its[it.id].corrigidoEm).length;
     const vis = dc.itens.filter((it) => mostra(its[it.id]));
     if (fil !== 'tudo' && !vis.length) return;
@@ -14341,7 +14748,6 @@ function ckTelaQuarto(){
         else if (r === 'na') meta = 'N/A · ' + quem(x.por) + ' · ' + confDataHora(x.em);
         else if (r === 'nok') meta = 'Não OK · ' + quem(x.nokPor || x.por) + ' · ' + confDataHora(x.nokEm || x.em) + (aprov ? '  →  Aprovado · ' + quem(x.corrigidoPor) + ' · ' + confDataHora(x.corrigidoEm) : '');
         if (r === 'nok' && !aprov) pn = '<div class="ck-pn nok"><input type="text" class="ck-obs" data-ck-obs="' + esc(it.id) + '" maxlength="240" placeholder="O que está errado?" value="' + esc(x.obs || '') + '">' +
-          ckCatHtml(alvo, dc.id, x.disc || dc.id, x.forn, a) +
           '<div class="ck-fotos">' + ckFotosHtml(antes, alvo, true) + ckBotaoFoto(alvo, 'nok', antes.length ? 'Mais foto' : 'Foto') + '</div>' +
           '<div class="ck-aprovar-linha"><button type="button" class="ck-aprovar" data-ck-aprovar="' + esc(it.id) + '" data-ck-q="' + esc(q) + '">✓ Aprovar</button><span class="ck-dica">quando estiver resolvido</span>' + (e.vencido ? '<em class="ck-atras-t">atrasado</em>' : '') + '</div></div>';
         else if (aprov) pn = '<div class="ck-pn ok">' + (x.obs ? '<div class="ck-pend-obs">' + esc(x.obs) + '</div>' : '') + (antes.length ? '<div class="ck-fotos">' + ckFotosHtml(antes, alvo, true) + '</div>' : '') +
@@ -14350,11 +14756,12 @@ function ckTelaQuarto(){
         else if (r === 'ok' && (ck.okAberto === it.id || fotos.length)) pn = ckPainelOpcional(alvo, 'ok', fotos, 'Quer pôr uma foto?', ck.okAberto === it.id && !fotos.length);
         else if (fotos.length) pn = '<div class="ck-fotos ck-fotos-solta">' + ckFotosHtml(fotos, alvo, true) + '</div>';
         const linkFoto = r === 'ok' && !pn ? ' <button type="button" class="ck-link ck-link-foto" data-ck-ok-abrir="' + esc(it.id) + '">📷 pôr foto</button>' : '';
-        return '<div class="ck-item' + (r ? ' r-' + r : '') + (aprov ? ' aprovado' : '') + '"><div class="ck-item-l"><div class="ck-item-t">' + esc(it.txt) + (it.por ? ' <small class="conf-incl">incluído por ' + esc(it.por) + '</small>' : '') +
-            (adm && ck.editar ? '<button type="button" class="conf-rm" data-ck-rm="' + esc(it.id) + '" title="Tirar do checklist">×</button>' : '') + '</div>' +
+        const ctxI = ckCtxDe(it, dc.id, its[it.id], a, q), chI = 'item:' + it.id;
+        return '<div class="ck-item' + (r ? ' r-' + r : '') + (aprov ? ' aprovado' : '') + '"><div class="ck-item-l"><div class="ck-item-t">' + esc(it.txt) + (it.por ? ' <small class="conf-incl">incluído por ' + esc(it.por) + '</small>' : '') + ckEdBt(chI) +
+            (adm && ck.editar ? '<button type="button" class="conf-rm" data-ck-rm="' + esc(it.id) + '" title="Tirar do checklist">×</button>' : '') + '</div>' + ckItemTags(ctxI) +
             (meta || linkFoto ? '<div class="ck-meta">' + esc(meta) + linkFoto + '</div>' : '') + '</div>' +
           '<div class="ck-bts">' + [['ok', 'OK'], ['nok', 'Não OK'], ['na', 'N/A']].map(([v, t]) => '<button type="button" class="b-' + v + (r === v ? ' sel' : '') + '" data-ck-r="' + v + '" data-ck-it="' + esc(it.id) + '">' + t + '</button>').join('') + '</div>' +
-          pn + '</div>'; }).join('');
+          (ck.catEd === chI ? ckEdItemHtml(ctxI, adm) : '') + pn + '</div>'; }).join('');
       h += ck.add === dc.id
         ? '<div class="conf-add-form"><input type="text" id="ck-add-txt" maxlength="160" placeholder="Novo item de ' + esc(dc.nome) + '"><button class="btn primario" id="ck-add-ok" type="button">Incluir</button><button class="btn fantasma" id="ck-add-cancel" type="button">Cancelar</button></div>'
         : (fil === 'tudo' ? '<button type="button" class="conf-add" data-ck-add="' + esc(dc.id) + '">+ item</button>' : '');
@@ -14392,6 +14799,8 @@ function ckLigar(box){
     if ((b = el('[data-ck-quarto]'))){ ckAbrirQuarto(b.dataset.ckQuarto); return; }
     if ((b = el('[data-ck-editar]'))){ ck.editar = !ck.editar; ckRender(); return; }
     if ((b = el('[data-ck-recolher]'))){ const k = b.dataset.ckRecolher; ck.recolhidas[k] = !ck.recolhidas[k]; ckRender(); return; }
+    if ((b = el('[data-ck-imp-cancelar]'))){ ck.imp = null; ckRender(); return; }
+    if ((b = el('[data-ck-imp-ok]'))){ await ckImpConfirmar(b); return; }
     if ((b = el('[data-ck-pdf]'))){
       const ls = ckLinhas(ckAndares()); if (!ls.length){ avisoFlutuante('Nenhum quarto com esses filtros.', 'erro'); return; }
       if (b.dataset.ckPdf === 'todo' && ls.length > 36 && !window.confirm('São ' + ls.length + ' quartos no filtro — o PDF do checklist completo vai ficar grande. Gerar assim mesmo?')) return;
@@ -14405,7 +14814,7 @@ function ckLigar(box){
     if ((b = el('[data-ck-ok-fechar]'))){ ck.okAberto = null; ckRender(); return; }
     if ((b = el('[data-ck-reprovar]'))){ confAcao(q, a, { t:'reprovar', item: b.dataset.ckReprovar }); return; }
     if ((b = el('[data-ck-ap-reabrir]'))){ confAcao(q, a, { t:'apReabrir', id: b.dataset.ckApReabrir }); return; }
-    if ((b = el('[data-ck-todos]'))){ const dc = confModelo().find((x) => x.id === b.dataset.ckTodos), its = (confEstado(a, q).doc || {}).itens || {};
+    if ((b = el('[data-ck-todos]'))){ const its = (confEstado(a, q).doc || {}).itens || {}, dc = confModeloQuarto(a, its).find((x) => x.id === b.dataset.ckTodos);
       ck.okAberto = null; if (dc) confAcao(q, a, { t:'todosOk', itens: dc.itens.filter((it) => !(its[it.id] && its[it.id].r)).map((it) => it.id) }); return; }
     if ((b = el('[data-ck-concluir]'))){ confAcao(q, a, { t:'concluir' }); return; }
     if ((b = el('[data-ck-reabrir]'))){ if (!exigirAdmin()) return; confAcao(q, a, { t:'reabrir' }); return; }
@@ -14423,23 +14832,11 @@ function ckLigar(box){
       if (await confGravarFornDisc(disc, a, nome, v.escopo)){ ck.fornEd = null; ck.fornVal = null; ckRender(); } else b.disabled = false;
       return; }
     if ((b = el('[data-ck-cat]'))){
-      const chave = b.dataset.ckCat, i = chave.indexOf(':'), k = chave.slice(0, i), id = chave.slice(i + 1), d = confEstado(a, q).doc || {};
-      const x = k === 'ap' ? confApont(q).find((y) => y.id === id) : ((d.itens || {})[id]);
-      if (!x) return;
-      ck.catEd = chave; ck.catIni = { disc: k === 'ap' ? (x.disc || 'outros') : (x.disc || b.dataset.ckCatDm), forn: x.forn || '' }; ck.catVal = Object.assign({ novo:'' }, ck.catIni);
-      ckRender(); return; }
+      const chave = b.dataset.ckCat; if (ck.catEd === chave){ ck.catEd = null; ck.catVal = null; ckRender(); return; }
+      const ctx = ckCtxItem(q, a, chave); if (!ctx) return;
+      ck.catEd = chave; ck.catVal = Object.assign({ escopo:'quarto', novo:'', novaDisc:'', tDisc:false, tForn:false }, ckValIni(ctx, 'quarto')); ckRender(); return; }
     if ((b = el('[data-ck-cat-cancelar]'))){ ck.catEd = null; ck.catVal = null; ck.catIni = null; ckRender(); return; }
-    if ((b = el('[data-ck-cat-salvar]'))){
-      const chave = b.dataset.ckCatSalvar, i = chave.indexOf(':'), k = chave.slice(0, i), id = chave.slice(i + 1), v = ck.catVal || {}, ini = ck.catIni || {};
-      let forn = v.forn || '';
-      if (forn === '__novo__'){ const inp = document.getElementById('ck-cat-novo'), dig = ((inp && inp.value) || v.novo || '').trim(); if (!dig){ if (inp) inp.focus(); return; }
-        forn = await resolverNomeSemelhante(dig, confFornLista(), 'fornecedor'); if (!forn) return; }
-      const op = { t:'cat', alvo:{ k, id }, discModelo: b.dataset.ckCatDm || '' };
-      if (v.disc && v.disc !== ini.disc) op.disc = v.disc;
-      if (forn !== (ini.forn || '')) op.forn = forn;
-      ck.catEd = null; ck.catVal = null; ck.catIni = null;
-      if (op.disc === undefined && op.forn === undefined){ ckRender(); return; }
-      confAcao(q, a, op); return; }
+    if ((b = el('[data-ck-cat-salvar]'))){ await ckSalvarItem(b, q, a); return; }
     if ((b = el('[data-ck-pdf-q]'))){ b.disabled = true; try{ await confPdf([{ andar: a, q }], b.dataset.ckPdfQ || 'todo', { escopo:'quarto', disc: '' }); }catch(e2){ avisoFlutuante('Não consegui gerar o PDF: ' + (e2.message || e2), 'erro'); } finally{ b.disabled = false; } return; }
     if ((b = el('[data-ck-add]'))){ ck.add = b.dataset.ckAdd; ckRender(); return; }
     if (t.id === 'ck-add-cancel'){ ck.add = null; ckRender(); return; }
@@ -14467,15 +14864,19 @@ function ckLigar(box){
     if (t.id === 'ck-forn-sel'){ ck.fornVal = Object.assign(ck.fornVal || {}, { nome: t.value }); if (t.value === '__novo__') ckRender(); else if (ck.fornVal.novo !== undefined) ckRender(); return; }
     if (t.name === 'ck-forn-esc'){ ck.fornVal = Object.assign(ck.fornVal || {}, { escopo: t.value }); ckRender(); return; }
     if (t.id === 'ck-forn-novo'){ if (ck.fornVal) ck.fornVal.novo = t.value; return; }
-    if (t.id === 'ck-cat-disc'){ ck.catVal = Object.assign(ck.catVal || {}, { disc: t.value }); ckRender(); return; }
-    if (t.id === 'ck-cat-forn'){ ck.catVal = Object.assign(ck.catVal || {}, { forn: t.value }); ckRender(); return; }
+    if (t.id === 'ck-cat-disc'){ ck.catVal = Object.assign(ck.catVal || {}, { disc: t.value, tDisc: true }); ckRender(); if (t.value === '__nova__'){ const i2 = document.getElementById('ck-cat-novadisc'); if (i2) i2.focus(); } return; }
+    if (t.id === 'ck-cat-forn'){ ck.catVal = Object.assign(ck.catVal || {}, { forn: t.value, tForn: true }); ckRender(); if (t.value === '__novo__'){ const i2 = document.getElementById('ck-cat-novo'); if (i2) i2.focus(); } return; }
+    if (t.name === 'ck-cat-esc'){ const v = ck.catVal = Object.assign(ck.catVal || {}, { escopo: t.value }), ctx = q ? ckCtxItem(q, a, ck.catEd) : null;
+      if (ctx){ const ini = ckValIni(ctx, t.value); if (!v.tDisc) v.disc = ini.disc; if (!v.tForn) v.forn = ini.forn; } ckRender(); return; }
     if (t.id === 'ck-cat-novo'){ if (ck.catVal) ck.catVal.novo = t.value; return; }
+    if (t.id === 'ck-cat-novadisc'){ if (ck.catVal) ck.catVal.novaDisc = t.value; return; }
+    if (t.id === 'ck-imp-arq'){ const f = t.files && t.files[0]; if (f) ckImpLer(f); t.value = ''; return; }
     if (t.dataset && t.dataset.ckPrazo){ const an = Number(t.dataset.ckPrazo); if (t.value !== confPrazoAndar(an)) confGravarPrazo(an, t.value); return; }
     if (!q) return;
     if (t.dataset && t.dataset.ckObs){ const v = t.value.trim().slice(0, 240), x = ((confEstado(a, q).doc || {}).itens || {})[t.dataset.ckObs] || {}; if (v !== (x.obs || '')) confAcao(q, a, { t:'obs', item: t.dataset.ckObs, v }); return; }
     if (t.dataset && t.dataset.ckFoto){ const [k, id] = t.dataset.ckFoto.split(':'), arqs = Array.from(t.files || []); t.value = ''; confAddFotos(q, a, { k, id }, arqs, t.dataset.ckFase); return; }
   });
-  box.addEventListener('input', (ev) => { const t = ev.target; if (t.id === 'ck-forn-novo' && ck.fornVal) ck.fornVal.novo = t.value; if (t.id === 'ck-cat-novo' && ck.catVal) ck.catVal.novo = t.value; });
+  box.addEventListener('input', (ev) => { const t = ev.target; if (t.id === 'ck-forn-novo' && ck.fornVal) ck.fornVal.novo = t.value; if (t.id === 'ck-cat-novo' && ck.catVal) ck.catVal.novo = t.value; if (t.id === 'ck-cat-novadisc' && ck.catVal) ck.catVal.novaDisc = t.value; });
   box.addEventListener('keydown', (ev) => { if (ev.target.id === 'ck-add-txt'){ if (ev.key === 'Enter'){ ev.preventDefault(); ckIncluir(); } if (ev.key === 'Escape'){ ck.add = null; ckRender(); } } });
 }
 function ckRolarTopo(){ const s = document.getElementById('secao-checklist'); if (!s) return; const y = s.getBoundingClientRect().top + window.scrollY - (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--altura-cabecalho'), 10) || 0) - 8; if (window.scrollY > y) window.scrollTo({ top: Math.max(0, y), behavior: 'instant' }); }
@@ -14512,12 +14913,12 @@ async function renderChecklist(){
 function confRelQuarto(andar, q){
   const e = confEstado(andar, q), d = e.doc || {}, its = d.itens || {}, ap = confApont(q), linhas = [];
   ap.forEach((a) => linhas.push({ disc: confNomeDisc(a.disc), discId: a.disc || 'outros', forn: confFornPend(a.disc || 'outros', a.forn, andar).nome, item: a.txt, achado: true, aberto: a.st !== 'ok', ap: true,
-    res: a.st === 'ok' ? (a.resolvidoEm ? 'Aprovado' : 'OK') : (e.vencido ? 'Atrasado' : 'Em aberto'), quem: confQuemAp(a, true), obs: 'apontamento da vistoria', fotos: a.fotos || [] }));
-  confModelo().forEach((dc) => dc.itens.forEach((it) => { const x = its[it.id] || {}, nok = x.r === 'nok';
+    res: a.st === 'ok' ? (a.resolvidoEm ? 'Aprovado' : 'OK') : (e.vencido ? 'Atrasado' : 'Em aberto'), quem: confQuemAp(a, true), obs: 'apontamento da vistoria' + (a.st !== 'ok' && a.prazo ? ' · previsão ' + confDataCurta(a.prazo) : ''), fotos: a.fotos || [] }));
+  confModeloQuarto(andar, its).forEach((dc) => dc.itens.forEach((it) => { const x = its[it.id] || {}, nok = x.r === 'nok';
     const quem = !x.r ? '' : nok ? 'Não OK: ' + (x.nokPor || x.por || '—') + ' · ' + confDataHora(x.nokEm || x.em) + (x.corrigidoEm ? ' / Aprovado: ' + (x.corrigidoPor || '—') + ' · ' + confDataHora(x.corrigidoEm) : '')
       : (x.por || '—') + (x.em ? ' · ' + confDataHora(x.em) : '');
-    const dId = x.disc || dc.id;
-    linhas.push({ disc: confNomeDisc(dId), discId: dId, forn: confFornPend(dId, x.forn, andar).nome, item: it.txt, achado: nok, aberto: nok && !x.corrigidoEm,
+    const dId = dc.id;
+    linhas.push({ disc: confNomeDisc(dId), discId: dId, forn: confFornItem(it.id, dId, x.forn, andar).nome, item: it.txt, achado: nok, aberto: nok && !x.corrigidoEm,
       res: !x.r ? 'não conferido' : x.r === 'ok' ? 'OK' : x.r === 'na' ? 'N/A' : x.corrigidoEm ? 'Aprovado' : (e.vencido ? 'Atrasado' : 'Não OK'),
       quem, obs: nok ? (x.obs || '') : '', fotos: x.r ? (x.fotos || []) : [] }); }));
   const pessoas = Array.from(new Set(confModelo().flatMap((dc) => dc.itens).map((it) => its[it.id]).filter((x) => x && x.r && x.por).map((x) => x.por)));
