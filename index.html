@@ -1173,6 +1173,26 @@ tr.ck-g td{ background:var(--paper-2); padding:7px 12px; }
 .ff-conf-m{ color:#6B756F; font-size:11.5px; } .ff-conf-l.conferir .ff-conf-m{ color:#9A5418; font-weight:600; }
 .ff-det i{ color:#6B756F; font-style:normal; }
 .ff-det-d{ color:#8A938E; font-size:11.5px; }
+html.modo-ff nav.abas, html.modo-ff #btn-ir-enviar, html.modo-ff #caixa-revisao, html.modo-ff #btn-trocar-obra, html.modo-ff #marca-sub,
+html.modo-ff #btn-chat, html.modo-ff #painel-chat, html.modo-ff #barra-voltar, html.modo-ff .pdf-nav{ display:none !important; }
+.ff-res-cols > *{ min-width:0; }
+.ff-det-sels{ display:none; } .ff-sec-seta{ display:none; }
+@media (max-width: 760px){
+  .ff-sec-cab{ cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .ff-sec-seta{ display:block; margin-left:auto; padding-left:8px; color:#8A938E; font-size:18px; line-height:1; }
+  .ff-sec-seta::after{ content:'▾'; } .ff-sec-cab.fechado .ff-sec-seta::after{ content:'▸'; }
+  .ff-sec-cab.fechado{ margin-bottom:2px; } .ff-sec-cab.fechado .sf-sec-s{ display:none; }
+  .ff-sec-corpo.fechado{ display:none; }
+  .ff-res-cols .ff-tab th:nth-child(5), .ff-res-cols .ff-tab td:nth-child(5){ display:none; }
+  #ff-pagina .ff-tab th, #ff-pagina .ff-tab td{ white-space:normal; }
+  .ff-l .ff-pend-sels{ display:none; }
+  .ff-det-sels{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:2px 0 10px; }
+  .ff-det-sels small{ flex-basis:100%; color:#8A938E; font-size:11.5px; }
+  .ff-det-sels select{ max-width:100%; }
+  #ff-pagina select, #ff-pagina input[type="search"], #ff-pagina input[type="text"]{ font-size:16px; padding:6px 8px; }
+  .ff-l .chip-acao, .ff-det .chip-acao{ min-height:36px; padding:6px 14px; font-size:14px; }
+}
+@media (max-width: 640px){ html.modo-ff .cabecalho-fixo{ position:static; } }
 .ff-sr-tag{ display:inline-block; font-size:10.5px; color:#2F5F80; background:#E5F1FA; border-radius:4px; padding:0 5px; margin-right:2px; vertical-align:1px; }
 .ff-det-hotel{ display:block; color:#8A938E; font-size:11.5px; margin-top:2px; }
 .ff-det-baixa{ display:block !important; color:#2E6B4A; font-size:12px; }
@@ -1794,13 +1814,18 @@ const MODO_TESTE = new URLSearchParams(location.search).get('teste') === '1';
    dados, revisões, fotos, equipe, PINs e administradores próprios — nada se mistura.
    Sem ?obra = a obra Quartos (a de sempre). O aparelho lembra a obra escolhida, então o app
    instalado abre direto na obra certa. ?obra=quartos volta pra obra Quartos. */
-const OBRA = (() => {
+/* ?obra=family-friends NÃO é outra obra: é o link do cliente. Abre só a aba Family & Friends
+   (dados da obra Quartos), sem as outras abas, o chat e as rotinas automáticas da equipe.
+   Quem entra por ele (com nome e PIN) faz na aba o mesmo que um administrador da AW. */
+const FF_SLUGS = /^(family-(and-)?friends|familyfriends|ff)$/;
+const OBRA_DO_LINK = (() => {
   const CH = 'obra_painel_atual';
   const param = new URLSearchParams(location.search).get('obra');
   let slug = '';
   if (param !== null){
     slug = String(param).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
     if (slug === 'quartos') slug = '';
+    if (FF_SLUGS.test(slug)) return slug; // não vira a "última obra" do aparelho nem entra na lista de obras
     try{ localStorage.setItem(CH, slug); }catch(e){}
     try{ const l = JSON.parse(localStorage.getItem('obra_painel_lista') || '[]'); if (l.indexOf(slug) === -1){ l.push(slug); localStorage.setItem('obra_painel_lista', JSON.stringify(l)); } }catch(e){}
   } else {
@@ -1811,19 +1836,23 @@ const OBRA = (() => {
   }
   return slug;
 })();
+const MODO_FF = FF_SLUGS.test(OBRA_DO_LINK);
+const OBRA = MODO_FF ? '' : OBRA_DO_LINK;
+if (MODO_FF){ try{ document.documentElement.classList.add('modo-ff'); document.title = 'Family & Friends'; }catch(e){} }
 /* o atalho instalado (Android/computador) abre sempre a obra de onde foi instalado:
    o manifesto passa a apontar pro endereço com ?obra=… */
 (function(){
-  if (!OBRA) return;
+  if (!OBRA && !MODO_FF) return;
   try{
     const titulo = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (titulo) titulo.setAttribute('content', 'Checklist ' + OBRA.split('-').map((p) => p ? p[0].toUpperCase() + p.slice(1) : p).join(' '));
+    if (titulo) titulo.setAttribute('content', MODO_FF ? 'Family & Friends' : 'Checklist ' + OBRA.split('-').map((p) => p ? p[0].toUpperCase() + p.slice(1) : p).join(' '));
     const link = document.querySelector('link[rel="manifest"]');
     if (!link) return;
     fetch(link.href, { cache:'no-store' }).then((r) => r.json()).then((m) => {
-      const inicio = location.origin + location.pathname + '?obra=' + encodeURIComponent(OBRA);
+      const inicio = location.origin + location.pathname + '?obra=' + encodeURIComponent(MODO_FF ? 'family-friends' : OBRA);
       m.start_url = inicio; m.id = inicio; m.scope = location.origin + location.pathname;
-      m.name = (m.name || 'Checklist') + ' – ' + OBRA; m.short_name = 'Checklist ' + OBRA.slice(0, 6);
+      if (MODO_FF){ m.name = 'Family & Friends – Sofitel Ipanema'; m.short_name = 'Family & Friends'; }
+      else { m.name = (m.name || 'Checklist') + ' – ' + OBRA; m.short_name = 'Checklist ' + OBRA.slice(0, 6); }
       (m.icons || []).forEach((ic) => { ic.src = new URL(ic.src, link.href).href; });
       link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(m));
     }).catch(() => {});
@@ -1906,7 +1935,7 @@ async function contarDocsNoBanco(colMapeada){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-11-24.351';
+const VERSAO_APP = '2026-11-25.352';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -5278,7 +5307,7 @@ function iniciarTrocaDeObra(){
 function renderNomeObra(){
   try{ iniciarTrocaDeObra(); }catch(e){}
   const h = document.querySelector('.marca-texto h1');
-  if (h) h.textContent = 'Acompanhamento de obra — ' + nomeDaObra();
+  if (h) h.textContent = MODO_FF ? 'Family & Friends' : 'Acompanhamento de obra — ' + nomeDaObra();
 }
 function ehAdminAtual(){ try{ return podeTirarDaObra(); }catch(e){ return false; } }
 /* PAPÉIS: FUNDADOR (Guilherme Titton — criou o app; só ele torna/tira administradores) ·
@@ -12973,6 +13002,9 @@ function ffContagemFornecedores(){
   ffCacheForn = { chave, porItem, nomes: Array.from(nomes).sort((a, b) => a.localeCompare(b, 'pt-BR')) };
   return ffCacheForn;
 }
+/* quem mexe na aba Family & Friends: administradores; no link do cliente, quem entrou com nome e PIN */
+function ffPodeEditar(){ return ehAdminAtual() || (MODO_FF && !!usuarioAtual); }
+function ffExigirEdicao(){ if (ffPodeEditar()) return true; avisoFlutuante(MODO_FF ? 'Entre com seu nome e PIN para fazer isso' : 'Só administradores podem fazer isso', 'erro'); return false; }
 /* { nome, sugerido } — nome '' quando não há fornecedor */
 function ffFornecedorDoItem(item){
   const esc0 = ffRegras.fornecedor && ffRegras.fornecedor[item];
@@ -12982,7 +13014,7 @@ function ffFornecedorDoItem(item){
   return { nome: top ? top[0] : '', sugerido: !!top, escolhido:false };
 }
 async function ffDefinirPend(k, campo, valor){
-  if (!exigirAdmin()){ renderFF(); return; }
+  if (!ffExigirEdicao()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
   const alvo = campo === 'quem' ? 'quemPend' : 'fornPend';
   ffRegras[alvo] = ffRegras[alvo] || {};
@@ -12990,7 +13022,7 @@ async function ffDefinirPend(k, campo, valor){
   renderFF(); await ffSalvarRegras();
 }
 async function ffDefinirItemPend(k, novo){
-  if (!exigirAdmin()){ renderFF(); return; }
+  if (!ffExigirEdicao()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
   const p = ffUltimo && ffUltimo.problemas.find((x) => x.k === k); if (!p){ renderFF(); return; }
   if (p.sub){ const kt = 'q|' + p.local + '|' + p.sub; ffRegras.sub = ffRegras.sub || {}; const sb = Object.assign({}, ffRegras.sub[kt] || {}); if (novo === ffItemFinal(p.sub, p.local)) delete sb.item; else sb.item = novo; if (Object.keys(sb).length) ffRegras.sub[kt] = sb; else delete ffRegras.sub[kt]; renderFF(); await ffSalvarRegras(); return; }
@@ -12999,7 +13031,7 @@ async function ffDefinirItemPend(k, novo){
   renderFF(); await ffSalvarRegras();
 }
 async function ffDefinirSub(kt, campo, valor){
-  if (!exigirAdmin()){ renderFF(); return; }
+  if (!ffExigirEdicao()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
   ffRegras.sub = ffRegras.sub || {};
   const s = Object.assign({}, ffRegras.sub[kt] || {});
@@ -13011,7 +13043,7 @@ async function ffDefinirSub(kt, campo, valor){
   renderFF(); await ffSalvarRegras();
 }
 async function ffDefinirItemTipo(tipo, novo){
-  if (!exigirAdmin()){ renderFF(); return; }
+  if (!ffExigirEdicao()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
   ffRegras.itemTipo = ffRegras.itemTipo || {};
   if (!novo || novo === ffItemDoTipo(tipo)) delete ffRegras.itemTipo[tipo]; else ffRegras.itemTipo[tipo] = novo;
@@ -13025,7 +13057,7 @@ function ffOpcoesItens(atual){
   }).join('');
 }
 async function ffDefinirFornecedor(item, valor){
-  if (!exigirAdmin()){ renderFF(); return; }
+  if (!ffExigirEdicao()){ renderFF(); return; }
   if (!(await garantirUsuario())){ renderFF(); return; }
   ffRegras.fornecedor = ffRegras.fornecedor || {};
   if (!valor) delete ffRegras.fornecedor[item]; else ffRegras.fornecedor[item] = valor;
@@ -13116,7 +13148,7 @@ function ffMontar(){
 /* ===================== FAMILY & FRIENDS · IMPORTAÇÃO ===================== */
 function ffArquivoPareceHospedes(nome){ return /pend[eê]ncias?.{0,4}manuten|family|friends|hospede|service.?recovery/i.test(String(nome || '')); }
 async function ffImportarBuffer(buf, nomeArq){
-  if (!ehAdminAtual()){ avisoFlutuante('Só administradores importam a planilha Family & Friends', 'erro'); return false; }
+  if (!ffPodeEditar()){ avisoFlutuante(MODO_FF ? 'Entre com seu nome e PIN para importar' : 'Só administradores importam a planilha Family & Friends', 'erro'); return false; }
   if (!(await garantirUsuario())) return false;
   let wb; try{ wb = XLSX.read(new Uint8Array(buf), { type:'array' }); }catch(e){ avisoFlutuante('Não consegui abrir a planilha.', 'erro'); return false; }
   const dias = ffLerPlanilha(wb);
@@ -13145,7 +13177,7 @@ async function ffImportarBuffer(buf, nomeArq){
   } finally { esconderBannerProgresso(); }
 }
 async function ffMarcar(chave, acao){
-  if (acao === 'naoProcede' || acao === 'procede'){ if (!exigirAdmin()) return; }
+  if (acao === 'naoProcede' || acao === 'procede'){ if (!ffExigirEdicao()) return; }
   if (!(await garantirUsuario())) return;
   const agora = new Date().toISOString(), antes = ffStatus[chave] ? JSON.parse(JSON.stringify(ffStatus[chave])) : null;
   const s = Object.assign({ feitoEm:null, feitoPor:null, naoProcedeEm:null, naoProcedePor:null }, ffStatus[chave] || {}); s.hist = Array.isArray(s.hist) ? s.hist.slice() : [];
@@ -13164,7 +13196,7 @@ async function ffSalvarRegras(){
 }
 /* administrador reclassifica uma linha: 'auto' (volta ao automático), 'sem' (sem pendência) ou um item */
 async function ffAjustarLinha(id, valor){
-  if (!exigirAdmin()) { renderFF(); return; }
+  if (!ffExigirEdicao()) { renderFF(); return; }
   if (!(await garantirUsuario())) { renderFF(); return; }
   if (valor === 'auto'){ delete ffRegras.ajustes[id]; delete ffRegras.ajustesPor[id]; }
   else { ffRegras.ajustes[id] = valor === 'sem' ? [] : [valor]; ffRegras.ajustesPor[id] = { por:usuarioAtual, em:new Date().toISOString() }; }
@@ -13258,7 +13290,7 @@ function ffVariantesTxt(p){
 async function renderFF(){
   const box = document.getElementById('ff-pagina'); if (!box) return;
   if (!ffDias){ box.innerHTML = '<div class="rn-sub" style="padding:20px 0;">Carregando…</div>'; await ffCarregar(); }
-  const adm = ehAdminAtual(), fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
+  const adm = ffPodeEditar(), fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
   const m = ffMontar(), P = m.problemas;
   const G = (id) => FF_GRUPOS.find((g) => g.id === id) || FF_GRUPOS[4];
   const aw = P.filter((p) => p.quem === 'aw'), awAtivos = aw.filter((p) => p.sit !== 'naoProcede');
@@ -13271,10 +13303,11 @@ async function renderFF(){
   const acoes = '<div class="ff-acoes-topo">' +
     (adm ? '<label class="btn fantasma" style="cursor:pointer;">Importar planilha<input type="file" id="ff-input" accept=".xlsx" hidden></label>' : '') +
     (P.length ? '<button type="button" class="btn fantasma" id="ff-pdf-resumo">PDF resumo</button>' : '') +
-    (adm && P.length ? '<button type="button" class="btn fantasma" id="ff-exportar">Planilha para o cliente</button>' : '') + '</div>';
+    (adm && P.length ? '<button type="button" class="btn fantasma" id="ff-exportar">' + (MODO_FF ? 'Exportar planilha' : 'Planilha para o cliente') + '</button>' : '') +
+    (ehAdminAtual() && !MODO_FF ? '<button type="button" class="btn fantasma" id="ff-link-cliente" title="Link que abre só esta aba, sem o resto do app">Link do cliente</button>' : '') + '</div>';
   const topo = '<div class="rn-topo"><div><h2>Family &amp; Friends — Comentários hóspedes</h2><div class="rn-sub">' +
     (diasOrd.length ? diasOrd.length + ' dias de hospedagem (' + dataCurta(diasOrd[0]) + ' a ' + dataCurta(diasOrd[diasOrd.length - 1]) + ')' + (imp ? ' · planilha importada em ' + dataHoraCurta(imp.importadoEm) + (imp.importadoPor ? ' por ' + esc(imp.importadoPor) : '') : '') : 'nenhuma planilha importada') +
-    ' · separado da lista IAC/Sofitel (não soma nos totais)</div></div>' + acoes + '</div>';
+    (MODO_FF ? '' : ' · separado da lista IAC/Sofitel (não soma nos totais)') + '</div></div>' + acoes + '</div>';
   if (!P.length && !m.linhas.length){
     box.innerHTML = topo + '<div class="ff-vazio">' + (adm ? 'Importe aqui a planilha "Pendências de manutenção" que o cliente manda com os comentários dos hóspedes (pode ser a planilha inteira, com todas as abas de dias) ou o "Service Recovery Log" da recepção. Ela também é reconhecida se você soltar o arquivo em "Enviar planilhas".' : 'Ainda não há comentários de hóspedes importados.') + '</div>';
     ffLigar(box); return;
@@ -13330,13 +13363,15 @@ async function renderFF(){
           '<select class="ff-sel-sub' + (sb.quem ? ' proprio' : '') + '" data-ff-sub="' + esc(kt) + '" data-ff-subcampo="quem" title="Quem resolve este subitem"><option value=""' + (!sb.quem ? ' selected' : '') + '>' + esc(G(ffQuemDoItem(itemAtual)).nome) + ' (do item)</option>' +
             FF_GRUPOS.map((g) => '<option value="' + g.id + '"' + (sb.quem === g.id ? ' selected' : '') + '>' + g.nome + '</option>').join('') + '</select>' +
           (Object.keys(sb).length ? '<button type="button" class="chip-acao" data-ff-sub="' + esc(kt) + '" data-ff-subcampo="reset">Desfazer</button>' : '') + '</div>'; }).join('') + '</div>'; };
-  const detalhe = (p, extra) => '<div class="ff-det">' + blocoSubs(p) + p.linhas.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((l) => linhaComent(l)).join('') +
+  const detalhe = (p, extra) => '<div class="ff-det">' + (blocoSubs(p) || selsDet(p)) + p.linhas.slice().sort((a, b) => String(b.dia).localeCompare(String(a.dia))).map((l) => linhaComent(l)).join('') +
     (p.status && p.status.feitoEm ? '<div class="ff-det-baixa">Baixa AW: ' + dataHoraCurta(p.status.feitoEm) + (p.status.feitoPor ? ' · ' + esc(p.status.feitoPor) : '') + '</div>' : '') +
     (p.status && p.status.naoProcedeEm ? '<div class="ff-det-baixa">Não procede: ' + dataHoraCurta(p.status.naoProcedeEm) + (p.status.naoProcedePor ? ' · ' + esc(p.status.naoProcedePor) : '') + '</div>' : '') + (extra ? '<div class="ff-det-baixa">' + extra + '</div>' : '') + '</div>';
   const botao = (p) => p.sit === 'feito' ? '<button type="button" class="chip-acao marcado" data-ff-acao="desfazer" data-ff-ch="' + esc(p.chave) + '">✓ Feito</button>'
       : p.sit === 'naoProcede' ? (adm ? '<button type="button" class="chip-acao" data-ff-acao="procede" data-ff-ch="' + esc(p.chave) + '">Reabrir</button>' : '<small>não procede</small>')
       : '<button type="button" class="chip-acao" data-ff-acao="feito" data-ff-k="' + esc(p.k) + '" data-ff-ch="' + esc(p.chave) + '">Feito</button>';
   const extraDet = (p) => adm && (p.sit === 'falta' || p.sit === 'voltou') ? '<button type="button" class="chip-acao" data-ff-acao="naoProcede" data-ff-ch="' + esc(p.chave) + '">Não procede (tirar da lista)</button>' : '';
+  // no celular os seletores da linha ficam escondidos: quando o quarto não tem subitens, eles aparecem aqui dentro
+  const selsDet = (p) => { const s = adm ? selItemPend(p) + selFornPend(p) + selQuemPend(p) : ''; return s ? '<div class="ff-det-sels"><small>Mudar esta pendência: item, fornecedor ou responsável</small>' + s + '</div>' : ''; };
   const selFornPend = (p) => {
     if (!adm) return '';
     const fp = (ffRegras.fornPend || {})[p.k] || '', doItem = ffFornecedorDoItem(p.item);
@@ -13432,14 +13467,16 @@ async function renderFF(){
       '<table class="ff-conf-tab"><thead><tr><th>Dia (aba)</th><th>Linhas</th><th>Com pendência</th><th>Sem pendência</th></tr></thead><tbody>' + porDia + '</tbody></table>' +
       (lista ? '<div class="ff-conf-lista">' + lista + '</div>' : '');
   })();
-  const sec = (n, titulo, sub, id) => '<div class="sf-sec"' + (id ? ' id="' + id + '"' : '') + '><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div></div>';
+  const secAb = ffSecAbertas();
+  const sec = (n, chave, titulo, sub, id) => '<div class="sf-sec ff-sec-cab' + (secAb.has(chave) ? '' : ' fechado') + '" data-ff-sec="' + chave + '"' + (id ? ' id="' + id + '"' : '') + '><span class="sf-sec-n">' + n + '</span><div><div class="sf-sec-t">' + titulo + '</div><div class="sf-sec-s">' + sub + '</div></div><span class="ff-sec-seta" aria-hidden="true"></span></div>';
+  const corpo = (chave, html) => '<div class="ff-sec-corpo' + (secAb.has(chave) ? '' : ' fechado') + '" data-ff-corpo="' + chave + '">' + html + '</div>';
   box.innerHTML = topo + novidade +
-    sec(1, 'Resumo', 'O mesmo que sai no "PDF resumo". Obra AW · Quartos é a sua obra; áreas comuns, operação e tecnologia ficam em "Outras frentes".') + RH.cards + sep + RH.tabelas +
-    sec(2, 'Principais itens · Obra AW · Quartos', 'O que mais aparece em cada disciplina (ou fornecedor), com o que o hóspede escreveu. Sai igual no "PDF resumo".') + ffHtmlPrincipais(R, fmt) +
-    sec(3, 'Por andar · Obra AW · Quartos', 'Em cada quarto: quanto falta e os fornecedores do que falta. Toque no andar ou no quarto para filtrar a lista.') + '<div class="ff-andares">' + corte + '</div>' +
-    sec(4, 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Escolha um fornecedor e gere o PDF só dele. Toque no quarto para ver o que o hóspede escreveu e mudar o subitem.') + filtros + '<div id="ff-lista-aw">' + listaAw + '</div>' +
-    (hotelHtml ? sec(5, 'Outras frentes', 'Obra AW · Áreas comuns, operação e tecnologia: para consulta e para devolver ao cliente com o responsável preenchido.') + hotelHtml : '') +
-    sec(hotelHtml ? 6 : 5, 'Conferência da planilha', 'Toda linha da planilha do cliente tem destino: virou pendência ou está aqui como sem pendência, com o motivo.', 'ff-conf') + conf +
+    sec(1, 'resumo', 'Resumo', MODO_FF ? 'O mesmo que sai no "PDF resumo". Obra AW · Quartos é o que a AW resolve nos quartos; áreas comuns, operação e tecnologia ficam em "Outras frentes".' : 'O mesmo que sai no "PDF resumo". Obra AW · Quartos é a sua obra; áreas comuns, operação e tecnologia ficam em "Outras frentes".') + corpo('resumo', RH.cards + sep + RH.tabelas) +
+    sec(2, 'principais', 'Principais itens · Obra AW · Quartos', 'O que mais aparece em cada disciplina (ou fornecedor), com o que o hóspede escreveu. Sai igual no "PDF resumo".') + corpo('principais', ffHtmlPrincipais(R, fmt)) +
+    sec(3, 'andares', 'Por andar · Obra AW · Quartos', 'Em cada quarto: quanto falta e os fornecedores do que falta. Toque no andar ou no quarto para filtrar a lista.') + corpo('andares', '<div class="ff-andares">' + corte + '</div>') +
+    sec(4, 'lista', 'O que a AW precisa fazer', 'Veja por disciplina ou por andar. Escolha um fornecedor e gere o PDF só dele. Toque no quarto para ver o que o hóspede escreveu e mudar item, fornecedor ou responsável.') + corpo('lista', filtros + '<div id="ff-lista-aw">' + listaAw + '</div>') +
+    (hotelHtml ? sec(5, 'frentes', 'Outras frentes', 'Obra AW · Áreas comuns, operação e tecnologia: para consulta e para devolver ao cliente com o responsável preenchido.') + corpo('frentes', hotelHtml) : '') +
+    sec(hotelHtml ? 6 : 5, 'conf', 'Conferência da planilha', 'Toda linha da planilha do cliente tem destino: virou pendência ou está aqui como sem pendência, com o motivo.', 'ff-conf') + corpo('conf', conf) +
     '<div class="rn-sub" style="margin-top:18px;">Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + '</div>';
   ffLigar(box);
 }
@@ -13451,6 +13488,11 @@ function ffLigar(box){
   const pl = box.querySelector('#ff-pdf-lista'); if (pl) pl.addEventListener('click', async () => { pl.disabled = true; try{ await ffPdfLista(); }catch(e){ avisoFlutuante('Não consegui gerar o PDF: ' + (e.message || e), 'erro'); } finally { pl.disabled = false; } });
   box.querySelectorAll('[data-ff-princ]').forEach((el) => el.addEventListener('click', () => { ffModoPrinc = el.dataset.ffPrinc === 'forn' ? 'forn' : 'disc'; try{ localStorage.setItem('ff_princ', ffModoPrinc); }catch(e){} renderFF(); }));
   box.querySelectorAll('[data-ff-forn]').forEach((el) => el.addEventListener('click', () => { ffRecem.clear(); ffFiltro.forn = el.dataset.ffForn; ffFiltro.andar = 'todos'; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
+  const lc = box.querySelector('#ff-link-cliente'); if (lc) lc.addEventListener('click', async () => {
+    const url = location.origin + location.pathname + '?obra=family-friends';
+    let ok = false; try{ await navigator.clipboard.writeText(url); ok = true; }catch(e){}
+    if (ok) avisoFlutuante('Link do cliente copiado: ' + url, 'info'); else { try{ window.prompt('Link do cliente (copie):', url); }catch(e){} }
+  });
   const ex = box.querySelector('#ff-exportar'); if (ex) ex.addEventListener('click', () => { try{ ffExportar(); }catch(e){ avisoFlutuante('Não consegui gerar a planilha: ' + (e.message || e), 'erro'); } });
   box.querySelectorAll('[data-ff-exp]').forEach((el) => el.addEventListener('click', () => { const k = el.dataset.ffExp; if (ffExpandidos.has(k)) ffExpandidos.delete(k); else ffExpandidos.add(k); renderFF(); }));
   box.querySelectorAll('[data-ff-acao]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); if (el.dataset.ffAcao === 'feito' && el.dataset.ffK) ffRecem.add(el.dataset.ffK); ffMarcar(el.dataset.ffCh, el.dataset.ffAcao); }));
@@ -13458,11 +13500,12 @@ function ffLigar(box){
   box.querySelectorAll('.ff-sel-sub').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirSub(el.dataset.ffSub, el.dataset.ffSubcampo, el.value)); });
   box.querySelectorAll('button[data-ff-subcampo="reset"]').forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); ffDefinirSub(el.dataset.ffSub, 'reset'); }));
   box.querySelectorAll('.ff-sel-tipo').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirItemTipo(el.dataset.ffTipo, el.value)); });
-  box.querySelectorAll('.ff-sel-quem').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', async () => { if (!exigirAdmin()) { renderFF(); return; } const it = el.dataset.ffItem; const padrao = String(it).indexOf('comum:') === 0 ? 'comum' : ((FF_ITENS[it] || {}).quem || 'clas'); if (el.value === padrao) delete ffRegras.quem[it]; else ffRegras.quem[it] = el.value; renderFF(); await ffSalvarRegras(); }); });
+  box.querySelectorAll('.ff-sel-quem').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', async () => { if (!ffExigirEdicao()) { renderFF(); return; } const it = el.dataset.ffItem; const padrao = String(it).indexOf('comum:') === 0 ? 'comum' : ((FF_ITENS[it] || {}).quem || 'clas'); if (el.value === padrao) delete ffRegras.quem[it]; else ffRegras.quem[it] = el.value; renderFF(); await ffSalvarRegras(); }); });
   box.querySelectorAll('.ff-sel-linha').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffAjustarLinha(el.dataset.ffLinha, el.value)); });
   box.querySelectorAll('[data-ff-andar]').forEach((el) => el.addEventListener('click', (e) => { if (e.target.closest('[data-ff-quarto]')) return; const a = el.dataset.ffAndar; ffRecem.clear(); ffFiltro.andar = ffFiltro.andar === a ? 'todos' : a; ffFiltro.busca = ''; renderFF(); ffRolarLista(); }));
   box.querySelectorAll('[data-ff-quarto]').forEach((el) => el.addEventListener('click', () => { ffRecem.clear(); ffFiltro.busca = ffQuartoCurto(el.dataset.ffQuarto); ffFiltro.andar = 'todos'; renderFF(); ffRolarLista(); }));
-  box.querySelectorAll('[data-ff-ir]').forEach((el) => { el.style.cursor = 'pointer'; el.addEventListener('click', () => { const alvo = document.getElementById(el.dataset.ffIr); if (alvo) alvo.scrollIntoView({ behavior:'smooth', block:'start' }); }); });
+  box.querySelectorAll('[data-ff-ir]').forEach((el) => { el.style.cursor = 'pointer'; el.addEventListener('click', () => { const alvo = document.getElementById(el.dataset.ffIr); if (alvo){ if (alvo.dataset.ffSec) ffAlternarSec(alvo.dataset.ffSec, true); alvo.scrollIntoView({ behavior:'smooth', block:'start' }); } }); });
+  box.querySelectorAll('[data-ff-sec]').forEach((el) => el.addEventListener('click', () => { if (ffCelular()) ffAlternarSec(el.dataset.ffSec); }));
   const ffo = box.querySelector('#ff-f-forn'); if (ffo) ffo.addEventListener('change', () => { ffFiltro.forn = ffo.value; ffRecem.clear(); renderFF(); });
   box.querySelectorAll('.ff-sel-forn').forEach((el) => { el.addEventListener('click', (e) => e.stopPropagation()); el.addEventListener('change', () => ffDefinirFornecedor(el.dataset.ffItem, el.value)); });
   const fa = box.querySelector('#ff-f-andar'); if (fa) fa.addEventListener('change', () => { ffFiltro.andar = fa.value; ffRecem.clear(); renderFF(); });
@@ -13472,7 +13515,18 @@ function ffLigar(box){
   const fl = box.querySelector('#ff-f-limpar'); if (fl) fl.addEventListener('click', () => { ffFiltro.andar = 'todos'; ffFiltro.busca = ''; ffFiltro.forn = ''; ffRecem.clear(); renderFF(); });
 }
 try{ const v = localStorage.getItem('ff_visao'); if (v === 'andar' || v === 'disc') ffFiltro.visao = v; }catch(e){}
-function ffRolarLista(){ const el = document.getElementById('ff-lista-aw'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+function ffRolarLista(){ ffAlternarSec('lista', true); const el = document.getElementById('ff-lista-aw'); if (el) el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+/* No celular a aba é longa: cada seção abre e fecha tocando no título (o aparelho lembra).
+   Começa com Resumo e a lista de pendências abertas. No computador fica tudo aberto. */
+let ffSecAb = null;
+function ffSecAbertas(){ if (!ffSecAb){ let a = null; try{ a = JSON.parse(localStorage.getItem('ff_sec_abertas') || 'null'); }catch(e){} ffSecAb = new Set(Array.isArray(a) ? a : ['resumo', 'lista']); } return ffSecAb; }
+function ffCelular(){ return !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches); }
+function ffAlternarSec(k, abrir){
+  const s = ffSecAbertas(), ab = abrir === undefined ? !s.has(k) : !!abrir;
+  if (ab) s.add(k); else s.delete(k);
+  try{ localStorage.setItem('ff_sec_abertas', JSON.stringify(Array.from(s))); }catch(e){}
+  document.querySelectorAll('[data-ff-sec="' + k + '"], [data-ff-corpo="' + k + '"]').forEach((x) => x.classList.toggle('fechado', !ab));
+}
 
 /* ===================== FAMILY & FRIENDS · RESUMO (o mesmo na aba e no PDF) ===================== */
 function ffFornNome(p){ return (p.forn && p.forn.nome) || 'Sem fornecedor'; }
@@ -15133,6 +15187,7 @@ async function confPdf(lista, tipo, opts){
 
 /* ===================== NAVEGAÇÃO ===================== */
 function irParaAba(nome){
+  if (MODO_FF) nome = 'ff';
   { const bt = document.querySelector('nav.abas button[data-aba="' + nome + '"]'); // atalhos não abrem aba que a pessoa não pode ver
     if (bt && ((bt.classList.contains('so-admin') && !ehAdminAtual()) || (bt.classList.contains('so-fundador') && !ehFundador()))) nome = 'visao-geral'; }
   document.querySelectorAll('nav.abas button[data-aba]').forEach((b) => b.classList.toggle('ativa', b.dataset.aba===nome));
@@ -16779,7 +16834,7 @@ async function iniciar(){
   else exigirPinDoUsuarioAtual();
   renderListaPins();
   renderUsuarioTopo(); // aplica as permissões de novo, agora com a lista de administradores da obra carregada
-  iniciarAprovacoes();
+  if (!MODO_FF) iniciarAprovacoes();
   ultimaSincronizacao = marcaCarga;
   if (resolverDadosCarregados) resolverDadosCarregados();
   renderSeletorRevisao();
@@ -16792,10 +16847,11 @@ async function iniciar(){
   } else {
     irParaAba('enviar');
   }
-  setTimeout(() => { atualizarRecomendacoes().then(() => atualizarCronogramaEPlano()).catch(() => {}); }, 2000);
-  setTimeout(() => { revisarOrigemDosPassados().catch(() => {}); }, 6000); // passada geral ÚNICA da origem (mexe só na origem; depois de concluída não roda mais)
+  if (MODO_FF) irParaAba('ff');
+  if (!MODO_FF) setTimeout(() => { atualizarRecomendacoes().then(() => atualizarCronogramaEPlano()).catch(() => {}); }, 2000);
+  if (!MODO_FF) setTimeout(() => { revisarOrigemDosPassados().catch(() => {}); }, 6000); // passada geral ÚNICA da origem (mexe só na origem; depois de concluída não roda mais)
 
-  setTimeout(() => { try{ if (!MODO_CONSOLIDADO) categorizarNovosAutomaticamente(null, (feitos, total) => {
+  setTimeout(() => { try{ if (!MODO_CONSOLIDADO && !MODO_FF) categorizarNovosAutomaticamente(null, (feitos, total) => {
     let el = document.getElementById('aviso-categorizando');
     if (!el){ el = document.createElement('div'); el.id = 'aviso-categorizando'; el.style.cssText = 'position:fixed; left:16px; bottom:16px; z-index:90; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:12px; color:var(--muted); box-shadow:var(--shadow-lg);'; document.body.appendChild(el); }
     el.textContent = '✦ Categorizando itens com IA… ' + feitos + '/' + total;
@@ -16900,7 +16956,7 @@ async function iniciar(){
   document.getElementById('filtro-item-progresso').addEventListener('change', (e) => { if (e.target.value && filtroMulti.fluxos.length){ filtroMulti.fluxos = []; atualizarBotaoMulti(); renderItens(); } });
   document.getElementById('filtro-item-origem').addEventListener('change', limparFiltroLocalEAtualizar);
   document.getElementById('btn-novo-item').addEventListener('click', abrirNovoItem);
-  try{ iniciarChat(); }catch(e){ console.warn('chat', e); }
+  try{ if (!MODO_FF) iniciarChat(); }catch(e){ console.warn('chat', e); }
   document.getElementById('btn-filtro-multi-q').addEventListener('click', abrirFiltroMultiploQuartos);
   document.getElementById('filtro-andar').addEventListener('change', (e) => { if (e.target.value && filtroMultiQ.andares.length){ filtroMultiQ.andares = []; atualizarBotaoMultiQ(); } });
   document.getElementById('filtro-status').addEventListener('change', (e) => { if (e.target.value && filtroMultiQ.status.length){ filtroMultiQ.status = []; atualizarBotaoMultiQ(); renderQuartos(); } });
