@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Checklist</title>
 <script>
+/* link do cliente (?obra=family-friends): marca a página antes de desenhar qualquer coisa, para
+   que nem durante o carregamento apareça outra tela além da Family & Friends */
+(function(){
+  try{
+    var m = /[?&]obra=([^&#]*)/.exec(location.search), s = m ? decodeURIComponent(m[1]).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : '';
+    if (/^(family-(and-)?friends|familyfriends|ff)$/.test(s)){ document.documentElement.classList.add('modo-ff'); document.title = 'Family & Friends'; }
+  }catch(e){}
+})();
 /* manifesto e ícones só no endereço publicado: na pré-visualização do Claude esses arquivos
    não existem e cada um virava um erro no console */
 (function(){
@@ -125,6 +133,14 @@ nav.abas button.ativa{ color:var(--accent-2); background:var(--accent-soft); }
 main{ max-width:1960px; margin:0 auto; padding:28px 28px 72px; } /* telas largas: usa a largura toda */
 .secao{ display:none; }
 .secao.ativa{ display:block; }
+/* link do cliente: só a seção Family & Friends existe na tela, desde o primeiro instante */
+html.modo-ff main .secao{ display:none !important; }
+html.modo-ff main #secao-ff{ display:block !important; }
+html.modo-ff .marca-texto h1{ font-size:0 !important; }
+html.modo-ff .marca-texto h1::after{ content:'Family & Friends'; font-size:17px; }
+html.modo-ff #ff-pagina:empty{ min-height:260px; display:flex; align-items:center; justify-content:center; }
+html.modo-ff #ff-pagina:empty::before{ content:''; width:30px; height:30px; border-radius:50%; border:3px solid #E3E6E4; border-top-color:#5E86A8; animation:ff-gira .8s linear infinite; }
+@keyframes ff-gira{ to{ transform:rotate(360deg); } }
 
 .grid-hero{ display:grid; grid-template-columns: minmax(340px,460px) 1fr; gap:24px; align-items:start; }
 .grid-metade{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
@@ -136,6 +152,7 @@ main{ max-width:1960px; margin:0 auto; padding:28px 28px 72px; } /* telas largas
   .logo-chip{ height:30px; }
   .marca{ gap:10px; }
   .marca-texto h1{ font-size:15px; }
+  html.modo-ff .marca-texto h1::after{ font-size:15px; }
   .marca-texto .sub{ font-size:11px; }
   .topo-controles{ width:100%; flex-direction:column; align-items:stretch; gap:8px; }
   .topo-controles-status{ display:flex; gap:8px; }
@@ -1935,7 +1952,7 @@ async function contarDocsNoBanco(colMapeada){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-11-25.352';
+const VERSAO_APP = '2026-11-25.353';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -13289,7 +13306,7 @@ function ffVariantesTxt(p){
 }
 async function renderFF(){
   const box = document.getElementById('ff-pagina'); if (!box) return;
-  if (!ffDias){ box.innerHTML = '<div class="rn-sub" style="padding:20px 0;">Carregando…</div>'; await ffCarregar(); }
+  if (!ffDias){ box.innerHTML = MODO_FF ? '' : '<div class="rn-sub" style="padding:20px 0;">Carregando…</div>'; await ffCarregar(); }
   const adm = ffPodeEditar(), fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
   const m = ffMontar(), P = m.problemas;
   const G = (id) => FF_GRUPOS.find((g) => g.id === id) || FF_GRUPOS[4];
