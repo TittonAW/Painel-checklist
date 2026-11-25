@@ -1966,7 +1966,7 @@ async function contarDocsNoBanco(colMapeada){
    (ao abrir, ao voltar pra tela e a cada 5 min) e, se mudou, recarrega sozinho num momento
    seguro — ninguém precisa de Ctrl+Shift+R nem reinstalar o app. O nome da pessoa fica
    guardado no aparelho e não se perde na atualização. */
-const VERSAO_APP = '2026-11-25.355';
+const VERSAO_APP = '2026-11-25.356';
 /* MODO DE TESTE: abrir o endereço com ?teste=1 no final. Tudo que o painel lê e grava vai
    para coleções separadas ("teste_…") no mesmo banco — a equipe, no endereço normal, não vê
    nada. Os dados de teste são uma cópia da obra feita por um comando no Supabase. */
@@ -12921,7 +12921,7 @@ function ffLerServiceRecovery(nome, ws){
   for (let i = 0; i < Math.min(8, aoa.length); i++) if ((aoa[i] || []).some((c) => /priority details/.test(ffNorm(c)))){ h = i; break; }
   if (h < 0) return [];
   const cab = aoa[h].map(ffNorm), ix = (re) => cab.findIndex((c) => re.test(c));
-  const c = { data:ix(/^(date|data)\b/), quarto:ix(/room|quarto|^uh\b|apto/), det:ix(/priority details|detalhe/), dept:ix(/dept|depart|setor/), sol:ix(/solution|soluc/), res:ix(/resolved|resolvid/), hosp:ix(/guest|hospede/) };
+  const c = { data:ix(/^(date|data)\b/), quarto:ix(/room|quarto|^uh\b|apto/), det:ix(/priority details|detalhe/), dept:ix(/dept|depart|setor/), sol:ix(/solution|soluc/), res:ix(/resolved|resolvid/), hosp:ix(/guest|hospede|^nome\b|\bpax\b/) };
   if (c.det < 0 || c.quarto < 0) return [];
   const topo = ffNorm(nome + ' ' + aoa.slice(0, h).map((r) => (r || []).join(' ')).join(' '));
   let M = 0; Object.keys(FF_MESES).some((k) => { if (new RegExp('\\b' + k + '\\b').test(topo)){ M = FF_MESES[k]; return true; } return false; });
@@ -13205,7 +13205,7 @@ async function ffImportarBuffer(buf, nomeArq){
   try{
     await ffCarregar(true);
     const agora = new Date().toISOString();
-    let novas = 0, falhas = 0, total = 0, saidas = 0, voltaram = 0, resolvidas = 0, desresolvidas = 0;
+    let novas = 0, falhas = 0, total = 0, saidas = 0, voltaram = 0, resolvidas = 0, desresolvidas = 0, nomes = 0, atualizados = 0;
     const nDiasArq = dias.length;
     /* Comentário que estava no app e não veio mais na planilha NÃO é apagado: fica marcado
        "saiu da planilha" e a pendência dele vira baixa (o total nunca diminui).
@@ -13228,6 +13228,7 @@ async function ffImportarBuffer(buf, nomeArq){
         if (a){ l.chegouEm = a.chegouEm || agora; if (a.saiuEm){ voltaram += l.n || 1; mudou = true; }
           if (l.resolvidoHotel === 'sim' && a.resolvidoHotel !== 'sim') resolvidas += l.n || 1;
           if (l.resolvidoHotel !== 'sim' && a.baixaHotelEm) desresolvidas += l.n || 1;
+          if (l.hospede && !a.hospede) nomes += l.n || 1;
           if ((a.n || 1) !== l.n || ['solHotel', 'resolvidoHotel', 'baixaHotelEm', 'geral', 'esp', 'hospede'].some((k) => String(a[k] || '') !== String(l[k] || ''))) mudou = true; }
         else { l.chegouEm = agora; novas += l.n; mudou = true; } });
       const ids = new Set(d.linhas.map((l) => l.id)), marcar = !(srAntiga && /^sr_/.test(d.docId));
@@ -13235,13 +13236,14 @@ async function ffImportarBuffer(buf, nomeArq){
         if (!x.saiuEm && marcar){ x.saiuEm = agora; saidas += x.n || 1; mudou = true; }
         d.linhas.push(x); });
       if (!mudou) continue;
+      atualizados++;
       const r = await store.setDoc('ff_dias', d.docId, { aba:d.aba, dia:d.dia, linhas:d.linhas, importadoEm:agora, importadoPor:usuarioAtual, arquivo:nomeArq || '' });
       if (!r || !r.ok) falhas++;
     }
     await ffCarregar(true);
     if (falhas) avisoFlutuante('Family & Friends: ' + falhas + ' dia(s) não foram salvos (sem conexão?). Tente de novo.', 'erro');
-    else { const extra = (resolvidas ? ' · ' + resolvidas + ' marcados como resolvidos pelo hotel' : '') + (desresolvidas ? ' · ' + desresolvidas + ' deixaram de estar resolvidos (reabertos)' : '') + (saidas ? ' · ' + saidas + ' saíram da planilha (viraram baixa)' : '') + (voltaram ? ' · ' + voltaram + ' voltaram para a planilha' : '') + (srAntiga ? ' · planilha mais antiga que a última: nada foi marcado como saído' : '');
-      avisoFlutuante((novas ? 'Family & Friends: ' + novas + ' comentários novos importados (' + nDiasArq + ' dias na planilha)' : (saidas || voltaram || resolvidas || desresolvidas) ? 'Family & Friends: nenhum comentário novo' : 'Family & Friends: nada novo nesta planilha (' + total + ' comentários já estavam aqui)') + extra, (srAntiga ? 'info' : 'ok')); }
+    else { const extra = (nomes ? ' · ' + nomes + ' nomes de hóspede incluídos' : '') + (resolvidas ? ' · ' + resolvidas + ' marcados como resolvidos pelo hotel' : '') + (desresolvidas ? ' · ' + desresolvidas + ' deixaram de estar resolvidos (reabertos)' : '') + (saidas ? ' · ' + saidas + ' saíram da planilha (viraram baixa)' : '') + (voltaram ? ' · ' + voltaram + ' voltaram para a planilha' : '') + (srAntiga ? ' · planilha mais antiga que a última: nada foi marcado como saído' : '');
+      avisoFlutuante((novas ? 'Family & Friends: ' + novas + ' comentários novos importados (' + nDiasArq + ' dias na planilha)' : (saidas || voltaram || resolvidas || desresolvidas || nomes) ? 'Family & Friends: nenhum comentário novo' : atualizados ? 'Family & Friends: nenhum comentário novo, ' + atualizados + ' dia(s) atualizados (solução ou dados do hotel)' : 'Family & Friends: nada novo nesta planilha (' + total + ' comentários já estavam aqui)') + extra, (srAntiga ? 'info' : 'ok')); }
     if (document.getElementById('secao-ff') && document.getElementById('secao-ff').classList.contains('ativa')) renderFF();
     return true;
   } finally { esconderBannerProgresso(); }
